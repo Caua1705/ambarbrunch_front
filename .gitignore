@@ -44,6 +44,48 @@ references/motion/*
 !references/motion/.gitkeep
 
 # -------------------------------------------------------------
+# Etapa 1 — acervo importado do AMBAR_BRUNCH_PACK_COMPLETO_v1
+# (pastas novas criadas pelo pacote; manter fora do Git)
+# -------------------------------------------------------------
+# Metadados do Instagram com comentários e usernames de terceiros
+creative/source/social/
+# Conceitos de IA e ornamentos ainda não aprovados
+creative/generated/concepts/
+creative/generated/ornaments/
+# Capturas de sites de terceiros (somente estudo)
+references/screenshots/*
+!references/screenshots/.gitkeep
+# PDFs pesados de contexto
+docs/brand/*.pdf
+# Derivados de mídia sem licença (folhas de contato, capas de reels)
+docs/content/*.jpg
+docs/content/catalogos/
+# Inventário antigo com URLs assinadas da CDN do Instagram
+docs/content/instagram-roll-inventario-original.csv
+# Notas locais com links privados (o repositório é público)
+*.local.md
+
+# -------------------------------------------------------------
+# public/media — entra no deploy SOMENTE a versão final otimizada
+# Imagens (webp/avif/jpg/png/svg) são versionadas normalmente.
+# Vídeo só entra com sufixo explícito de versão web:
+#   <nome>.web.mp4 · <nome>.web.webm · poster em <nome>.poster.webp
+# Limites combinados: imagem ≤ 500 KB · vídeo ≤ 4 MB (ver README)
+# -------------------------------------------------------------
+public/media/**/*.mp4
+public/media/**/*.webm
+public/media/**/*.m4v
+!public/media/**/*.web.mp4
+!public/media/**/*.web.webm
+public/media/**/*.pdf
+public/media/**/*.tif
+public/media/**/*.tiff
+public/media/**/*.bmp
+public/media/**/*.heic
+public/media/**/*-original.*
+public/media/**/*-raw.*
+
+# -------------------------------------------------------------
 # Formatos de origem pesados / brutos (em qualquer pasta)
 # -------------------------------------------------------------
 # Vídeo bruto

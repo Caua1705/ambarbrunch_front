@@ -28,7 +28,7 @@ Ainda **não** há integração. Os pontos abaixo serão definidos em etapa futu
 | Tema | Situação |
 | --- | --- |
 | URL base da API por ambiente | _A definir_ |
-| Endpoints utilizados (ex.: reservas) | _A definir — documentar a partir da API real_ |
+| Endpoints utilizados (ex.: reservas) | _A definir — documentar a partir da API real_. Referência de UX: o site antigo Giardini (`references/motion/giardini-referencia-02.mp4`) pedia ambiente → nº de pessoas → data → horário → nome/contato/observações |
 | Autenticação / chaves | _A definir_ (nunca versionar credenciais) |
 | CORS | _A definir_ |
 | Tratamento de erros e indisponibilidade | _A definir_ |
