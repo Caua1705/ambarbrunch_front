@@ -1,0 +1,4 @@
+# Protótipos de referência: bytes preservados em qualquer sistema (sem conversão de fim de linha),
+# para que os SHA256SUMS da versão aprovada continuem válidos num clone novo.
+experiments/concept-b-aprovado-v1/** -text
+experiments/concept-b/** -text

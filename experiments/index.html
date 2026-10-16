@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Âmbar Brunch — Comparação de conceitos</title>
+  <meta name="robots" content="noindex">
+  <style>
+    :root { --bg: #EFE9DF; --ink: #24150F; --wine: #670D27; --muted: #6D5D52; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+    header { padding: 28px 24px 8px; text-align: center; }
+    h1 { margin: 0; font-size: 20px; letter-spacing: .02em; }
+    header p { margin: 6px 0 0; color: var(--muted); }
+    .grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 40px; padding: 24px 16px 48px; }
+    .col { display: grid; gap: 12px; justify-items: center; }
+    .col h2 { margin: 0; font-size: 16px; }
+    .col h2 span { color: var(--wine); }
+    .col p { margin: 0; max-width: 390px; color: var(--muted); font-size: 13.5px; text-align: center; }
+    .phone { width: 410px; padding: 10px; border-radius: 44px; background: #1b120e; box-shadow: 0 30px 60px -30px rgba(0,0,0,.5); }
+    iframe { display: block; width: 390px; height: 844px; border: 0; border-radius: 34px; background: #fff; }
+    .col a { color: var(--wine); font-weight: 600; }
+    @media (max-width: 460px) { .phone { width: 100%; padding: 0; background: none; box-shadow: none; } iframe { width: 100%; border-radius: 0; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Âmbar Brunch — duas direções de arte</h1>
+    <p>Protótipos de direção visual, mobile 390 × 844. Conteúdo, fotos e vídeos provisórios.</p>
+  </header>
+  <main class="grid">
+    <section class="col">
+      <h2><span>A</span> · Manhã no Jardim</h2>
+      <div class="phone"><iframe src="concept-a/index.html" title="Conceito A — Manhã no Jardim"></iframe></div>
+      <p>Editorial claro: fotografia dominante, serifa expressiva, creme e verde com vinho nos destaques.</p>
+      <a href="concept-a/index.html">abrir em tela cheia →</a>
+    </section>
+    <section class="col">
+      <h2><span>B</span> · Fornada Âmbar</h2>
+      <div class="phone"><iframe src="concept-b/index.html" title="Conceito B — Fornada Âmbar"></iframe></div>
+      <p>Expressivo: blocos vinho e cacau, tipografia condensada, colagens, recortes e anotações inspiradas na Roll.</p>
+      <a href="concept-b/index.html">abrir em tela cheia →</a>
+    </section>
+  </main>
+</body>
+</html>

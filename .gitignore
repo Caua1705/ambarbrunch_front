@@ -64,6 +64,8 @@ docs/content/catalogos/
 docs/content/instagram-roll-inventario-original.csv
 # Notas locais com links privados (o repositório é público)
 *.local.md
+# Capturas dos protótipos (contêm fotos/vídeos ainda sem licença)
+experiments/screenshots/
 
 # -------------------------------------------------------------
 # public/media — entra no deploy SOMENTE a versão final otimizada
