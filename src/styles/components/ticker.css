@@ -1,0 +1,18 @@
+/* Faixa de categorias inclinada, em loop. Origem: .ticker do v1.
+   Costura o hero à seção seguinte (margem negativa). Pausa com o botão global e com movimento reduzido. */
+
+.ticker {
+  position: relative; z-index: var(--z-strip);
+  margin: -16px -12px 0;
+  padding: 15px 0 13px;
+  background: var(--cacao);
+  rotate: -2.5deg;
+  overflow: hidden;
+  box-shadow: var(--shadow-strip);
+}
+.ticker__track { display: flex; width: max-content; animation: ticker var(--ticker-period) linear infinite; }
+.ticker span {
+  padding-right: .4em;
+  font: var(--t-ticker); font-variation-settings: var(--wdth-ticker);
+  text-transform: uppercase; letter-spacing: .02em; color: var(--butter); white-space: nowrap;
+}

@@ -3,6 +3,7 @@
 > **Situação:** o **Conceito B foi escolhido** como direção artística (2026-10-16). A versão aprovada está congelada em
 > [`concept-b-aprovado-v1/`](concept-b-aprovado-v1/README.md) e não deve ser editada. `concept-a/` fica como histórico.
 > Planejamento da homepage: [`docs/design/HOMEPAGE-STORYBOARD.md`](../docs/design/HOMEPAGE-STORYBOARD.md).
+> **Design system (Etapa 4):** [`design-system/`](design-system/) — vitrine, página de paridade com o v1 e prévia com menu e doca. Usa `src/styles/` e `src/lib/`.
 > **Não são** o site, nem o design system. Cores, fontes e textos são hipóteses de cada conceito.
 
 | Conceito | Pasta | Ideia |
@@ -23,6 +24,9 @@ node experiments/serve.mjs
 - Comparação lado a lado: <http://127.0.0.1:4173/experiments/>
 - Conceito A: <http://127.0.0.1:4173/experiments/concept-a/>
 - Conceito B: <http://127.0.0.1:4173/experiments/concept-b/>
+- Design system (vitrine): <http://127.0.0.1:4173/experiments/design-system/>
+- Prévia com menu e doca: <http://127.0.0.1:4173/experiments/design-system/preview.html>
+- Paridade com o v1: <http://127.0.0.1:4173/experiments/design-system/paridade-v1.html> · teste: `node experiments/design-system/tools/parity.mjs`
 
 O servidor é Node puro, sem dependências. Os arquivos também abrem direto pelo navegador (`file://`). As fontes vêm do Google Fonts e precisam de internet.
 

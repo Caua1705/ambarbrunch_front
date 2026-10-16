@@ -1,6 +1,6 @@
 # Arquitetura — Âmbar Brunch Frontend
 
-> **Situação:** documento inicial. Nenhuma stack foi escolhida e nenhuma dependência foi instalada.
+> **Situação:** stack aprovada no planejamento (2026-10-16). Nenhuma dependência instalada ainda. Plano: [`PLANO-IMPLEMENTACAO.md`](PLANO-IMPLEMENTACAO.md).
 
 ---
 
@@ -36,9 +36,10 @@ Ainda **não** há integração. Os pontos abaixo serão definidos em etapa futu
 
 ## 3. Stack do frontend
 
-_A definir._ A escolha (ex.: framework, estilização, animação) será feita após a aprovação da direção visual.
+**Astro + CSS próprio + TypeScript, com Preact só na ilha da reserva** (aprovado no planejamento em 2026-10-16).
+O CSS e o JS do design system já existem em `src/styles/` e `src/lib/` (puros, sem dependências) e entram no Astro como estão.
 
-> **Proposta em avaliação (2026-10-16):** Astro + CSS próprio + TypeScript, com uma ilha Preact só para o fluxo de reserva; imagens via `astro:assets`; vídeos reexportados sem áudio; Playwright para testes visuais. Justificativa completa em [`../design/COMPONENTIZATION-PLAN.md`](../design/COMPONENTIZATION-PLAN.md). Nada foi instalado.
+> **Detalhes:** Astro + CSS próprio + TypeScript, com uma ilha Preact só para o fluxo de reserva; imagens via `astro:assets`; vídeos reexportados sem áudio; Playwright para testes visuais. Justificativa completa em [`../design/COMPONENTIZATION-PLAN.md`](../design/COMPONENTIZATION-PLAN.md). Nada foi instalado.
 
 Critérios a considerar:
 - mobile-first e desempenho em redes móveis;
@@ -71,4 +72,6 @@ _A definir._ Nenhum deploy foi configurado ou executado.
 
 | Data | Decisão | Motivo |
 | --- | --- | --- |
-| | | |
+| 2026-10-16 | Astro + CSS próprio + TS, Preact só na reserva | Protótipo é HTML/CSS; zero JS por padrão; pipeline de imagens; ilha só onde há estado |
+| 2026-10-16 | Sem biblioteca de animação nem smooth scroll | CSS nativo cobre tudo; não bloquear o scroll |
+| 2026-10-16 | Fidelidade medida por paridade de pixels contra o v1 congelado | Garantir que a componentização não altere o desenho aprovado |

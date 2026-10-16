@@ -1,0 +1,16 @@
+/* Cardápio em faixas: pílulas coloridas com rotação alternada. Origem: .bands do v1.
+   Cada item define --b (fundo) e --t (texto) com pares aprovados em TOKENS.md. */
+
+.bands { margin-top: 36px; }
+.bands__label { margin: 22px 0 12px; font: var(--t-kicker); color: var(--caramel-dk); }
+.bands__list { display: flex; flex-wrap: wrap; gap: 8px; }
+.bands__list li {
+  padding: 13px 18px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--b); color: var(--t, var(--ink));
+  font: var(--t-band); font-variation-settings: var(--wdth-band);
+  text-transform: uppercase; letter-spacing: .02em;
+}
+.bands__list li:nth-child(odd) { rotate: -1.5deg; }
+.bands__list li:nth-child(even) { rotate: 1.5deg; }
+.bands__note { margin-top: 22px; font-size: var(--fs-fine); color: var(--text-muted); }

@@ -1,0 +1,13 @@
+/* RESERVE SUA MESA · comanda. Origem: .reserva do v1. */
+
+.reserva {
+  position: relative; isolation: isolate;
+  padding: var(--rhythm-d) var(--gutter) calc(var(--rhythm-d) + var(--rhythm-tail));
+  background: var(--wine); color: var(--butter);
+  overflow: hidden;
+}
+.reserva .ticket { margin-top: 40px; }
+
+@media (min-width: 960px) {
+  .reserva > .mega { max-width: 980px; margin: 0 auto; }
+}

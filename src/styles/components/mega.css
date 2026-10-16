@@ -1,0 +1,23 @@
+/* Mega título (linhas alternadas) e scribble. Origem: .mega, .scribble do v1. */
+
+.mega {
+  font: var(--t-mega);
+  font-variation-settings: var(--wdth-mega);
+  letter-spacing: var(--track-mega);
+  text-transform: uppercase;
+  color: var(--wine);
+}
+.mega span { display: block; }
+.mega__r { text-align: right; }
+.mega--light { color: var(--butter); }
+.mega--wine { color: var(--wine); }
+
+.scribble {
+  display: block; width: max-content; max-width: 100%;
+  margin: 10px 0 0 6px;
+  font: var(--t-scribble);
+  letter-spacing: 0; text-transform: none;
+  color: var(--caramel-dk);
+  rotate: -4deg;
+}
+.scribble--light { color: var(--caramel-lt); }

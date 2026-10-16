@@ -1,0 +1,16 @@
+/* ESCOLHA O CLIMA · painéis em diagonal + bolhas. Origem: .climas do v1. */
+
+.climas { padding: var(--rhythm-b) var(--gutter) calc(var(--rhythm-b) + var(--rhythm-tail)); background: var(--butter); }
+.climas__notice { margin-top: 22px; }
+.climas__stack { position: relative; margin-top: 28px; }
+.bubble--a { right: -4%; top: 36%; }
+.bubble--b { right: 4%; bottom: -8%; }
+
+@media (min-width: 960px) {
+  .climas__stack { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; max-width: 1100px; margin-left: auto; margin-right: auto; }
+  .panel--amber { margin-top: 80px; }
+  .bubble--a { right: auto; left: 41%; top: -4%; width: 20%; }
+  .bubble--b { right: -2%; bottom: -10%; width: 20%; }
+  .climas > .mega, .climas__notice { max-width: 1100px; margin-left: auto; margin-right: auto; }
+  .climas__notice { display: block; width: fit-content; }
+}

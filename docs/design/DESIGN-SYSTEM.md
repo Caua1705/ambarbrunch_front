@@ -1,53 +1,23 @@
 # Design System — Âmbar Brunch × Roll
 
-> **Situação:** estrutura vazia. Nenhuma decisão visual foi tomada.
-> As seções abaixo serão preenchidas somente após a aprovação de uma direção visual
-> (ver `experiments/`) e com base no [Brand Brief](../brand/BRAND-BRIEF.md).
+> **Situação:** v1.0 do **Conceito B · Fornada Âmbar**, extraída do protótipo aprovado (2026-10-16), **aguardando revisão**.
+> A documentação completa está em [`design-system/`](design-system/README.md); o código, em [`src/styles/`](../../src/styles/) e [`src/lib/`](../../src/lib/).
 
----
+| Tema | Onde |
+| --- | --- |
+| 0 · Princípios e prova de fidelidade (0 px de diferença em 390×844) | [`design-system/README.md`](design-system/README.md) |
+| 1 · Cores, tokens semânticos e contraste | [`design-system/TOKENS.md`](design-system/TOKENS.md) §1 |
+| 2 · Tipografia, escala e licenças (Bricolage Grotesque, Fraunces · OFL) | [`TOKENS.md`](design-system/TOKENS.md) §2 |
+| 3 · Espaçamento, ritmo, breakpoints e grid mobile | [`TOKENS.md`](design-system/TOKENS.md) §3 · [`RESPONSIVIDADE.md`](design-system/RESPONSIVIDADE.md) |
+| 4 · Fotografia e imagem (real sempre; procedência visível; sem IA como produto) | [`COMPOSICAO.md`](design-system/COMPOSICAO.md) §6 · [`MIDIA.md`](design-system/MIDIA.md) |
+| 5 · Elementos gráficos (etiqueta, picote, fita, selos, ornamentos) | [`COMPONENTES.md`](design-system/COMPONENTES.md) · [`COMPOSICAO.md`](design-system/COMPOSICAO.md) §3 |
+| 6 · Motion | [`MOTION.md`](design-system/MOTION.md) · [`MOTION-PLAN.md`](MOTION-PLAN.md) |
+| 7 · Componentes | [`COMPONENTES.md`](design-system/COMPONENTES.md) |
+| 8 · Padrões de seção | [`COMPOSICAO.md`](design-system/COMPOSICAO.md) §5 |
+| 9 · Acessibilidade | [`COMPONENTES.md`](design-system/COMPONENTES.md) (fim) · [`NAVEGACAO-E-CTA.md`](design-system/NAVEGACAO-E-CTA.md) §4 |
 
-## 0. Princípios
-_A definir_
-
-## 1. Cores
-- Paleta: _A definir_
-- Tokens semânticos (fundo, texto, destaque, estados): _A definir_
-- Contraste e acessibilidade: _A definir_
-
-## 2. Tipografia
-- Famílias: _A definir_
-- Escala tipográfica: _A definir_
-- Licenciamento das fontes: _A definir_
-
-## 3. Espaçamento e grid
-- Escala de espaçamento: _A definir_
-- Grid mobile: _A definir_
-- Breakpoints: _A definir_
-
-## 4. Fotografia e imagem
-- Tratamento e enquadramento: _A definir_
-- Proporções: _A definir_
-- Uso de elementos gerados por IA: _A definir_
-
-## 5. Elementos gráficos e ilustração
-_A definir_
-
-## 6. Motion
-- Princípios de animação: _A definir_
-- Durações e curvas: _A definir_
-- Respeito a `prefers-reduced-motion`: _A definir_
-
-## 7. Componentes
-_A definir — documentar somente componentes efetivamente implementados._
-
-## 8. Padrões de seção
-_A definir_
-
-## 9. Acessibilidade
-_A definir_
+Vitrine viva: `node experiments/serve.mjs` → <http://127.0.0.1:4173/experiments/design-system/>.
 
 ## Registro de decisões
 
-| Data | Decisão | Motivo | Aprovado por |
-| --- | --- | --- | --- |
-| | | | |
+Ver [`design-system/README.md`](design-system/README.md#registro-de-decisões).

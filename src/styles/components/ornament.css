@@ -1,0 +1,4 @@
+/* Ornamentos desenhados (CR-15…18 redesenhados inline): faíscas e espiral. Sempre aria-hidden. */
+
+.sparks { fill: none; stroke: var(--butter); stroke-width: 6; stroke-linecap: round; }
+.spiral { fill: none; stroke: currentColor; stroke-linecap: round; }

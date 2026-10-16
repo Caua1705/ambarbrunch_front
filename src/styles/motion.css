@@ -1,0 +1,95 @@
+/* Âmbar Brunch — Design System · MOVIMENTO (docs/design/design-system/MOTION.md).
+   Regra de propriedades, para efeitos não brigarem entre si:
+     rotate    → composição estática (inclinação das peças)
+     translate → revelação simples e parallax
+     transform → montagem de peças, press e entradas
+     scale     → microinterações
+   Tudo é decorativo: o conteúdo e o CTA são legíveis e clicáveis desde o primeiro quadro. */
+
+@keyframes spin { to { rotate: 360deg; } }
+@keyframes ticker { to { transform: translateX(-50%); } }
+@keyframes shimmer { to { background-position: -300% 0; } }
+
+/* 1 · Revelação ao rolar (v1): opacidade + 30 px, uma vez por elemento. Sem JS, tudo aparece. */
+.js [data-reveal] { opacity: 0; translate: 0 30px; transition: opacity var(--dur-reveal) var(--ease), translate var(--dur-reveal) var(--ease); }
+.js [data-reveal].is-in { opacity: 1; translate: none; }
+
+/* 1b · Variantes (novas, opcionais) */
+/* só opacidade — para elementos que têm parallax (o parallax é dono do translate) */
+.js [data-reveal="fade"] { translate: none; }
+/* peça de colagem: assenta com overshoot, vinda de baixo e um pouco mais torta */
+.js [data-reveal="piece"] { translate: none; transform: translateY(var(--lift)) rotate(var(--tilt)) scale(.94); transition: opacity var(--dur-l) var(--ease), transform var(--dur-l) var(--ease-paper); transition-delay: calc(var(--i, 0) * var(--stagger)); }
+.js [data-reveal="piece"].is-in { transform: none; }
+/* linhas de mega título: cada linha sobe com atraso próprio */
+.js [data-reveal="lines"] { opacity: 1; translate: none; }
+.js [data-reveal="lines"] > span { display: block; opacity: 0; translate: 0 .32em; transition: opacity var(--dur-l) var(--ease), translate var(--dur-l) var(--ease-paper); }
+.js [data-reveal="lines"] > span:nth-child(2) { transition-delay: var(--stagger); }
+.js [data-reveal="lines"] > span:nth-child(3) { transition-delay: calc(2 * var(--stagger)); }
+.js [data-reveal="lines"] > .mega__r { translate: 6% .32em; }
+.js [data-reveal="lines"] > .scribble { translate: 0 .2em; rotate: -10deg; transition-delay: calc(2 * var(--stagger) + 120ms); }
+.js [data-reveal="lines"].is-in > span { opacity: 1; translate: none; }
+.js [data-reveal="lines"].is-in > .scribble { rotate: -4deg; }
+/* traço desenhado (setas, faíscas): os <path> precisam de pathLength="1" */
+.js [data-draw] path { stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset var(--dur-m) var(--ease); transition-delay: calc(var(--i, 0) * var(--stagger) + 200ms); }
+.js [data-draw].is-in path, .js .is-in [data-draw] path { stroke-dashoffset: 0; }
+
+/* 2 · Entrada do hero (só no primeiro carregamento, no topo, sem âncora) — classe .enter no <html> */
+.enter .hero__label { animation: label-settle var(--dur-l) var(--ease-paper) both; }
+.enter .hero__headline > span { animation: line-settle 520ms var(--ease-paper) both; }
+.enter .hero__headline .l1 { animation-delay: 60ms; }
+.enter .hero__headline .l2 { animation-name: line-settle-r; animation-delay: 130ms; }
+.enter .hero__headline .l3 { animation-delay: 200ms; }
+.enter .hero__collage > * { animation: piece-in var(--dur-l) var(--ease-paper) both; }
+.enter .hero__collage > :nth-child(1) { animation-delay: 260ms; }
+.enter .hero__collage > :nth-child(2) { animation-delay: 330ms; }
+.enter .hero__collage > :nth-child(3) { animation-delay: 400ms; }
+.enter .hero__collage > :nth-child(4) { animation-name: sticker-in; animation-delay: 480ms; }
+.enter .hero__collage > :nth-child(5) { animation-name: fade; animation-delay: 520ms; }
+.enter .hero__foot .btn { animation: bump 360ms var(--ease-paper) 560ms both; }
+.enter .hero__foot .ref-note { animation: fade 300ms linear 600ms both; }
+.enter .menu-btn--hero { animation: sticker-in var(--dur-m) var(--ease-paper) 480ms both; }
+/* sem opacidade no texto: o título é o maior elemento da 1ª tela (LCP) e precisa pintar já no 1º quadro */
+@keyframes label-settle { from { transform: translateY(-14px) rotate(-3.5deg); } }
+@keyframes line-settle { from { transform: translateY(.18em); } }
+@keyframes line-settle-r { from { transform: translateX(6%); } }
+@keyframes piece-in { from { opacity: 0; transform: translateY(var(--lift)) rotate(var(--tilt)) scale(.94); } }
+@keyframes sticker-in { from { opacity: 0; transform: scale(.6); } }
+@keyframes fade { from { opacity: 0; } }
+@keyframes bump { 50% { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 var(--cacao); } }
+
+/* 3 · Parallax e efeitos ligados ao scroll — só onde há suporte nativo; sem JS de scroll. */
+@supports (animation-timeline: view()) {
+  .roll__spiral { animation: twist linear both; animation-timeline: view(); }
+  @keyframes twist { from { rotate: -40deg; } to { rotate: 80deg; } }
+
+  [data-parallax] { animation: drift linear both; animation-timeline: view(); }
+  [data-parallax="up"] { --drift: -16px; }
+  [data-parallax="down"] { --drift: 16px; }
+  [data-parallax="soft"] { --drift: -6px; }
+  @keyframes drift { from { translate: 0 calc(var(--drift, -12px) * -1); } to { translate: 0 var(--drift, -12px); } }
+
+  /* saída do hero: a colagem se afasta (no máximo 24 px) enquanto o hero sai da tela */
+  .hero { view-timeline-name: --hero; }
+  [data-parallax="hero-exit"] { animation: hero-exit linear both; animation-timeline: --hero; animation-range: exit 0% exit 100%; }
+  @keyframes hero-exit { to { translate: 0 var(--exit, -24px); } }
+}
+
+/* 4 · Pausa global (botão “pausar animações”) — data-motion="paused" no <html>, salvo no navegador */
+[data-motion="paused"] .ticker__track,
+[data-motion="paused"] .sticker--roll svg,
+[data-motion="paused"] .chip--skeleton { animation-play-state: paused; }
+[data-motion="paused"] [data-parallax],
+[data-motion="paused"] .roll__spiral { animation: none; }
+
+/* 5 · Movimento reduzido (v1): tudo no estado final, sem loops, sem rolagem suave. */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .js [data-reveal] { opacity: 1; translate: none; }
+  .js [data-reveal="piece"] { transform: none; }
+  .js [data-reveal="lines"] > span { opacity: 1; translate: none; }
+  .js [data-reveal="lines"] > .scribble { rotate: -4deg; }
+  .js [data-draw] path { stroke-dashoffset: 0; }
+  /* CTA, doca e folha: só opacidade (a transição é religada de propósito, curta) */
+  .sticky-cta, .menu-btn--dock { transform: none !important; transition: opacity 150ms linear !important; }
+}

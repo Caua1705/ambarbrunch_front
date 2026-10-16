@@ -1,0 +1,13 @@
+/* Botão “pausar animações” — NOVO (WCAG 2.2.2). Para faixa, selo e vídeos; a escolha fica salva. */
+
+.motion-toggle {
+  display: inline-flex; align-items: center; gap: 8px;
+  min-height: 44px; padding: 0 14px;
+  border: var(--border-control) solid currentColor; border-radius: var(--radius-pill);
+  background: transparent; color: inherit; cursor: pointer;
+  font: var(--t-pill); letter-spacing: var(--track-caps); text-transform: uppercase;
+}
+.motion-toggle svg { width: 14px; height: 14px; fill: currentColor; }
+.motion-toggle .when-paused { display: none; }
+.motion-toggle[aria-pressed="true"] .when-paused { display: inline; }
+.motion-toggle[aria-pressed="true"] .when-running { display: none; }

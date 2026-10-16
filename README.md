@@ -6,7 +6,8 @@ O objetivo é um site **mobile-first**, editorial e criativo, com acabamento cui
 
 > **Situação atual:** Etapas 1 a 3 aprovadas. Direção visual escolhida: **Conceito B · Fornada Âmbar**
 > (protótipo congelado em [`experiments/concept-b-aprovado-v1/`](experiments/concept-b-aprovado-v1/README.md)).
-> Planejamento da homepage em [`docs/design/`](docs/design/). Ainda não há aplicação nem dependências instaladas.
+> Planejamento da homepage em [`docs/design/`](docs/design/). **Design system v1.0** em [`docs/design/design-system/`](docs/design/design-system/README.md)
+> (código em `src/styles/` e `src/lib/`), aguardando revisão. Ainda não há aplicação nem dependências instaladas.
 
 ## Como trabalhamos
 

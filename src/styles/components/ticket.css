@@ -1,0 +1,43 @@
+/* Comanda: cartão de papel picotado com carimbo. Origem: .ticket e .ticket__stamp do v1.
+   Usada na reserva (passos) e, no futuro, na seção Visite (horários). */
+
+.ticket {
+  position: relative;
+  max-width: 480px; margin-inline: auto;
+  padding: 30px 26px 26px;
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px;
+  background: var(--cream); color: var(--ink);
+  border-radius: var(--radius-xs);
+  -webkit-mask: var(--mask-perforated);
+          mask: var(--mask-perforated);
+}
+.ticket__title {
+  max-width: 10ch;
+  font: var(--t-ticket-title); font-variation-settings: var(--wdth-tag);
+  text-transform: uppercase; color: var(--wine);
+}
+.ticket fieldset { min-width: 0; margin: 0; padding: 0 0 16px; border: 0; border-bottom: 2px dashed var(--rule); }
+.ticket legend { margin-bottom: 12px; font: var(--t-legend); letter-spacing: var(--track-legend); text-transform: uppercase; color: var(--caramel-dk); }
+.ticket__slots { font-size: var(--fs-slots); color: var(--text-soft); }
+.ticket__note { text-align: center; font-size: var(--fs-fine); color: var(--text-muted); }
+
+/* novo · passo concluído: o número ganha um ✓ carimbado */
+.ticket legend[data-done]::after { content: " ✓"; display: inline-block; color: var(--wine); letter-spacing: 0; }
+
+/* novo · mensagens de estado dentro da comanda (aria-live) */
+.ticket__status { padding: 12px 14px; border-radius: var(--radius-control); background: var(--glaze); border: 2px solid var(--wine); color: var(--wine); font: 700 14px/1.35 var(--display); }
+.ticket__status[data-tone="error"] { border-style: dashed; }
+.ticket__status[hidden] { display: none; }
+
+/* Carimbo ------------------------------------------------------------------------------- */
+.stamp {
+  display: grid; place-items: center;
+  width: 72px; aspect-ratio: 1;
+  border: 2px dashed var(--wine); border-radius: 50%;
+  color: var(--wine); font: var(--t-stamp); text-align: center;
+  rotate: 14deg;
+}
+.ticket__stamp { position: absolute; right: 18px; top: 18px; }
+/* novos estados: prévia (padrão, tracejado) · reservado (cheio) · erro (tente de novo) */
+.stamp[data-state="reservado"] { border-style: solid; border-width: 3px; background: var(--wine); color: var(--butter); }
+.stamp[data-state="erro"] { border-color: var(--berry); color: var(--berry); font-size: 12.5px; line-height: 1.05; }

@@ -1,0 +1,32 @@
+/* CTA fixo “Reservar mesa”. Origem: .sticky-cta do v1 (visual idêntico).
+   Regra de visibilidade nova (NAVEGACAO-E-CTA.md): aparece quando o BOTÃO de reserva do hero sai da tela. */
+
+.sticky-cta {
+  position: fixed; z-index: var(--z-dock);
+  left: 12px; right: 12px; bottom: max(12px, env(safe-area-inset-bottom));
+  display: flex; align-items: center; gap: 12px;
+  min-height: 58px; padding: 0 12px 0 16px;
+  border-radius: var(--radius-l);
+  background: var(--butter); color: var(--wine);
+  font: var(--t-button-l); font-variation-settings: var(--wdth-button);
+  text-transform: uppercase; letter-spacing: var(--track-caps); text-decoration: none;
+  box-shadow: var(--shadow-offset), var(--shadow-float);
+  transform: translateY(150%) rotate(-2deg);
+  opacity: 0;
+  transition: transform .5s var(--ease), opacity .3s;
+}
+.sticky-cta svg { width: 28px; fill: none; stroke: var(--wine); stroke-width: 18; stroke-linecap: round; }
+.sticky-cta span:first-of-type { flex: 1; }
+.sticky-cta span:last-child { display: grid; place-items: center; width: 36px; height: 36px; border-radius: var(--radius-m); background: var(--wine); color: var(--butter); }
+.sticky-cta.is-visible { transform: none; opacity: 1; }
+.sticky-cta:active { box-shadow: var(--shadow-offset-xs), var(--shadow-float); }
+
+/* Com o menu na doca, o CTA abre espaço à esquerda para o botão quadrado (58 + 10 px). */
+.has-dock .sticky-cta { left: 80px; }
+/* Saída mais rápida que a entrada (MOTION.md). */
+.sticky-cta:not(.is-visible) { pointer-events: none; transition-duration: var(--dur-s), var(--dur-s); transition-timing-function: var(--ease-in), linear; }
+
+@media (min-width: 960px) {
+  .sticky-cta { left: auto; right: 32px; bottom: 28px; width: 320px; }
+  .has-dock .sticky-cta { left: auto; }
+}

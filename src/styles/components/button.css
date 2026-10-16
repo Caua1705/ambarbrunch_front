@@ -1,0 +1,16 @@
+/* Botão. Origem: .btn do v1. A sombra deslocada sólida é a assinatura do conceito. */
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: .55em;
+  min-height: 54px; padding: 0 26px;
+  border: 0; border-radius: var(--radius-button);
+  font: var(--t-button); font-variation-settings: var(--wdth-button);
+  text-transform: uppercase; letter-spacing: var(--track-caps); text-decoration: none; cursor: pointer;
+  transition: transform .3s var(--ease);
+}
+.btn:active { transform: scale(.96); }
+.btn--butter { background: var(--butter); color: var(--wine); box-shadow: var(--shadow-offset); }
+.btn--wine { background: var(--wine); color: var(--butter); box-shadow: var(--shadow-offset); }
+.btn--block { width: 100%; }
+/* novo: indisponível de verdade (durante o envio ou sem horário escolhido). O v1 só tinha aria-disabled. */
+.btn:disabled, .btn[data-disabled] { opacity: .55; cursor: not-allowed; box-shadow: var(--shadow-offset-xs); }

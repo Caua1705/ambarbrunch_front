@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Prévia · Design System</title>
+  <meta name="robots" content="noindex">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,300..800&family=Fraunces:ital,opsz,wght@1,9..144,400..600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../src/styles/index.css">
+  
+  <script>document.documentElement.classList.add('js'); if (!location.hash && !scrollY) document.documentElement.classList.add('enter')</script>
+</head>
+<body>
+
+  <a class="skip-link" href="#reservar">Pular para a reserva</a>
+
+  <!-- HERO ------------------------------------------------------------ -->
+  <header class="hero" id="topo" data-hero>
+    <button class="menu-btn menu-btn--hero" type="button" data-menu-open="menu" aria-label="Abrir menu"><svg viewBox="0 0 28 28" aria-hidden="true"><path d="M4 8.5c6-.8 12-.6 20 0M6 14.5c5-.5 10-.4 16 .2M4 20.5c7-.6 13-.5 20 0"/></svg></button>
+    <div class="hero__label">
+      <h1 class="label"><img src="../../creative/source/brand/derivados/logo-ambar-cafe-brunch-p01-fundo-removido.png"
+               width="1296" height="494" alt="Âmbar Brunch — logo âmbar café &amp; brunch"></h1>
+    </div>
+
+    <p class="hero__headline">
+      <span class="l1">Café,</span>
+      <span class="l2">brunch</span>
+      <span class="l3"><em>&amp;</em> fornadas</span>
+    </p>
+
+    <div class="hero__collage" data-parallax="hero-exit">
+      <figure class="cut cut--circle">
+        <img src="../../creative/source/photography/gastronomia/croissant-prato-azul.webp" width="1200" height="1799" alt="Croissant em prato azul sobre sofá laranja" fetchpriority="high">
+      </figure>
+      <figure class="cut cut--polaroid">
+        <img src="../../creative/source/photography/ambientes/sala-03.webp" width="1200" height="1799" alt="Salão com parede laranja e luminária pendente">
+        <figcaption>salão âmbar<sup>*</sup></figcaption>
+      </figure>
+      <figure class="cut cut--tile">
+        <img src="../../creative/source/photography/gastronomia/bruschetta-brunch.webp" width="1200" height="1799" alt="Torrada coberta com café ao lado">
+      </figure>
+      <div class="sticker sticker--roll">
+        <svg viewBox="0 0 200 200" aria-hidden="true">
+          <defs><path id="c1" d="M100,100 m-80,0 a80,80 0 1,1 160,0 a80,80 0 1,1 -160,0"/></defs>
+          <text><textPath href="#c1" textLength="500" lengthAdjust="spacing">assinatura gastronômica · âmbar brunch · </textPath></text>
+        </svg>
+        <img src="../../creative/source/brand/logo-roll-extraido-pdf-original.png" width="642" height="235" alt="Roll">
+      </div>
+      <svg class="sparks" viewBox="0 0 320 200" aria-hidden="true" data-draw><path pathLength="1" d="M63 12L67 45M40 28L50 54M88 28L80 55M22 65L50 70M92 66L110 67"/></svg>
+    </div>
+
+    <div class="hero__foot">
+      <a class="btn btn--butter" href="#reservar" data-cta-trigger>Reservar mesa <span aria-hidden="true">→</span></a>
+      <p class="ref-note hero__note"><sup>*</sup>foto de referência do espaço anterior</p>
+    </div>
+  </header>
+
+  <div class="ticker" aria-hidden="true">
+    <div class="ticker__track">
+      <span>Bruschettas ✺ Cheesecakes ✺ Sanduíches ✺ Cafés gelados ✺ Bowls ✺ Cinnamon rolls ✺ Frappé ✺ Saladas ✺ Brownies ✺ </span>
+      <span>Bruschettas ✺ Cheesecakes ✺ Sanduíches ✺ Cafés gelados ✺ Bowls ✺ Cinnamon rolls ✺ Frappé ✺ Saladas ✺ Brownies ✺ </span>
+    </div>
+  </div>
+
+  <main>
+
+    <!-- GASTRONOMIA (colagem editorial) ------------------------------ -->
+    <section class="mesa" id="gastronomia" tabindex="-1" aria-labelledby="mesa-titulo">
+      <h2 class="mega" id="mesa-titulo" data-reveal="lines">
+        <span>Mesa</span><span class="mega__r">cheia</span>
+        <em class="scribble">do brunch ao café gelado</em>
+      </h2>
+
+      <div class="board">
+        <figure class="board__item board__item--a" data-reveal="piece" data-parallax="soft">
+          <i class="tape" aria-hidden="true"></i>
+          <img src="../../creative/source/photography/gastronomia/bruschetta-brunch.webp" width="1200" height="1799" loading="lazy" alt="Torrada coberta vista de cima com xícara de café">
+        </figure>
+        <figure class="board__item board__item--b" data-reveal="piece" data-parallax="up" style="--i:1">
+          <i class="tape tape--r" aria-hidden="true"></i>
+          <img src="../../creative/source/photography/gastronomia/croissant-prato-azul.webp" width="1200" height="1799" loading="lazy" alt="Croissant em prato azul">
+        </figure>
+        <figure class="board__item board__item--c" data-reveal="piece" data-parallax="soft" style="--i:2">
+          <i class="tape" aria-hidden="true"></i>
+          <img src="../../creative/source/photography/gastronomia/bebida-chocolate-creme.webp" width="1200" height="1799" loading="lazy" alt="Bebida gelada de chocolate com calda">
+        </figure>
+
+        <p class="note note--a">bruschettas<br>&amp; toasts</p>
+        <svg class="arrow arrow--a" viewBox="0 0 120 80" aria-hidden="true" data-draw><path pathLength="1" d="M8 10C40 4 78 18 96 58"/><path pathLength="1" d="M84 52l13 8 3-15"/></svg>
+        <p class="note note--b">croissant</p>
+        <svg class="arrow arrow--b" viewBox="0 0 120 80" aria-hidden="true" data-draw style="--i:1"><path pathLength="1" d="M110 12C76 6 40 22 26 62"/><path pathLength="1" d="M20 48l5 15 14-6"/></svg>
+        <p class="note note--c">bebidas<br>geladas</p>
+        <svg class="arrow arrow--c" viewBox="0 0 120 80" aria-hidden="true" data-draw style="--i:2"><path pathLength="1" d="M112 70C86 74 58 60 46 18"/><path pathLength="1" d="M38 30l8-13 10 11"/></svg>
+      </div>
+
+      <div class="bands" data-reveal>
+        <p class="bands__label">pra comer</p>
+        <ul class="bands__list">
+          <li style="--b:var(--wine);--t:var(--butter)">Bruschettas</li>
+          <li style="--b:var(--caramel)">Cheesecakes</li>
+          <li style="--b:var(--cacao);--t:var(--butter)">Sanduíches</li>
+          <li style="--b:var(--leaf);--t:var(--cream)">Saladas</li>
+          <li style="--b:var(--butter)">Cinnamon roll salgado &amp; doce</li>
+          <li style="--b:var(--berry);--t:var(--cream)">Bowls</li>
+          <li style="--b:var(--cacao);--t:var(--caramel-lt)">Brownies diferentes</li>
+        </ul>
+        <p class="bands__label">pra beber</p>
+        <ul class="bands__list">
+          <li style="--b:var(--caramel)">Cafés gelados</li>
+          <li style="--b:var(--wine);--t:var(--butter)">Cappuccino</li>
+          <li style="--b:var(--butter)">Frappé</li>
+          <li style="--b:var(--cacao);--t:var(--butter)">Cafés diversos</li>
+          <li style="--b:var(--leaf);--t:var(--cream)">Chá</li>
+          <li style="--b:var(--berry);--t:var(--cream)">Smoothies proteicos</li>
+        </ul>
+        <p class="bands__note">Categorias da proposta de cardápio Âmbar × Roll · itens e preços em definição</p>
+      </div>
+    </section>
+
+    <!-- ROLL ------------------------------------------------------------ -->
+    <section class="roll" id="roll" tabindex="-1" aria-labelledby="roll-titulo">
+      <svg class="roll__spiral" viewBox="0 0 240 240" aria-hidden="true"><path d="M121 219C56 218 19 164 28 103 40 31 127 2 182 51c34 30 31 82-9 105-37 21-80 2-83-30-4-30 26-46 47-33 13 7 15 27 2 35"/></svg>
+
+      <div class="roll__head">
+        <div class="badge roll__badge"><img src="../../creative/source/brand/logo-roll-extraido-pdf-original.png" width="642" height="235" alt="Roll" loading="lazy"></div>
+        <h2 class="mega mega--light" id="roll-titulo" data-reveal="lines"><span>Forna</span><span class="mega__r">das</span></h2>
+        <p class="roll__lead">Os cinnamon rolls do Âmbar Brunch levam a assinatura da Roll: massa enrolada, glacê e sabores que mudam com o mês.</p>
+      </div>
+
+      <ol class="stories" aria-label="Vídeos da Roll">
+        <li class="story">
+          <i class="story__progress" aria-hidden="true"></i>
+          <video muted playsinline loop preload="none" data-autoplay
+                 poster="../../creative/source/video/roll_reels/posters/2026-09-17_DdZ5fRIA4f2_poster.webp"
+                 aria-label="Vídeo: carrinho de forno com fornadas de cinnamon rolls">
+            <source src="../../creative/source/video/roll_reels/2026-09-17_DdZ5fRIA4f2_video.mp4" type="video/mp4">
+          </video>
+          <button class="story__toggle" type="button" aria-pressed="false" aria-label="Tocar ou pausar o vídeo: do forno"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></button>
+          <p class="story__tag">do forno</p>
+          <p class="story__by">@roll.ofc <em>vídeo da própria Roll</em></p>
+        </li>
+        <li class="story">
+          <i class="story__progress" aria-hidden="true"></i>
+          <video muted playsinline loop preload="none" data-autoplay
+                 poster="../../creative/source/video/roll_reels/posters/2026-10-02_DeAT31Yg8Un_poster.webp"
+                 aria-label="Vídeo: closes de cinnamon rolls com cobertura">
+            <source src="../../creative/source/video/roll_reels/2026-10-02_DeAT31Yg8Un_video.mp4" type="video/mp4">
+          </video>
+          <button class="story__toggle" type="button" aria-pressed="false" aria-label="Tocar ou pausar o vídeo: sabores do mês"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></button>
+          <p class="story__tag">sabores do mês</p>
+          <p class="story__by">@roll.ofc <em>vídeo da própria Roll</em></p>
+        </li>
+        <li class="story">
+          <i class="story__progress" aria-hidden="true"></i>
+          <video muted playsinline loop preload="none" data-autoplay
+                 poster="../../creative/source/video/roll_reels/posters/2026-10-01_Dd9V9KUz-nV_poster.webp"
+                 aria-label="Vídeo: bandeja de cinnamon rolls com cobertura de chocolate">
+            <source src="../../creative/source/video/roll_reels/2026-10-01_Dd9V9KUz-nV_video.mp4" type="video/mp4">
+          </video>
+          <button class="story__toggle" type="button" aria-pressed="false" aria-label="Tocar ou pausar o vídeo: bandeja"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></button>
+          <p class="story__tag">bandeja</p>
+          <p class="story__by">@roll.ofc <em>vídeo da própria Roll</em></p>
+        </li>
+      </ol>
+      <p class="roll__credit">Vídeos @roll.ofc · uso no site sujeito a autorização e sem trilha sonora</p>
+
+      <div class="trays" data-reveal>
+        <figure><img src="../../creative/source/photography/roll_instagram/otimizadas/2026-08-16_DcGojKjlvml_image.webp" width="1000" height="1333" loading="lazy" alt="Bandeja de cinnamon rolls de Biscoff"><figcaption>Biscoff</figcaption></figure>
+        <figure data-parallax="up"><img src="../../creative/source/photography/roll_instagram/2026-08-16_DcGojKjlvml_image_3.jpg" width="2268" height="3024" loading="lazy" alt="Bandeja de cinnamon rolls red velvet"><figcaption>Red velvet</figcaption></figure>
+        <figure><img src="../../creative/source/photography/roll_instagram/otimizadas/2026-08-16_DcGojKjlvml_image_2.webp" width="1000" height="1333" loading="lazy" alt="Bandeja de cinnamon rolls de Oreo"><figcaption>Oreo</figcaption></figure>
+      </div>
+    </section>
+
+    <!-- AMBIENTES --------------------------------------------------------- -->
+    <section class="climas" id="ambientes" tabindex="-1" aria-labelledby="climas-titulo">
+      <h2 class="mega mega--wine" id="climas-titulo" data-reveal="lines"><span>Escolha</span><span class="mega__r">o clima</span></h2>
+      <p class="notice climas__notice" role="note">Fotos de referência do espaço anterior — serão trocadas por imagens atuais do Âmbar.</p>
+
+      <div class="climas__stack">
+        <figure class="panel panel--day" data-reveal>
+          <img src="../../creative/source/photography/ambientes/sala-04.webp" width="1200" height="1799" loading="lazy" alt="Jardim com mesas de madeira e plantas">
+          <figcaption><span class="tagline">luz do jardim</span><a href="#reservar" data-ambiente="Jardim">reservar aqui →</a></figcaption>
+        </figure>
+        <figure class="panel panel--amber" data-reveal>
+          <img src="../../creative/source/photography/ambientes/sala-03.webp" width="1200" height="1799" loading="lazy" alt="Salão de parede laranja com luminária pendente acesa">
+          <figcaption><span class="tagline">luz âmbar</span><a href="#reservar" data-ambiente="Salão">reservar aqui →</a></figcaption>
+        </figure>
+        <figure class="bubble bubble--a" data-reveal="fade" data-parallax="up">
+          <img src="../../creative/source/photography/ambientes/sala-01.webp" width="1200" height="1799" loading="lazy" alt="Lounge com sofá verde">
+          <figcaption>lounge</figcaption>
+        </figure>
+        <figure class="bubble bubble--b" data-reveal="fade" data-parallax="down">
+          <img src="../../creative/source/photography/ambientes/sala-02.webp" width="1200" height="1799" loading="lazy" alt="Estante de livros">
+          <figcaption>leitura</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- RESERVA (comanda) -------------------------------------------------- -->
+    <section class="reserva" id="reservar" tabindex="-1" aria-labelledby="reserva-titulo" data-reserva>
+      <h2 class="mega mega--light" id="reserva-titulo" data-reveal="lines">
+        <span>Reserve</span><span class="mega__r">sua mesa</span>
+        <em class="scribble scribble--light">e chegue com fome</em>
+      </h2>
+
+      <form class="ticket" data-reveal onsubmit="return false" aria-describedby="ticket-note">
+        <div class="stamp ticket__stamp" aria-hidden="true">prévia</div>
+        <p class="ticket__title">Comanda de reserva</p>
+        <fieldset>
+          <legend>01 · ambiente</legend>
+          <div class="chips" data-group="ambiente">
+            <button type="button" class="chip" aria-pressed="true">Jardim</button>
+            <button type="button" class="chip" aria-pressed="false">Salão</button>
+            <button type="button" class="chip" aria-pressed="false">Lounge</button>
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend>02 · pessoas</legend>
+          <div class="stepper">
+            <button type="button" data-step="-1" aria-label="Menos uma pessoa">−</button>
+            <output data-people aria-live="polite">2</output>
+            <button type="button" data-step="1" aria-label="Mais uma pessoa">+</button>
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend>03 · data</legend>
+          <div class="chips chips--dates" data-group="data" data-dates></div>
+        </fieldset>
+        <fieldset>
+          <legend>04 · horário</legend>
+          <p class="ticket__slots">Os horários disponíveis aparecem aqui, a partir do sistema de reservas.</p>
+        </fieldset>
+        <button class="btn btn--wine btn--block" type="submit" aria-disabled="true">Continuar</button>
+        <p class="ticket__note" id="ticket-note">Prévia visual — nenhuma reserva é enviada.</p>
+      </form>
+    </section>
+  </main>
+
+  <footer class="footer" id="visite" tabindex="-1">
+    <img class="footer__logo" src="../../creative/source/brand/derivados/logo-ambar-cafe-brunch-p01-fundo-removido.png" width="1296" height="494" alt="Âmbar Brunch" loading="lazy">
+    <p class="footer__sig">com assinatura gastronômica <img src="../../creative/source/brand/logo-roll-extraido-pdf-original.png" width="642" height="235" alt="Roll" loading="lazy"></p>
+    <p class="footer__info">Endereço, horários e contatos a confirmar.</p>
+    <div class="footer__tools"><button class="motion-toggle" type="button" data-motion-toggle aria-pressed="false"><svg class="when-running" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 2h3v10H3zM8 2h3v10H8z"/></svg><svg class="when-paused" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 2l9 5-9 5z"/></svg><span class="when-running">Pausar animações</span><span class="when-paused">Retomar animações</span></button></div>
+    <p class="footer__info">Prévia do design system · conteúdo provisório</p>
+  </footer>
+
+  <a class="sticky-cta" href="#reservar" data-sticky-cta aria-hidden="true" tabindex="-1">
+    <svg viewBox="0 0 240 240" aria-hidden="true"><path d="M121 219C56 218 19 164 28 103 40 31 127 2 182 51c34 30 31 82-9 105-37 21-80 2-83-30-4-30 26-46 47-33 13 7 15 27 2 35"/></svg>
+    <span>Reservar mesa</span><span aria-hidden="true">→</span>
+  </a>
+
+  <button class="menu-btn menu-btn--dock" type="button" data-menu-open="menu" aria-label="Abrir menu" aria-hidden="true" tabindex="-1"><svg viewBox="0 0 28 28" aria-hidden="true"><path d="M4 8.5c6-.8 12-.6 20 0M6 14.5c5-.5 10-.4 16 .2M4 20.5c7-.6 13-.5 20 0"/></svg></button>
+
+  <dialog class="sheet" id="menu" aria-label="Menu">
+    <div class="sheet__head">
+      <img class="sheet__logo" src="../../creative/source/brand/derivados/logo-ambar-cafe-brunch-p01-fundo-removido.png" width="1296" height="494" alt="Âmbar Brunch">
+      <button class="menu-btn menu-btn--close" type="button" data-menu-close aria-label="Fechar menu"><svg viewBox="0 0 28 28" aria-hidden="true"><path d="M7.5 7c4 4.5 9 9.5 13.5 14M21 7.5C16.5 11.5 11.5 16 7 20.5"/></svg></button>
+    </div>
+    <nav aria-label="Seções do site">
+      <ol class="sheet__nav">
+        <li><a href="#gastronomia">Cardápio</a></li>
+        <li><a href="#roll">Fornadas</a></li>
+        <li><a href="#ambientes">Ambientes</a></li>
+        <li><a href="#visite">Visite</a></li>
+      </ol>
+    </nav>
+    <a class="btn btn--wine btn--block sheet__cta" href="#reservar">Reservar mesa <span aria-hidden="true">→</span></a>
+    <div class="sheet__foot">
+      <span>Instagram e WhatsApp do Âmbar: a confirmar</span>
+      <button class="motion-toggle" type="button" data-motion-toggle aria-pressed="false"><svg class="when-running" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 2h3v10H3zM8 2h3v10H8z"/></svg><svg class="when-paused" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 2l9 5-9 5z"/></svg><span class="when-running">Pausar animações</span><span class="when-paused">Retomar animações</span></button>
+    </div>
+  </dialog>
+
+  <script type="module" src="../../src/lib/index.js"></script>
+</body>
+</html>

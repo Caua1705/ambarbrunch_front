@@ -1,0 +1,53 @@
+/* Carrossel de vídeos verticais (stories). Origem: .stories e .story do v1.
+   Novos: crédito do autor (obrigatório para vídeo de criadora), barra de progresso e estado tocar/pausar. */
+
+.stories {
+  display: grid; grid-auto-flow: column; grid-auto-columns: 60%;
+  gap: 14px;
+  margin-top: 34px; padding: 0 var(--gutter) 12px;
+  overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding-inline: var(--gutter);
+  scrollbar-width: none;
+}
+.stories::-webkit-scrollbar { display: none; }
+.story {
+  position: relative; scroll-snap-align: start;
+  aspect-ratio: 9 / 16;
+  border-radius: var(--radius-xl); overflow: hidden;
+  background: #000;
+  box-shadow: 0 0 0 4px var(--caramel);
+}
+.story:nth-child(2) { margin-top: 44px; box-shadow: 0 0 0 4px var(--butter); }
+.story video { width: 100%; height: 100%; object-fit: cover; }
+.story__tag {
+  position: absolute; left: 12px; top: 12px;
+  padding: 7px 12px 8px; border-radius: var(--radius-pill);
+  background: var(--butter); color: var(--wine);
+  font: var(--t-tag);
+}
+
+/* novo · crédito: quem gravou e sobre o quê (ex.: “@criadora · sobre a Roll”) */
+.story__by {
+  position: absolute; left: 12px; right: 12px; bottom: 12px;
+  padding: 8px 12px; border-radius: var(--radius-control);
+  background: rgba(36, 21, 15, .72); color: var(--cream);
+  font: 700 12.5px/1.25 var(--display); letter-spacing: .02em;
+}
+.story__by em { display: block; font: var(--t-chip-small); color: var(--caramel-lt); margin-top: 3px; }
+
+/* novo · progresso tipo story, preenchido por JS com --p (0 a 1) */
+.story__progress { position: absolute; left: 12px; right: 12px; top: 4px; height: 3px; border-radius: 3px; background: rgba(255, 251, 244, .35); overflow: hidden; }
+.story__progress::after { content: ""; position: absolute; inset: 0; background: var(--glaze); transform-origin: left; transform: scaleX(var(--p, 0)); }
+
+/* novo · botão que cobre o card inteiro: tocar/pausar */
+.story__toggle {
+  position: absolute; inset: 0; z-index: 1;
+  display: grid; place-items: center;
+  border: 0; background: transparent; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.story__toggle svg {
+  width: 56px; height: 56px; padding: 16px; border-radius: 50%;
+  background: rgba(36, 21, 15, .62); fill: var(--cream);
+  opacity: 0; scale: .9; transition: opacity var(--dur-s), scale var(--dur-s) var(--ease-paper);
+}
+.story[data-state="paused"] .story__toggle svg, .story__toggle:focus-visible svg { opacity: 1; scale: 1; }
+.story__tag, .story__by, .story__progress { z-index: 2; pointer-events: none; }

@@ -1,0 +1,177 @@
+/* Âmbar Brunch — Design System · Conceito B (Fornada Âmbar)
+   TOKENS. Os valores são os do protótipo aprovado (experiments/concept-b-aprovado-v1/styles.css),
+   com os mesmos nomes de cor. Qualquer mudança passa pelo registro em docs/design/design-system/TOKENS.md. */
+
+:root {
+  /* 1 · Cor — primitivos ------------------------------------------------------------ */
+  --wine: #670D27;        /* tinta do logo (pág. 1 do PDF) */
+  --cacao: #3A2218;
+  --caramel: #C98A45;
+  --caramel-lt: #E7B676;
+  --caramel-dk: #9A5F25;  /* 4,50:1 sobre creme — só texto ≥ 12,5 px em negrito ou ≥ 18 px; nunca sobre manteiga */
+  --butter: #F3DDAE;
+  --cream: #F4EEE3;       /* fundo do logo (pág. 1 do PDF) */
+  --glaze: #FFFBF4;
+  --berry: #A8203A;
+  --leaf: #3D5A3E;
+  --ink: #24150F;
+
+  /* 2 · Cor — papéis ----------------------------------------------------------------- */
+  --text: var(--ink);
+  --text-muted: rgba(36, 21, 15, .65);        /* 5,19:1 sobre creme */
+  --text-soft: rgba(36, 21, 15, .7);          /* 6,14:1 sobre creme */
+  --text-on-dark: var(--cream);
+  --text-on-dark-muted: rgba(244, 238, 227, .86);
+  --text-on-dark-faint: rgba(244, 238, 227, .62); /* 5,80:1 sobre cacau */
+  --rule: rgba(36, 21, 15, .18);              /* pontilhado da comanda */
+  --notice-line: rgba(103, 13, 39, .45);      /* aviso de foto antiga */
+  --tape: rgba(243, 221, 174, .82);
+  --focus-ring: var(--wine);                  /* superfícies claras; as escuras trocam para manteiga */
+  --scrim: rgba(36, 21, 15, .58);
+
+  /* 3 · Tipografia --------------------------------------------------------------------- */
+  --display: "Bricolage Grotesque", "Arial Narrow", system-ui, sans-serif;
+  --serif: "Fraunces", Georgia, serif;
+
+  /* eixos da Bricolage (variável em largura) */
+  --wdth-mega: "wdth" 75, "opsz" 96;
+  --wdth-tag: "wdth" 78;
+  --wdth-ticker: "wdth" 80;
+  --wdth-band: "wdth" 82;
+  --wdth-button: "wdth" 85;
+  --wdth-body: "wdth" 100;
+
+  /* papéis tipográficos (shorthand `font`) */
+  --t-hero: 800 clamp(70px, 21.5vw, 168px)/.8 var(--display);
+  --t-mega: 800 clamp(78px, 25vw, 200px)/.8 var(--display);
+  --t-numeral: 800 32px/1 var(--display);
+  --t-tagline: 800 30px/1 var(--display);
+  --t-ticket-title: 800 30px/.9 var(--display);
+  --t-ticker: 800 25px/1 var(--display);
+  --t-band: 800 17px/1 var(--display);
+  --t-button-l: 800 17px/1 var(--display);
+  --t-button: 800 16px/1 var(--display);
+  --t-chip: 700 15px/1 var(--display);
+  --t-pill: 700 13px/1 var(--display);
+  --t-legend: 700 12.5px/1 var(--display);
+  --t-body: 400 16px/1.5 var(--display);
+  --fs-lead: 17px;
+  --fs-slots: 14px;
+  --fs-small: 13px;
+  --fs-fine: 12.5px;
+  --fs-micro: 12px;
+
+  --t-scribble: italic 500 24px/1.1 var(--serif);
+  --t-kicker: italic 500 22px/1 var(--serif);
+  --t-note: italic 500 19px/1.05 var(--serif);
+  --t-caption-l: italic 500 17px/1 var(--serif);
+  --t-caption: italic 500 16px/1 var(--serif);
+  --t-tag: italic 500 15px/1 var(--serif);
+  --t-stamp: italic 600 15px/1 var(--serif);
+  --t-sig: italic 500 14px/1 var(--serif);
+  --t-fine-serif: italic 400 12.5px/1.25 var(--serif);
+  --t-chip-small: italic 500 12px/1 var(--serif);
+
+  --track-mega: -.02em;
+  --track-hero: -.015em;
+  --track-caps: .04em;
+  --track-legend: .14em;
+
+  /* 4 · Espaço -------------------------------------------------------------------------- */
+  --gutter: 16px;
+  /* escala base, para componentes novos */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+  --space-9: 48px;
+  --space-10: 64px;
+  /* ritmo vertical das seções do v1: o fundo é sempre o topo + 8 px */
+  --rhythm-a: 76px;   /* mesa */
+  --rhythm-b: 84px;   /* climas */
+  --rhythm-c: 88px;   /* roll */
+  --rhythm-d: 92px;   /* reserva */
+  --rhythm-tail: 8px;
+
+  /* 5 · Raios ---------------------------------------------------------------------------- */
+  --radius-2xs: 6px;    /* anel de foco */
+  --radius-xs: 8px;     /* comanda */
+  --radius-s: 10px;     /* bandejas */
+  --radius-m: 12px;     /* caixa da seta do CTA */
+  --radius-control: 14px; /* chips, stepper, aviso, campos */
+  --radius-button: 16px;
+  --radius-l: 18px;     /* ladrilho, CTA fixo, botão de menu */
+  --radius-xl: 26px;    /* vídeos, painéis */
+  --radius-pill: 999px;
+
+  /* 6 · Bordas --------------------------------------------------------------------------- */
+  --border-photo: 6px;    /* círculo, bolhas, bandejas */
+  --border-tile: 5px;
+  --border-control: 2px;
+
+  /* 7 · Sombras -------------------------------------------------------------------------- */
+  --shadow-offset: 4px 4px 0 var(--cacao);     /* assinatura: botões, CTA */
+  --shadow-offset-s: 3px 3px 0 var(--cacao);   /* chip selecionado */
+  --shadow-offset-xs: 2px 2px 0 var(--cacao);  /* estado pressionado */
+  --shadow-photo: 0 16px 26px -14px rgba(0, 0, 0, .55);
+  --shadow-photo-deep: 0 16px 26px -14px rgba(0, 0, 0, .7);
+  --shadow-board: 0 18px 30px -18px rgba(36, 21, 15, .55);
+  --shadow-sticker: 0 10px 18px -8px rgba(0, 0, 0, .45);
+  --shadow-strip: 0 10px 20px -10px rgba(0, 0, 0, .4);
+  --shadow-float: 0 18px 30px -16px rgba(0, 0, 0, .5);
+  --shadow-tape: 0 1px 2px rgba(0, 0, 0, .08);
+  --drop-label: drop-shadow(0 14px 18px rgba(20, 4, 9, .35));
+
+  /* 8 · Texturas e máscaras --------------------------------------------------------------- */
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  --grain-opacity: .35;
+  /* borda recortada (etiqueta do logo): ondas de 20 px na base */
+  --mask-scallop:
+    linear-gradient(#000 0 0) top / 100% calc(100% - 10px) no-repeat,
+    radial-gradient(10px at 50% 0, #000 97%, #0000) 50% 100% / 20px 10px repeat-x;
+  /* a mesma borda, virada para cima (folha do menu) */
+  --mask-scallop-top:
+    linear-gradient(#000 0 0) bottom / 100% calc(100% - 10px) no-repeat,
+    radial-gradient(10px at 50% 100%, #000 97%, #0000) 50% 0 / 20px 10px repeat-x;
+  /* picote lateral (comanda): furos de 9 px a cada 28 px */
+  --mask-perforated:
+    radial-gradient(circle 9px at 0 50%, #0000 97%, #000) left / 51% 28px repeat-y,
+    radial-gradient(circle 9px at 100% 50%, #0000 97%, #000) right / 51% 28px repeat-y;
+
+  /* 9 · Movimento (docs/design/design-system/MOTION.md) ----------------------------------- */
+  --ease: cubic-bezier(.2, .7, .2, 1);          /* nome do v1 */
+  --ease-out: var(--ease);
+  --ease-paper: cubic-bezier(.34, 1.4, .64, 1); /* assentar com leve overshoot */
+  --ease-in: cubic-bezier(.4, 0, 1, 1);
+  --dur-xs: 120ms;
+  --dur-s: 220ms;
+  --dur-m: 420ms;
+  --dur-l: 640ms;
+  --dur-reveal: 700ms;   /* revelação do v1 */
+  --dur-xl: 900ms;
+  --stagger: 70ms;
+  --lift: 28px;
+  --tilt: 5deg;
+  --spin-period: 24s;    /* selo da Roll */
+  --ticker-period: 32s;  /* faixa de categorias */
+
+  /* 10 · Camadas -------------------------------------------------------------------------- */
+  --z-strip: 3;
+  --z-dock: 50;
+  --z-sheet: 60;
+
+  /* 11 · Unidade do protótipo ----------------------------------------------------------------
+     As colagens foram desenhadas em 390 px. Cada palco declara `--u` = 1 px do protótipo,
+     calculado com unidades de contêiner (ver RESPONSIVIDADE.md). Em 390 px, --u = 1px. */
+  --stage-hero-w: 358;   /* largura da colagem do hero em 390 px */
+  --stage-hero-h: 330;
+  --stage-board-w: 358;  /* largura do quadro da Mesa em 390 px */
+}
+
+@media (min-width: 960px) {
+  :root { --gutter: 56px; }
+}

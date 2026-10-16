@@ -1,0 +1,32 @@
+/* FORNADAS (Roll) · stories + bandejas em leque. Origem: .roll do v1. */
+
+.roll {
+  position: relative; isolation: isolate;
+  padding: var(--rhythm-c) 0 calc(var(--rhythm-c) + var(--rhythm-tail));
+  background: var(--cacao); color: var(--cream);
+  overflow: hidden;
+}
+.roll__spiral {
+  position: absolute; z-index: -1;
+  width: 560px; right: -230px; top: 40px;
+  fill: none; stroke: var(--caramel); stroke-width: 10; stroke-linecap: round; opacity: .22;
+}
+.roll__head { padding: 0 var(--gutter); }
+.roll__badge { margin-bottom: 20px; }
+.roll__lead { margin-top: 20px; max-width: 32ch; font-size: var(--fs-lead); color: var(--text-on-dark-muted); }
+.roll__credit { margin: 14px var(--gutter) 0; font-size: var(--fs-micro); color: var(--text-on-dark-faint); }
+
+/* Leque de bandejas */
+.trays { display: flex; justify-content: center; margin-top: 44px; padding: 0 var(--gutter); }
+.trays figure { width: 39%; margin: 0 -5%; }
+.trays figure:nth-child(1) { rotate: -7deg; margin-top: 18px; }
+.trays figure:nth-child(2) { rotate: 3deg; z-index: 1; }
+.trays figure:nth-child(3) { rotate: -2deg; margin-top: 30px; }
+.trays img { aspect-ratio: 3 / 4; object-fit: cover; border: var(--border-photo) solid var(--cream); border-radius: var(--radius-s); box-shadow: var(--shadow-photo-deep); }
+.trays figcaption { margin-top: 8px; text-align: center; font: var(--t-caption-l); color: var(--butter); }
+
+@media (min-width: 960px) {
+  .roll__head { max-width: 1240px; margin: 0 auto; }
+  .stories { grid-auto-columns: 280px; justify-content: center; overflow: visible; }
+  .trays { max-width: 900px; margin-left: auto; margin-right: auto; }
+}

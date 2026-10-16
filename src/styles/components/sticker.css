@@ -1,0 +1,25 @@
+/* Selos. Origem: .sticker--roll (selo com texto em círculo) e .roll__badge (selo simples) do v1.
+   A posição é do palco onde o selo é colado. */
+
+.sticker--roll {
+  display: grid; place-items: center;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--cream);
+  rotate: 8deg;
+  box-shadow: var(--shadow-sticker);
+}
+.sticker--roll svg {
+  position: absolute; inset: 0;
+  font: 700 12.5px/1 var(--display); fill: var(--wine); text-transform: uppercase; letter-spacing: .02em;
+  animation: spin var(--spin-period) linear infinite;
+}
+.sticker--roll img { width: 58%; }
+
+.badge {
+  display: grid; place-items: center;
+  width: 118px; aspect-ratio: 1;
+  border-radius: 50%; background: var(--cream);
+  rotate: -8deg;
+}
+.badge img { width: 74%; }

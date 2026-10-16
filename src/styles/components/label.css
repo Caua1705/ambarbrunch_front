@@ -1,0 +1,11 @@
+/* Etiqueta com borda recortada (o “rótulo” creme que segura o logo).
+   Origem: .hero__label h1 do v1, generalizada como .label. */
+
+.label {
+  width: min(76vw, 320px);
+  padding: 20px 24px 30px;
+  background: var(--cream);
+  -webkit-mask: var(--mask-scallop);
+          mask: var(--mask-scallop);
+}
+.label img { width: 100%; }

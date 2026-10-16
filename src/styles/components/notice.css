@@ -1,0 +1,12 @@
+/* Avisos de procedência. Origem: .climas__notice (bloco) e .hero__note (nota com asterisco) do v1.
+   Regra: toda foto do espaço anterior leva um destes avisos até ser trocada. */
+
+.notice {
+  display: inline-block;
+  padding: 10px 14px;
+  border: 2px dashed var(--notice-line); border-radius: var(--radius-control);
+  color: var(--wine); font-size: var(--fs-small); line-height: 1.35;
+}
+
+.ref-note { max-width: 15ch; font: var(--t-fine-serif); color: var(--butter); opacity: .85; text-align: right; }
+.ref-note--on-light { color: var(--text-muted); opacity: 1; }

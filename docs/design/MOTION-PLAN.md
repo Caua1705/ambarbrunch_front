@@ -1,6 +1,6 @@
 # Motion plan — Conceito B · Fornada Âmbar
 
-> **Situação:** proposta para aprovação (2026-10-16). Nada implementado além do que já existe no protótipo v1.
+> **Situação:** aprovado (2026-10-16). Tokens e primitivas implementados no design system ([`design-system/MOTION.md`](design-system/MOTION.md)); a coreografia por seção entra na implementação.
 > Relacionados: [`HOMEPAGE-STORYBOARD.md`](HOMEPAGE-STORYBOARD.md) · [`CONCEITO-B-APROVADO.md`](CONCEITO-B-APROVADO.md) §7 (efeitos atuais).
 
 ## 0. Princípios

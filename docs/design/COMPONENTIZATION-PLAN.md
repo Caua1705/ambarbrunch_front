@@ -1,6 +1,6 @@
 # Plano de componentização — do protótipo B ao código definitivo
 
-> **Situação:** proposta para aprovação (2026-10-16). Nenhuma dependência instalada e nenhuma aplicação criada.
+> **Situação:** aprovado (2026-10-16). O design system já foi extraído para `src/styles/` e `src/lib/` ([`design-system/`](design-system/README.md)); a aplicação Astro ainda não foi criada.
 > Fonte da verdade visual: `experiments/concept-b-aprovado-v1/` (código, não screenshots).
 > Relacionados: [`CONCEITO-B-APROVADO.md`](CONCEITO-B-APROVADO.md) · [`HOMEPAGE-STORYBOARD.md`](HOMEPAGE-STORYBOARD.md) · [`MOTION-PLAN.md`](MOTION-PLAN.md) · [`../technical/ARCHITECTURE.md`](../technical/ARCHITECTURE.md).
 

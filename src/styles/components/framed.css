@@ -1,0 +1,14 @@
+/* Foto emoldurada com fita (o “quadro de cortiça” da Mesa cheia). Origem: .board__item e .tape do v1.
+   Medidas em --u (1 px do protótipo, declarado pelo palco); sem palco, --u = 1px. */
+
+.board__item { position: absolute; margin: 0; background: var(--glaze); padding: calc(7 * var(--u, 1px)); box-shadow: var(--shadow-board); }
+.board__item img { width: 100%; object-fit: cover; }
+
+.tape {
+  position: absolute; z-index: 2; top: calc(-13 * var(--u, 1px)); left: 34%;
+  width: calc(78 * var(--u, 1px)); height: calc(26 * var(--u, 1px));
+  background: var(--tape);
+  rotate: -5deg;
+  box-shadow: var(--shadow-tape);
+}
+.tape--r { left: auto; right: 18%; rotate: 8deg; }

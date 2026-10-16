@@ -1,0 +1,67 @@
+/* HERO · Fornada Âmbar. Origem: .hero do v1.
+   Desvio aprovado: a colagem encolhe pela ALTURA da tela, para o botão “Reservar mesa” caber na primeira tela
+   (360×640 a 430×932). Em 390×844 o resultado é idêntico ao v1. Ver RESPONSIVIDADE.md §3. */
+
+.hero {
+  position: relative; isolation: isolate;
+  min-height: calc(100svh - 28px);
+  display: flex; flex-direction: column;
+  padding: 22px var(--gutter) 22px;
+  background: var(--wine);
+  color: var(--butter);
+  overflow: hidden;
+  /* altura do hero SEM a colagem, medida no v1: 83,4vw + 172 px (±1 px de 360 a 420 px) + 1 px de folga */
+  --hero-rest: calc(83.4vw + 173px);
+}
+.hero__label { align-self: center; rotate: -2.5deg; filter: var(--drop-label); }
+
+.hero__headline {
+  margin-top: 22px;
+  font: var(--t-hero);
+  font-variation-settings: var(--wdth-mega);
+  text-transform: uppercase;
+  letter-spacing: var(--track-hero);
+}
+.hero__headline span { display: block; }
+.hero__headline .l2 { text-align: right; color: var(--caramel-lt); }
+.hero__headline .l3 { white-space: nowrap; }
+.hero__headline em { font: italic 500 .78em/1 var(--serif); text-transform: none; color: var(--caramel-lt); }
+
+/* Palco da colagem: 358 × 330 px do protótipo. --u = 1 px do protótipo, limitado pela largura E pela altura. */
+.hero__collage {
+  position: relative; flex: 1 0 auto; margin-top: 14px;
+  /* 12 px de respiro sob o botão; em 390×844 sobra espaço e vale o teto de 330 px do v1 */
+  height: clamp(160px, calc(100svh - 12px - var(--hero-rest)), calc(var(--stage-hero-h) * 1px));
+  container-type: size;
+  --u: min(calc(100cqw / var(--stage-hero-w)), calc(100cqh / var(--stage-hero-h)));
+  --ox: calc((100cqw - var(--stage-hero-w) * var(--u)) / 2);   /* centraliza quando a altura manda */
+}
+.hero__collage .cut--circle   { width: calc(179 * var(--u));    left: calc(var(--ox) - 21.48 * var(--u)); top: calc(22 * var(--u));  z-index: 2; }
+.hero__collage .cut--polaroid { width: calc(150.36 * var(--u)); left: calc(var(--ox) + 207.64 * var(--u)); top: 0; z-index: 1; }
+.hero__collage .cut--tile     { width: calc(110.98 * var(--u)); left: calc(var(--ox) + 118.14 * var(--u)); top: calc(150 * var(--u)); z-index: 3; }
+.hero__collage .sticker--roll { position: absolute; z-index: 4; width: calc(104 * var(--u)); left: calc(var(--ox) + 239.68 * var(--u)); top: calc(238 * var(--u)); }
+.hero__collage .sparks        { position: absolute; z-index: 2; width: calc(86 * var(--u));  left: calc(var(--ox) + 143.2 * var(--u)); top: calc(40 * var(--u)); }
+
+.hero__foot { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 14px; position: relative; z-index: 5; }
+/* correção: no v1 o botão quebrava em duas linhas abaixo de ~375 px; agora ele nunca quebra e a nota cede espaço */
+.hero__foot .btn { flex: none; white-space: nowrap; }
+@media (max-width: 374px) { .hero__foot .btn { padding: 0 18px; } .hero__foot .ref-note { font-size: 11.5px; } }
+
+@media (min-width: 960px) {
+  .hero {
+    display: grid; grid-template-columns: 1fr 1.05fr; grid-template-rows: auto 1fr auto;
+    column-gap: 40px; min-height: calc(100vh - 28px); padding-top: 40px;
+  }
+  .hero__label { grid-column: 1; justify-self: start; }
+  .hero__label .label { width: 360px; }
+  .hero__headline { grid-column: 1; font-size: clamp(90px, 9.5vw, 160px); }
+  /* no desktop vale a composição em % do v1 */
+  .hero__collage { grid-column: 2; grid-row: 1 / 4; margin: 0; height: auto; min-height: 620px; container-type: normal; --u: 1px; --ox: 0px; }
+  .hero__collage .cut--circle   { width: 50%; left: -6%; top: 120px; }
+  .hero__collage .cut--polaroid { width: 42%; left: auto; right: 0; }
+  .hero__collage .cut--tile     { width: 31%; left: 33%; top: 300px; }
+  .hero__collage .sticker--roll { width: 150px; left: auto; right: 4%; top: 360px; }
+  .hero__collage .sparks        { left: 40%; }
+  .hero__foot { grid-column: 1; justify-content: flex-start; gap: 28px; }
+  .hero__note { text-align: left; }
+}

@@ -1,0 +1,10 @@
+/* Bolha: foto circular com legenda em pílula. Origem: .bubble do v1. A posição é do palco. */
+
+.bubble { position: absolute; margin: 0; width: 38%; z-index: 2; }
+.bubble img { aspect-ratio: 1; object-fit: cover; border-radius: 50%; border: var(--border-photo) solid var(--butter); }
+.bubble figcaption {
+  position: absolute; left: 50%; bottom: -6px; translate: -50% 0;
+  padding: 6px 12px 7px; border-radius: var(--radius-pill);
+  background: var(--cacao); color: var(--butter);
+  font: var(--t-tag); white-space: nowrap;
+}
