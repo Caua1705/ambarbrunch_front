@@ -38,6 +38,8 @@ Ainda **não** há integração. Os pontos abaixo serão definidos em etapa futu
 
 _A definir._ A escolha (ex.: framework, estilização, animação) será feita após a aprovação da direção visual.
 
+> **Proposta em avaliação (2026-10-16):** Astro + CSS próprio + TypeScript, com uma ilha Preact só para o fluxo de reserva; imagens via `astro:assets`; vídeos reexportados sem áudio; Playwright para testes visuais. Justificativa completa em [`../design/COMPONENTIZATION-PLAN.md`](../design/COMPONENTIZATION-PLAN.md). Nada foi instalado.
+
 Critérios a considerar:
 - mobile-first e desempenho em redes móveis;
 - conteúdo editorial com mídia pesada (imagens/vídeo) bem otimizada;

@@ -91,7 +91,9 @@ Como seção/assinatura dentro da experiência Âmbar, nunca como restaurante in
 | Pergunta / informação faltante | Responsável | Situação |
 | --- | --- | --- |
 | Versão do logo e nome exibido | Cliente | **Decidido (provisório):** site “Âmbar Brunch”, logo “âmbar CAFÉ & BRUNCH” da pág. 1 |
-| A proposta de interiores e marca (selo “Ana Mônica arquitetura e interiores”) foi executada? | Cliente | Aberto |
+| A proposta de interiores e marca (selo “Ana Mônica arquitetura e interiores”) foi executada? | Cliente | Aberto. O plano de lançamento prevê intervenções físicas e adesivação de 20 a 23/10/2026 |
+| Data de reabertura pode ser divulgada? (o plano interno cita 27/10/2026) | Cliente | Aberto |
+| Este projeto é o “novo site de reservas” que o plano prevê apresentar em 22/10/2026? | Cliente | Aberto — afeta o cronograma |
 | Arquivos vetoriais (SVG/AI) dos logos Âmbar e Roll | Cliente | Aberto |
 | Cores e tipografia oficiais (manual de marca) | Cliente | Aberto |
 | Endereço, horários e canais oficiais do Âmbar | Cliente | Aberto (talvez em `docs/brand/plano-lancamento-contexto.pdf`, não lido) |

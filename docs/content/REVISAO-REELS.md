@@ -40,6 +40,7 @@
 - **Técnico:** H.264 720×1280, AAC, 5,0 MB. 21,17 s — mesma duração do IV-06, típico de recorte de faixa da biblioteca.
 - **Legenda:** “Cinnamon roll tradicional tem o nosso coração 🤍 …”.
 - **Imagem:** a mais “editorial” do conjunto: mármore claro, folhagem verde ao fundo, luva preta, glacê. Combina com a paleta creme/verde do jardim (FR-04).
+- **Correção (2026-10-16, nos testes dos protótipos):** o vídeo tem **texto do Instagram gravado na imagem** (“so delicious”, com uma seta) na segunda metade, por volta dos 10 s. A grade de frames da primeira revisão não pegou esse trecho. Para usar, recortar o início (antes de ≈9 s) ou pedir o arquivo sem texto.
 - **Áudio:** música “Day By Day” — Amaria (batida regular no espectrograma).
 - **Uso:** vídeo de processo na seção Roll, **sem áudio**.
 - **Pendências:** autorização da Roll; remover a faixa de música.
@@ -118,5 +119,5 @@
 | Direito de imagem das pessoas em cena | — | — | ☐ | ☐ (3) | ☐ | — | ☐ | — | — |
 | Áudio: remover faixa ou licenciar | ☐ confirmar | ☐ remover | sem faixa | ☐ remover | ☐ voz autorizada | ☐ remover | ☐ remover | ☐ remover | ☐ remover |
 | Marca de terceiro visível | — | — | MadNutz | MadNutz | — | — | — | Kinder | Kinder |
-| Texto/UI gravado na imagem | adesivo IG | — | — | — | título | — | “Você pediu Roll” | — | “Outubro” |
+| Texto/UI gravado na imagem | adesivo IG | “so delicious” (~10 s) | — | — | título | — | “Você pediu Roll” | — | “Outubro” |
 | Sabor ainda no cardápio? | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ | ☐ |

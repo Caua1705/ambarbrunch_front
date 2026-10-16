@@ -173,6 +173,7 @@ Detalhes, áudio e pendências em [`REVISAO-REELS.md`](REVISAO-REELS.md). Pasta 
 | IV-07 | `2026-09-24_Ddrf0LBgz-a_video.mp4` | 9,1 s | 720×1280 | @roll.ofc | Música “Weekend Drive (Instrumental)” — Corduroy Egg | reviews | P2 |
 | IV-08 | `2026-10-01_Dd9V9KUz-nV_video.mp4` | 4,6 s | 720×1280 | @roll.ofc | Música “You Might Be Right” — cloud cover | roll (loop) | P2 (mudo) |
 | IV-09 | `2026-10-02_DeAT31Yg8Un_video.mp4` | 6,3 s | 720×1280 | @roll.ofc | Música “I Love You More (Instrumental)” — Company Money | roll (loop) | P2 (mudo) |
+| IV-P | `creative/source/video/roll_reels/posters/*_poster.webp` (4, criados em 2026-10-16) | — | 720×1280 | derivado de IV-02/06/08/09 | sem áudio (imagem) | poster nos protótipos | P2 · mesma restrição de direitos do vídeo |
 | IG-JSON | `creative/source/social/instagram-roll-extraido.json` | 312 KB | — | Apify | — | consulta | P3 · contém comentários e usernames de terceiros: **não publicar nem versionar** |
 
 ### IG-OPT — Fotos reais da Roll, cópias otimizadas (7)
@@ -219,7 +220,7 @@ Pasta `creative/source/photography/roll_instagram/otimizadas/`. O nome do arquiv
 | --- | --- | --- | --- |
 | DC-01 | `docs/content/pacote-v1/README-PACOTE.md` | Instruções do pacote | Movido da raiz em 2026-10-16 |
 | DC-02 | `docs/content/pacote-v1/CLAUDE-ETAPA-1-IMPORTACAO.md` | Especificação da Etapa 1 | Idem |
-| DC-03 | `docs/brand/plano-lancamento-contexto.pdf` | Plano de lançamento (13 MB) | Ainda **não lido** (fora do escopo desta revisão). Agora é possível renderizá-lo; pode ter endereço, horários e operação |
+| DC-03 | `docs/brand/plano-lancamento-contexto.pdf` | Plano de lançamento em 10 dias (10 págs., feito no Gemini Notebook) | Lido em 2026-10-16. Marcos: shooting de produto em 21/10, **apresentação do novo site de reservas em 22/10**, intervenções físicas de 20 a 23/10, soft opening com captação real em 24/10, reabertura oficial do Âmbar Brunch e lançamento da parceria em 27/10. **Não traz** endereço nem horários. A foto de ambiente com placas ROLL (pág. 3) repete a pág. 11 da apresentação e tem forte indício de ter sido gerada por IA. Contexto interno: não publicar |
 | DC-04 | `docs/content/ASSET-MANIFEST-IMPORT.csv` | Manifesto de origem do pacote | Mesclado neste documento |
 | DC-05 | `docs/content/FONTES-PENDENTES.md` | Pendências do pacote (Drive, vetores, autorizações) | Incorporadas em `CURADORIA-INICIAL.md` |
 | DC-06 | `docs/content/CONTATO-FOTOS.jpg` | Folha de contato (1360×1848) | Reaproveitada |

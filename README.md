@@ -4,8 +4,9 @@ Novo frontend do **Âmbar Brunch**, com a marca **Roll** integrada à identidade
 
 O objetivo é um site **mobile-first**, editorial e criativo, com acabamento cuidadoso e foco principal em **reservas**.
 
-> **Situação atual:** Etapa 1 — acervo importado e curadoria inicial, aguardando aprovação.
-> Ainda não há aplicação, dependências instaladas nem decisões visuais tomadas.
+> **Situação atual:** Etapas 1 a 3 aprovadas. Direção visual escolhida: **Conceito B · Fornada Âmbar**
+> (protótipo congelado em [`experiments/concept-b-aprovado-v1/`](experiments/concept-b-aprovado-v1/README.md)).
+> Planejamento da homepage em [`docs/design/`](docs/design/). Ainda não há aplicação nem dependências instaladas.
 
 ## Como trabalhamos
 
