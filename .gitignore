@@ -1,0 +1,139 @@
+# =============================================================
+# Âmbar Brunch — Frontend
+# =============================================================
+
+# -------------------------------------------------------------
+# Credenciais e variáveis de ambiente
+# -------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials*.json
+service-account*.json
+secrets/
+
+# -------------------------------------------------------------
+# Materiais criativos brutos (não versionados)
+# Apenas a estrutura de pastas (.gitkeep) é rastreada.
+# Para versionar algo destas pastas, use `git add -f` de forma
+# deliberada ou adote Git LFS no futuro.
+# -------------------------------------------------------------
+creative/inbox/*
+!creative/inbox/.gitkeep
+
+creative/source/brand/*
+!creative/source/brand/.gitkeep
+creative/source/photography/*
+!creative/source/photography/.gitkeep
+creative/source/video/*
+!creative/source/video/.gitkeep
+
+creative/generated/illustrations/*
+!creative/generated/illustrations/.gitkeep
+creative/generated/backgrounds/*
+!creative/generated/backgrounds/.gitkeep
+creative/generated/compositions/*
+!creative/generated/compositions/.gitkeep
+
+# Vídeos de referência costumam ser pesados
+references/motion/*
+!references/motion/.gitkeep
+
+# -------------------------------------------------------------
+# Formatos de origem pesados / brutos (em qualquer pasta)
+# -------------------------------------------------------------
+# Vídeo bruto
+*.mov
+*.MOV
+*.mxf
+*.MXF
+*.avi
+*.mkv
+*.m2ts
+*.mts
+*.MTS
+*.r3d
+*.braw
+*.prproj
+*.aep
+
+# Fotografia RAW
+*.cr2
+*.CR2
+*.cr3
+*.CR3
+*.nef
+*.NEF
+*.arw
+*.ARW
+*.dng
+*.DNG
+*.raf
+*.orf
+*.rw2
+
+# Arquivos de design de origem
+*.psd
+*.psb
+*.ai
+*.indd
+*.idml
+*.sketch
+*.xd
+*.afdesign
+*.afphoto
+
+# Pacotes compactados
+*.zip
+*.rar
+*.7z
+*.tar
+*.tar.gz
+
+# -------------------------------------------------------------
+# Dependências e builds (para quando o frontend existir)
+# -------------------------------------------------------------
+node_modules/
+.pnpm-store/
+dist/
+build/
+out/
+.next/
+.astro/
+.vercel/
+.turbo/
+.cache/
+coverage/
+*.tsbuildinfo
+
+# -------------------------------------------------------------
+# Logs e arquivos temporários
+# -------------------------------------------------------------
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
+*.swp
+*~
+
+# -------------------------------------------------------------
+# Sistema operacional e editores
+# -------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
