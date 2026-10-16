@@ -15,12 +15,14 @@ export const motionAllowed = () => !prefersReducedMotion() && root.dataset.motio
 function readPaused() {
   try { return localStorage.getItem(KEY) === 'paused'; } catch { return false; }
 }
+/** @param {boolean} paused */
 function writePaused(paused) {
   try { paused ? localStorage.setItem(KEY, 'paused') : localStorage.removeItem(KEY); } catch { /* armazenamento bloqueado: vale só nesta visita */ }
 }
 
 /** Aplica a pausa salva e liga todos os botões [data-motion-toggle]. Dispara `ambar:motion` a cada mudança. */
 export function initMotionPreference() {
+  /** @param {boolean} paused */
   const apply = (paused) => {
     if (paused) root.dataset.motion = 'paused'; else delete root.dataset.motion;
     document.querySelectorAll('[data-motion-toggle]').forEach((b) => b.setAttribute('aria-pressed', String(paused)));

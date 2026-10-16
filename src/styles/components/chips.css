@@ -21,4 +21,4 @@
 .stepper { display: inline-flex; align-items: center; gap: 6px; }
 .stepper button { width: 46px; height: 46px; border: var(--border-control) solid var(--ink); border-radius: var(--radius-control); background: var(--glaze); color: var(--wine); font: 700 22px/1 var(--display); cursor: pointer; }
 .stepper button:disabled { border-style: dashed; color: var(--text-muted); cursor: not-allowed; }
-.stepper output { min-width: 52px; text-align: center; font: var(--t-numeral); font-variation-settings: var(--wdth-tag); color: var(--wine); }
+.stepper output { min-width: 52px; text-align: center; font: var(--t-numeral); font-variation-settings: var(--wdth-tag); font-stretch: var(--stretch-tag); color: var(--wine); }

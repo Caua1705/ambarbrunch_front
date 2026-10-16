@@ -1,0 +1,35 @@
+---
+// Foto responsiva: AVIF + WebP em várias larguras, a partir do original aprovado em src/assets/media.
+// O <picture> usa `display: contents` para não criar caixa: o CSS do v1 (que estiliza o <img>) continua valendo.
+import { Picture } from 'astro:assets';
+import { imagem } from '../lib/media';
+
+interface Props {
+  src: string;               // caminho dentro de src/assets/media
+  alt: string;
+  sizes: string;             // largura real da peça na página
+  widths?: number[];
+  class?: string;
+  prioridade?: boolean;      // só para a 1ª tela (logo e foto principal do hero)
+  qualidade?: number;
+}
+const { src, alt, sizes, widths = [240, 360, 540, 720, 1080], class: cls, prioridade = false, qualidade = 64 } = Astro.props;
+const meta = imagem(src);
+const larguras = meta ? [...new Set(widths.map((w) => Math.min(w, meta.width)))] : [];
+---
+{meta && (
+  <Picture
+    src={meta}
+    alt={alt}
+    widths={larguras}
+    sizes={sizes}
+    formats={['avif', 'webp']}
+    fallbackFormat="webp"
+    quality={qualidade}
+    class={cls}
+    loading={prioridade ? 'eager' : 'lazy'}
+    decoding="async"
+    fetchpriority={prioridade ? 'high' : undefined}
+    pictureAttributes={{ style: 'display:contents' }}
+  />
+)}

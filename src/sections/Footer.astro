@@ -1,0 +1,20 @@
+---
+// 10 · RODAPÉ (v1 + links, pausa de animações). O padding inferior reserva o espaço da doca.
+import Foto from '../components/Foto.astro';
+import MotionToggle from '../components/MotionToggle.astro';
+import Pendente from '../components/Pendente.astro';
+import { roll } from '../data/roll';
+import { REVISAO } from '../lib/conteudo';
+---
+<footer class="footer">
+  <Foto src="brand/logo-ambar.png" alt="Âmbar Brunch" class="footer__logo" sizes="240px" widths={[240, 480, 720]} qualidade={80} />
+  <p class="footer__sig">com assinatura gastronômica <Foto src="brand/logo-roll.png" alt="Roll" sizes="56px" widths={[56, 112, 168]} qualidade={80} /></p>
+  <p class="footer__info"><Pendente falta="Endereço, horários e contatos" /></p>
+  <p class="footer__links">
+    <a href="/privacidade/">Privacidade</a>
+    <span aria-hidden="true">·</span>
+    <a href={roll.instagram.url} rel="noopener">Roll {roll.instagram.handle}</a>
+  </p>
+  <div class="footer__tools"><MotionToggle /></div>
+  {REVISAO && <p class="footer__info">Versão de revisão · conteúdo marcado “a confirmar” ainda depende do Âmbar</p>}
+</footer>

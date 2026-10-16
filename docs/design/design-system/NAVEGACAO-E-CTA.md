@@ -17,7 +17,7 @@
 | --- | --- | --- | --- |
 | Topo da página (botão do hero na tela) | visível | oculto | oculto |
 | Rolando pelas seções | fora da tela | **visível** | **visível** |
-| Seção de reserva ≥ 25% na tela | — | visível | **oculto** (já está na reserva) |
+| Seção de reserva ≥ 25% na tela | — | **oculto** (cobriria campos do formulário) | **oculto** (já está na reserva) |
 | Campo de texto com foco (teclado aberto) | — | oculto | oculto |
 | Menu aberto | — | oculto | oculto |
 | Tela baixa em que o botão do hero não cabe | visível | oculto | **visível desde o início** |
@@ -26,7 +26,7 @@ Regras (em `lib/sticky-cta.js`):
 
 ```
 CTA  = botãoDoHero < 60% visível  E  reserva < 25% visível  E  !digitando  E  !menuAberto
-Menu = seloDoHero fora da tela                              E  !digitando  E  !menuAberto
+Menu = seloDoHero fora da tela  E  reserva < 25% visível     E  !digitando  E  !menuAberto
 ```
 
 - “Botão do hero visível” exige **60%** do botão na tela: um botão cortado na borda não conta.
@@ -58,6 +58,6 @@ Menu = seloDoHero fora da tela                              E  !digitando  E  !m
 | Rolado até a Mesa | visível ✓ | visível ✓ | fechada |
 | Menu aberto | oculto ✓ | oculto ✓ | aberta, foco no ✕ ✓ |
 | Toque em “Ambientes” | volta ✓ | volta ✓ | fecha e rola ✓ |
-| Na reserva | oculto ✓ | visível ✓ | — |
+| Na reserva | oculto ✓ | oculto ✓ (mudança da implementação: o botão cobria o aceite de privacidade) | — |
 
 Também nos topos de 375×667, 360×740 e 430×932: 0 px de overflow horizontal e console sem erros.

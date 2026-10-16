@@ -1,0 +1,17 @@
+---
+// Mega título em linhas alternadas (v1: .mega). A 2ª linha vai para a direita; scribble opcional.
+interface Props {
+  linhas: string[];
+  id: string;
+  tom?: 'light' | 'wine';
+  scribble?: string;
+  as?: 'h1' | 'h2';
+  direita?: number[];          // índices das linhas alinhadas à direita (padrão: a 2ª)
+  reveal?: 'lines' | '' ;      // '' = revelação simples do v1
+}
+const { linhas, id, tom, scribble, as: Tag = 'h2', direita = [1], reveal = 'lines' } = Astro.props;
+---
+<Tag class:list={['mega', tom && `mega--${tom}`]} id={id} data-reveal={reveal || ''}>
+  {linhas.map((l, i) => <span class:list={[direita.includes(i) && 'mega__r']}>{l}</span>)}
+  {scribble && <em class:list={['scribble', tom === 'light' && 'scribble--light']}>{scribble}</em>}
+</Tag>

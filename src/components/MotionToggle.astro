@@ -1,0 +1,9 @@
+---
+// Pausar/retomar animações (WCAG 2.2.2). O estado é aplicado por src/lib/motion.js.
+---
+<button class="motion-toggle" type="button" data-motion-toggle aria-pressed="false">
+  <svg class="when-running" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 2h3v10H3zM8 2h3v10H8z" /></svg>
+  <svg class="when-paused" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 2l9 5-9 5z" /></svg>
+  <span class="when-running">Pausar animações</span>
+  <span class="when-paused">Retomar animações</span>
+</button>

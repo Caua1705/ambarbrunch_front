@@ -75,6 +75,9 @@ Toda diferença visual ou de comportamento em relação ao protótipo está aqui
 | D9 | Título do hero sem `aria-label` | leitor de tela | `aria-label` em `<p>` não é lido de forma confiável |
 | D10 | Saídas do CTA mais rápidas (220 ms) | comportamento | não atrapalhar quem rola |
 | D11 | Estados novos: chip indisponível e carregando, stepper no limite, campos, carimbo, mensagens | comanda | fluxo real de reserva |
+| D12 | Largura variável via `font-stretch` (eixos efetivos iguais) | tipografia | WebKit encavalava as letras |
+| D13 | Título e etiqueta do hero limitados pela altura; respiros menores abaixo de 700 px | telas baixas | colagem maior em 375×667 |
+| D14 | Doca inteira (menu + CTA) some na seção de reserva | comportamento | o menu fixo cobria o aceite de privacidade |
 
 ## Registro de decisões
 
@@ -85,4 +88,5 @@ Toda diferença visual ou de comportamento em relação ao protótipo está aqui
 | 2026-10-16 | Este é o site de reservas de 22/10; reserva só conta como pronta com integração e testes reais | cliente |
 | 2026-10-16 | Com menu, discreto; Reservar é a ação principal | cliente |
 | 2026-10-16 | Astro + CSS próprio + Preact só na reserva | cliente (planejamento) |
-| 2026-10-16 | Design system v1.0 (este documento) | **aguardando revisão** |
+| 2026-10-16 | Design system v1.0 (este documento) | cliente |
+| 2026-10-16 | Implementação em Astro (Etapa 4) com os desvios D12–D14 | **aguardando revisão** |

@@ -1,0 +1,59 @@
+---
+// 5 · FORNADAS — a Roll como assinatura gastronômica do Âmbar (markup do v1 + créditos e controles dos vídeos).
+// Não é vitrine de loja: sem preço, sem compra, sem delivery. Mídia da Roll só com autorização (ou no modo de revisão).
+import Foto from '../components/Foto.astro';
+import MegaTitle from '../components/MegaTitle.astro';
+import Badge from '../components/Badge.astro';
+import Story from '../components/Story.astro';
+import Spiral from '../components/Spiral.astro';
+import Pendente from '../components/Pendente.astro';
+import { roll } from '../data/roll';
+import { podeMostrar, isPendente, REVISAO } from '../lib/conteudo';
+import { imagem, video } from '../lib/media';
+
+const videos = roll.videos.filter((v) => podeMostrar(v.autorizado) && video(v.arquivo));
+const bandejas = podeMostrar(roll.bandejasAutorizadas) ? roll.bandejas.filter((b) => imagem(b.foto)) : [];
+const pendentesAutorizacao = roll.videos.some((v) => !v.autorizado) || !roll.bandejasAutorizadas;
+const doMes = roll.sabores.doMes;
+---
+<section class="roll" id="roll" aria-labelledby="roll-titulo" tabindex="-1">
+  <Spiral class="roll__spiral" />
+
+  <div class="roll__head">
+    <Badge class="roll__badge" />
+    <MegaTitle linhas={['Forna', 'das']} id="roll-titulo" tom="light" />
+    <p class="roll__lead" data-reveal>{roll.lead}</p>
+  </div>
+
+  {videos.length > 0 && (
+    <>
+      <ol class="stories" aria-label="Vídeos da Roll">
+        {videos.map((v) => <Story {...v} />)}
+      </ol>
+      <p class="roll__credit">Vídeos {roll.instagram.handle} · {REVISAO && pendentesAutorizacao ? 'uso no site sujeito a autorização e sem trilha sonora' : 'sem trilha sonora'}</p>
+    </>
+  )}
+
+  {bandejas.length > 0 && (
+    <div class="trays" data-reveal>
+      {bandejas.map((b, i) => (
+        <figure data-parallax={i === 1 ? 'up' : undefined}>
+          <Foto src={b.foto} alt={b.alt} sizes="(min-width: 960px) 300px, 34vw" />
+          <figcaption>{b.sabor}</figcaption>
+        </figure>
+      ))}
+    </div>
+  )}
+
+  <div class="roll__sabores">
+    <p class="bands__label">sabores do mês</p>
+    {isPendente(doMes)
+      ? <Pendente falta={doMes.falta} />
+      : <ul class="bands__list">{(doMes as string[]).map((s) => <li style="--b:var(--butter)">{s}</li>)}</ul>}
+  </div>
+  {REVISAO && pendentesAutorizacao && (
+    <p class="roll__credit roll__pending"><Pendente falta="Autorização da Roll para fotos e vídeos do Instagram (sem ela, saem do site publicado)" /></p>
+  )}
+
+  <p class="roll__cta"><a href="#reservar">prove no Âmbar <strong>reservar →</strong></a></p>
+</section>

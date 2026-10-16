@@ -1,0 +1,21 @@
+---
+// 3 · NOVO CAPÍTULO (nova). Explica em 5 segundos a hierarquia: Âmbar Brunch é o destino; a Roll, a assinatura.
+// Texto PROVISÓRIO (storyboard) até a revisão do cliente; a data de reabertura só entra quando for pública.
+import MegaTitle from '../components/MegaTitle.astro';
+import Badge from '../components/Badge.astro';
+import Stamp from '../components/Stamp.astro';
+import Spiral from '../components/Spiral.astro';
+import Pendente from '../components/Pendente.astro';
+import { novoCapitulo as nc } from '../data/novo-capitulo';
+---
+<section class="novo" id="novo" aria-labelledby="novo-titulo" tabindex="-1">
+  <Spiral class="spiral novo__spiral" />
+  <Stamp class="novo__stamp" reveal>{nc.carimbo}</Stamp>
+  <MegaTitle linhas={nc.titulo} id="novo-titulo" tom="wine" scribble={nc.scribble} />
+  <div class="novo__body" data-reveal>
+    <p class="novo__text">{nc.texto}</p>
+    <Badge />
+  </div>
+  <a class="novo__link" href="#reservar">Reservar mesa <span aria-hidden="true">→</span></a>
+  {nc.provisorio && <p><Pendente falta="Texto oficial desta seção (o atual é provisório) e data de reabertura" bloco /></p>}
+</section>

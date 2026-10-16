@@ -6,3 +6,5 @@
 .footer__sig img { width: 56px; }
 .footer__info { margin-top: 16px; font-size: var(--fs-small); color: var(--text-muted); }
 .footer__tools { display: flex; justify-content: center; margin-top: 22px; color: var(--cacao); }
+.footer__links { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 18px; font: var(--t-pill); letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--wine); }
+.footer__links a { min-height: 44px; display: inline-flex; align-items: center; }

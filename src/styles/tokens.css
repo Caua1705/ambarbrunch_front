@@ -33,13 +33,21 @@
   --display: "Bricolage Grotesque", "Arial Narrow", system-ui, sans-serif;
   --serif: "Fraunces", Georgia, serif;
 
-  /* eixos da Bricolage (variável em largura) */
-  --wdth-mega: "wdth" 75, "opsz" 96;
-  --wdth-tag: "wdth" 78;
-  --wdth-ticker: "wdth" 80;
-  --wdth-band: "wdth" 82;
-  --wdth-button: "wdth" 85;
-  --wdth-body: "wdth" 100;
+  /* eixos da Bricolage (variável em largura). A LARGURA vai em font-stretch (eixo wdth padrão):
+     com "wdth" em font-variation-settings o WebKit muda o desenho mas não o avanço dos glifos (letras encavaladas).
+     font-variation-settings fica só com o tamanho óptico dos títulos. */
+  --wdth-mega: "opsz" 96;
+  --wdth-tag: normal;
+  --wdth-ticker: normal;
+  --wdth-band: normal;
+  --wdth-button: normal;
+  --wdth-body: normal;
+  --stretch-mega: 75%;
+  --stretch-tag: 78%;
+  --stretch-ticker: 80%;
+  --stretch-band: 82%;
+  --stretch-button: 85%;
+  --stretch-body: 100%;
 
   /* papéis tipográficos (shorthand `font`) */
   --t-hero: 800 clamp(70px, 21.5vw, 168px)/.8 var(--display);

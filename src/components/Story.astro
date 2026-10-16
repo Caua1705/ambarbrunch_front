@@ -1,0 +1,30 @@
+---
+// Vídeo vertical (v1: .story) com crédito obrigatório, progresso e tocar/pausar.
+// O vídeo é mudo, sem faixa de áudio, preload="none"; o poster (data-poster) só baixa quando o carrossel se aproxima
+// da tela — o atributo poster baixaria a imagem já no carregamento da página — e o vídeo só quando o card vai tocar.
+import { getImage } from 'astro:assets';
+import { imagem, video } from '../lib/media';
+
+interface Props {
+  arquivo: string; poster: string; tag: string; descricao: string;
+  autor: string; tipo: 'roll' | 'criadora';
+}
+const { arquivo, poster, tag, descricao, autor, tipo } = Astro.props;
+const src = video(arquivo);
+const meta = imagem(poster);
+const posterUrl = meta ? (await getImage({ src: meta, width: 540, format: 'webp', quality: 70 })).src : undefined;
+const credito = tipo === 'roll' ? 'vídeo da própria Roll' : 'conteúdo sobre a Roll';
+---
+{src && (
+  <li class="story">
+    <i class="story__progress" aria-hidden="true"></i>
+    <video muted playsinline loop preload="none" data-autoplay data-poster={posterUrl} aria-label={`Vídeo: ${descricao}`} width="540" height="960">
+      <source src={src} type="video/mp4" />
+    </video>
+    <button class="story__toggle" type="button" aria-pressed="false" aria-label={`Tocar ou pausar o vídeo: ${tag}`}>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
+    </button>
+    <p class="story__tag">{tag}</p>
+    <p class="story__by">{autor} <em>{credito}</em></p>
+  </li>
+)}

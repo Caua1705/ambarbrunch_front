@@ -7,11 +7,13 @@ body {
   background: var(--cream);
   color: var(--text);
   font: var(--t-body);
-  font-variation-settings: var(--wdth-body);
+  font-variation-settings: var(--wdth-body); font-stretch: var(--stretch-body);
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
 }
 img, video, svg { display: block; max-width: 100%; }
+/* <picture> usa display: contents (o CSS do v1 estiliza o <img>): os <source> nunca podem virar caixa de grid/flex */
+source { display: none; }
 img, video { height: auto; }
 a { color: inherit; }
 h1, h2, h3, p, figure, ul, ol { margin: 0; }
@@ -41,6 +43,6 @@ ul, ol { padding: 0; list-style: none; }
   padding: 12px 16px; border-radius: var(--radius-control);
   background: var(--butter); color: var(--wine); box-shadow: var(--shadow-offset);
   font: var(--t-pill); letter-spacing: var(--track-caps); text-transform: uppercase; text-decoration: none;
-  translate: 0 -200%;
 }
-.skip-link:focus-visible { translate: none; }
+/* fora da tela até receber foco (recorte, não deslocamento: não vaza em capturas nem em zoom) */
+.skip-link:not(:focus-visible) { clip-path: inset(50%); width: 1px; height: 1px; padding: 0; overflow: hidden; white-space: nowrap; box-shadow: none; }

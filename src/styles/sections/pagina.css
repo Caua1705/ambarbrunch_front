@@ -1,0 +1,15 @@
+/* Páginas internas (/reservar, /privacidade): barra simples com a etiqueta do logo e volta ao início. */
+
+.page-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 18px var(--gutter) 22px;
+  background: var(--wine); color: var(--butter);
+}
+.page-bar .label { width: 150px; padding: 12px 14px 20px; rotate: -2.5deg; filter: var(--drop-label); }
+.page-bar a { color: inherit; }
+.page-back { font: var(--t-pill); letter-spacing: var(--track-caps); text-transform: uppercase; text-decoration: none; min-height: 44px; display: inline-flex; align-items: center; }
+
+.doc { padding: 56px var(--gutter) 120px; background: var(--wine); }
+.doc .ticket { gap: 14px; }
+.doc .ticket p { font-size: 16px; line-height: 1.55; }
+.doc h1 { font: var(--t-ticket-title); font-variation-settings: var(--wdth-tag); font-stretch: var(--stretch-tag); text-transform: uppercase; color: var(--wine); }

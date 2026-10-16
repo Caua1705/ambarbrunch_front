@@ -4,21 +4,46 @@ Novo frontend do **Âmbar Brunch**, com a marca **Roll** integrada à identidade
 
 O objetivo é um site **mobile-first**, editorial e criativo, com acabamento cuidadoso e foco principal em **reservas**.
 
-> **Situação atual:** Etapas 1 a 3 aprovadas. Direção visual escolhida: **Conceito B · Fornada Âmbar**
-> (protótipo congelado em [`experiments/concept-b-aprovado-v1/`](experiments/concept-b-aprovado-v1/README.md)).
-> Planejamento da homepage em [`docs/design/`](docs/design/). **Design system v1.0** em [`docs/design/design-system/`](docs/design/design-system/README.md)
-> (código em `src/styles/` e `src/lib/`), aguardando revisão. Ainda não há aplicação nem dependências instaladas.
+> **Situação atual (2026-10-16):** Etapa 4 em andamento — site real em **Astro**, mobile primeiro, a partir do
+> **Conceito B · Fornada Âmbar** (protótipo congelado em [`experiments/concept-b-aprovado-v1/`](experiments/concept-b-aprovado-v1/README.md)).
+> Reserva em modo **indisponível** até o contrato da API ser validado. Sem deploy.
+> Relatório: [`docs/technical/RELATORIO-ETAPA-4.md`](docs/technical/RELATORIO-ETAPA-4.md) · pendências: [`docs/content/PENDENCIAS-CONTEUDO.md`](docs/content/PENDENCIAS-CONTEUDO.md).
+
+## Rodar localmente
+
+Requer Node 22.22+ e, para os vídeos, ffmpeg no PATH. As mídias saem do acervo local `creative/source` (fora do Git).
+
+```bash
+npm install
+npm run media:prepare      # copia os originais aprovados para src/assets/media
+npm run media:video        # reexporta os vídeos sem áudio para public/media/video
+npm run build:revisao      # build de REVISÃO: mostra pendências “a confirmar” e mídia com autorização pendente
+npm run preview            # http://localhost:4321
+```
+
+| Comando | Para quê |
+| --- | --- |
+| `npm run dev` | desenvolvimento (modo revisão) |
+| `npm run build` | build de **produção**: sem marcações de revisão, sem mídia não autorizada |
+| `npm run build:simulado` | build só de testes, com a reserva simulada (sempre com aviso) em `dist-sim/` |
+| `npm test` | fidelidade ao v1 + e2e em Chromium e WebKit (precisa de `node experiments/serve.mjs` para a fidelidade) |
+| `npm run check` | checagem de tipos |
+| `npm run perf` | Lighthouse móvel (mediana de 3 rodadas) |
+| `npm run shots` | screenshots de revisão por viewport |
+| `node scripts/scroll-perf.mjs` · `node scripts/peso-pagina.mjs` | fluidez do scroll (CPU 4×) e bytes transferidos |
+
+Variáveis (`.env.example`): `PUBLIC_REVISAO`, `PUBLIC_RESERVAS_MODO` (`indisponivel` · `simulado` · `api`), `PUBLIC_RESERVAS_API_URL` (staging).
 
 ## Como trabalhamos
 
 O projeto avança por etapas. A direção visual é aprovada **antes** do desenvolvimento do site:
 
 1. **Etapa 0** — estrutura de pastas e documentação inicial *(concluída)*
-2. **Etapa 1** — catalogação dos materiais recebidos e preenchimento do brief de marca *(atual)*
-3. Exploração visual em `experiments/` e aprovação de uma direção
-4. Design system documentado
-5. Desenvolvimento do frontend em `src/`
-6. Integração com a API FastAPI existente
+2. **Etapa 1** — catalogação dos materiais recebidos e preenchimento do brief de marca *(concluída)*
+3. Exploração visual em `experiments/` e aprovação de uma direção *(concluída: Conceito B)*
+4. Design system documentado *(concluída)*
+5. Desenvolvimento do frontend em `src/` *(atual)*
+6. Integração com a API FastAPI existente *(contrato proposto, aguardando validação)*
 
 ## Estrutura de pastas
 
@@ -83,7 +108,11 @@ creative/inbox  →  creative/source  ou  creative/generated
 | Documento | Conteúdo |
 | --- | --- |
 | [`docs/brand/BRAND-BRIEF.md`](docs/brand/BRAND-BRIEF.md) | Estrutura para documentar Âmbar Brunch × Roll |
-| [`docs/design/DESIGN-SYSTEM.md`](docs/design/DESIGN-SYSTEM.md) | Estrutura do futuro design system (sem decisões ainda) |
+| [`docs/design/DESIGN-SYSTEM.md`](docs/design/DESIGN-SYSTEM.md) | Índice do design system do Conceito B |
+| [`docs/technical/PLANO-IMPLEMENTACAO.md`](docs/technical/PLANO-IMPLEMENTACAO.md) | Etapas até 22/10, testes e riscos |
+| [`docs/technical/CONTRATO-API-RESERVAS.md`](docs/technical/CONTRATO-API-RESERVAS.md) | Contrato proposto da API de reservas e o que falta para reservas reais |
+| [`docs/technical/RELATORIO-ETAPA-4.md`](docs/technical/RELATORIO-ETAPA-4.md) | Testes, desempenho e defeitos corrigidos |
+| [`docs/content/PENDENCIAS-CONTEUDO.md`](docs/content/PENDENCIAS-CONTEUDO.md) | Conteúdo pendente e onde preencher |
 | [`docs/content/ASSET-MANIFEST.md`](docs/content/ASSET-MANIFEST.md) | Catálogo de arquivos recebidos: origem, finalidade, situação e aprovação |
 | [`docs/content/CURADORIA-INICIAL.md`](docs/content/CURADORIA-INICIAL.md) | Seleção inicial por seção, conceitos A/B e gaps de conteúdo |
 | [`docs/content/REVISAO-REELS.md`](docs/content/REVISAO-REELS.md) | Revisão dos 9 reels: conteúdo, áudio, direitos e uso possível |
@@ -105,6 +134,13 @@ O `.gitignore` foi configurado para **não** versionar:
 - credenciais (`.env`, chaves, `credentials*.json`) e arquivos temporários.
 
 Para versionar algum desses arquivos de propósito, use `git add -f <arquivo>`.
+
+### Mídia do site (`src/assets/media`)
+
+Os originais usados pelo site ficam em `src/assets/media/` (o build gera AVIF/WebP responsivos). Logos oficiais e fotos
+do Âmbar (FR-01…07) são versionados, porque precisam existir no deploy. **Fotos e vídeos da Roll** (Instagram, autorização
+pendente) ficam **fora do Git** (`src/assets/media/roll/`, `public/media/video/roll-*`) e fora do build de produção;
+o próprio build remove qualquer mídia não referenciada.
 
 ### `public/media` e deploy
 

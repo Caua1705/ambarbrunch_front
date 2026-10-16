@@ -8,7 +8,7 @@
   padding: 13px 18px 12px;
   border-radius: var(--radius-pill);
   background: var(--b); color: var(--t, var(--ink));
-  font: var(--t-band); font-variation-settings: var(--wdth-band);
+  font: var(--t-band); font-variation-settings: var(--wdth-band); font-stretch: var(--stretch-band);
   text-transform: uppercase; letter-spacing: .02em;
 }
 .bands__list li:nth-child(odd) { rotate: -1.5deg; }

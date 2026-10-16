@@ -1,0 +1,6 @@
+---
+// Carimbo (v1: .ticket__stamp → .stamp). Estados: prévia (padrão) · reservado · erro.
+interface Props { class?: string; estado?: 'reservado' | 'erro'; reveal?: boolean }
+const { class: cls, estado, reveal = false } = Astro.props;
+---
+<div class:list={['stamp', cls]} data-state={estado} data-reveal={reveal ? 'stamp' : undefined} aria-hidden="true"><slot /></div>

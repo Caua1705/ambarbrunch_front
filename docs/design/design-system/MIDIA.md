@@ -35,11 +35,11 @@ Nada vai para `public/media` ou `src/assets` sem autorização registrada.
 
 | Regra | Valor |
 | --- | --- |
-| Reexporte | `scripts/encode-video.mjs` (ffmpeg): H.264 720×1280, ~1 Mbps, `-an` (**sem faixa de áudio**), `+faststart`; opcional WebM VP9 |
+| Reexporte | `scripts/encode-video.mjs` (ffmpeg): H.264 **540×960** (o card mede ~234 px; 540 cobre DPR 2,3), CRF 27, teto 1,1 Mbps, `-an` (**sem faixa de áudio**), `+faststart` · resultado: 486–844 KB por vídeo |
 | Duração | trecho de 4–10 s em loop; o IV-02 só até ~9 s (depois disso tem o texto “so delicious” gravado na imagem) |
 | Peso | ≤ 1,5 MB por vídeo |
 | Poster | frame do próprio vídeo em WebP (já gerados em `creative/source/video/roll_reels/posters/`) |
-| Carregamento | `preload="none"` + poster; o arquivo só baixa quando o card vai tocar |
+| Carregamento | `preload="none"`; o poster vai em `data-poster` e só é aplicado a ~1,5 tela de distância (o atributo `poster` baixaria a imagem no carregamento da página); o vídeo só baixa quando o card vai tocar |
 | Reprodução | mudo, `playsinline`, **um por vez** (o card mais visível, ≥ 60%), pausa fora da tela |
 | Controle | toque no card toca/pausa; pausa global e movimento reduzido impedem o autoplay |
 | Fala | vídeo com fala (ex.: IV-05) só com autorização, com legenda WebVTT e botão “ativar som” acionado pelo visitante |
@@ -63,4 +63,8 @@ Bricolage Grotesque e Fraunces auto-hospedadas (Fontsource), subset latino, `fon
 
 LCP ≤ 2,5 s · CLS ≤ 0,05 · INP ≤ 200 ms · JS da home ≤ 15 KB gzip (sem a ilha) · ilha da reserva ≤ 25 KB gzip · 1ª tela ≤ 400 KB.
 
-Hoje o JS do design system tem 5 módulos pequenos, sem dependências: ver `src/lib/`.
+Medido na Etapa 4 (relatório em `docs/technical/RELATORIO-ETAPA-4.md`): produção 92/100/100/100, CLS 0, 1ª tela 424 KB, página inteira 680 KB (protótipo: 5,6 MB).
+
+## 7. Build
+
+O passo `ambar:podar-midia` (`astro.config.mjs`) remove da pasta do build todo vídeo de `public/media/video` e toda imagem de `_astro/` que nenhuma página, CSS ou JS referencia — assim mídia com autorização pendente nunca chega a um deploy, mesmo feito a partir de uma cópia local.

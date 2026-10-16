@@ -4,7 +4,7 @@
   display: inline-flex; align-items: center; justify-content: center; gap: .55em;
   min-height: 54px; padding: 0 26px;
   border: 0; border-radius: var(--radius-button);
-  font: var(--t-button); font-variation-settings: var(--wdth-button);
+  font: var(--t-button); font-variation-settings: var(--wdth-button); font-stretch: var(--stretch-button);
   text-transform: uppercase; letter-spacing: var(--track-caps); text-decoration: none; cursor: pointer;
   transition: transform .3s var(--ease);
 }

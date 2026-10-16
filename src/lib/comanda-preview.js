@@ -3,8 +3,9 @@
 // No site definitivo, este arquivo é substituído pela ilha Preact `ReservaFlow` ligada à API de reservas.
 
 export function initComandaPreview(scope = document) {
+  /** @param {Element} group @param {Element} chip */
   const select = (group, chip) => {
-    group.querySelectorAll('.chip').forEach((c) => c.setAttribute('aria-pressed', String(c === chip)));
+    group.querySelectorAll('.chip').forEach((/** @type {Element} */ c) => c.setAttribute('aria-pressed', String(c === chip)));
   };
   scope.querySelectorAll('[data-group]').forEach((group) => group.addEventListener('click', (ev) => {
     const chip = /** @type {Element} */ (ev.target).closest('.chip');

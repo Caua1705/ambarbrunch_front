@@ -12,7 +12,7 @@
 .tagline {
   padding: 8px 14px 6px;
   background: var(--wine); color: var(--butter);
-  font: var(--t-tagline); font-variation-settings: var(--wdth-tag);
+  font: var(--t-tagline); font-variation-settings: var(--wdth-tag); font-stretch: var(--stretch-tag);
   text-transform: uppercase;
   rotate: -2deg;
 }

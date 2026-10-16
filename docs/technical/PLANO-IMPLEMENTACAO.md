@@ -1,6 +1,6 @@
 # Plano de implementação — site de reservas Âmbar Brunch
 
-> **Situação:** proposta para revisão (2026-10-16). Nada instalado, publicado ou conectado.
+> **Situação (2026-10-16, noite):** aprovado. Etapas **4.0, 4.1, 4.2 e 4.3 concluídas** (homepage completa, menu, CTA, mídia otimizada, reserva com todos os estados contra a API simulada, 74 testes verdes). **4.4 bloqueada** pelo contrato da API. Nada publicado. Relatório: [`RELATORIO-ETAPA-4.md`](RELATORIO-ETAPA-4.md).
 > Meta: **site de reservas apresentado em 22/10/2026 (quinta)**, com uso real no soft opening de 24/10.
 > Regra aprovada: **a reserva só conta como pronta com integração e testes reais com a API.**
 > Base: [design system](../design/design-system/README.md) · [storyboard](../design/HOMEPAGE-STORYBOARD.md) · [componentização](../design/COMPONENTIZATION-PLAN.md).

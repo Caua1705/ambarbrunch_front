@@ -1,0 +1,7 @@
+---
+// Selo simples da Roll (v1: .roll__badge → .badge). A Roll aparece sempre sobre creme.
+import Foto from './Foto.astro';
+interface Props { class?: string }
+const { class: cls } = Astro.props;
+---
+<div class:list={['badge', cls]}><Foto src="brand/logo-roll.png" alt="Roll" sizes="90px" widths={[90, 180, 270]} qualidade={80} /></div>

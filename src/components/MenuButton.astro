@@ -1,0 +1,25 @@
+---
+// Botões do menu: selo no hero, quadrado na doca, fechar na folha.
+interface Props { variante: 'hero' | 'dock' | 'close' }
+const { variante } = Astro.props;
+const icone = variante === 'close'
+  ? 'M7.5 7c4 4.5 9 9.5 13.5 14M21 7.5C16.5 11.5 11.5 16 7 20.5'
+  : 'M4 8.5c6-.8 12-.6 20 0M6 14.5c5-.5 10-.4 16 .2M4 20.5c7-.6 13-.5 20 0';
+---
+{variante === 'close' ? (
+  <button class="menu-btn menu-btn--close" type="button" data-menu-close aria-label="Fechar menu">
+    <svg viewBox="0 0 28 28" aria-hidden="true"><path d={icone} /></svg>
+  </button>
+) : (
+  <button
+    class={`menu-btn menu-btn--${variante}`}
+    type="button"
+    data-menu-open="menu"
+    aria-label="Abrir menu"
+    aria-expanded="false"
+    aria-hidden={variante === 'dock' ? 'true' : undefined}
+    tabindex={variante === 'dock' ? -1 : undefined}
+  >
+    <svg viewBox="0 0 28 28" aria-hidden="true"><path d={icone} /></svg>
+  </button>
+)}

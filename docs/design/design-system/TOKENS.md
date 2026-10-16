@@ -155,3 +155,4 @@ Pressionar = a sombra deslocada **recolhe** (4 → 2 px): o botão “afunda” 
 | 2026-10-16 | anel de foco | caramelo → `--focus-ring` (vinho no claro, manteiga no escuro) | 2,19:1 sobre manteiga falhava no WCAG 1.4.11 |
 | 2026-10-16 | `--wine-deep` | removido | sem uso no v1 |
 | 2026-10-16 | `--mask-scallop-top`, `--scrim`, `--shadow-offset-xs`, escala `--space-*`, `--rhythm-*` | novos | menu, estados de toque, componentes novos |
+| 2026-10-16 | `--wdth-*` → `--stretch-*` | largura variável saiu de `font-variation-settings` e foi para `font-stretch` (mesmo eixo `wdth`); `--wdth-mega` ficou só com `"opsz" 96` | o WebKit não recalcula o avanço dos glifos com `wdth` em `font-variation-settings` (letras encavaladas). Eixos efetivos idênticos ao v1 (teste de fidelidade) |

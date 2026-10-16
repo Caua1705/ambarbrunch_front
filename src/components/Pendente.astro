@@ -1,0 +1,7 @@
+---
+// Marcador de conteúdo pendente. Só renderiza no modo de revisão; em produção não aparece nada.
+import { REVISAO } from '../lib/conteudo';
+interface Props { falta: string; bloco?: boolean; class?: string }
+const { falta, bloco = false, class: cls } = Astro.props;
+---
+{REVISAO && <span class:list={['pending', bloco && 'pending--block', cls]} data-pendente={falta}>{falta}</span>}

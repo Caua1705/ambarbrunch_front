@@ -1,0 +1,49 @@
+---
+// 1 · HERO · Fornada Âmbar — markup do v1 (concept-b-aprovado-v1) + selo do menu.
+// O título é o maior texto da 1ª tela (LCP): visível desde o 1º quadro. A colagem encolhe pela altura em telas baixas.
+import Foto from '../components/Foto.astro';
+import MenuButton from '../components/MenuButton.astro';
+import StickerRoll from '../components/StickerRoll.astro';
+import { ambientes } from '../data/ambientes';
+import { cardapio } from '../data/cardapio';
+const faixa = cardapio.faixa.map((c) => `${c} ✺ `).join('');
+---
+<header class="hero" id="topo" data-hero>
+  <MenuButton variante="hero" />
+  <div class="hero__label">
+    <h1 class="label">
+      <Foto src="brand/logo-ambar.png" alt="Âmbar Brunch — logo âmbar café & brunch" sizes="(min-width: 960px) 312px, 64vw" widths={[250, 330, 500, 750]} prioridade qualidade={82} />
+    </h1>
+  </div>
+
+  <p class="hero__headline">
+    <span class="l1">Café,</span>
+    <span class="l2">brunch</span>
+    <span class="l3"><em>&amp;</em> fornadas</span>
+  </p>
+
+  <div class="hero__collage" data-parallax="hero-exit">
+    <figure class="cut cut--circle">
+      <Foto src="gastronomia/croissant-prato-azul.webp" alt="Croissant em prato azul sobre sofá laranja" sizes="(min-width: 960px) 26vw, 46vw" prioridade />
+    </figure>
+    <figure class="cut cut--polaroid">
+      <Foto src={ambientes.salao.foto} alt="Salão com parede laranja e luminária pendente" sizes="(min-width: 960px) 20vw, 36vw" />
+      <figcaption>salão âmbar<sup>*</sup></figcaption>
+    </figure>
+    <figure class="cut cut--tile">
+      <Foto src="gastronomia/bruschetta-brunch.webp" alt="Torrada coberta com café ao lado" sizes="(min-width: 960px) 15vw, 27vw" />
+    </figure>
+    <StickerRoll />
+    <svg class="sparks" viewBox="0 0 320 200" aria-hidden="true" data-draw><path pathLength="1" d="M63 12L67 45M40 28L50 54M88 28L80 55M22 65L50 70M92 66L110 67" /></svg>
+  </div>
+
+  <div class="hero__foot">
+    <a class="btn btn--butter" href="#reservar" data-cta-trigger>Reservar mesa <span aria-hidden="true">→</span></a>
+    <p class="ref-note hero__note"><sup>*</sup>foto de referência do espaço anterior</p>
+  </div>
+</header>
+
+<!-- 2 · Faixa de categorias (costura o hero à seção seguinte) -->
+<div class="ticker" aria-hidden="true">
+  <div class="ticker__track"><span>{faixa}</span><span>{faixa}</span></div>
+</div>

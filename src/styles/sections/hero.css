@@ -10,15 +10,24 @@
   background: var(--wine);
   color: var(--butter);
   overflow: hidden;
-  /* altura do hero SEM a colagem, medida no v1: 83,4vw + 172 px (±1 px de 360 a 420 px) + 1 px de folga */
-  --hero-rest: calc(83.4vw + 173px);
+  /* Tamanhos que também respeitam a ALTURA da tela (só agem em telas baixas; em 390×844 valem os do v1). */
+  --hero-fs: clamp(70px, min(21.5vw, 11svh), 168px);
+  --label-w: min(76vw, 320px, 40svh);
+  --hero-pt: 22px;
+  --hero-gap-title: 22px;
+  --hero-gap: 14px;
+  /* Altura do hero SEM a colagem, calculada com as mesmas medidas (conferida no v1: 497 px em 390 px). */
+  --hero-rest: calc(var(--hero-pt) + 22px + 50px + (var(--label-w) - 48px) * .3812 + var(--hero-gap-title) + 2.44 * var(--hero-fs) + 2 * var(--hero-gap) + 54px);
+  padding-top: var(--hero-pt);
 }
 .hero__label { align-self: center; rotate: -2.5deg; filter: var(--drop-label); }
+.hero__label .label { width: var(--label-w); }
 
 .hero__headline {
-  margin-top: 22px;
+  margin-top: var(--hero-gap-title);
   font: var(--t-hero);
-  font-variation-settings: var(--wdth-mega);
+  font-size: var(--hero-fs);
+  font-variation-settings: var(--wdth-mega); font-stretch: var(--stretch-mega);
   text-transform: uppercase;
   letter-spacing: var(--track-hero);
 }
@@ -29,7 +38,7 @@
 
 /* Palco da colagem: 358 × 330 px do protótipo. --u = 1 px do protótipo, limitado pela largura E pela altura. */
 .hero__collage {
-  position: relative; flex: 1 0 auto; margin-top: 14px;
+  position: relative; flex: 1 0 auto; margin-top: var(--hero-gap);
   /* 12 px de respiro sob o botão; em 390×844 sobra espaço e vale o teto de 330 px do v1 */
   height: clamp(160px, calc(100svh - 12px - var(--hero-rest)), calc(var(--stage-hero-h) * 1px));
   container-type: size;
@@ -42,7 +51,11 @@
 .hero__collage .sticker--roll { position: absolute; z-index: 4; width: calc(104 * var(--u)); left: calc(var(--ox) + 239.68 * var(--u)); top: calc(238 * var(--u)); }
 .hero__collage .sparks        { position: absolute; z-index: 2; width: calc(86 * var(--u));  left: calc(var(--ox) + 143.2 * var(--u)); top: calc(40 * var(--u)); }
 
-.hero__foot { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 14px; position: relative; z-index: 5; }
+.hero__foot { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: var(--hero-gap); position: relative; z-index: 5; }
+/* Telas baixas (iPhone SE, Androids de 640–700 px): respiros menores para a colagem não encolher demais. */
+@media (max-height: 700px) and (max-width: 959px) {
+  .hero { --hero-pt: 16px; --hero-gap-title: 14px; --hero-gap: 10px; }
+}
 /* correção: no v1 o botão quebrava em duas linhas abaixo de ~375 px; agora ele nunca quebra e a nota cede espaço */
 .hero__foot .btn { flex: none; white-space: nowrap; }
 @media (max-width: 374px) { .hero__foot .btn { padding: 0 18px; } .hero__foot .ref-note { font-size: 11.5px; } }

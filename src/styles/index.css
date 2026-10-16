@@ -24,12 +24,17 @@
 @import url("components/sticky-cta.css");
 @import url("components/menu.css");
 @import url("components/motion-toggle.css");
+@import url("components/pending.css");
 
 @import url("sections/hero.css");
+@import url("sections/novo-capitulo.css");
 @import url("sections/mesa.css");
 @import url("sections/roll.css");
 @import url("sections/climas.css");
+@import url("sections/na-mesa.css");
 @import url("sections/reserva.css");
+@import url("sections/visite.css");
 @import url("sections/footer.css");
+@import url("sections/pagina.css");
 
 @import url("motion.css");

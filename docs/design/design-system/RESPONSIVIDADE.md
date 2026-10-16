@@ -54,6 +54,7 @@ Medido no v1 (Edge, 2026-10-16): em 360×740 e 375×667 o hero tinha 802 e 816 p
 
 - `svh` (altura da tela com a barra do navegador visível) evita que o hero “pule” quando a barra some.
 - Mínimo de 160 px para a colagem: abaixo disso (paisagem, telas minúsculas), o hero cresce e o **CTA fixo** cobre o caso, porque observa o próprio botão do hero.
+- **Refinado na implementação (Etapa 4):** título e etiqueta também respeitam a altura (`--hero-fs: clamp(70px, min(21.5vw, 11svh), 168px)`, `--label-w: min(76vw, 320px, 40svh)`) e, abaixo de 700 px de altura, os respiros encolhem (22 → 16/14, 14 → 10 px). Em 390×844 nada muda; em 375×667 a colagem passa de ~50% para ~66% do tamanho. `--hero-rest` é calculado com essas mesmas medidas.
 - **Também corrigido:** no v1 o botão quebrava em duas linhas abaixo de ~375 px. Agora ele não quebra (`white-space: nowrap`) e, abaixo de 375 px, o padding cai para 18 px.
 
 ## 4. Outras regras

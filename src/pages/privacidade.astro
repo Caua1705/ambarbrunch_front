@@ -1,0 +1,23 @@
+---
+// /privacidade — o TEXTO LEGAL é do Âmbar (pendente). Esta página não inventa política: só diz o que existe hoje.
+import Base from '../layouts/Base.astro';
+import Foto from '../components/Foto.astro';
+import Pendente from '../components/Pendente.astro';
+import Footer from '../sections/Footer.astro';
+---
+<Base titulo="Privacidade — Âmbar Brunch" home={false} indexar={false}>
+  <header class="page-bar">
+    <a href="/" aria-label="Âmbar Brunch — voltar ao início"><span class="label"><Foto src="brand/logo-ambar.png" alt="Âmbar Brunch" sizes="122px" widths={[122, 244, 366]} prioridade qualidade={80} /></span></a>
+    <a class="page-back" href="/">← início</a>
+  </header>
+  <main class="doc">
+    <article class="ticket">
+      <h1>Privacidade</h1>
+      <p>A política de privacidade do Âmbar Brunch está sendo preparada e será publicada aqui antes de o site começar a receber reservas.</p>
+      <p>Hoje este site não coleta dados pessoais, não usa cookies de rastreamento e não envia formulários.</p>
+      <p>A única preferência guardada é a escolha “pausar animações”, que fica só no seu navegador.</p>
+      <Pendente falta="Texto da política de privacidade (LGPD) e do consentimento da reserva" bloco />
+    </article>
+  </main>
+  <Footer />
+</Base>

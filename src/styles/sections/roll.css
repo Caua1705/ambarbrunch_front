@@ -16,6 +16,13 @@
 .roll__lead { margin-top: 20px; max-width: 32ch; font-size: var(--fs-lead); color: var(--text-on-dark-muted); }
 .roll__credit { margin: 14px var(--gutter) 0; font-size: var(--fs-micro); color: var(--text-on-dark-faint); }
 
+/* Sabores do mês e chamada final */
+.roll__sabores { margin: 40px var(--gutter) 0; }
+.roll__sabores .bands__label { color: var(--caramel-lt); }
+.roll__cta { display: flex; justify-content: center; margin-top: 40px; padding: 0 var(--gutter); }
+.roll__cta a { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; font: var(--t-note); font-size: 22px; color: var(--butter); text-decoration: underline 2px; text-underline-offset: 6px; }
+.roll__cta strong { font: var(--t-pill); font-size: 14px; letter-spacing: var(--track-caps); text-transform: uppercase; }
+
 /* Leque de bandejas */
 .trays { display: flex; justify-content: center; margin-top: 44px; padding: 0 var(--gutter); }
 .trays figure { width: 39%; margin: 0 -5%; }

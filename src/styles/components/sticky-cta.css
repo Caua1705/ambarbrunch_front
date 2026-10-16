@@ -8,7 +8,7 @@
   min-height: 58px; padding: 0 12px 0 16px;
   border-radius: var(--radius-l);
   background: var(--butter); color: var(--wine);
-  font: var(--t-button-l); font-variation-settings: var(--wdth-button);
+  font: var(--t-button-l); font-variation-settings: var(--wdth-button); font-stretch: var(--stretch-button);
   text-transform: uppercase; letter-spacing: var(--track-caps); text-decoration: none;
   box-shadow: var(--shadow-offset), var(--shadow-float);
   transform: translateY(150%) rotate(-2deg);

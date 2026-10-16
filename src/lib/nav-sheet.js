@@ -7,6 +7,7 @@ export function initNavSheet(sheet) {
   if (!sheet || typeof sheet.showModal !== 'function') return;
   /** @type {HTMLElement | null} */
   let opener = null;
+  /** @param {boolean} open */
   const announce = (open) => sheet.dispatchEvent(new CustomEvent('ambar:sheet', { detail: { open } }));
 
   document.querySelectorAll(`[data-menu-open="${sheet.id}"]`).forEach((btn) => {

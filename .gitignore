@@ -8,6 +8,8 @@
 .env
 .env.*
 !.env.example
+!.env.revisao
+!.env.simulado
 *.pem
 *.key
 *.p12
@@ -144,6 +146,7 @@ public/media/**/*-raw.*
 node_modules/
 .pnpm-store/
 dist/
+dist-*/
 build/
 out/
 .next/
@@ -181,3 +184,18 @@ ehthumbs.db
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
+
+# -------------------------------------------------------------
+# Mídia com autorização PENDENTE (Roll: fotos e vídeos do Instagram)
+# Gerada localmente por `npm run media:prepare` e `npm run media:video`.
+# O repositório é público: só versionar depois da autorização registrada
+# no ASSET-MANIFEST (remover estas linhas nesse momento).
+# -------------------------------------------------------------
+src/assets/media/roll/
+public/media/video/roll-*
+
+# Testes (Playwright) e relatórios de desempenho
+test-results/
+playwright-report/
+tests/**/__screenshots__/fidelity/
+reports/

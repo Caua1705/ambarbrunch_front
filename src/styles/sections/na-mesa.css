@@ -1,0 +1,10 @@
+/* NA MESA DO ÂMBAR (seção 7, condicional). Só existe com fotos REAIS do Âmbar e autorização de imagem.
+   Mural solto de polaroides, no padrão do hero. Sem estrelas, notas ou depoimentos sem fonte. */
+
+.na-mesa { padding: var(--rhythm-b) var(--gutter) calc(var(--rhythm-b) + var(--rhythm-tail)); background: var(--cream); }
+.mural { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 14px; margin-top: 30px; }
+.mural .cut--polaroid { position: relative; width: auto; }
+.mural .cut--polaroid:nth-child(odd) { rotate: -4deg; }
+.mural .cut--polaroid:nth-child(even) { rotate: 5deg; margin-top: 26px; }
+.na-mesa__pending { margin-top: 18px; }
+.na-mesa--vazia { padding: 28px var(--gutter); }

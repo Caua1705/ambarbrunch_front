@@ -2,7 +2,7 @@
 
 .mega {
   font: var(--t-mega);
-  font-variation-settings: var(--wdth-mega);
+  font-variation-settings: var(--wdth-mega); font-stretch: var(--stretch-mega);
   letter-spacing: var(--track-mega);
   text-transform: uppercase;
   color: var(--wine);

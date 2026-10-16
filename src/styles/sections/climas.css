@@ -6,6 +6,8 @@
 .bubble--a { right: -4%; top: 36%; }
 .bubble--b { right: 4%; bottom: -8%; }
 
+.climas__pending { margin-top: 64px; }
+
 @media (min-width: 960px) {
   .climas__stack { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; max-width: 1100px; margin-left: auto; margin-right: auto; }
   .panel--amber { margin-top: 80px; }

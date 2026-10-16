@@ -1,0 +1,13 @@
+---
+// Selo com texto em círculo + logo da Roll (v1: .sticker--roll). O texto gira 24 s; para com a pausa e com movimento reduzido.
+import Foto from './Foto.astro';
+interface Props { id?: string }
+const { id = 'selo-roll' } = Astro.props;
+---
+<div class="sticker sticker--roll">
+  <svg viewBox="0 0 200 200" aria-hidden="true">
+    <defs><path id={id} d="M100,100 m-80,0 a80,80 0 1,1 160,0 a80,80 0 1,1 -160,0"/></defs>
+    <text><textPath href={`#${id}`} textLength="500" lengthAdjust="spacing">assinatura gastronômica · âmbar brunch · </textPath></text>
+  </svg>
+  <Foto src="brand/logo-roll.png" alt="Roll" sizes="(min-width: 960px) 90px, 64px" widths={[90, 180]} qualidade={80} />
+</div>

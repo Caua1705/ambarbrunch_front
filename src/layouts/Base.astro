@@ -1,0 +1,56 @@
+---
+// Layout base: <head>, fontes auto-hospedadas, skip link, doca (menu + CTA fixo), folha do menu e scripts.
+import '../styles/index.css';
+import bricolage from '@fontsource-variable/bricolage-grotesque/files/bricolage-grotesque-latin-standard-normal.woff2?url';
+import fraunces from '@fontsource-variable/fraunces/files/fraunces-latin-opsz-italic.woff2?url';
+import Dock from '../components/Dock.astro';
+import NavSheet from '../components/NavSheet.astro';
+import { REVISAO } from '../lib/conteudo';
+
+interface Props {
+  titulo?: string;
+  descricao?: string;
+  indexar?: boolean;
+  /** Na home as âncoras são locais; nas páginas internas apontam para a home. */
+  home?: boolean;
+}
+const {
+  titulo = 'Âmbar Brunch — café, brunch & fornadas',
+  descricao = 'Âmbar Brunch: café, brunch de mesa cheia e cinnamon rolls com a assinatura da Roll. Reserve sua mesa.',
+  indexar = !REVISAO,
+  home = true,
+} = Astro.props;
+// Faixa Latin (português incluso), igual ao subconjunto do Google Fonts usado no protótipo.
+const LATIN = 'U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD';
+const fontes = `
+@font-face{font-family:"Bricolage Grotesque";font-style:normal;font-display:swap;font-weight:200 800;font-stretch:75% 100%;src:url(${bricolage}) format("woff2");unicode-range:${LATIN}}
+@font-face{font-family:"Fraunces";font-style:italic;font-display:swap;font-weight:100 900;src:url(${fraunces}) format("woff2");unicode-range:${LATIN}}`;
+---
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>{titulo}</title>
+  <meta name="description" content={descricao} />
+  {!indexar && <meta name="robots" content="noindex" />}
+  <meta name="theme-color" content="#670D27" />
+  <meta property="og:title" content={titulo} />
+  <meta property="og:description" content={descricao} />
+  <meta property="og:locale" content="pt_BR" />
+  <link rel="icon" href="/favicon.png" type="image/png" />
+  <link rel="preload" href={bricolage} as="font" type="font/woff2" crossorigin />
+  <!-- a Fraunces também é pré-carregada: o “&” do título usa essa fonte, e a troca tardia empurrava a colagem (CLS) -->
+  <link rel="preload" href={fraunces} as="font" type="font/woff2" crossorigin />
+  <style set:html={fontes}></style>
+  <script is:inline>document.documentElement.classList.add('js'); if (!location.hash && !scrollY && !matchMedia('(prefers-reduced-motion: reduce)').matches) document.documentElement.classList.add('enter');</script>
+</head>
+<body>
+  <a class="skip-link" href={home ? '#reservar' : '/#reservar'}>Pular para a reserva</a>
+  <slot />
+  <Dock href={home ? '#reservar' : '/#reservar'} />
+  <NavSheet base={home ? '' : '/'} />
+  {REVISAO && <p class="review-flag" aria-hidden="true">Revisão</p>}
+  <script>import '../lib/site.js';</script>
+</body>
+</html>

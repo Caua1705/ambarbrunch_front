@@ -1,0 +1,43 @@
+---
+// Folha do menu (<dialog> modal nativo). “Reservar mesa” é o único botão cheio.
+import Foto from './Foto.astro';
+import MenuButton from './MenuButton.astro';
+import MotionToggle from './MotionToggle.astro';
+import Pendente from './Pendente.astro';
+import { isPendente } from '../lib/conteudo';
+import { visita } from '../data/visita';
+import { roll } from '../data/roll';
+
+interface Props { base?: string }
+const { base = '' } = Astro.props;   // '' na home (âncoras locais), '/' nas páginas internas
+const itens = [
+  { href: `${base}#gastronomia`, texto: 'Cardápio' },
+  { href: `${base}#roll`, texto: 'Fornadas' },
+  { href: `${base}#ambientes`, texto: 'Ambientes' },
+  { href: `${base}#visite`, texto: 'Visite' },
+];
+const ig = visita.instagram;
+const wa = visita.whatsapp;
+---
+<dialog class="sheet" id="menu" aria-label="Menu">
+  <div class="sheet__head">
+    <Foto src="brand/logo-ambar.png" alt="Âmbar Brunch" class="sheet__logo" sizes="132px" widths={[132, 264, 396]} qualidade={80} />
+    <MenuButton variante="close" />
+  </div>
+  <nav aria-label="Seções do site">
+    <ol class="sheet__nav">
+      {itens.map((i) => <li><a href={i.href}>{i.texto}</a></li>)}
+    </ol>
+  </nav>
+  <a class="btn btn--wine btn--block sheet__cta" href={`${base}#reservar`}>Reservar mesa <span aria-hidden="true">→</span></a>
+  <div class="sheet__foot">
+    <span class="sheet__contacts">
+      {isPendente(ig) ? <Pendente falta="Instagram do Âmbar" /> : <a href={ig.url} rel="noopener">{ig.handle}</a>}
+      {' '}
+      {isPendente(wa) ? <Pendente falta="WhatsApp do Âmbar" /> : <a href={wa.url} rel="noopener">WhatsApp</a>}
+      {' '}
+      <a href={roll.instagram.url} rel="noopener">{roll.instagram.handle}</a>
+    </span>
+    <MotionToggle />
+  </div>
+</dialog>

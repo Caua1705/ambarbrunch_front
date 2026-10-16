@@ -18,6 +18,8 @@
 .arrow--b { left: 20%; top: calc(338 * var(--u)); transform: scaleX(-1) rotate(-10deg); }
 .arrow--c { right: 26%; top: calc(560 * var(--u)); }
 
+.mesa__pending { margin-top: 16px; }
+
 @media (min-width: 960px) {
   .mesa { max-width: 1240px; margin: 0 auto; }
   .board { --u: 1px; height: 760px; max-width: 980px; margin-left: auto; margin-right: auto; }

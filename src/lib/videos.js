@@ -7,22 +7,31 @@ import { motionAllowed } from './motion.js';
 
 export function initStories(scope = document) {
   /** @type {HTMLVideoElement[]} */
-  const videos = [...scope.querySelectorAll('video[data-autoplay]')];
-  if (!videos.length || !('IntersectionObserver' in window)) return;
+  const videos = [...scope.querySelectorAll('video[data-autoplay]')].map((v) => /** @type {HTMLVideoElement} */ (v));
+  if (!videos.length) return;
+  // Posters sob demanda: a ~1,5 tela de distância. Sem IntersectionObserver, aplica direto.
+  const aplicarPoster = (/** @type {HTMLVideoElement} */ v) => { if (v.dataset.poster && !v.poster) v.poster = v.dataset.poster; };
+  if (!('IntersectionObserver' in window)) { videos.forEach(aplicarPoster); return; }
+  const perto = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { aplicarPoster(/** @type {HTMLVideoElement} */ (e.target)); perto.unobserve(e.target); } }), { rootMargin: '150% 0px' });
+  videos.forEach((v) => perto.observe(v));
   const ratio = new Map(videos.map((v) => [v, 0]));
   /** vídeos que o visitante tocou ou pausou à mão: a regra automática não mexe mais neles */
   const manual = new Map();
 
+  /** @param {HTMLVideoElement} v */
   const card = (v) => v.closest('.story');
+  /** @param {HTMLVideoElement} v @param {boolean} playing */
   const setState = (v, playing) => card(v)?.setAttribute('data-state', playing ? 'playing' : 'paused');
+  /** @param {HTMLVideoElement} v */
   const play = (v) => { v.preload = 'auto'; v.play().then(() => setState(v, true)).catch(() => setState(v, false)); };
+  /** @param {HTMLVideoElement} v */
   const pause = (v) => { v.pause(); setState(v, false); };
 
   const pick = () => {
     let best = null; let max = 0.6;
     for (const [v, r] of ratio) if (r >= max && manual.get(v) !== 'paused') { best = v; max = r; }
     for (const v of videos) {
-      if (manual.get(v) === 'playing' && ratio.get(v) > 0) continue;
+      if (manual.get(v) === 'playing' && (ratio.get(v) ?? 0) > 0) continue;
       if (v === best && motionAllowed()) { if (v.paused) play(v); } else if (!v.paused) pause(v);
     }
   };

@@ -1,0 +1,29 @@
+---
+// 7 · NA MESA DO ÂMBAR (condicional). Só existe com fotos REAIS do Âmbar novo e autorização de imagem.
+// Sem conteúdo, a seção não é renderizada — no modo de revisão aparece só um aviso.
+import Foto from '../components/Foto.astro';
+import MegaTitle from '../components/MegaTitle.astro';
+import Pendente from '../components/Pendente.astro';
+import { REVISAO } from '../lib/conteudo';
+
+/** Fotos autorizadas do soft opening (24/10 em diante). Vazio até existirem. */
+const fotos: { src: string; alt: string; legenda?: string }[] = [];
+---
+{fotos.length > 0 ? (
+  <section class="na-mesa" id="na-mesa" aria-labelledby="na-mesa-titulo" tabindex="-1">
+    <MegaTitle linhas={['Na mesa', 'do Âmbar']} id="na-mesa-titulo" tom="wine" />
+    <div class="mural">
+      {fotos.map((f, i) => (
+        <figure class="cut cut--polaroid" data-reveal="piece" style={`--i:${i % 3}`}>
+          <Foto src={f.src} alt={f.alt} sizes="44vw" />
+          {f.legenda && <figcaption>{f.legenda}</figcaption>}
+        </figure>
+      ))}
+    </div>
+    <p class="novo__link"><a href="#reservar">sua mesa é a próxima → reservar</a></p>
+  </section>
+) : REVISAO && (
+  <div class="na-mesa na-mesa--vazia">
+    <Pendente falta="Seção 7 · Na mesa do Âmbar: entra só com fotos reais do Âmbar novo e autorização de imagem (soft opening, 24/10)" bloco />
+  </div>
+)}
