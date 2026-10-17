@@ -4,10 +4,10 @@ Novo frontend do **Âmbar Brunch**, com a marca **Roll** integrada à identidade
 
 O objetivo é um site **mobile-first**, editorial e criativo, com acabamento cuidadoso e foco principal em **reservas**.
 
-> **Situação atual (2026-10-16):** Etapa 4 em andamento — site real em **Astro**, mobile primeiro, a partir do
-> **Conceito B · Fornada Âmbar** (protótipo congelado em [`experiments/concept-b-aprovado-v1/`](experiments/concept-b-aprovado-v1/README.md)).
-> Reserva em modo **indisponível** até o contrato da API ser validado. Sem deploy.
-> Relatório: [`docs/technical/RELATORIO-ETAPA-4.md`](docs/technical/RELATORIO-ETAPA-4.md) · pendências: [`docs/content/PENDENCIAS-CONTEUDO.md`](docs/content/PENDENCIAS-CONTEUDO.md).
+> **Situação atual (2026-10-17):** frontend do **Conceito B** visualmente completo em **Astro**, publicado pela Vercel a partir da
+> branch **`main`** (única branch de trabalho). Ordem da home: hero · novo capítulo · para sua mesa · direto da fornada · café + roll ·
+> saladas & bowls · quem provou, conta · escolha seu lugar · reserve sua mesa · visite. Reserva em modo **indisponível** (ilustrativa)
+> até o contrato da API ser validado. Copies em [`src/data/secoes.ts`](src/data/secoes.ts).
 
 ## Rodar localmente
 
@@ -24,6 +24,7 @@ npm run preview            # http://localhost:4321
 | Comando | Para quê |
 | --- | --- |
 | `npm run dev` | desenvolvimento (modo revisão) |
+| `npm run media:kit` | recortes do kit de fotos complementares v2 (extraído em `creative/inbox/kit-complementar-v2/`) para `src/assets/media` |
 | `npm run build` | build de **produção**: sem marcações de revisão, sem mídia não autorizada |
 | `npm run build:simulado` | build só de testes, com a reserva simulada (sempre com aviso) em `dist-sim/` |
 | `npm test` | fidelidade ao v1 + e2e em Chromium e WebKit (precisa de `node experiments/serve.mjs` para a fidelidade) |
@@ -31,6 +32,8 @@ npm run preview            # http://localhost:4321
 | `npm run perf` | Lighthouse móvel (mediana de 3 rodadas) |
 | `npm run shots` | screenshots de revisão por viewport |
 | `node scripts/scroll-perf.mjs` · `node scripts/peso-pagina.mjs` | fluidez do scroll (CPU 4×) e bytes transferidos |
+
+Produção (Vercel): `PUBLIC_REVISAO=0` e `PUBLIC_RESERVAS_MODO=indisponivel`. Imagens ilustrativas (IA ou arte da proposta) saem sempre com o selo “imagem ilustrativa” (`src/lib/conteudo.ts` → `Origem`); ficha nutricional só com dados validados.
 
 Variáveis (`.env.example`): `PUBLIC_REVISAO`, `PUBLIC_RESERVAS_MODO` (`indisponivel` · `simulado` · `api`), `PUBLIC_RESERVAS_API_URL` (staging).
 

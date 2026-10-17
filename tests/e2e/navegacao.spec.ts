@@ -75,11 +75,14 @@ test('pular para a reserva: primeiro elemento focável', async ({ page, browserN
   expect((await link.boundingBox())!.width).toBeGreaterThan(100);
 });
 
-test('“reservar aqui” num ambiente pré-seleciona o ambiente na comanda', async ({ page }) => {
+test('Visite: “Abrir no Maps” aponta para o endereço real; WhatsApp e Instagram corretos', async ({ page }) => {
   await page.goto('/');
-  await rolarAte(page, '#reservar');
-  await page.locator('.chips--dates .chip[role="radio"]').first().waitFor();
-  await rolarAte(page, '#ambientes');
-  await page.locator('[data-ambiente="salao"]').click();
-  await expect(page.locator('.ticket [role="radio"][aria-checked="true"]').first()).toHaveText('Salão principal');
+  const maps = page.locator('#visite a', { hasText: /abrir no maps/i });
+  await expect(maps).toHaveAttribute('href', 'https://www.google.com/maps/search/?api=1&query=Rua%20Tavares%20Coutinho%2C%20180%2C%20Fortaleza%2C%20CE');
+  await expect(maps).toHaveAttribute('target', '_blank');
+  await expect(page.locator('#visite a[href="https://wa.me/5585994452724"]')).toContainText('(85) 99445-2724');
+  await expect(page.locator('#visite a[href="https://www.instagram.com/ambarbrunch/"]')).toHaveText('@ambarbrunch');
+  await expect(page.locator('#visite a[href="https://www.instagram.com/roll.ofc/"]')).toContainText('@roll.ofc');
+  await expect(page.locator('#visite iframe')).toHaveCount(0);
+  await expect(page.locator('footer')).toContainText('Rua Tavares Coutinho, 180');
 });
