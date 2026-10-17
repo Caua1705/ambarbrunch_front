@@ -45,15 +45,21 @@ const doMes = roll.sabores.doMes;
     </div>
   )}
 
-  <!-- sabores fixos: citados nas legendas da própria Roll; os do mês só aparecem quando informados -->
-  <div class="roll__sabores">
-    <p class="bands__label">sabores da casa</p>
-    <ul class="bands__list">{roll.sabores.fixos.map((s) => <li style="--b:var(--butter)">{s}</li>)}</ul>
-    {(!isPendente(doMes) || REVISAO) && <p class="bands__label">sabores do mês</p>}
-    {isPendente(doMes)
-      ? <Pendente falta={doMes.falta} />
-      : <ul class="bands__list">{(doMes as string[]).map((s) => <li style="--b:var(--caramel-lt)">{s}</li>)}</ul>}
-  </div>
+  <!-- Sabores só entram no site publicado quando o Âmbar/Roll confirmar quais estão disponíveis.
+       Na revisão: os citados nas legendas da Roll, marcados como “a confirmar”. -->
+  {(REVISAO || !isPendente(doMes)) && (
+    <div class="roll__sabores">
+      {REVISAO && <>
+        <p class="bands__label">sabores citados pela Roll</p>
+        <ul class="bands__list">{roll.sabores.fixos.map((s) => <li style="--b:var(--butter)">{s}</li>)}</ul>
+        <Pendente falta="Quais sabores ficam fixos no Âmbar e quais são do mês" bloco class="roll__pending-sabores" />
+      </>}
+      {!isPendente(doMes) && <>
+        <p class="bands__label">sabores do mês</p>
+        <ul class="bands__list">{(doMes as string[]).map((s) => <li style="--b:var(--butter)">{s}</li>)}</ul>
+      </>}
+    </div>
+  )}
   {REVISAO && pendentesAutorizacao && (
     <div class="roll__credit roll__pending"><Pendente falta="Autorização da Roll (fotos e vídeos do Instagram) e de @larizgomes (vídeo da criadora); sem ela, saem do site publicado" bloco /></div>
   )}

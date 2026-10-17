@@ -19,6 +19,7 @@
 /* Sabores do mês e chamada final */
 .roll__sabores { margin: var(--s-40) var(--gutter) 0; }
 .roll__sabores .bands__label { color: var(--caramel-lt); }
+.roll__sabores .pending--block { margin-top: var(--s-12); }
 .roll__cta { display: flex; justify-content: center; margin-top: var(--s-40); padding: 0 var(--gutter); }
 .roll__cta a { display: inline-flex; align-items: center; gap: var(--s-10); min-height: 44px; font: var(--t-call); color: var(--butter); text-decoration: underline 2px; text-underline-offset: 6px; }
 .roll__cta strong { font: var(--t-link); letter-spacing: var(--track-caps); text-transform: uppercase; }
