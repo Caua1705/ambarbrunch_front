@@ -1,0 +1,13 @@
+---
+// Selo “fornada” (adaptado do kit criativo, selo-fornada.svg): círculo de papel, picote, espiral e texto em volta.
+// Cores pelos tokens (currentColor = tinta). Decorativo. Gira devagar; para com movimento reduzido.
+interface Props { class?: string; texto?: string; id?: string }
+const { class: cls, texto = 'direto da fornada · com assinatura roll · ', id = 'selo-fornada' } = Astro.props;
+---
+<svg class:list={['selo', cls]} viewBox="0 0 240 240" aria-hidden="true">
+  <defs><path id={id} d="M120 120 m-82 0 a82 82 0 1 1 164 0 a82 82 0 1 1 -164 0" /></defs>
+  <circle cx="120" cy="120" r="112" class="selo__papel" />
+  <circle cx="120" cy="120" r="100" class="selo__picote" />
+  <g class="selo__giro"><text class="selo__texto"><textPath href={`#${id}`} textLength="510" lengthAdjust="spacing">{texto}</textPath></text></g>
+  <path class="selo__espiral" d="M120 82 C93 92 99 128 117 134 C141 141 155 110 133 104 C115 98 109 114 118 121 C125 127 135 117 130 112" />
+</svg>

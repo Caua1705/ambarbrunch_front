@@ -1,0 +1,58 @@
+---
+// 7 · POR DENTRO DO PRATO (nova) — um prato do menu saudável em destaque: foto com marcadores de ingrediente,
+// texto curto e ficha nutricional expansível (<details>, funciona sem JS; as barras crescem ao abrir).
+// FICHA COM NÚMEROS DE EXEMPLO (data/prato.ts → demo: true): a seção inteira fica FORA do build de produção.
+import Foto from '../components/Foto.astro';
+import MegaTitle from '../components/MegaTitle.astro';
+import { prato } from '../data/prato';
+import { podeMostrar, REVISAO } from '../lib/conteudo';
+import { imagem } from '../lib/media';
+
+const mostrar = !prato.demo || REVISAO;
+const foto = podeMostrar(prato.foto.confirmado) && imagem(prato.foto.src) ? prato.foto : undefined;
+---
+{mostrar && (
+  <section class="prato" id="por-dentro" aria-labelledby="prato-titulo" tabindex="-1">
+    <MegaTitle linhas={['Por dentro', 'do prato']} id="prato-titulo" tom="wine" scribble={prato.linha} />
+
+    <div class="prato__grid">
+      {foto && (
+        <figure class="prato__foto" data-reveal="fade">
+          <i class="prato__fundo" aria-hidden="true"></i>
+          <div class="prato__tigela" data-parallax="soft"><Foto src={foto.src} alt={foto.alt} sizes="(min-width: 960px) 420px, 82vw" widths={[320, 410]} qualidade={70} /></div>
+          {prato.marcadores.map((m, i) => (
+            <span class="prato__pino" style={`--x:${m.x}%;--y:${m.y}%;--i:${i}`} aria-hidden="true"><i></i>{m.nome}</span>
+          ))}
+          <figcaption class="prato__legenda">imagem ilustrativa</figcaption>
+        </figure>
+      )}
+
+      <article class="prato__card" data-reveal>
+        <p class="prato__kicker">em destaque</p>
+        <h3 class="prato__nome">{prato.nome}</h3>
+        <p class="prato__texto">{prato.texto}</p>
+        <ul class="prato__ingredientes" aria-label="Ingredientes">{prato.ingredientes.map((i) => <li>{i}</li>)}</ul>
+
+        <details class="ficha">
+          <summary>
+            <span>Ficha nutricional</span>
+            <span class="ficha__porcao">porção {prato.porcao}</span>
+            <i class="ficha__seta" aria-hidden="true"></i>
+          </summary>
+          <table class="ficha__tabela">
+            <caption class="visually-hidden">Informação nutricional por porção de {prato.porcao}{prato.demo ? ' (valores de exemplo)' : ''}</caption>
+            <tbody>
+              {prato.nutricao.map((n, i) => (
+                <tr style={`--v:${Math.min(1, n.valor / n.max)};--i:${i}`}>
+                  <th scope="row">{n.rotulo}</th>
+                  <td><span class="ficha__barra" aria-hidden="true"><i></i></span><strong>{n.valor.toLocaleString('pt-BR')} {n.unidade}</strong></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {prato.demo && <p class="ficha__nota">valores de exemplo · trocar pela ficha técnica do prato</p>}
+        </details>
+      </article>
+    </div>
+  </section>
+)}

@@ -14,42 +14,35 @@
 .provou__head { padding: 0 var(--gutter); }
 .provou__lead { margin-top: var(--s-22); max-width: 32ch; font-size: var(--fs-lead); color: var(--text-on-dark-muted); }
 
-/* Trilho: padding de meia tela para o 1º e o último card também chegarem ao centro */
+/* Trilho em feed: no celular cabem ~2 vídeos lado a lado e a ponta do 3º (convite ao swipe). Swipe = scroll-snap nativo;
+   cards alinhados pela esquerda, com a mesma margem do texto. Os visíveis tocam juntos, mudos (lib/carrossel.js). */
 .stories--provou {
-  --card: min(64vw, 300px);
-  display: flex; align-items: center; gap: var(--s-10);
+  --gap: var(--s-10);
+  --card: min(calc((100vw - var(--gutter) - 2 * var(--gap)) / 2.28), 236px);
+  display: flex; align-items: center; gap: var(--gap);
   margin-top: var(--s-30);
-  padding: var(--s-14) calc(50% - var(--card) / 2) var(--s-12);
-  scroll-padding-inline: 0; overscroll-behavior-x: contain;
+  padding: var(--s-14) var(--gutter) var(--s-22);
+  scroll-padding-inline: var(--gutter); overscroll-behavior-x: contain;
 }
 .stories--provou[data-unico] { justify-content: center; }
 .stories--provou .story {
   flex: none; width: var(--card); margin-top: 0;
-  scroll-snap-align: center; scroll-snap-stop: always;
-  scale: .86; opacity: .5;
-  transition: scale var(--dur-m) var(--ease-paper), opacity var(--dur-m) var(--ease);
+  scroll-snap-align: start;
+  border-radius: var(--radius-l);
+  transition: box-shadow var(--dur-m) var(--ease);
 }
 .stories--provou .story:nth-child(even) { margin-top: 0; box-shadow: var(--ring-media) var(--cream); }
-.stories--provou .story[data-ativo] { scale: 1; opacity: 1; box-shadow: var(--ring-media) var(--butter), var(--shadow-photo); }
-/* card horizontal: um pouco mais largo, mesma altura dos verticais (o ritmo do trilho não quebra) */
-.stories--provou .story--wide { width: calc(var(--card) * 1.28); aspect-ratio: auto; height: calc(var(--card) * 16 / 9); }
-/* controles só no ativo (nos vizinhos, o toque traz o card para o centro) */
-.stories--provou .story:not([data-ativo]) .story__som,
-.stories--provou .story:not([data-ativo]) .story__progress { visibility: hidden; }
-
-/* Legenda do vídeo ativo (transcrição revisada), fora da imagem: não cobre rosto, crédito nem texto dos criadores */
-.provou__fala {
-  min-height: 2.5em; margin: var(--s-14) auto 0; padding: 0 var(--gutter); max-width: 30ch;
-  text-align: center; font: var(--t-note); line-height: 1.25; color: var(--butter);
+/* o vídeo com som ligado ganha o anel manteiga e o brilho: dá para ver de onde vem a voz */
+.stories--provou .story[data-som-ligado] { box-shadow: var(--ring-media) var(--butter), var(--glow-ativo); }
+/* horizontal: mesma altura dos verticais, mais largo; o vídeo inteiro numa janela emoldurada sobre papel creme */
+.stories--provou .story--wide {
+  width: calc(var(--card) * 1.75); height: calc(var(--card) * 16 / 9); aspect-ratio: auto;
+  padding: var(--s-12) var(--s-10); gap: 0;
 }
-.provou__fala:not(:empty)::before { content: "“"; }
-.provou__fala:not(:empty)::after { content: "”"; }
-/* sem fala no momento: uma dica discreta no lugar (e o espaço não pula quando a legenda chega) */
-.provou__fala:empty::before { content: attr(data-dica); font: var(--t-caption); color: var(--text-on-dark-faint); }
-.provou__fala[data-vazia]:empty::before { content: attr(data-dica-mudo); }
-.provou__fala[data-tocando]:not([data-vazia]):empty::before { content: none; }
 
-.provou__setas { display: flex; justify-content: center; gap: var(--s-14); margin-top: var(--s-10); }
+.provou__setas { display: flex; justify-content: center; align-items: center; gap: var(--s-14); margin-top: var(--s-10); }
+.provou__contador { min-width: 5ch; text-align: center; font: var(--t-chip); letter-spacing: var(--track-caps); color: var(--butter); }
+.provou__contador i { font-style: normal; color: var(--text-on-dark-faint); }
 .provou__seta {
   display: grid; place-items: center; width: 44px; height: 44px;
   border: 2px solid var(--butter); border-radius: var(--radius-round);
@@ -59,9 +52,9 @@
 .provou__seta:disabled { opacity: .35; cursor: default; }
 
 .provou__nota { margin: var(--s-22) var(--gutter) 0; text-align: center; font-size: var(--fs-micro); color: var(--text-on-dark-faint); }
-.provou__pendente { margin-top: var(--s-12); }
 
 @media (min-width: 960px) {
-  .stories--provou { --card: 300px; }
+  /* desktop: o trilho começa na margem do conteúdo (até 3 vídeos tocando; ver lib/carrossel.js) */
+  .stories--provou { padding-inline: max(var(--gutter), (100% - var(--container-xl)) / 2); scroll-padding-inline: max(var(--gutter), (100% - var(--container-xl)) / 2); }
   .provou__head { max-width: var(--container-xl); margin: 0 auto; }
 }

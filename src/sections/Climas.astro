@@ -1,14 +1,11 @@
 ---
-// 6 · ESCOLHA O CLIMA — painéis em diagonal + bolhas (markup do v1). Fotos do espaço ANTERIOR, com aviso.
+// 6 · ESCOLHA O CLIMA — painéis em diagonal + bolha (markup do v1). Ambientes públicos: Jardim, Salão principal, Lounge.
 import Foto from '../components/Foto.astro';
 import MegaTitle from '../components/MegaTitle.astro';
-import Pendente from '../components/Pendente.astro';
 import { ambientes as a } from '../data/ambientes';
-const algumaAntiga = Object.values(a).some((x) => x.fotoAntiga);
 ---
 <section class="climas" id="ambientes" aria-labelledby="climas-titulo" tabindex="-1">
-  <MegaTitle linhas={['Escolha', 'o clima']} id="climas-titulo" tom="wine" />
-  {algumaAntiga && <p class="notice climas__notice" role="note">Fotos de referência do espaço anterior — serão trocadas por imagens atuais do Âmbar.</p>}
+  <MegaTitle linhas={['Escolha', 'o clima']} id="climas-titulo" tom="wine" scribble="jardim, salão ou lounge" />
 
   <div class="climas__stack">
     <figure class="panel panel--day" data-reveal="slide-l">
@@ -23,10 +20,5 @@ const algumaAntiga = Object.values(a).some((x) => x.fotoAntiga);
       <Foto src={a.lounge.foto} alt={a.lounge.alt} sizes="(min-width: 960px) 220px, 36vw" />
       <figcaption>{a.lounge.tagline}</figcaption>
     </figure>
-    <figure class="bubble bubble--b" data-reveal="fade" data-parallax="down">
-      <Foto src={a.leitura.foto} alt={a.leitura.alt} sizes="(min-width: 960px) 220px, 36vw" />
-      <figcaption>{a.leitura.tagline}</figcaption>
-    </figure>
   </div>
-  <Pendente falta="Fotos do espaço novo (captação a partir de 24/10) e quais ambientes aceitam reserva" bloco class="climas__pending" />
 </section>

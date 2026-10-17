@@ -2,9 +2,6 @@
 // Folha do menu (<dialog> modal nativo). “Reservar mesa” é o único botão cheio.
 import Foto from './Foto.astro';
 import MenuButton from './MenuButton.astro';
-import MotionToggle from './MotionToggle.astro';
-import Pendente from './Pendente.astro';
-import { isPendente } from '../lib/conteudo';
 import { visita } from '../data/visita';
 import { roll } from '../data/roll';
 
@@ -13,12 +10,11 @@ const { base = '' } = Astro.props;   // '' na home (âncoras locais), '/' nas p�
 const itens = [
   { href: `${base}#gastronomia`, texto: 'Cardápio' },
   { href: `${base}#roll`, texto: 'Fornada' },
+  { href: `${base}#bebidas`, texto: 'Café e bebidas' },
   { href: `${base}#quem-provou`, texto: 'Quem provou' },
   { href: `${base}#ambientes`, texto: 'Ambientes' },
   { href: `${base}#visite`, texto: 'Visite' },
 ];
-const ig = visita.instagram;
-const wa = visita.whatsapp;
 ---
 <dialog class="sheet" id="menu" aria-label="Menu">
   <div class="sheet__head">
@@ -32,13 +28,13 @@ const wa = visita.whatsapp;
   </nav>
   <a class="btn btn--wine btn--block sheet__cta" href={`${base}#reservar`}>Reservar mesa <span aria-hidden="true">→</span></a>
   <div class="sheet__foot">
+    <p class="sheet__hours">{visita.endereco} · {visita.horarioCurto}</p>
     <span class="sheet__contacts">
-      {isPendente(ig) ? <Pendente falta="Instagram do Âmbar" /> : <a href={ig.url} rel="noopener">{ig.handle}</a>}
+      <a href={visita.whatsapp.url} rel="noopener">WhatsApp</a>
       {' '}
-      {isPendente(wa) ? <Pendente falta="WhatsApp do Âmbar" /> : <a href={wa.url} rel="noopener">WhatsApp</a>}
+      <a href={visita.instagram.url} rel="noopener">{visita.instagram.handle}</a>
       {' '}
       <a href={roll.instagram.url} rel="noopener">{roll.instagram.handle}</a>
     </span>
-    <MotionToggle />
   </div>
 </dialog>

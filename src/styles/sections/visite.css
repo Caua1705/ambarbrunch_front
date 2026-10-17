@@ -43,3 +43,8 @@
   .visite__grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-40); align-items: start; }
   .visite__actions { grid-template-columns: auto auto; justify-content: start; }
 }
+
+/* selo girando no canto do ticket de horários + linha editorial (novos) */
+.horarios { position: relative; }
+.horarios__extra { font: var(--t-caption); color: var(--text-muted); }
+.visite__selo { position: absolute; z-index: var(--z-2); width: 104px; right: -12px; top: -48px; color: var(--wine); rotate: -10deg; }

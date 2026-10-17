@@ -54,35 +54,84 @@
 .js [data-reveal="slide-r"] { translate: var(--slide) var(--slide); }
 
 /* anatomia do roll: a foto gira para o lugar (massa sendo enrolada), a espiral se desenha, as notas entram */
-.js .anatomia .anatomia__foto { transform: rotate(-140deg) scale(.72); transition: transform var(--dur-roll) var(--ease-paper); }
+.js .anatomia .anatomia__foto { transform: rotate(-140deg) scale(.72); clip-path: circle(6% at 50% 50%); transition: transform var(--dur-roll) var(--ease-paper), clip-path var(--dur-roll) var(--ease) var(--reveal-delay-draw); }
+.js .anatomia .anatomia__selo { scale: 0; transition: scale var(--dur-m) var(--ease-paper) calc(var(--reveal-delay-notes) + 4 * var(--stagger)); }
+.js .anatomia.is-in .anatomia__selo { scale: 1; }
 .js .anatomia .anatomia__espiral path { transition-duration: var(--dur-draw-long); }
 .js .anatomia .anatomia__nota { opacity: 0; translate: 0 12px; transition: opacity var(--dur-m) var(--ease), translate var(--dur-m) var(--ease-paper); transition-delay: calc(var(--reveal-delay-notes) + var(--i, 0) * var(--stagger)); }
-.js .anatomia.is-in .anatomia__foto { transform: none; }
+.js .anatomia.is-in .anatomia__foto { transform: none; clip-path: circle(50% at 50% 50%); }
+/* prato: pinos de ingrediente estalam um a um depois da foto */
+.js .prato__foto .prato__pino { opacity: 0; scale: .6; transition: opacity var(--dur-s) var(--ease), scale var(--dur-m) var(--ease-paper); transition-delay: calc(var(--reveal-delay-notes) + var(--i, 0) * 2 * var(--stagger)); }
+.js .prato__foto.is-in .prato__pino { opacity: 1; scale: 1; }
 .js .anatomia.is-in .anatomia__nota { opacity: 1; translate: none; }
 
-/* 2 · Entrada do hero (só no primeiro carregamento, no topo, sem âncora) — classe .enter no <html> */
-.enter .hero__label { animation: label-settle var(--dur-l) var(--ease-paper) both; }
-.enter .hero__headline > span { animation: line-settle var(--hero-t-line-dur) var(--ease-paper) both; }
-.enter .hero__headline .l1 { animation-delay: var(--hero-t-line-1); }
-.enter .hero__headline .l2 { animation-name: line-settle-r; animation-delay: var(--hero-t-line-2); }
+/* 2 · Entrada do hero (só no primeiro carregamento, no topo, sem âncora) — classe .enter no <html>, posta no <head>
+   antes da 1ª pintura (sem JS, sem .enter: o hero aparece pronto). Uma cena montada em ~1,34 s, cada peça com o seu gesto:
+   a etiqueta cai e encaixa; as palavras sobem em sequência (CAFÉ da esquerda, BRUNCH da direita, & ROLLS por baixo, o “&”
+   estala); as fotos chegam em camadas do fundo para a frente (o roll entra rolando); o selo da Roll bate como carimbo,
+   com uma onda no impacto; o CTA entra por último, com mola. Só transform e opacity: sem layout, sem CLS.
+   O título e a etiqueta (LCP) nunca ficam transparentes: pintam no 1º quadro, só se deslocam. */
+.enter .hero__label { animation: label-snap var(--hero-t-label-dur) var(--ease) var(--hero-t-label) both; }
+.enter .hero__headline > span { animation: line-rise var(--hero-t-line-dur) var(--ease-paper) both; }
+.enter .hero__headline .l1 { animation-name: line-rise-l; animation-delay: var(--hero-t-line-1); }
+.enter .hero__headline .l2 { animation-name: line-rise-r; animation-delay: var(--hero-t-line-2); }
 .enter .hero__headline .l3 { animation-delay: var(--hero-t-line-3); }
-.enter .hero__collage > * { animation: piece-in var(--dur-l) var(--ease-paper) both; }
-.enter .hero__collage > :nth-child(1) { animation-delay: var(--hero-t-piece-1); }
-.enter .hero__collage > :nth-child(2) { animation-delay: var(--hero-t-piece-2); }
-.enter .hero__collage > :nth-child(3) { animation-delay: var(--hero-t-piece-3); }
-.enter .hero__collage > :nth-child(4) { animation-name: sticker-in; animation-delay: var(--hero-t-sticker); }
-.enter .hero__collage > :nth-child(5) { animation-name: fade; animation-delay: var(--hero-t-sparks); }
-.enter .hero__foot .btn { animation: bump var(--hero-t-cta-dur) var(--ease-paper) var(--hero-t-cta) both; }
-.enter .hero__foot .ref-note { animation: fade var(--hero-t-note-dur) linear var(--hero-t-note) both; }
-.enter .menu-btn--hero { animation: sticker-in var(--dur-m) var(--ease-paper) var(--hero-t-sticker) both; }
-/* sem opacidade no texto: o título é o maior elemento da 1ª tela (LCP) e precisa pintar já no 1º quadro */
-@keyframes label-settle { from { transform: translateY(-14px) rotate(-3.5deg); } }
-@keyframes line-settle { from { transform: translateY(.18em); } }
-@keyframes line-settle-r { from { transform: translateX(6%); } }
+.enter .hero__headline em { display: inline-block; animation: amp-pop var(--hero-t-amp-dur) var(--ease-paper) var(--hero-t-amp) both; }
+.enter .hero__collage .cut { animation: piece-in var(--hero-t-piece-dur) var(--ease-paper) both; }
+.enter .hero__collage .cut--polaroid { animation-name: layer-back; animation-delay: var(--hero-t-piece-1); }
+.enter .hero__collage .cut--circle { animation-name: roll-in; animation-delay: var(--hero-t-piece-2); }
+.enter .hero__collage .cut--tile { animation-name: layer-front; animation-delay: var(--hero-t-piece-3); }
+.enter .hero__collage .sticker--roll { animation: stamp-in var(--hero-t-stamp-dur) var(--ease) var(--hero-t-stamp) both; }
+.enter .hero__collage .sticker--roll::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  border: 2px solid var(--caramel-lt);
+  animation: stamp-ring var(--dur-m) var(--ease-out) var(--hero-t-ring) both;
+}
+.enter .hero__collage .sparks { animation: sparks-in var(--dur-m) var(--ease-paper) var(--hero-t-sparks) both; }
+.enter .hero__anota { animation: note-in var(--dur-m) var(--ease) var(--hero-t-sparks) both; }
+.enter .menu-btn--hero { animation: sticker-in var(--dur-m) var(--ease-paper) var(--hero-t-menu) both; }
+.enter .hero__foot .btn { animation: cta-spring var(--hero-t-cta-dur) var(--ease) var(--hero-t-cta) both; }
+.enter .hero__note { animation: fade var(--hero-t-note-dur) linear var(--hero-t-note) both; }
+@keyframes label-snap {
+  0% { transform: translateY(-22px) rotate(-9deg) scale(1.1); }
+  62% { transform: translateY(2px) rotate(1.2deg) scale(.985); }
+  82% { transform: translateY(-1px) rotate(-.4deg); }
+}
+@keyframes line-rise { from { transform: translateY(.42em); } }
+@keyframes line-rise-l { from { transform: translate(-.3em, .42em) rotate(-3deg); } }
+@keyframes line-rise-r { from { transform: translate(.4em, .42em) rotate(2.5deg); } }
+@keyframes amp-pop { from { opacity: 0; transform: scale(.3) rotate(-35deg); } }
+@keyframes layer-back { from { opacity: 0; transform: translate(26px, -22px) rotate(10deg) scale(.92); } }
+@keyframes roll-in { from { opacity: 0; transform: translateX(-36px) rotate(-80deg) scale(.84); } }
+@keyframes layer-front { from { opacity: 0; transform: translateY(34px) rotate(-12deg) scale(.9); } }
+@keyframes stamp-in {
+  0% { opacity: 0; transform: scale(2.1) rotate(26deg); }
+  55% { opacity: 1; transform: scale(.93) rotate(-2deg); }
+  78% { transform: scale(1.03) rotate(.5deg); }
+}
+@keyframes stamp-ring { from { opacity: .9; transform: scale(1); } to { opacity: 0; transform: scale(1.55); } }
+@keyframes sparks-in { from { opacity: 0; transform: scale(.4) rotate(-20deg); } }
+@keyframes note-in { from { opacity: 0; transform: translateX(-10px); } }
+@keyframes cta-spring {
+  0% { opacity: 0; transform: translateY(22px) scale(.88); }
+  55% { opacity: 1; transform: translateY(-4px) scale(1.03); box-shadow: var(--shadow-offset-l); }
+  78% { transform: translateY(1px) scale(.99); }
+}
 @keyframes piece-in { from { opacity: 0; transform: translateY(var(--lift)) rotate(var(--tilt)) scale(.94); } }
 @keyframes sticker-in { from { opacity: 0; transform: scale(.6); } }
 @keyframes fade { from { opacity: 0; } }
-@keyframes bump { 50% { transform: translate(-2px, -2px); box-shadow: var(--shadow-offset-l); } }
+
+/* 2a · Cardápio tátil e ficha nutricional: o cartão abre como papel, os itens descem em cascata, as barras crescem.
+   @keyframes recomeçam sozinhas quando o conteúdo aparece (hidden → visível), então trocar de etiqueta replaya a cascata. */
+.cartao:not([hidden]) .cartao__dentro { animation: cartao-in var(--dur-m) var(--ease-paper) both; }
+.cartao[data-fechando] .cartao__dentro { animation: cartao-out var(--dur-s) var(--ease-in) both; }
+.cartao__cat:not([hidden]) .cartao__itens li { animation: item-in var(--dur-m) var(--ease) both; animation-delay: calc(var(--stagger) + var(--k, 0) * var(--stagger)); }
+.cartao__cat:not([hidden]) .cartao__fotos figure { animation: piece-in var(--dur-l) var(--ease-paper) both; animation-delay: calc(var(--k, 0) * var(--stagger)); }
+.ficha[open] .ficha__barra i { animation: barra var(--dur-l) var(--ease-paper) both; animation-delay: calc(var(--i, 0) * var(--stagger)); }
+@keyframes cartao-in { from { opacity: 0; transform: translateY(-12px) rotate(-2deg) scale(.96); } }
+@keyframes cartao-out { to { opacity: 0; transform: translateY(-8px) scale(.97); } }
+@keyframes item-in { from { opacity: 0; transform: translateY(6px); } }
+@keyframes barra { from { transform: scaleX(0); } }
 
 /* 2b · Momentos da comanda: uma vez, quando o estado muda */
 .stamp[data-state="reservado"], .stamp[data-state="erro"] { animation: stamp-hit var(--dur-m) var(--ease-paper) both; }
@@ -110,10 +159,38 @@
   @keyframes hero-exit { to { translate: 0 var(--exit, -24px); } }
 }
 
+/* 3b · Detalhes vivos, leves (só translate/rotate/opacity/box-shadow — nada que refaça layout) */
+[data-float] { animation: boia var(--float-period) ease-in-out infinite alternate; }
+[data-float="b"] { animation-duration: var(--float-period-b); animation-delay: calc(var(--float-period) * -.5); }
+.baralho__camada { animation: boia var(--float-period) ease-in-out infinite alternate; animation-delay: calc(var(--ordem, 0) * var(--float-period) * -.31); }
+/* o selo gira inteiro (elemento svg = camada própria); girar um <g> por dentro repintava a cada quadro */
+.selo { animation: spin var(--selo-period) linear infinite; }
+.bands__tap .bands__ponto { position: relative; }
+.bands__tap[aria-expanded="false"] .bands__ponto::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: currentColor; animation: pulso var(--pulse-period) var(--ease-out) infinite; }
+.bands__dedo { animation: cutuca var(--pulse-period) var(--ease) infinite; transform-origin: 50% 90%; }
+/* fora da tela, nada disso roda (lib/vivo.js marca data-visivel) */
+[data-vivo]:not([data-visivel]) [data-float],
+[data-vivo]:not([data-visivel]) .ticker__track,
+[data-vivo]:not([data-visivel]) .baralho__camada,
+[data-vivo]:not([data-visivel]) .selo,
+[data-vivo]:not([data-visivel]) .sticker--roll svg,
+[data-vivo]:not([data-visivel]) .bands__dedo,
+[data-vivo]:not([data-visivel]) .bands__ponto::after,
+/* esqueleto das datas da reserva: brilha desde o carregamento até a ilha hidratar; fora da tela custava ~80 ms/s de estilo */
+[data-vivo]:not([data-visivel]) .chip--skeleton { animation-play-state: paused; }
+@keyframes boia { to { translate: 0 calc(var(--float-amp) * -1); } }
+@keyframes pulso { from { opacity: .7; scale: 1; } 70%, to { opacity: 0; scale: 2.8; } }
+@keyframes cutuca { 0%, 60%, 100% { rotate: 0deg; } 70% { rotate: -14deg; } 80% { rotate: 8deg; } }
+
 /* 4 · Pausa global (botão “pausar animações”) — data-motion="paused" no <html>, salvo no navegador */
 [data-motion="paused"] .ticker__track,
 [data-motion="paused"] .sticker--roll svg,
-[data-motion="paused"] .chip--skeleton { animation-play-state: paused; }
+[data-motion="paused"] .chip--skeleton,
+[data-motion="paused"] [data-float],
+[data-motion="paused"] .baralho__camada,
+[data-motion="paused"] .selo,
+[data-motion="paused"] .bands__ponto::after,
+[data-motion="paused"] .bands__dedo { animation-play-state: paused; }
 [data-motion="paused"] [data-parallax],
 [data-motion="paused"] .roll__spiral,
 [data-motion="paused"] .anatomia__espiral { animation: none; }
@@ -128,7 +205,9 @@
   .js [data-reveal="lines"] > .scribble { opacity: 1; translate: none; rotate: -4deg; }
   .js [data-draw] path { stroke-dashoffset: 0; }
   .js .board__item .tape { scale: none; }
-  .js .anatomia .anatomia__foto { transform: none; }
+  .js .anatomia .anatomia__foto { transform: none; clip-path: none; }
+  .js .anatomia .anatomia__selo { scale: 1; }
+  .js .prato__foto .prato__pino { opacity: 1; scale: 1; }
   .js .anatomia .anatomia__nota { opacity: 1; translate: none; }
   .js .bands[data-reveal] .bands__list li, .js .trays[data-reveal] figure:nth-child(n) { opacity: 1; transform: none; }
   /* CTA, doca e folha: só opacidade (a transição é religada de propósito, curta) */

@@ -1,17 +1,16 @@
 ---
 // 6 · QUEM PROVOU, CONTA — vídeos de criadores sobre a Roll (seção própria, separada dos bastidores da Roll).
-// Um vídeo em destaque no centro, vizinhos visíveis nas bordas; só o ativo toca, mudo; som por botão; legendas abaixo.
+// Feed: ~2 vídeos lado a lado no celular (e a ponta do próximo); os visíveis tocam juntos, mudos; som por card, um de
+// cada vez; legendas opcionais (CC) por card. Créditos discretos: só o @ de quem gravou.
 // Nunca apresentados como avaliação do Âmbar. No site publicado só entram vídeos com autorização do criador.
 import MegaTitle from '../components/MegaTitle.astro';
 import Story from '../components/Story.astro';
 import Spiral from '../components/Spiral.astro';
-import Pendente from '../components/Pendente.astro';
 import { criadores } from '../data/criadores';
-import { podeMostrar, REVISAO } from '../lib/conteudo';
+import { podeMostrar } from '../lib/conteudo';
 import { video } from '../lib/media';
 
 const videos = criadores.videos.filter((v) => podeMostrar(v.autorizado) && video(v.arquivo));
-const pendentes = videos.filter((v) => !v.autorizado);
 const comAudio = videos.some((v) => v.audio);
 ---
 {videos.length > 0 && (
@@ -26,19 +25,16 @@ const comAudio = videos.some((v) => v.audio);
       <ol class="stories stories--provou" data-trilho aria-label="Vídeos de quem provou a Roll" data-unico={videos.length === 1 ? '' : undefined}>
         {videos.map((v) => <Story {...v} tipo="criador" carrossel />)}
       </ol>
-      {comAudio && <p class="provou__fala" data-fala data-vazia data-dica="as falas aparecem aqui enquanto o vídeo toca" data-dica-mudo="vídeo sem som · toque para tocar ou pausar"></p>}
       {videos.length > 1 && (
         <div class="provou__setas">
           <button class="provou__seta" type="button" data-prev aria-label="Vídeo anterior" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg></button>
+          <p class="provou__contador"><span data-contador>01</span><i aria-hidden="true"> / </i><span class="visually-hidden"> de </span>{String(videos.length).padStart(2, '0')}</p>
           <button class="provou__seta" type="button" data-next aria-label="Próximo vídeo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" /></svg></button>
         </div>
       )}
     </div>
 
     <p class="provou__nota">Conteúdo publicado pelos criadores sobre a Roll · não são avaliações do Âmbar Brunch</p>
-    {REVISAO && pendentes.length > 0 && (
-      <div class="provou__nota provou__pendente"><Pendente falta={`Autorização de imagem, voz e nome de ${pendentes.length} vídeo(s) de criadores e identificação dos autores sem crédito; sem ela, saem do site publicado. Legendas revisadas a partir de transcrição automática: ouvir e confirmar`} bloco /></div>
-    )}
   </section>
 )}
 

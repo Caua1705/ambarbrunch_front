@@ -1,14 +1,17 @@
 // @ts-check
-// Âmbar Brunch — carrossel “Quem provou, conta”: um vídeo em destaque no centro, vizinhos aparecendo nas bordas.
-// - o card ativo é o mais próximo do centro do trilho (swipe nativo com scroll-snap; setas no desktop);
-// - só o ativo toca, mudo, e só com o carrossel visível (≥ 50%); ao trocar, o anterior pausa e volta a ficar mudo;
-// - “som” liga/desliga o áudio do ativo (gesto do visitante: toca mesmo com movimento reduzido ou pausa global);
-// - pausa manual é respeitada: o vídeo que o visitante pausou só volta a tocar quando ele mandar (os outros seguem a regra);
-// - movimento reduzido ou pausa global: nada toca sozinho; o toque no card toca/pausa;
-// - legendas (.vtt) aparecem abaixo do carrossel, sem cobrir o vídeo nem os créditos gravados pelos criadores;
-// - desempenho: cada card começa só com a capa (img lazy); o <video> sai do <template> quando o card fica ativo
-//   com o carrossel por perto, e só o ativo baixa o arquivo (preload="none" até tocar).
+// Âmbar Brunch — carrossel “Quem provou, conta”, em feed: ~2 vídeos lado a lado no celular e a ponta do próximo.
+// - os cards visíveis (≥ 55% na tela, no trilho e na página) tocam juntos, mudos — no máximo 2 no celular, 3 no desktop;
+// - som por card, só com toque do visitante: ligar o som de um silencia o anterior (um audível por vez);
+// - card (ou a seção) sai da tela: pausa e, se era o audível, o som desliga;
+// - pausa manual é respeitada: o card pausado só volta com novo toque (os outros seguem a regra);
+// - movimento reduzido: nada toca sozinho; o toque no card toca/pausa;
+// - legendas opcionais (CC) por card, sobre o vídeo, a partir do .vtt — nada de transcrição fixa no layout;
+// - desempenho: no meio do swipe nenhum vídeo começa (só pausam os que saem); cada card começa só com a capa (img lazy); o <video> sai do <template> só quando o card vai tocar
+//   (ou quando o visitante pede som/legenda), e só esses baixam o arquivo (preload="none" até tocar).
 import { motionAllowed } from './motion.js';
+
+const VISIVEL = 0.55;   // fração do card na tela para tocar sozinho
+const FORA = 0.2;       // abaixo disso o card conta como fora da tela (o audível só para aqui, não no meio do swipe)
 
 /** @param {HTMLElement} root */
 export function initCarrossel(root) {
@@ -18,25 +21,26 @@ export function initCarrossel(root) {
   if (!cards.length) return;
   /** @type {(HTMLVideoElement | null)[]} */
   const videos = cards.map(() => null);
-  const fala = /** @type {HTMLElement | null} */ (root.querySelector('[data-fala]'));
+  const fracao = cards.map(() => 0);
   const prev = /** @type {HTMLButtonElement | null} */ (root.querySelector('[data-prev]'));
   const next = /** @type {HTMLButtonElement | null} */ (root.querySelector('[data-next]'));
+  const contador = /** @type {HTMLElement | null} */ (root.querySelector('[data-contador]'));
+  const desktop = matchMedia('(min-width: 960px)');
+  const limite = () => (desktop.matches ? 3 : 2);
 
-  let ativo = -1;
-  let visivel = false;
-  /** carrossel a até ~1,5 tela: antes disso nenhum vídeo nem legenda é criado */
-  let perto = !('IntersectionObserver' in window);
   /** cards que o visitante pausou: não voltam a tocar sozinhos (o WebKit também bloquearia) */
   const pausados = new Set();
-  /** o visitante mandou tocar este card (vale mesmo com movimento reduzido) */
-  let pedido = false;
-  let som = false;
+  /** cards que o visitante mandou tocar, o mais recente por último (valem mesmo com movimento reduzido) */
+  /** @type {number[]} */
+  let pedidos = [];
+  let audivel = -1;
+  /** cards que devem estar tocando agora (decisão do carrossel) */
+  const devem = new Set();
 
   /** @param {number} i @param {boolean} tocando */
   const estado = (i, tocando) => {
     cards[i].dataset.state = tocando ? 'playing' : 'paused';
     cards[i].querySelector('.story__toggle')?.setAttribute('aria-pressed', String(tocando));
-    if (i === ativo) fala?.toggleAttribute('data-tocando', tocando);
   };
 
   /** Cria (uma vez) o <video> do card a partir do <template>, sobre a capa. @param {number} i */
@@ -48,130 +52,149 @@ export function initCarrossel(root) {
     if (!tpl || !v) return null;
     tpl.replaceWith(v);
     videos[i] = v;
-    // progresso tipo story (só enquanto toca)
-    const bar = /** @type {HTMLElement | null} */ (cards[i].querySelector('.story__progress'));
-    let r = 0;
-    const tick = () => { bar?.style.setProperty('--p', String(v.duration ? v.currentTime / v.duration : 0)); r = requestAnimationFrame(tick); };
-    if (bar) { v.addEventListener('play', () => { cancelAnimationFrame(r); r = requestAnimationFrame(tick); }); v.addEventListener('pause', () => cancelAnimationFrame(r)); }
+    // o WebKit do Playwright (e alguns WebKit antigos) param na volta do loop: se ninguém mandou pausar, segue tocando
+    v.addEventListener('pause', () => { if (devem.has(i) && v.currentTime < 0.2) v.play().catch(() => estado(i, false)); });
     return v;
   };
 
   const marcarSom = () => cards.forEach((c, i) => {
-    const ligado = i === ativo && som;
+    const ligado = i === audivel;
     c.toggleAttribute('data-som-ligado', ligado);
     const b = c.querySelector('[data-som]');
     if (!b) return;
     b.setAttribute('aria-pressed', String(ligado));
-    const tag = c.querySelector('.story__tag')?.textContent ?? '';
-    b.setAttribute('aria-label', `${ligado ? 'Desativar' : 'Ativar'} o som do vídeo: ${tag}`);
+    b.setAttribute('aria-label', `${ligado ? 'Desativar' : 'Ativar'} o som do vídeo ${b.getAttribute('data-nome') ?? ''}`);
   });
+  const silenciar = () => {
+    if (audivel < 0) return;
+    const v = videos[audivel];
+    if (v) v.muted = true;
+    audivel = -1;
+    marcarSom();
+  };
 
   /** @param {number} i */
   const tocar = (i) => {
     const v = video(i);
     if (!v) return;
-    v.muted = !som;
+    devem.add(i);
+    v.muted = i !== audivel;
     if (v.preload !== 'auto') v.preload = 'auto';
-    v.play().then(() => estado(i, true)).catch(() => { estado(i, false); if (!v.muted) { som = false; v.muted = true; marcarSom(); } });
+    v.play().then(() => estado(i, true)).catch(() => { devem.delete(i); estado(i, false); if (i === audivel) silenciar(); });
   };
   /** @param {number} i */
-  const parar = (i) => { videos[i]?.pause(); estado(i, false); };
+  const parar = (i) => { devem.delete(i); videos[i]?.pause(); estado(i, false); };
 
-  /** Decide quem toca: só o ativo, com o carrossel visível, se o visitante pediu ou se o movimento automático é permitido. */
+  /** prioridade de quem toca quando há mais candidatos que o limite: o audível, depois os pedidos (o mais recente
+   *  primeiro), depois a ordem na tela. @param {number} i */
+  const peso = (i) => (i === audivel ? -1e3 : pedidos.includes(i) ? -pedidos.indexOf(i) - 1 : i);
+
+  let rolando = false;
+  /** Decide quem toca: os visíveis, até o limite; nunca o que o visitante pausou. */
   const decidir = () => {
+    pedidos = pedidos.filter((i) => fracao[i] >= FORA);   // pedido vale enquanto o card está na tela
+    const auto = motionAllowed();
+    const tocam = cards.map((_, i) => i)
+      .filter((i) => !pausados.has(i) && (fracao[i] >= VISIVEL || (i === audivel && fracao[i] >= FORA)))
+      .filter((i) => auto || i === audivel || pedidos.includes(i))
+      .sort((a, b) => peso(a) - peso(b) || a - b)
+      .slice(0, limite());
+    if (audivel >= 0 && !tocam.includes(audivel)) silenciar();   // saiu da tela ou foi pausado: o som para junto
     cards.forEach((_, i) => {
       const v = videos[i];
-      if (i !== ativo) { if (v && !v.paused) parar(i); return; }
-      const pode = visivel && (pedido || (motionAllowed() && !pausados.has(i)));
-      if (pode) { if (!v || v.paused) tocar(i); } else if (v && !v.paused) parar(i);
+      // no meio do swipe só pausa quem sai: quem entra começa quando o trilho assenta (iniciar um vídeo custa quadros)
+      if (tocam.includes(i)) { if (!v || v.paused) { if (!rolando) tocar(i); } else v.muted = i !== audivel; }
+      else if (v && !v.paused) parar(i);
     });
   };
 
-  // Legendas do ativo, abaixo do carrossel.
-  /** @type {TextTrack | null} */
-  let faixa = null;
-  const mostrarFala = () => {
-    if (!fala) return;
-    const cue = /** @type {VTTCue | undefined} */ (faixa?.activeCues?.[0]);
-    fala.textContent = cue ? cue.text : '';
-  };
-  const ligarLegendas = () => {
-    if (faixa) { faixa.removeEventListener('cuechange', mostrarFala); faixa.mode = 'disabled'; }
-    const tpl = /** @type {HTMLTemplateElement | null} */ (cards[ativo]?.querySelector('template[data-video]'));
-    const temFaixa = !!(videos[ativo] ?? tpl?.content)?.querySelector('track');
-    faixa = perto && temFaixa ? (video(ativo)?.textTracks?.[0] ?? null) : null;
-    if (faixa) { faixa.mode = 'hidden'; faixa.addEventListener('cuechange', mostrarFala); }
-    if (fala) { fala.textContent = ''; fala.toggleAttribute('data-vazia', !temFaixa); }
+  // Legendas opcionais (CC): o texto da fala atual sobre o vídeo, só no card em que o visitante ligou.
+  /** @param {number} i @param {boolean} ligar */
+  const legendas = (i, ligar) => {
+    const el = /** @type {HTMLElement | null} */ (cards[i].querySelector('[data-legenda]'));
+    const faixa = video(i)?.textTracks?.[0];
+    cards[i].querySelector('[data-cc]')?.setAttribute('aria-pressed', String(ligar));
+    if (!el || !faixa) return;
+    el.hidden = !ligar;
+    el.textContent = '';
+    faixa.mode = ligar ? 'hidden' : 'disabled';
+    faixa.oncuechange = ligar ? () => { el.textContent = /** @type {VTTCue | undefined} */ (faixa.activeCues?.[0])?.text ?? ''; } : null;
   };
 
-  /** @param {number} i */
-  const ativar = (i) => {
-    if (i === ativo) return;
-    if (ativo >= 0) { parar(ativo); const v = videos[ativo]; if (v) v.muted = true; }
-    ativo = i;
-    som = false; pedido = false;
-    cards.forEach((c, k) => c.toggleAttribute('data-ativo', k === i));
-    if (prev) prev.disabled = i === 0;
-    if (next) next.disabled = i === cards.length - 1;
-    marcarSom();
-    ligarLegendas();
-    decidir();
+  // Navegação: setas e contador seguem o 1º card visível.
+  const primeiro = () => { const k = fracao.findIndex((f) => f >= VISIVEL); return k < 0 ? 0 : k; };
+  const atualizar = () => {
+    const fim = trilho.scrollWidth - trilho.clientWidth - 2;
+    if (prev) prev.disabled = trilho.scrollLeft <= 2;
+    if (next) next.disabled = trilho.scrollLeft >= fim;
+    if (contador) contador.textContent = String(primeiro() + 1).padStart(2, '0');
   };
-
-  /** card mais perto do centro do trilho */
-  const centro = () => {
-    const meio = trilho.scrollLeft + trilho.clientWidth / 2;
-    let melhor = 0; let dist = Infinity;
-    cards.forEach((c, i) => { const d = Math.abs(c.offsetLeft + c.offsetWidth / 2 - meio); if (d < dist) { dist = d; melhor = i; } });
-    return melhor;
-  };
-  // rolagem pelo código (setas, toque num vizinho): os cards do meio do caminho não viram ativos
-  let alvo = -1; let soltar = 0;
-  let raf = 0;
-  trilho.addEventListener('scroll', () => {
-    cancelAnimationFrame(raf);
-    raf = requestAnimationFrame(() => { const c = centro(); if (alvo >= 0) { if (c !== alvo) return; alvo = -1; } ativar(c); });
-  }, { passive: true });
-
-  /** @param {number} i */
+  /** leva o card i para o início do trilho (alinhado à margem) @param {number} i */
   const irPara = (i) => {
     const k = Math.max(0, Math.min(cards.length - 1, i));
-    const c = cards[k];
-    alvo = k; clearTimeout(soltar); soltar = window.setTimeout(() => { alvo = -1; }, 1200);
-    trilho.scrollTo({ left: c.offsetLeft + c.offsetWidth / 2 - trilho.clientWidth / 2, behavior: motionAllowed() ? 'smooth' : 'auto' });
+    const margem = parseFloat(getComputedStyle(trilho).scrollPaddingLeft) || 0;
+    const left = trilho.scrollLeft + cards[k].getBoundingClientRect().left - trilho.getBoundingClientRect().left - margem;
+    trilho.scrollTo({ left, behavior: motionAllowed() ? 'smooth' : 'auto' });
   };
-  prev?.addEventListener('click', () => irPara(ativo - 1));
-  next?.addEventListener('click', () => irPara(ativo + 1));
+  prev?.addEventListener('click', () => irPara(primeiro() - 1));
+  next?.addEventListener('click', () => irPara(primeiro() + 1));
+  let raf = 0;
+  let assentar = 0;
+  const assentou = () => { clearTimeout(assentar); if (!rolando) return; rolando = false; decidir(); };
+  trilho.addEventListener('scroll', () => {
+    cancelAnimationFrame(raf); raf = requestAnimationFrame(atualizar);
+    rolando = true; clearTimeout(assentar); assentar = window.setTimeout(assentou, 180);
+  }, { passive: true });
+  trilho.addEventListener('scrollend', assentou);
 
   cards.forEach((c, i) => {
-    // Toque no card: no ativo, toca/pausa; num vizinho, traz para o centro (e ele passa a tocar).
+    // Toque no card: toca/pausa; se ele está só com a ponta na tela, vem para dentro e toca.
     c.querySelector('.story__toggle')?.addEventListener('click', () => {
-      if (i !== ativo) { irPara(i); ativar(i); pedido = true; pausados.delete(i); decidir(); return; }
       const v = videos[i];
-      if (!v || v.paused) { pedido = true; pausados.delete(i); } else { pedido = false; pausados.add(i); }
+      if (v && !v.paused) { pausados.add(i); pedidos = pedidos.filter((k) => k !== i); }
+      else {
+        pausados.delete(i); pedidos = [...pedidos.filter((k) => k !== i), i];
+        if (fracao[i] < VISIVEL) { irPara(i); fracao[i] = VISIVEL; }
+        tocar(i);   // ainda dentro do gesto (Safari)
+      }
       decidir();
     });
+    // Som: liga só este (o anterior fica mudo); tocar de novo desliga. O play() roda dentro do gesto do visitante.
     c.querySelector('[data-som]')?.addEventListener('click', () => {
-      if (i !== ativo) { irPara(i); ativar(i); }
-      som = !som;
-      const v = video(i);
-      if (v) v.muted = !som;
-      if (som) { pedido = true; pausados.delete(i); }
+      if (audivel === i) { silenciar(); decidir(); return; }
+      silenciar();
+      audivel = i;
+      pausados.delete(i); pedidos = [...pedidos.filter((k) => k !== i), i];
+      if (fracao[i] < VISIVEL) { irPara(i); fracao[i] = VISIVEL; }
       marcarSom();
+      tocar(i);
       decidir();
+    });
+    c.querySelector('[data-cc]')?.addEventListener('click', (e) => {
+      const b = /** @type {HTMLElement} */ (e.currentTarget);
+      legendas(i, b.getAttribute('aria-pressed') !== 'true');
     });
   });
 
   if ('IntersectionObserver' in window) {
-    const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { perto = true; ligarLegendas(); io.disconnect(); } }, { rootMargin: '150% 0px' });
-    io.observe(trilho);
-    new IntersectionObserver(([e]) => {
-      visivel = e.intersectionRatio >= 0.5;
-      // saiu da tela: tudo para e o som desliga (o que o visitante pausou continua pausado)
-      if (e.intersectionRatio === 0) { pedido = false; if (som) { som = false; marcarSom(); } videos.forEach((v) => { if (v) v.muted = true; }); }
+    // a fração conta o recorte do trilho (rolagem lateral) e o da página (rolagem vertical)
+    const io = new IntersectionObserver((es) => {
+      es.forEach((e) => { fracao[cards.indexOf(/** @type {HTMLElement} */ (e.target))] = e.intersectionRatio; });
+      atualizar();
       decidir();
-    }, { threshold: [0, 0.5, 0.75] }).observe(trilho);
+    }, { threshold: [0, FORA, VISIVEL, 0.8, 1] });
+    cards.forEach((c) => io.observe(c));
+    // perto da tela (~1 tela antes): prepara os primeiros vídeos (só metadados), para o 1º quadro chegar logo
+    const perto = new IntersectionObserver((es) => {
+      if (!es.some((e) => e.isIntersecting)) return;
+      perto.disconnect();
+      if (!motionAllowed()) return;
+      for (let i = 0; i < Math.min(limite(), cards.length); i++) { const v = video(i); if (v && v.preload === 'none') v.preload = 'metadata'; }
+    }, { rootMargin: '100% 0px' });
+    perto.observe(trilho);
+  } else {
+    fracao.fill(1);
   }
   window.addEventListener('ambar:motion', decidir);
-  ativar(centro());
+  desktop.addEventListener?.('change', decidir);
 }

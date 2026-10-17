@@ -1,22 +1,14 @@
-import { pendente, type Pendente } from '../lib/conteudo';
+// Dados oficiais de visita (confirmados pelo responsável do projeto em 2026-10-17).
+// Estacionamento/acessibilidade: ainda sem informação — o site simplesmente não fala disso.
+const enderecoBusca = 'Rua Tavares Coutinho, 180, Fortaleza, CE';
 
-// TUDO pendente: nada aqui pode ser inventado. Preencher com os dados oficiais dos proprietários.
-// (Fortaleza-CE aparece só como indício numa hashtag: não usar até confirmar.)
-type Valor<T> = T | Pendente;
-export const visita: {
-  endereco: Valor<string>;
-  cidade: Valor<string>;
-  mapaUrl: Valor<string>;
-  horarios: Valor<{ dias: string; horas: string }[]>;
-  whatsapp: Valor<{ numero: string; url: string }>;
-  instagram: Valor<{ handle: string; url: string }>;
-  extras: Valor<string>;
-} = {
-  endereco: pendente('Endereço completo (rua, número, bairro)'),
-  cidade: pendente('Cidade e estado'),
-  mapaUrl: pendente('Link do app de mapas'),
-  horarios: pendente('Dias e horários de funcionamento'),
-  whatsapp: pendente('WhatsApp do Âmbar'),
-  instagram: pendente('Instagram do Âmbar'),
-  extras: pendente('Estacionamento e acessibilidade (se houver)'),
+export const visita = {
+  dominio: 'ambarbrunch.com',
+  endereco: 'Rua Tavares Coutinho, 180',
+  cidade: 'Fortaleza · CE',
+  mapaUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(enderecoBusca)}`,
+  horarios: [{ dias: 'Todos os dias', horas: '07h às 19h' }],
+  horarioCurto: 'todos os dias · 07h–19h',
+  whatsapp: { numero: '(85) 99445-2724', url: 'https://wa.me/5585994452724' },
+  instagram: { handle: '@ambarbrunch', url: 'https://www.instagram.com/ambarbrunch/' },
 };

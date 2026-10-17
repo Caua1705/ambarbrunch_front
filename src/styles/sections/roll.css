@@ -12,9 +12,45 @@
   fill: none; stroke: var(--caramel); stroke-width: 10; stroke-linecap: round; opacity: .22;
 }
 .roll__head { padding: 0 var(--gutter); }
-.roll__badge { margin-bottom: 20px; }
 .roll__lead { margin-top: 20px; max-width: 32ch; font-size: var(--fs-lead); color: var(--text-on-dark-muted); }
 .roll__credit { margin: var(--s-14) var(--gutter) 0; font-size: var(--fs-micro); color: var(--text-on-dark-faint); }
+
+/* ABERTURA (novo): a espiral ilustrativa numa janela em arco, com selo da Roll e notas ao lado; um fio de caramelo sai
+   da janela e desce até a foto real do roll. Arco com contorno caramelo deslocado, como impressão fora de registro. */
+.abertura {
+  position: relative; display: grid; grid-template-columns: 1fr 58%; column-gap: var(--s-12); align-items: start;
+  margin: var(--s-30) var(--gutter) 0;
+}
+.abertura__lado { display: grid; justify-items: start; gap: var(--s-14); padding-top: var(--s-26); }
+.abertura__selo { width: 86px; rotate: -8deg; }
+.abertura__nota { margin: 0; font: var(--t-note); color: var(--caramel-lt); }
+.abertura__nota em { color: var(--butter); }
+.abertura__nota--a { rotate: -4deg; }
+.abertura__seta { justify-self: end; width: 70px; margin-right: -6px; rotate: 10deg; fill: none; stroke: var(--caramel-lt); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.abertura__painel { position: relative; margin: 0; }
+.abertura__painel::before {
+  content: ""; position: absolute; inset: 0 0 auto; aspect-ratio: 9 / 16; translate: 10px 12px; rotate: 2deg;
+  border: 2px solid var(--caramel); border-radius: var(--radius-arco);
+}
+.abertura__janela {
+  position: relative; aspect-ratio: 9 / 16; overflow: hidden; rotate: 2deg;
+  border-radius: var(--radius-arco); background: var(--media-bg);
+  box-shadow: 0 0 0 6px var(--glaze), var(--shadow-photo-deep);
+}
+.abertura__video, .abertura__capa { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.abertura__capa { z-index: var(--z-1); transition: opacity var(--dur-espiral-fade) var(--ease); }
+.abertura[data-tocando] .abertura__capa { opacity: 0; }
+.abertura__denovo {
+  position: absolute; z-index: var(--z-2); left: 50%; bottom: var(--s-14); translate: -50% 0;
+  min-height: 44px; padding: 0 var(--s-14); border: 0; border-radius: var(--radius-pill);
+  background: var(--overlay-ink-soft); color: var(--cream); font: var(--t-tag); white-space: nowrap; cursor: pointer;
+}
+.abertura__legenda { margin-top: var(--s-18); text-align: right; font: var(--t-chip-small); color: var(--text-on-dark-faint); }
+.abertura__nota--b { grid-column: 1; grid-row: 2; z-index: var(--z-1); margin-top: var(--s-30); rotate: -3deg; }
+.abertura__fio { grid-column: 1 / -1; grid-row: 2; width: 100%; height: 150px; margin-top: var(--s-6); overflow: visible; fill: none; stroke: var(--caramel); stroke-width: 4; stroke-linecap: round; }
+.abertura__fio path { vector-effect: non-scaling-stroke; stroke-dasharray: 1; stroke-dashoffset: 0; }
+.js .abertura:not([data-estatico]) .abertura__fio path { stroke-dashoffset: 1; }
+.abertura + .anatomia { margin-top: 0; }
 
 /* Anatomia de um roll (novo): foto em círculo sobre a espiral da Roll + três notas manuscritas.
    A montagem (foto girando para o lugar, espiral se desenhando, notas entrando) mora em motion.css. */
@@ -38,7 +74,27 @@
 .anatomia__nota--a { left: 0; top: 2%; rotate: -6deg; }
 .anatomia__nota--b { right: 0; top: 75%; rotate: 4deg; }
 .anatomia__nota--c { left: 2%; bottom: 0; rotate: -3deg; }
-.anatomia__pendente { margin-top: var(--s-12); }
+.anatomia__selo { position: absolute; z-index: var(--z-2); width: 27%; right: 4%; top: 2%; color: var(--wine); rotate: 12deg; }
+
+/* A caixa da Roll (novo): foto recortada da caixa aberta + duas anotações */
+.caixa { position: relative; margin: var(--s-44) 0 0; padding: 0 var(--gutter); }
+.caixa__foto { filter: var(--drop-produto); }
+.caixa__foto img { width: 100%; height: auto; }
+.caixa__nota { position: absolute; margin: 0; font: var(--t-note); color: var(--caramel-lt); }
+.caixa__nota--a { left: var(--gutter); top: -6px; rotate: -5deg; }
+.caixa__nota--b { position: static; margin-top: var(--s-8); text-align: right; rotate: 3deg; color: var(--butter); }
+
+/* Sabores que já passaram pela fornada: etiquetas de papel em leque solto */
+.sabores { display: flex; flex-wrap: wrap; gap: var(--s-8); }
+.sabores li {
+  padding: 9px var(--s-14) 8px; border-radius: var(--radius-pill);
+  background: var(--glaze); color: var(--wine);
+  font: var(--t-chip); text-transform: uppercase; letter-spacing: var(--track-tight-caps);
+  rotate: calc((var(--n) - 4) * .55deg);
+}
+.sabores li:nth-child(3n) { background: var(--butter); }
+.sabores li:nth-child(4n) { background: var(--caramel-lt); color: var(--cacao); }
+.roll__mes { margin-top: var(--s-14); max-width: 34ch; font: var(--t-caption-l); color: var(--text-on-dark-muted); }
 .roll__kicker { margin: var(--s-44) var(--gutter) 0; font: var(--t-scribble); color: var(--caramel-lt); rotate: -3deg; width: max-content; }
 .roll__kicker + .stories { margin-top: var(--s-18); }
 
@@ -76,6 +132,8 @@
 
 @media (min-width: 960px) {
   .roll__head { max-width: var(--container-xl); margin: 0 auto; }
+  .abertura { max-width: 760px; margin-left: auto; margin-right: auto; grid-template-columns: 1fr 340px; column-gap: var(--s-40); }
+  .abertura__lado { justify-items: end; padding-top: var(--s-44); }
   .roll__kicker { margin-left: auto; margin-right: auto; }
   .stories { grid-auto-columns: 280px; justify-content: center; overflow: visible; }
   .trays { max-width: var(--container-s); margin-left: auto; margin-right: auto; }

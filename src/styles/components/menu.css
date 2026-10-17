@@ -82,3 +82,4 @@ html:has(.sheet[open]) { overflow: hidden; }
   .sheet { inset: 0 0 0 auto; width: 420px; max-height: none; height: 100%; -webkit-mask: none; mask: none; }
   @keyframes sheet-in { from { transform: translateX(100%); } }
 }
+.sheet__hours { flex-basis: 100%; margin: 0; font: var(--t-caption); color: var(--text-muted); }

@@ -34,7 +34,7 @@ test.describe('modo indisponível (padrão)', () => {
     await amb.locator('[role="radio"]', { hasText: 'Lounge' }).click();
     await expect(amb.locator('[aria-checked="true"]')).toHaveText('Lounge');
     await amb.locator('[aria-checked="true"]').press('ArrowLeft');
-    await expect(amb.locator('[aria-checked="true"]')).toHaveText('Salão');
+    await expect(amb.locator('[aria-checked="true"]')).toHaveText('Salão principal');
     await page.getByRole('button', { name: 'Mais uma pessoa' }).click();
     await expect(page.locator('.stepper output')).toHaveText('3');
     const datas = page.locator('[aria-labelledby="rf-l3"] [role="radio"]');

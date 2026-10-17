@@ -12,6 +12,7 @@
 @import url("components/label.css") layer(components);
 @import url("components/cut.css") layer(components);
 @import url("components/sticker.css") layer(components);
+@import url("components/selo.css") layer(components);
 @import url("components/ornament.css") layer(components);
 @import url("components/ticker.css") layer(components);
 @import url("components/framed.css") layer(components);
@@ -33,6 +34,8 @@
 @import url("sections/novo-capitulo.css") layer(sections);
 @import url("sections/mesa.css") layer(sections);
 @import url("sections/roll.css") layer(sections);
+@import url("sections/bebidas.css") layer(sections);
+@import url("sections/prato.css") layer(sections);
 @import url("sections/provou.css") layer(sections);
 @import url("sections/climas.css") layer(sections);
 @import url("sections/na-mesa.css") layer(sections);

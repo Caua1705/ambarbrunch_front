@@ -51,6 +51,17 @@
 .hero__collage .sticker--roll { position: absolute; z-index: var(--z-4); width: calc(104 * var(--u)); left: calc(var(--ox) + 239.68 * var(--u)); top: calc(238 * var(--u)); }
 .hero__collage .sparks        { position: absolute; z-index: var(--z-2); width: calc(86 * var(--u));  left: calc(var(--ox) + 143.2 * var(--u)); top: calc(40 * var(--u)); }
 
+/* anotação manuscrita apontando o roll (só quando o círculo é o roll) */
+.hero__anota {
+  position: absolute; z-index: var(--z-4); margin: 0;
+  left: calc(var(--ox) + 2 * var(--u)); top: calc(222 * var(--u));
+  font: var(--t-note); font-size: max(14px, calc(17 * var(--u))); line-height: 1; color: var(--caramel-lt);
+  rotate: -7deg;
+}
+.hero__anota::after { content: ""; display: block; width: 62%; height: 2px; margin-top: 6px; border-radius: 2px; background: currentColor; opacity: .7; }
+.hero__collage .cut--polaroid figcaption { left: auto; right: calc(10 * var(--u)); text-align: right; }
+.hero__note { max-width: 15ch; margin: 0; font: var(--t-fine-serif); color: var(--butter); text-align: right; }
+
 .hero__foot { display: flex; align-items: center; justify-content: space-between; gap: var(--s-14); margin-top: var(--hero-gap); position: relative; z-index: var(--z-5); }
 /* Telas baixas (iPhone SE, Androids de 640–700 px): respiros menores para a colagem não encolher demais. */
 @media (max-height: 700px) and (max-width: 959px) {
@@ -58,7 +69,7 @@
 }
 /* correção: no v1 o botão quebrava em duas linhas abaixo de ~375 px; agora ele nunca quebra e a nota cede espaço */
 .hero__foot .btn { flex: none; white-space: nowrap; }
-@media (max-width: 374px) { .hero__foot .btn { padding: 0 var(--s-18); } .hero__foot .ref-note { font-size: var(--fs-micro); } }
+@media (max-width: 374px) { .hero__foot .btn { padding: 0 var(--s-18); } .hero__note { font-size: var(--fs-micro); } }
 
 /* Tablet: a colagem pode crescer até 1,5× o protótipo (antes ficava presa em 358 × 330 no meio da tela). */
 @media (min-width: 600px) and (max-width: 959px) {
@@ -82,6 +93,7 @@
   .hero__collage .cut--tile     { width: 31%; left: 33%; top: 300px; }
   .hero__collage .sticker--roll { width: 150px; left: auto; right: 4%; top: 360px; }
   .hero__collage .sparks        { left: 40%; }
+  .hero__anota { left: 2%; top: 440px; font-size: calc(22 * var(--u)); }
   .hero__foot { grid-column: 1; justify-content: flex-start; gap: 28px; }
   .hero__note { text-align: left; }
 }

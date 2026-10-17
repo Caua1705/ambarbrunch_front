@@ -13,3 +13,10 @@
 @media (min-width: 960px) {
   .reserva > .mega { max-width: var(--container-m); margin: 0 auto; }
 }
+
+/* reservas online ainda não ativas: o WhatsApp é o caminho (novo) */
+.reserva__whats {
+  display: grid; justify-items: center; gap: var(--s-12);
+  max-width: 34ch; margin: var(--s-26) auto 0; text-align: center;
+  font: var(--t-caption-l); color: var(--butter);
+}

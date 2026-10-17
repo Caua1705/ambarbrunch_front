@@ -12,12 +12,12 @@ export const prefersReducedMotion = () => reduceQuery.matches;
 /** Movimento automático liberado? (nem reduzido no sistema, nem pausado no site) */
 export const motionAllowed = () => !prefersReducedMotion() && root.dataset.motion !== 'paused';
 
+// O site não tem mais o botão “pausar animações” (2026-10-17): vale só o movimento reduzido do sistema.
+// Uma pausa salva por versões anteriores é apagada, para ninguém ficar preso sem animação e sem botão para voltar.
+// O botão continua existindo só na página interna do design system, valendo apenas para aquela visita.
 function readPaused() {
-  try { return localStorage.getItem(KEY) === 'paused'; } catch { return false; }
-}
-/** @param {boolean} paused */
-function writePaused(paused) {
-  try { paused ? localStorage.setItem(KEY, 'paused') : localStorage.removeItem(KEY); } catch { /* armazenamento bloqueado: vale só nesta visita */ }
+  try { localStorage.removeItem(KEY); } catch { /* armazenamento bloqueado */ }
+  return false;
 }
 
 /** Aplica a pausa salva e liga todos os botões [data-motion-toggle]. Dispara `ambar:motion` a cada mudança. */
@@ -33,7 +33,6 @@ export function initMotionPreference() {
     const btn = /** @type {HTMLElement} */ (ev.target).closest?.('[data-motion-toggle]');
     if (!btn) return;
     const paused = root.dataset.motion !== 'paused';
-    writePaused(paused);
     apply(paused);
   });
   reduceQuery.addEventListener?.('change', () => apply(root.dataset.motion === 'paused'));
@@ -55,10 +54,13 @@ export function initReveal(scope = document) {
 /**
  * Entrada do hero: só na primeira pintura, no topo da página e sem âncora.
  * O <head> deve rodar antes: `if(!location.hash&&!scrollY)document.documentElement.classList.add('enter')`.
- * Aqui só removemos a classe depois da sequência (~900 ms), para que nada repita.
+ * Aqui só removemos a classe quando a última peça (o CTA, ~1,34 s) termina, para que nada repita; o prazo de 2 s
+ * cobre abas abertas em segundo plano (onde as animações não andam).
  */
 export function initHeroEntrance() {
   if (!root.classList.contains('enter')) return;
   if (!motionAllowed()) { root.classList.remove('enter'); return; }
-  window.setTimeout(() => root.classList.remove('enter'), 1400);
+  const sair = () => root.classList.remove('enter');
+  document.querySelector('.hero__foot .btn')?.addEventListener('animationend', sair, { once: true });
+  window.setTimeout(sair, 2000);
 }

@@ -3,6 +3,6 @@
 interface Props { itens: string[] }
 const faixa = Astro.props.itens.map((c) => `${c} ✺ `).join('');
 ---
-<div class="ticker" aria-hidden="true">
+<div class="ticker" aria-hidden="true" data-vivo>
   <div class="ticker__track"><span>{faixa}</span><span>{faixa}</span></div>
 </div>

@@ -188,7 +188,7 @@ ehthumbs.db
 # -------------------------------------------------------------
 # Mídia da Roll e de @larizgomes: autorizada em 2026-10-17 (ver ASSET-MANIFEST).
 # Versionados só os arquivos finais: 3 bandejas + 4 capas em src/assets/media/roll/
-# e 4 vídeos *.web.mp4 sem áudio em public/media/video/ (já liberados acima).
+# e vídeos *.web.mp4 em public/media/video/ (já liberados acima; os da Roll sem áudio, o de @larizgomes com a voz dela).
 # -------------------------------------------------------------
 
 # Testes (Playwright) e relatórios de desempenho

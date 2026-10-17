@@ -527,7 +527,7 @@ const SECOES = [
           <li>Fotos reais do Âmbar; da Roll, só com autorização</li>
           <li>Sem filtros, duotone ou correção estilizada</li>
           <li>Nenhum ornamento sobre rosto ou prato principal</li>
-          <li>Foto do espaço anterior sempre com aviso</li>
+          <li>Ambientes públicos: Jardim, Salão principal e Lounge</li>
           <li>AVIF + WebP, só 2 imagens com prioridade (logo e círculo do hero)</li>
         </ul></div>
       </div>
@@ -537,7 +537,7 @@ const SECOES = [
         <li><span style="aspect-ratio:1"><Foto src="gastronomia/croissant-prato-azul.webp" alt="" sizes="120px" /></span>1 : 1<em>círculo, bolha</em></li>
         <li><span style="aspect-ratio:3/3.6"><Foto src={amb.salao.foto} alt="" sizes="120px" /></span>3 : 3,6<em>polaroide</em></li>
         <li><span style="aspect-ratio:3/3.9"><Foto src="gastronomia/bruschetta-brunch.webp" alt="" sizes="120px" /></span>3 : 3,9<em>ladrilho</em></li>
-        <li><span style="aspect-ratio:3/4"><Foto src={amb.leitura.foto} alt="" sizes="120px" /></span>3 : 4<em>bandeja</em></li>
+        <li><span style="aspect-ratio:3/4"><Foto src="roll/bandeja-red-velvet.webp" alt="" sizes="120px" /></span>3 : 4<em>bandeja</em></li>
         <li><span style="aspect-ratio:4/5"><Foto src={amb.jardim.foto} alt="" sizes="120px" /></span>4 : 5<em>painel</em></li>
         <li><span style="aspect-ratio:9/16"><Foto src="gastronomia/bebida-chocolate-creme.webp" alt="" sizes="120px" /></span>9 : 16<em>vídeo</em></li>
       </ul>
@@ -596,9 +596,9 @@ const SECOES = [
         <div>
           <button class="btn btn--wine" type="button" data-recarregar="#frame-hero">Rever a entrada</button>
           <ol class="ds-linha-tempo">{HERO_T.filter((t) => !t.nome.endsWith('-dur')).map((t) => (
-            <li style={`--p:${parseInt(t.valor) / 1200}`}><code>{t.nome.replace('--hero-t-', '')}</code><span class="ds-linha-tempo__barra"></span><em>{t.valor}{t.nota ? ` · ${t.nota}` : ''}</em></li>
+            <li style={`--p:${parseInt(t.valor) / 1400}`}><code>{t.nome.replace('--hero-t-', '')}</code><span class="ds-linha-tempo__barra"></span><em>{t.valor}{t.nota ? ` · ${t.nota}` : ''}</em></li>
           ))}</ol>
-          <p class="ds-nota">Só na primeira pintura, no topo e sem âncora; termina em ~1,16 s. O título nunca fica invisível (é o maior elemento da 1ª tela).</p>
+          <p class="ds-nota">Só na primeira pintura, no topo e sem âncora; termina em ~1,34 s. O título nunca fica invisível (é o maior elemento da 1ª tela).</p>
         </div>
       </div>
 

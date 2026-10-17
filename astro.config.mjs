@@ -65,7 +65,7 @@ function podarMidiaNaoReferenciada() {
 
 // Site estático. Preact só na ilha da reserva (src/islands).
 export default defineConfig({
-  site: 'https://ambarbrunch.example', // TODO: domínio real (pendente)
+  site: 'https://ambarbrunch.com',
   output: 'static',
   integrations: [preact(), podarMidiaNaoReferenciada()],
   build: { inlineStylesheets: 'auto', assets: '_astro' },

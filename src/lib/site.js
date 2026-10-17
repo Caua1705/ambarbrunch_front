@@ -4,10 +4,12 @@ import { initMotionPreference, initReveal, initHeroEntrance } from './motion.js'
 import { initDock } from './sticky-cta.js';
 import { initNavSheet } from './nav-sheet.js';
 import { initStories } from './videos.js';
+import { initVivo } from './vivo.js';
 
 initMotionPreference();
 initHeroEntrance();
 initReveal();
+initVivo();
 
 const sheet = /** @type {HTMLDialogElement | null} */ (document.querySelector('dialog.sheet'));
 initNavSheet(sheet);

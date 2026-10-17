@@ -1,12 +1,20 @@
 ---
 // 4 · MESA CHEIA — quadro de cortiça + cardápio em faixas (markup do v1).
 // As fotos assentam como peças de colagem; as setas se desenham; parallax leve nas fotos.
+// Cardápio tátil (novo): etiqueta com itens do cardápio do cliente vira botão e abre um cartão de papel logo abaixo
+// (lib/cardapio-tatil.js). Etiqueta sem itens confirmados continua só etiqueta. Fotos do cartão: lazy, só quando abre.
 import Foto from '../components/Foto.astro';
 import MegaTitle from '../components/MegaTitle.astro';
-import Pendente from '../components/Pendente.astro';
 import Seta from '../components/Seta.astro';
-import { cardapio, PARES } from '../data/cardapio';
+import { cardapio, PARES, type Categoria } from '../data/cardapio';
+import { podeMostrar } from '../lib/conteudo';
+import { imagem } from '../lib/media';
 const cor = (c: keyof typeof PARES) => { const p = PARES[c]; return `--b:${p.b}${'t' in p ? `;--t:${p.t}` : ''}`; };
+const grupos = [
+  { id: 'comer', rotulo: 'pra comer', itens: cardapio.comer, offset: 0 },
+  { id: 'beber', rotulo: 'pra beber', itens: cardapio.beber, offset: cardapio.comer.length },
+];
+const fotos = (c: Categoria) => (c.detalhe?.fotos ?? []).filter((f) => podeMostrar(f.confirmado) && imagem(f.src));
 ---
 <section class="mesa" id="gastronomia" aria-labelledby="mesa-titulo" tabindex="-1">
   <MegaTitle linhas={['Mesa', 'cheia']} id="mesa-titulo" scribble="do brunch ao café gelado" />
@@ -33,12 +41,55 @@ const cor = (c: keyof typeof PARES) => { const p = PARES[c]; return `--b:${p.b}$
     <Seta variante="c" i={2} />
   </div>
 
-  <div class="bands" data-reveal>
-    <p class="bands__label">pra comer</p>
-    <ul class="bands__list">{cardapio.comer.map((i, n) => <li style={`${cor(i.cor)};--n:${n}`}>{i.nome}</li>)}</ul>
-    <p class="bands__label">pra beber</p>
-    <ul class="bands__list">{cardapio.beber.map((i, n) => <li style={`${cor(i.cor)};--n:${n + cardapio.comer.length}`}>{i.nome}</li>)}</ul>
+  <div class="bands" data-reveal data-cardapio data-vivo>
+    <p class="bands__hint" aria-hidden="true"><span class="bands__dedo">☝</span> toque numa etiqueta com <i class="bands__ponto"></i> para abrir</p>
+    {grupos.map((g) => (
+      <>
+        <p class="bands__label" id={`cardapio-${g.id}`}>{g.rotulo}</p>
+        <ul class="bands__list" aria-labelledby={`cardapio-${g.id}`}>
+          {g.itens.map((c, n) => (
+            <li style={`${cor(c.cor)};--n:${n + g.offset}`}>
+              {c.detalhe
+                ? <button type="button" class="bands__tap" aria-expanded="false" aria-controls={`painel-${g.id}`} data-categoria={c.id}>{c.nome}<i class="bands__ponto" aria-hidden="true"></i></button>
+                : c.nome}
+            </li>
+          ))}
+        </ul>
+        <div class="cartao" id={`painel-${g.id}`} data-painel hidden>
+          <div class="cartao__dentro">
+            {g.itens.filter((c) => c.detalhe).map((c) => (
+              <article class="cartao__cat" data-cat={c.id} hidden aria-label={c.nome}>
+                <header class="cartao__head">
+                  <h3 class="cartao__nome">{c.nome}</h3>
+                  {c.detalhe!.linha && <p class="cartao__linha">{c.detalhe!.linha}</p>}
+                  <button type="button" class="cartao__fechar" data-fechar aria-label={`Fechar ${c.nome}`}>×</button>
+                </header>
+                {fotos(c).length > 0 && (
+                  <div class:list={['cartao__fotos', fotos(c).length === 1 && 'cartao__fotos--uma']}>
+                    {fotos(c).map((f, k) => <figure style={`--k:${k}`}><Foto src={f.src} alt={f.alt} sizes="(min-width: 960px) 200px, 30vw" widths={[200, 320, 420]} /></figure>)}
+                  </div>
+                )}
+                {c.detalhe!.grupos.map((gr) => (
+                  <div class="cartao__grupo">
+                    {gr.titulo && <p class="cartao__sub">{gr.titulo}</p>}
+                    <ul class="cartao__itens">
+                      {gr.itens.map((it, k) => <li style={`--k:${k}`}><strong>{it.nome}</strong>{it.desc && <span>{it.desc}</span>}</li>)}
+                    </ul>
+                  </div>
+                ))}
+                {c.detalhe!.ancora && <a class="cartao__link" href={c.detalhe!.ancora.href}>{c.detalhe!.ancora.texto} <span aria-hidden="true">↓</span></a>}
+              </article>
+            ))}
+          </div>
+        </div>
+      </>
+    ))}
     <p class="bands__note">{cardapio.nota}</p>
-    <Pendente falta="Itens do cardápio novo e fotos do shooting (21/10)" bloco class="mesa__pending" />
   </div>
 </section>
+
+<script>
+  import { initCardapioTatil } from '../lib/cardapio-tatil.js';
+  const raiz = document.querySelector<HTMLElement>('[data-cardapio]');
+  if (raiz) initCardapioTatil(raiz);
+</script>

@@ -1,6 +1,8 @@
 ---
 // 1 · HERO · Fornada Âmbar — markup do v1 (concept-b-aprovado-v1) + selo do menu.
 // O título é o maior texto da 1ª tela (LCP): visível desde o 1º quadro. A colagem encolhe pela altura em telas baixas.
+// As três peças contam o título: café (gelados no copo Âmbar × Roll), o lugar (salão principal) e o roll em destaque.
+// Fotos ainda não confirmadas para publicação caem para as já aprovadas no build de produção.
 import Foto from '../components/Foto.astro';
 import MenuButton from '../components/MenuButton.astro';
 import StickerRoll from '../components/StickerRoll.astro';
@@ -8,15 +10,20 @@ import Faiscas from '../components/Faiscas.astro';
 import Ticker from '../components/Ticker.astro';
 import { ambientes } from '../data/ambientes';
 import { cardapio } from '../data/cardapio';
+import { bebidas } from '../data/bebidas';
+import { visita } from '../data/visita';
 import { roll } from '../data/roll';
 import { podeMostrar } from '../lib/conteudo';
 import { imagem } from '../lib/media';
 
-// Círculo do hero: um cinnamon roll real (IG-02) — no site publicado só depois da autorização dessa foto; até lá, o croissant.
-const fotoRoll = podeMostrar(roll.fotos.hero.autorizado) && imagem(roll.fotos.hero.foto) ? roll.fotos.hero : undefined;
+const usar = (f: { foto?: string; src?: string; autorizado?: boolean; confirmado?: boolean }) =>
+  podeMostrar(Boolean(f.autorizado ?? f.confirmado)) && imagem((f.foto ?? f.src)!);
+const fotoRoll = usar(roll.fotos.hero) ? roll.fotos.hero : undefined;
 const circulo = fotoRoll ?? { foto: 'gastronomia/croissant-prato-azul.webp', alt: 'Croissant em prato azul sobre sofá laranja' };
+const copos = bebidas.camadas[0];
+const ladrilho = usar(copos) ? { foto: copos.src, alt: copos.alt } : { foto: 'gastronomia/bruschetta-brunch.webp', alt: 'Torrada coberta com café ao lado' };
 ---
-<header class="hero" id="topo" data-hero>
+<header class="hero" id="topo" data-hero data-vivo>
   <MenuButton variante="hero" />
   <div class="hero__label">
     <h1 class="label">
@@ -34,20 +41,21 @@ const circulo = fotoRoll ?? { foto: 'gastronomia/croissant-prato-azul.webp', alt
     <figure class:list={["cut cut--circle", fotoRoll && "cut--roll"]}>
       <Foto src={circulo.foto} alt={circulo.alt} sizes="(min-width: 960px) 26vw, 46vw" prioridade />
     </figure>
-    <figure class="cut cut--polaroid">
-      <Foto src={ambientes.salao.foto} alt="Salão com parede laranja e luminária pendente" sizes="(min-width: 960px) 20vw, 36vw" />
-      <figcaption>salão âmbar<sup>*</sup></figcaption>
+    <figure class="cut cut--polaroid" data-float>
+      <Foto src={ambientes.salao.foto} alt={ambientes.salao.alt} sizes="(min-width: 960px) 20vw, 36vw" />
+      <figcaption>{ambientes.salao.tagline}</figcaption>
     </figure>
-    <figure class="cut cut--tile">
-      <Foto src="gastronomia/bruschetta-brunch.webp" alt="Torrada coberta com café ao lado" sizes="(min-width: 960px) 15vw, 27vw" />
+    <figure class="cut cut--tile" data-float="b">
+      <Foto src={ladrilho.foto} alt={ladrilho.alt} sizes="(min-width: 960px) 15vw, 27vw" />
     </figure>
     <StickerRoll />
     <Faiscas />
+    {fotoRoll && <p class="hero__anota" aria-hidden="true">quentinho<br />da fornada</p>}
   </div>
 
   <div class="hero__foot">
     <a class="btn btn--butter" href="#reservar" data-cta-trigger>Reservar mesa <span aria-hidden="true">→</span></a>
-    <p class="ref-note hero__note"><sup>*</sup>foto de referência do espaço anterior</p>
+    <p class="hero__note">{visita.horarios[0].dias}<br />{visita.horarios[0].horas}</p>
   </div>
 </header>
 

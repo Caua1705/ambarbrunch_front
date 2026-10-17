@@ -46,6 +46,7 @@
   --radius-m: 12px;       /* caixa da seta do CTA */
   --radius-control: 14px; /* chips, stepper, aviso, campos */
   --radius-button: 16px;
+  --radius-arco: 999px 999px 26px 26px;   /* janela em arco (abertura da fornada) */
   --radius-l: 18px;       /* ladrilho, CTA fixo, botão de menu */
   --radius-xl: 26px;      /* vídeos, painéis */
   --radius-pill: 999px;

@@ -175,7 +175,7 @@ continuam fora do Git. Os vídeos não têm faixa de áudio (as músicas de terc
 | IV-06 | `public/media/video/roll-do-forno.web.mp4` + `roll/poster-do-forno.webp` | 540×960 · 9 s · sem áudio | @roll.ofc |
 | IV-06 (2º trecho) | `public/media/video/roll-sabores-do-mes.web.mp4` + `roll/poster-sabores-do-mes.webp` | 540×960 · 5,5 s (14,5 s → 20 s) · sem áudio | @roll.ofc |
 | IV-08 | `public/media/video/roll-bandeja.web.mp4` + `roll/poster-bandeja.webp` | 540×960 · 4,5 s · sem áudio | @roll.ofc |
-| IV-05 | `public/media/video/roll-criadora-larizgomes.web.mp4` + `roll/poster-criadora-larizgomes.webp` | 540×960 · 9 s (38 s → 47 s) · sem áudio | @larizgomes · conteúdo sobre a Roll |
+| IV-05 | `public/media/video/roll-criadora-larizgomes.web.mp4` + `.vtt` + `roll/poster-criadora-larizgomes.webp` | 540×960 · 10,8 s (46,95 s → 57,75 s) · **voz original** (pedido do responsável em 2026-10-17: áudio original em todos os criadores) | @larizgomes |
 
 ### IV — Instagram Roll: reels (9) e metadados
 

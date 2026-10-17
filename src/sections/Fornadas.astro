@@ -1,44 +1,76 @@
 ---
-// 5 · DIRETO DA FORNADA — a Roll como assinatura gastronômica do Âmbar: bastidores (vídeos da própria Roll, mudos),
-// anatomia de um roll (composição editorial animada) e bandejas. Vídeos de criadores ficam em “Quem provou, conta”.
-// Não é vitrine de loja: sem preço, sem compra, sem delivery. Mídia da Roll só com autorização (ou no modo de revisão).
+// 5 · DIRETO DA FORNADA — a Roll como assinatura gastronômica do Âmbar: anatomia de um roll (espiral desenhada + foto
+// revelada), bastidores (vídeos da própria Roll, mudos), bandejas, a caixa da Roll e os sabores que já passaram por aqui.
+// Vídeos de criadores ficam em “Quem provou, conta”. Não é vitrine de loja: sem preço, sem compra, sem delivery.
+// Imagens sem autorização confirmada (roll.fotos.*.autorizado = false) só aparecem no modo de revisão.
 import Foto from '../components/Foto.astro';
 import MegaTitle from '../components/MegaTitle.astro';
 import Badge from '../components/Badge.astro';
 import Story from '../components/Story.astro';
 import Spiral from '../components/Spiral.astro';
-import Pendente from '../components/Pendente.astro';
+import SeloFornada from '../components/SeloFornada.astro';
 import { roll } from '../data/roll';
-import { podeMostrar, isPendente, REVISAO } from '../lib/conteudo';
+import { podeMostrar } from '../lib/conteudo';
 import { imagem, video } from '../lib/media';
+import { getImage } from 'astro:assets';
 
 const videos = roll.videos.filter((v) => podeMostrar(v.autorizado) && video(v.arquivo));
 const bandejas = podeMostrar(roll.bandejasAutorizadas) ? roll.bandejas.filter((b) => imagem(b.foto)) : [];
-const anatomia = podeMostrar(roll.fotos.anatomia.autorizado) && imagem(roll.fotos.anatomia.foto) ? roll.fotos.anatomia : undefined;
-const pendentesAutorizacao = roll.videos.some((v) => !v.autorizado) || !roll.bandejasAutorizadas;
-const doMes = roll.sabores.doMes;
+const usar = (f: { foto: string; alt: string; autorizado: boolean }) => (podeMostrar(f.autorizado) && imagem(f.foto) ? f : undefined);
+const anatomia = usar(roll.fotos.anatomia);
+const caixas = usar(roll.fotos.caixas);
+// abertura: espiral (vídeo ilustrativo, reprodução única). Capa responsiva; o 1º quadro vira o poster do <video>.
+const espiral = roll.espiral;
+const espiralSrc = video(espiral.arquivo);
+const inicioMeta = imagem(espiral.inicio);
+const inicioUrl = inicioMeta ? (await getImage({ src: inicioMeta, width: 450, format: 'webp', quality: 70 })).src : undefined;
 ---
 <section class="roll" id="roll" aria-labelledby="roll-titulo" tabindex="-1">
   <Spiral class="roll__spiral" />
 
   <div class="roll__head">
-    <Badge class="roll__badge" />
-    <MegaTitle linhas={['Direto da', 'fornada']} id="roll-titulo" tom="light" />
+    <MegaTitle linhas={['Direto da', 'fornada']} id="roll-titulo" tom="light" scribble="com assinatura da Roll" />
     <p class="roll__lead" data-reveal>{roll.lead}</p>
   </div>
 
-  <!-- Anatomia de um roll: a foto gira para o lugar como massa sendo enrolada, a espiral se desenha e as notas entram.
-       Só CSS (transições do data-reveal + timeline de scroll onde houver suporte); nada em movimento reduzido. -->
+  <!-- Abertura: a espiral de creme, caramelo e canela (ilustração animada, uma vez) numa janela em arco; um fio de caramelo
+       sai dela, se desenha junto com o vídeo e leva até a foto real do roll e aos bastidores da Roll (lib/espiral.js). -->
+  {espiralSrc && (
+    <div class="abertura" data-espiral data-vivo>
+      <div class="abertura__lado">
+        <Badge class="abertura__selo" />
+        <p class="abertura__nota abertura__nota--a">creme,<br />caramelo<br /><em>&amp;</em> canela</p>
+        <svg class="abertura__seta" viewBox="0 0 120 80" aria-hidden="true" data-draw><path pathLength="1" d="M8 18C40 8 78 14 104 46" /><path pathLength="1" d="M92 44l13 4 0-14" /></svg>
+      </div>
+      <figure class="abertura__painel">
+        <div class="abertura__janela">
+          <template data-video>
+            <video class="abertura__video" muted playsinline preload="none" disablepictureinpicture poster={inicioUrl} aria-label={espiral.alt} width="450" height="800">
+              <source src={espiralSrc} type="video/mp4" />
+            </video>
+          </template>
+          <Foto src={espiral.capa} alt={espiral.alt} class="abertura__capa" sizes="(min-width: 960px) 300px, 58vw" widths={[270, 400, 540]} qualidade={66} />
+          <button class="abertura__denovo" type="button" data-denovo hidden>↻ ver de novo</button>
+        </div>
+        <figcaption class="abertura__legenda">{espiral.legenda}</figcaption>
+      </figure>
+      <p class="abertura__nota abertura__nota--b">…e vira roll<br />de verdade <span aria-hidden="true">↓</span></p>
+      <svg class="abertura__fio" viewBox="0 0 390 150" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d="M284 0C284 40 236 52 190 58C140 64 108 92 132 112C152 128 176 108 162 92C148 77 118 98 150 124C168 138 188 142 195 150" /></svg>
+    </div>
+  )}
+
+  <!-- Anatomia de um roll: a espiral se desenha, a foto se revela num círculo que cresce do centro enquanto gira para o
+       lugar (massa sendo enrolada) e as notas entram. Só CSS; a espiral ainda acompanha a rolagem onde houver suporte. -->
   {anatomia && (
-    <figure class="anatomia" data-reveal="fade">
+    <figure class="anatomia" data-reveal="fade" data-vivo>
       <div class="anatomia__palco">
         <svg class="anatomia__espiral" viewBox="0 0 240 240" aria-hidden="true" data-draw><path pathLength="1" d="M121 219C56 218 19 164 28 103 40 31 127 2 182 51c34 30 31 82-9 105-37 21-80 2-83-30-4-30 26-46 47-33 13 7 15 27 2 35" /></svg>
         <div class="anatomia__foto"><Foto src={anatomia.foto} alt={anatomia.alt} sizes="(min-width: 960px) 340px, 62vw" widths={[300, 480, 680]} qualidade={56} /></div>
+        <SeloFornada class="anatomia__selo" />
         <p class="anatomia__nota anatomia__nota--a" style="--i:1">massa fresquinha</p>
         <p class="anatomia__nota anatomia__nota--b" style="--i:2">espiral de canela</p>
         <p class="anatomia__nota anatomia__nota--c" style="--i:3">direto da fornada</p>
       </div>
-      {REVISAO && !roll.fotos.anatomia.autorizado && <Pendente falta={`Autorização da Roll para a foto ${roll.fotos.anatomia.id} (a de 17/10 cobriu IG-06/08/09)`} bloco class="anatomia__pendente" />}
     </figure>
   )}
 
@@ -48,7 +80,7 @@ const doMes = roll.sabores.doMes;
       <ol class="stories" aria-label="Vídeos da Roll">
         {videos.map((v) => <Story {...v} />)}
       </ol>
-      <p class="roll__credit">Vídeos {[...new Set(videos.map((v) => v.autor))].join(' e ')} · {REVISAO && pendentesAutorizacao ? 'uso no site sujeito a autorização e sem trilha sonora' : 'sem trilha sonora'}</p>
+      <p class="roll__credit">Vídeos {[...new Set(videos.map((v) => v.autor))].join(' e ')} · sem trilha sonora</p>
     </>
   )}
 
@@ -63,24 +95,27 @@ const doMes = roll.sabores.doMes;
     </div>
   )}
 
-  <!-- Sabores só entram no site publicado quando o Âmbar/Roll confirmar quais estão disponíveis.
-       Na revisão: os citados nas legendas da Roll, marcados como “a confirmar”. -->
-  {(REVISAO || !isPendente(doMes)) && (
-    <div class="roll__sabores">
-      {REVISAO && <>
-        <p class="bands__label">sabores citados pela Roll</p>
-        <ul class="bands__list">{roll.sabores.fixos.map((s) => <li style="--b:var(--butter)">{s}</li>)}</ul>
-        <Pendente falta="Quais sabores ficam fixos no Âmbar e quais são do mês" bloco class="roll__pending-sabores" />
-      </>}
-      {!isPendente(doMes) && <>
-        <p class="bands__label">sabores do mês</p>
-        <ul class="bands__list">{(doMes as string[]).map((s) => <li style="--b:var(--butter)">{s}</li>)}</ul>
-      </>}
-    </div>
+  {caixas && (
+    <figure class="caixa" data-reveal="fade">
+      <div class="caixa__foto" data-parallax="soft"><Foto src={caixas.foto} alt={caixas.alt} sizes="(min-width: 960px) 560px, 96vw" widths={[480, 720, 960, 1100]} qualidade={60} /></div>
+      <p class="caixa__nota caixa__nota--a">a caixa da Roll</p>
+      <p class="caixa__nota caixa__nota--b">“simplesmente<br />irresistível”</p>
+    </figure>
   )}
-  {REVISAO && pendentesAutorizacao && (
-    <div class="roll__credit roll__pending"><Pendente falta="Autorização da Roll (fotos e vídeos do Instagram); sem ela, saem do site publicado" bloco /></div>
-  )}
+
+  <div class="roll__sabores">
+    <p class="bands__label">já passaram pela fornada</p>
+    <ul class="sabores" aria-label="Sabores que já passaram pela fornada da Roll">
+      {roll.sabores.map((s, n) => <li style={`--n:${n}`}>{s}</li>)}
+    </ul>
+    <p class="roll__mes">Os sabores mudam todo mês. Pergunte qual está saindo do forno hoje.</p>
+  </div>
 
   <p class="roll__cta"><a href="#reservar">prove no Âmbar <strong>reservar →</strong></a></p>
 </section>
+
+<script>
+  import { initEspiral } from '../lib/espiral.js';
+  const raiz = document.querySelector<HTMLElement>('[data-espiral]');
+  if (raiz) initEspiral(raiz);
+</script>

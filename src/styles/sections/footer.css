@@ -8,3 +8,7 @@
 .footer__tools { display: flex; justify-content: center; margin-top: var(--s-22); color: var(--cacao); }
 .footer__links { display: flex; align-items: center; justify-content: center; gap: var(--s-10); margin-top: var(--s-18); font: var(--t-pill); letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--wine); }
 .footer__links a { min-height: 44px; display: inline-flex; align-items: center; }
+.footer__info { font-style: normal; line-height: 1.6; }
+.footer__info a { color: var(--wine); text-decoration: underline 1px; text-underline-offset: 3px; }
+.footer__links { flex-wrap: wrap; gap: 0 var(--s-18); }
+.footer__fine { margin-top: var(--s-14); font-size: var(--fs-micro); color: var(--text-muted); }

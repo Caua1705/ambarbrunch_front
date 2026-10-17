@@ -1,0 +1,8 @@
+/* Selo “fornada” (novo, a partir do kit criativo): círculo de papel com picote, texto em volta e espiral.
+   A cor da tinta vem de `color` (currentColor). O giro do texto mora em motion.css. */
+.selo { display: block; color: var(--wine); overflow: visible; }
+.selo__papel { fill: var(--butter); stroke: currentColor; stroke-width: 4; }
+.selo__picote { fill: none; stroke: currentColor; stroke-width: 2; stroke-dasharray: 5 7; }
+.selo__texto { font: var(--t-pill); letter-spacing: var(--track-caps); text-transform: uppercase; fill: currentColor; }
+.selo__espiral { fill: none; stroke: currentColor; stroke-width: 7; stroke-linecap: round; }
+.selo__giro { transform-box: view-box; transform-origin: 50% 50%; }

@@ -1,7 +1,6 @@
 ---
-// Marcador de conteúdo pendente. Só renderiza no modo de revisão; em produção não aparece nada.
-import { REVISAO } from '../lib/conteudo';
+// Marcador de conteúdo pendente. Desde 2026-10-17 não aparece em nenhum modo: a experiência (inclusive a de revisão)
+// fica limpa, sem caixas “a confirmar”. O que está pendente continua registrado nos dados (`pendente(...)`)
+// e o conteúdo não confirmado segue fora do build de produção (lib/conteudo.ts → podeMostrar).
 interface Props { falta: string; bloco?: boolean; class?: string }
-const { falta, bloco = false, class: cls } = Astro.props;
 ---
-{REVISAO && <span class:list={['pending', bloco && 'pending--block', cls]} data-pendente={falta}>{falta}</span>}

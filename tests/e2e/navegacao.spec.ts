@@ -81,5 +81,5 @@ test('“reservar aqui” num ambiente pré-seleciona o ambiente na comanda', as
   await page.locator('.chips--dates .chip[role="radio"]').first().waitFor();
   await rolarAte(page, '#ambientes');
   await page.locator('[data-ambiente="salao"]').click();
-  await expect(page.locator('.ticket [role="radio"][aria-checked="true"]').first()).toHaveText('Salão');
+  await expect(page.locator('.ticket [role="radio"][aria-checked="true"]').first()).toHaveText('Salão principal');
 });

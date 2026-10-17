@@ -25,11 +25,13 @@
   --stagger: 70ms;
   --lift: 28px;
   --tilt: 5deg;
+  --press-scale: .96;              /* botões e controles afundando ao toque */
   --reveal-delay-scribble: 120ms;  /* depois das linhas do título */
   --reveal-delay-draw: 200ms;      /* setas e faíscas começam depois das peças */
   --dur-roll: 1100ms;              /* anatomia do roll: a foto gira para o lugar (massa sendo enrolada) */
   --dur-draw-long: 1500ms;         /* espiral grande da anatomia se desenhando */
   --reveal-delay-notes: 550ms;     /* notas da anatomia entram depois que a foto assenta */
+  --dur-espiral-fade: 900ms;       /* capa da espiral sumindo quando o vídeo começa (o vídeo entra por baixo, sem salto) */
   --reveal-delay-stamp: 260ms;
   --sheet-items-delay: 80ms;       /* itens do menu depois da folha */
   --cascade: 35ms;                 /* pílulas do cardápio caindo uma a uma */
@@ -38,20 +40,34 @@
 
   /* Loops */
   --spin-period: 24s;    /* selo da Roll */
+  --float-period: 6.8s;  /* peças que boiam de leve (polaroide, ladrilho, baralho de bebidas) */
+  --float-period-b: 8.6s; /* segunda fase, para as peças não boiarem juntas */
+  --float-amp: 6px;
+  --selo-period: 36s;    /* selo “fornada” girando */
+  --pulse-period: 2.4s;  /* ponto “tem mais aqui” das etiquetas do cardápio */
   --ticker-period: 32s;  /* faixa de categorias */
 
-  /* Coreografia da entrada do hero (atrasos a partir do primeiro quadro; termina em ~1,16 s) */
-  --hero-t-line-dur: 520ms;
-  --hero-t-line-1: 60ms;
-  --hero-t-line-2: 130ms;
-  --hero-t-line-3: 200ms;
-  --hero-t-piece-1: 260ms;
-  --hero-t-piece-2: 330ms;
-  --hero-t-piece-3: 400ms;
-  --hero-t-sticker: 480ms;   /* selo da Roll e selo do menu */
-  --hero-t-sparks: 520ms;
-  --hero-t-cta: 560ms;
-  --hero-t-cta-dur: 360ms;
-  --hero-t-note: 600ms;
+  /* Coreografia da entrada do hero (atrasos a partir do primeiro quadro; termina em ~1,34 s).
+     Etiqueta encaixa → palavras em sequência → fotos em camadas (fundo → frente) → selo da Roll carimba → CTA com mola. */
+  --hero-t-label: 0ms;
+  --hero-t-label-dur: 560ms;
+  --hero-t-line-1: 90ms;
+  --hero-t-line-2: 170ms;
+  --hero-t-line-3: 250ms;
+  --hero-t-line-dur: 600ms;
+  --hero-t-amp: 430ms;        /* o “&” estala depois que a 3ª linha começa */
+  --hero-t-amp-dur: 420ms;
+  --hero-t-piece-1: 300ms;    /* polaroide (camada de trás) */
+  --hero-t-piece-2: 380ms;    /* roll no círculo: entra rolando */
+  --hero-t-piece-3: 470ms;    /* ladrilho (frente) */
+  --hero-t-piece-dur: 680ms;
+  --hero-t-menu: 560ms;       /* selo do menu */
+  --hero-t-stamp: 640ms;      /* selo da Roll: carimbo */
+  --hero-t-stamp-dur: 440ms;
+  --hero-t-ring: 880ms;       /* onda do impacto do carimbo */
+  --hero-t-sparks: 760ms;     /* faíscas e anotação manuscrita */
+  --hero-t-cta: 860ms;
+  --hero-t-cta-dur: 480ms;
+  --hero-t-note: 1000ms;
   --hero-t-note-dur: 300ms;
 }
