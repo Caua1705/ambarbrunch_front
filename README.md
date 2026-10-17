@@ -138,9 +138,10 @@ Para versionar algum desses arquivos de propósito, use `git add -f <arquivo>`.
 ### Mídia do site (`src/assets/media`)
 
 Os originais usados pelo site ficam em `src/assets/media/` (o build gera AVIF/WebP responsivos). Logos oficiais e fotos
-do Âmbar (FR-01…07) são versionados, porque precisam existir no deploy. **Fotos e vídeos da Roll** (Instagram, autorização
-pendente) ficam **fora do Git** (`src/assets/media/roll/`, `public/media/video/roll-*`) e fora do build de produção;
-o próprio build remove qualquer mídia não referenciada.
+do Âmbar (FR-01…07) são versionados, porque precisam existir no deploy. **Fotos e vídeos da Roll** e o trecho de
+@larizgomes foram autorizados em 2026-10-17 e também são versionados — só as versões finais: 3 bandejas e 4 capas em
+`src/assets/media/roll/`, 4 vídeos `public/media/video/roll-*.web.mp4` sem áudio. Mídia nova de terceiros continua
+dependendo de `autorizado: true` em `src/data/`; o próprio build remove qualquer mídia não referenciada.
 
 ### `public/media` e deploy
 

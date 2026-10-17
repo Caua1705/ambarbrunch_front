@@ -11,7 +11,7 @@
 | 4 | Contrato da API de reservas e regras de reserva | Reserva | `docs/technical/CONTRATO-API-RESERVAS.md` | **sim** (reserva real) |
 | 5 | Texto de privacidade (LGPD) e do consentimento | `/privacidade`, Reserva | `src/pages/privacidade.astro` | **sim** (antes de coletar dados) |
 | 6 | Ambientes que aceitam reserva e capacidade | Reserva, Escolha o clima | `src/data/ambientes.ts` | sim (reserva real) |
-| 7 | Autorização da Roll para fotos (bandejas) e vídeos do Instagram | Fornadas | `src/data/roll.ts` (`autorizado`, `bandejasAutorizadas`) + `.gitignore` | sem ela, Fornadas fica só com texto e selo |
+| ~~7~~ | ~~Autorização da Roll para fotos (bandejas) e vídeos do Instagram~~ | Fornadas | `src/data/roll.ts` | **resolvido em 2026-10-17**: 3 bandejas, 3 vídeos da Roll e o trecho de @larizgomes autorizados |
 | 8 | Texto oficial do “Novo capítulo” e data de reabertura (se pública) | Novo capítulo | `src/data/novo-capitulo.ts` | não (há texto provisório marcado) |
 | 9 | Sabores do mês atuais | Fornadas | `src/data/roll.ts` | não |
 | 10 | Itens do cardápio novo e fotos do shooting (21/10) | Hero, Mesa cheia | `src/data/cardapio.ts`, `src/assets/media/` | não (há categorias da proposta e fotos atuais) |

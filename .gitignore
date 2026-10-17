@@ -186,13 +186,10 @@ ehthumbs.db
 !.vscode/settings.json
 
 # -------------------------------------------------------------
-# Mídia com autorização PENDENTE (Roll: fotos e vídeos do Instagram)
-# Gerada localmente por `npm run media:prepare` e `npm run media:video`.
-# O repositório é público: só versionar depois da autorização registrada
-# no ASSET-MANIFEST (remover estas linhas nesse momento).
+# Mídia da Roll e de @larizgomes: autorizada em 2026-10-17 (ver ASSET-MANIFEST).
+# Versionados só os arquivos finais: 3 bandejas + 4 capas em src/assets/media/roll/
+# e 4 vídeos *.web.mp4 sem áudio em public/media/video/ (já liberados acima).
 # -------------------------------------------------------------
-src/assets/media/roll/
-public/media/video/roll-*
 
 # Testes (Playwright) e relatórios de desempenho
 test-results/

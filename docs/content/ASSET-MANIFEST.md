@@ -16,6 +16,7 @@ Catálogo de todos os arquivos recebidos, gerados ou selecionados para o projeto
 | 2026-10-16 | CR-06…13 reclassificadas como fotos reais otimizadas → `creative/source/photography/roll_instagram/otimizadas/` (IDs `IG-OPT`) |
 | 2026-10-16 | `README-PACOTE.md` e `CLAUDE-ETAPA-1-IMPORTACAO.md` movidos para `docs/content/pacote-v1/` |
 | 2026-10-16 | Decisão: nome do site **Âmbar Brunch**; logo provisório = OF-14/15 (“âmbar CAFÉ & BRUNCH”) |
+| 2026-10-17 | **Autorização registrada** (aprovado por Caua Carvalho, responsável pelo projeto) para uso no site e no repositório público: bandejas IG-OPT-06 (Biscoff), IG-09 (red velvet), IG-OPT-07 (Oreo); vídeos IV-06, IV-08, IV-09 (@roll.ofc) e trecho de 9 s de IV-05 (@larizgomes), todos sem áudio; e as 4 capas derivadas. Situação → **publicado** (ver “Mídia autorizada no site”) |
 
 > O CSV de origem (`ASSET-MANIFEST-IMPORT.csv`) é mantido como registro histórico e ainda cita os caminhos antigos.
 > Seleção inicial em [`CURADORIA-INICIAL.md`](CURADORIA-INICIAL.md) · Reels em [`REVISAO-REELS.md`](REVISAO-REELS.md).
@@ -157,6 +158,21 @@ Classe: **foto** = foto real de celular · **arte** = post com fundo liso, setas
 | IG-23 | `2026-10-01_Dd9Z7OBAGSP_image.jpg` | 1365×1820 | arte | S’mores anotado | consulta | P3 | |
 | IG-24 | `2026-10-02_DeAT31Yg8Un_image.jpg` | 1215×2160 | capa | Bandeja crumble de morango (IV-09) | roll | P2 | |
 | IG-25 | `2026-10-03_DeCm12SAfCp_image.jpg` | 1556×2070 retrato | foto? | Box de outubro aberta + sacola kraft Roll | roll | P1 condicional | Pode ser foto produzida **ou** render — confirmar. Se real, prova que a embalagem MK-06 existe |
+
+### Mídia autorizada no site (2026-10-17)
+
+Aprovação: **aprovado** · Caua Carvalho · 2026-10-17. Escopo: somente os arquivos abaixo, nas versões finais; os originais
+continuam fora do Git. Os vídeos não têm faixa de áudio (as músicas de terceiros dos originais não são usadas).
+
+| Origem | Arquivo no site | Formato | Crédito exibido |
+| --- | --- | --- | --- |
+| IG-OPT-06 | `src/assets/media/roll/bandeja-biscoff.webp` | 1000×1333 | seção Fornadas (Roll) |
+| IG-09 | `src/assets/media/roll/bandeja-red-velvet.webp` | 1200×1600 | seção Fornadas (Roll) |
+| IG-OPT-07 | `src/assets/media/roll/bandeja-oreo.webp` | 1000×1333 | seção Fornadas (Roll) |
+| IV-06 | `public/media/video/roll-do-forno.web.mp4` + `roll/poster-do-forno.webp` | 540×960 · 9 s · sem áudio | @roll.ofc |
+| IV-09 | `public/media/video/roll-sabores-do-mes.web.mp4` + `roll/poster-sabores-do-mes.webp` | 540×960 · 6,2 s · sem áudio | @roll.ofc |
+| IV-08 | `public/media/video/roll-bandeja.web.mp4` + `roll/poster-bandeja.webp` | 540×960 · 4,5 s · sem áudio | @roll.ofc |
+| IV-05 | `public/media/video/roll-criadora-larizgomes.web.mp4` + `roll/poster-criadora-larizgomes.webp` | 540×960 · 9 s (38 s → 47 s) · sem áudio | @larizgomes · conteúdo sobre a Roll |
 
 ### IV — Instagram Roll: reels (9) e metadados
 

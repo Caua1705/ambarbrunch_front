@@ -3,8 +3,8 @@
 //
 //   npm run media:video
 //
-// Os vídeos da Roll têm autorização pendente e música de terceiros: a saída fica fora do Git
-// (ver .gitignore) e o site só os mostra com `autorizado: true` ou em modo de revisão local.
+// Os vídeos da Roll e de @larizgomes foram autorizados em 2026-10-17 (só as versões web, sem áudio:
+// os originais têm música de terceiros). O site só mostra vídeos com `autorizado: true` ou em modo de revisão.
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
