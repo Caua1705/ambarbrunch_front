@@ -30,7 +30,7 @@ const doMes = roll.sabores.doMes;
       <ol class="stories" aria-label="Vídeos da Roll">
         {videos.map((v) => <Story {...v} />)}
       </ol>
-      <p class="roll__credit">Vídeos {roll.instagram.handle} · {REVISAO && pendentesAutorizacao ? 'uso no site sujeito a autorização e sem trilha sonora' : 'sem trilha sonora'}</p>
+      <p class="roll__credit">Vídeos {[...new Set(videos.map((v) => v.autor))].join(' e ')} · {REVISAO && pendentesAutorizacao ? 'uso no site sujeito a autorização e sem trilha sonora' : 'sem trilha sonora'}</p>
     </>
   )}
 
@@ -45,14 +45,17 @@ const doMes = roll.sabores.doMes;
     </div>
   )}
 
+  <!-- sabores fixos: citados nas legendas da própria Roll; os do mês só aparecem quando informados -->
   <div class="roll__sabores">
-    <p class="bands__label">sabores do mês</p>
+    <p class="bands__label">sabores da casa</p>
+    <ul class="bands__list">{roll.sabores.fixos.map((s) => <li style="--b:var(--butter)">{s}</li>)}</ul>
+    {(!isPendente(doMes) || REVISAO) && <p class="bands__label">sabores do mês</p>}
     {isPendente(doMes)
       ? <Pendente falta={doMes.falta} />
-      : <ul class="bands__list">{(doMes as string[]).map((s) => <li style="--b:var(--butter)">{s}</li>)}</ul>}
+      : <ul class="bands__list">{(doMes as string[]).map((s) => <li style="--b:var(--caramel-lt)">{s}</li>)}</ul>}
   </div>
   {REVISAO && pendentesAutorizacao && (
-    <p class="roll__credit roll__pending"><Pendente falta="Autorização da Roll para fotos e vídeos do Instagram (sem ela, saem do site publicado)" /></p>
+    <div class="roll__credit roll__pending"><Pendente falta="Autorização da Roll (fotos e vídeos do Instagram) e de @larizgomes (vídeo da criadora); sem ela, saem do site publicado" bloco /></div>
   )}
 
   <p class="roll__cta"><a href="#reservar">prove no Âmbar <strong>reservar →</strong></a></p>

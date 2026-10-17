@@ -5,18 +5,29 @@ import MegaTitle from '../components/MegaTitle.astro';
 import Pendente from '../components/Pendente.astro';
 import { visita as v } from '../data/visita';
 import { roll } from '../data/roll';
-import { isPendente } from '../lib/conteudo';
+import { isPendente, REVISAO } from '../lib/conteudo';
 
 const horarios = isPendente(v.horarios) ? null : v.horarios;
 const mapa = isPendente(v.mapaUrl) ? null : v.mapaUrl;
 const wa = isPendente(v.whatsapp) ? null : v.whatsapp;
 const ig = isPendente(v.instagram) ? null : v.instagram;
+// sem endereço nem horários (no site publicado): um aviso honesto no lugar da placa e da comanda vazias
+const temDados = !isPendente(v.endereco) || !!horarios;
 ---
 <section class="visite" id="visite" aria-labelledby="visite-titulo" tabindex="-1">
   <MegaTitle linhas={['Visite', 'o Âmbar']} id="visite-titulo" tom="light" />
 
   <div class="visite__grid">
-    <div class="placa" data-reveal="piece">
+    {!temDados && !REVISAO && (
+      <div class="horarios" data-reveal="piece">
+        <div class="ticket">
+          <p class="ticket__title">Em breve</p>
+          <p class="ticket__slots">Endereço e horários serão publicados aqui. Até lá, as novidades saem no Instagram da Roll.</p>
+        </div>
+      </div>
+    )}
+    {(temDados || REVISAO) && <>
+    <div class="placa" data-reveal="piece" data-parallax="soft">
       <i class="placa__pin" aria-hidden="true"></i>
       <div class="label">
         <p class="placa__kicker">Endereço</p>
@@ -34,6 +45,7 @@ const ig = isPendente(v.instagram) ? null : v.instagram;
         {isPendente(v.extras) && <Pendente falta={v.extras.falta} bloco />}
       </div>
     </div>
+    </>}
   </div>
 
   <div class="visite__actions">

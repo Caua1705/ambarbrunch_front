@@ -9,7 +9,7 @@ import { REVISAO } from '../lib/conteudo';
 <footer class="footer">
   <Foto src="brand/logo-ambar.png" alt="Âmbar Brunch" class="footer__logo" sizes="240px" widths={[240, 480, 720]} qualidade={80} />
   <p class="footer__sig">com assinatura gastronômica <Foto src="brand/logo-roll.png" alt="Roll" sizes="56px" widths={[56, 112, 168]} qualidade={80} /></p>
-  <p class="footer__info"><Pendente falta="Endereço, horários e contatos" /></p>
+  {REVISAO && <p class="footer__info"><Pendente falta="Endereço, horários e contatos" /></p>}
   <p class="footer__links">
     <a href="/privacidade/">Privacidade</a>
     <span aria-hidden="true">·</span>

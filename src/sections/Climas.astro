@@ -11,11 +11,11 @@ const algumaAntiga = Object.values(a).some((x) => x.fotoAntiga);
   {algumaAntiga && <p class="notice climas__notice" role="note">Fotos de referência do espaço anterior — serão trocadas por imagens atuais do Âmbar.</p>}
 
   <div class="climas__stack">
-    <figure class="panel panel--day" data-reveal>
+    <figure class="panel panel--day" data-reveal="slide-l">
       <Foto src={a.jardim.foto} alt={a.jardim.alt} sizes="(min-width: 960px) 538px, 92vw" />
       <figcaption><span class="tagline">{a.jardim.tagline}</span><a href="#reservar" data-ambiente={a.jardim.id}>reservar aqui →</a></figcaption>
     </figure>
-    <figure class="panel panel--amber" data-reveal>
+    <figure class="panel panel--amber" data-reveal="slide-r">
       <Foto src={a.salao.foto} alt={a.salao.alt} sizes="(min-width: 960px) 538px, 92vw" />
       <figcaption><span class="tagline">{a.salao.tagline}</span><a href="#reservar" data-ambiente={a.salao.id}>reservar aqui →</a></figcaption>
     </figure>

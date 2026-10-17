@@ -37,6 +37,22 @@
 .js [data-reveal="stamp"] { translate: none; transform: scale(1.6) rotate(18deg); transition: opacity var(--dur-s) linear, transform var(--dur-m) var(--ease-paper); transition-delay: var(--reveal-delay-stamp); }
 .js [data-reveal="stamp"].is-in { transform: none; }
 
+/* 1c · Composições que se montam ao entrar (uma vez) */
+/* fita estica depois que a foto assenta */
+.js .board__item[data-reveal="piece"] .tape { scale: 0 1; transition: scale var(--dur-m) var(--ease-paper); transition-delay: calc(var(--i, 0) * var(--stagger) + var(--reveal-delay-draw)); }
+.js .board__item[data-reveal="piece"].is-in .tape { scale: none; }
+/* pílulas do cardápio caem em cascata (--n = posição) */
+.js .bands[data-reveal] .bands__list li { opacity: 0; transform: translateY(calc(var(--lift) * -.5)); transition: opacity var(--dur-m) var(--ease), transform var(--dur-m) var(--ease-paper); transition-delay: calc(var(--n, 0) * var(--cascade) + var(--reveal-delay-scribble)); }
+.js .bands[data-reveal].is-in .bands__list li { opacity: 1; transform: none; }
+/* leque de bandejas abrindo a partir do centro */
+.js .trays[data-reveal] figure { transition: transform var(--dur-l) var(--ease-paper); transition-delay: var(--reveal-delay-draw); }
+.js .trays[data-reveal] figure:nth-child(1) { transform: translateX(45%) rotate(7deg); }
+.js .trays[data-reveal] figure:nth-child(3) { transform: translateX(-45%) rotate(2deg); }
+.js .trays[data-reveal].is-in figure:nth-child(n) { transform: none; }
+/* painéis de ambiente deslizam pela diagonal (o da manhã vem da esquerda; o âmbar, da direita) */
+.js [data-reveal="slide-l"] { translate: calc(var(--slide) * -1) var(--slide); }
+.js [data-reveal="slide-r"] { translate: var(--slide) var(--slide); }
+
 /* 2 · Entrada do hero (só no primeiro carregamento, no topo, sem âncora) — classe .enter no <html> */
 .enter .hero__label { animation: label-settle var(--dur-l) var(--ease-paper) both; }
 .enter .hero__headline > span { animation: line-settle var(--hero-t-line-dur) var(--ease-paper) both; }
@@ -60,6 +76,15 @@
 @keyframes sticker-in { from { opacity: 0; transform: scale(.6); } }
 @keyframes fade { from { opacity: 0; } }
 @keyframes bump { 50% { transform: translate(-2px, -2px); box-shadow: var(--shadow-offset-l); } }
+
+/* 2b · Momentos da comanda: uma vez, quando o estado muda */
+.stamp[data-state="reservado"], .stamp[data-state="erro"] { animation: stamp-hit var(--dur-m) var(--ease-paper) both; }
+.ticket legend[data-done]::after { animation: check-in var(--dur-s) var(--ease-paper) both; }
+.field[data-invalid] .field__input, .check[data-invalid] input { animation: shake var(--dur-m) var(--ease) both; }
+.ticket__dados { animation: rise var(--dur-m) var(--ease-out) both; }
+@keyframes stamp-hit { from { opacity: 0; transform: scale(1.6) rotate(18deg); } }
+@keyframes check-in { from { opacity: 0; transform: scale(1.4); } }
+@keyframes shake { 20%, 60% { translate: calc(var(--shake) * -1) 0; } 40%, 80% { translate: var(--shake) 0; } }
 
 /* 3 · Parallax e efeitos ligados ao scroll — só onde há suporte nativo; sem JS de scroll. */
 @supports (animation-timeline: view()) {
@@ -94,6 +119,8 @@
   .js [data-reveal="lines"] > span { opacity: 1; translate: none; }
   .js [data-reveal="lines"] > .scribble { opacity: 1; translate: none; rotate: -4deg; }
   .js [data-draw] path { stroke-dashoffset: 0; }
+  .js .board__item .tape { scale: none; }
+  .js .bands[data-reveal] .bands__list li, .js .trays[data-reveal] figure:nth-child(n) { opacity: 1; transform: none; }
   /* CTA, doca e folha: só opacidade (a transição é religada de propósito, curta) */
   .sticky-cta, .menu-btn--dock { transform: none !important; transition: opacity var(--dur-reduced) linear !important; }
 }

@@ -7,16 +7,16 @@ import { imagem, video } from '../lib/media';
 
 interface Props {
   arquivo: string; poster: string; tag: string; descricao: string;
-  autor: string; tipo: 'roll' | 'criadora';
+  autor: string; tipo: 'roll' | 'criadora'; quando?: string;
 }
-const { arquivo, poster, tag, descricao, autor, tipo } = Astro.props;
+const { arquivo, poster, tag, descricao, autor, tipo, quando } = Astro.props;
 const src = video(arquivo);
 const meta = imagem(poster);
-const posterUrl = meta ? (await getImage({ src: meta, width: 540, format: 'webp', quality: 70 })).src : undefined;
-const credito = tipo === 'roll' ? 'vídeo da própria Roll' : 'conteúdo sobre a Roll';
+const posterUrl = meta ? (await getImage({ src: meta, width: 480, format: 'webp', quality: 64 })).src : undefined;
+const credito = (tipo === 'roll' ? 'vídeo da própria Roll' : 'criadora · conteúdo sobre a Roll') + (quando ? ` · ${quando}` : '');
 ---
 {src && (
-  <li class="story">
+  <li class="story" data-tipo={tipo}>
     <i class="story__progress" aria-hidden="true"></i>
     <video muted playsinline loop preload="none" data-autoplay data-poster={posterUrl} aria-label={`Vídeo: ${descricao}`} width="540" height="960">
       <source src={src} type="video/mp4" />

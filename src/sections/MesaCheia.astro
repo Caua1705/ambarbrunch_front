@@ -35,9 +35,9 @@ const cor = (c: keyof typeof PARES) => { const p = PARES[c]; return `--b:${p.b}$
 
   <div class="bands" data-reveal>
     <p class="bands__label">pra comer</p>
-    <ul class="bands__list">{cardapio.comer.map((i) => <li style={cor(i.cor)}>{i.nome}</li>)}</ul>
+    <ul class="bands__list">{cardapio.comer.map((i, n) => <li style={`${cor(i.cor)};--n:${n}`}>{i.nome}</li>)}</ul>
     <p class="bands__label">pra beber</p>
-    <ul class="bands__list">{cardapio.beber.map((i) => <li style={cor(i.cor)}>{i.nome}</li>)}</ul>
+    <ul class="bands__list">{cardapio.beber.map((i, n) => <li style={`${cor(i.cor)};--n:${n + cardapio.comer.length}`}>{i.nome}</li>)}</ul>
     <p class="bands__note">{cardapio.nota}</p>
     <Pendente falta="Itens do cardápio novo e fotos do shooting (21/10)" bloco class="mesa__pending" />
   </div>

@@ -17,5 +17,7 @@ export const roll = {
     { id: 'IV-06', arquivo: 'roll-do-forno', poster: 'roll/poster-do-forno.webp', tag: 'do forno', descricao: 'carrinho de forno com fornadas de cinnamon rolls', autor: '@roll.ofc', tipo: 'roll', autorizado: false },
     { id: 'IV-09', arquivo: 'roll-sabores-do-mes', poster: 'roll/poster-sabores-do-mes.webp', tag: 'sabores do mês', descricao: 'closes de cinnamon rolls com cobertura', autor: '@roll.ofc', tipo: 'roll', autorizado: false },
     { id: 'IV-08', arquivo: 'roll-bandeja', poster: 'roll/poster-bandeja.webp', tag: 'bandeja', descricao: 'bandeja de cinnamon rolls com cobertura de chocolate', autor: '@roll.ofc', tipo: 'roll', autorizado: false },
-  ] as { id: string; arquivo: string; poster: string; tag: string; descricao: string; autor: string; tipo: 'roll' | 'criadora'; autorizado: boolean }[],
+    // criadora: gravado em casa, sobre a box da Roll — NUNCA apresentado como avaliação do Âmbar. Autorização da autora pendente.
+    { id: 'IV-05', arquivo: 'roll-criadora-larizgomes', poster: 'roll/poster-criadora-larizgomes.webp', tag: 'provou a Roll', descricao: 'criadora provando um cinnamon roll de pistache da Roll', autor: '@larizgomes', tipo: 'criadora', quando: 'set/2026', autorizado: false },
+  ] as { id: string; arquivo: string; poster: string; tag: string; descricao: string; autor: string; tipo: 'roll' | 'criadora'; quando?: string; autorizado: boolean }[],
 };

@@ -7,15 +7,16 @@ import Stamp from '../components/Stamp.astro';
 import Spiral from '../components/Spiral.astro';
 import Pendente from '../components/Pendente.astro';
 import { novoCapitulo as nc } from '../data/novo-capitulo';
+import { REVISAO } from '../lib/conteudo';
 ---
 <section class="novo" id="novo" aria-labelledby="novo-titulo" tabindex="-1">
-  <Spiral class="spiral novo__spiral" />
+  <Spiral class="spiral novo__spiral" data-parallax="down" />
   <Stamp class="novo__stamp" reveal>{nc.carimbo}</Stamp>
   <MegaTitle linhas={nc.titulo} id="novo-titulo" tom="wine" scribble={nc.scribble} />
   <div class="novo__body" data-reveal>
     <p class="novo__text">{nc.texto}</p>
-    <Badge />
+    <div class="novo__selo" data-parallax="soft"><Badge /></div>
   </div>
   <a class="novo__link" href="#reservar">Reservar mesa <span aria-hidden="true">→</span></a>
-  {nc.provisorio && <p><Pendente falta="Texto oficial desta seção (o atual é provisório) e data de reabertura" bloco /></p>}
+  {nc.provisorio && REVISAO && <p><Pendente falta="Texto oficial desta seção (o atual é provisório) e data de reabertura" bloco /></p>}
 </section>

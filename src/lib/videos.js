@@ -17,6 +17,8 @@ export function initStories(scope = document) {
   const ratio = new Map(videos.map((v) => [v, 0]));
   /** vídeos que o visitante tocou ou pausou à mão: a regra automática não mexe mais neles */
   const manual = new Map();
+  /** o visitante pausou um vídeo: nenhum outro começa sozinho até o carrossel sair da tela */
+  let calado = false;
 
   /** @param {HTMLVideoElement} v */
   const card = (v) => v.closest('.story');
@@ -32,7 +34,7 @@ export function initStories(scope = document) {
     for (const [v, r] of ratio) if (r >= max && manual.get(v) !== 'paused') { best = v; max = r; }
     for (const v of videos) {
       if (manual.get(v) === 'playing' && (ratio.get(v) ?? 0) > 0) continue;
-      if (v === best && motionAllowed()) { if (v.paused) play(v); } else if (!v.paused) pause(v);
+      if (v === best && motionAllowed() && !calado) { if (v.paused) play(v); } else if (!v.paused) pause(v);
     }
   };
 
@@ -42,6 +44,7 @@ export function initStories(scope = document) {
       ratio.set(v, e.intersectionRatio);
       if (e.intersectionRatio === 0) { manual.delete(v); if (!v.paused) pause(v); }
     });
+    if ([...ratio.values()].every((r) => r === 0)) calado = false;
     pick();
   }, { threshold: [0, 0.25, 0.5, 0.6, 0.75, 1] });
   videos.forEach((v) => { io.observe(v); setState(v, false); });
@@ -51,7 +54,7 @@ export function initStories(scope = document) {
     const v = /** @type {HTMLVideoElement | null} */ (btn.closest('.story')?.querySelector('video') ?? null);
     if (!v) return;
     if (v.paused) { videos.forEach((o) => { if (o !== v && !o.paused) { manual.set(o, 'paused'); pause(o); } }); manual.set(v, 'playing'); play(v); }
-    else { manual.set(v, 'paused'); pause(v); }
+    else { manual.set(v, 'paused'); calado = true; pause(v); }
     btn.setAttribute('aria-pressed', String(!v.paused));
   }));
 

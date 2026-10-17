@@ -18,6 +18,8 @@ const VIDEOS = [
   { id: 'IV-06', file: '2026-09-17_DdZ5fRIA4f2_video.mp4', out: 'roll-do-forno', start: 0, dur: 9 },
   { id: 'IV-09', file: '2026-10-02_DeAT31Yg8Un_video.mp4', out: 'roll-sabores-do-mes', start: 0, dur: 6.3 },
   { id: 'IV-08', file: '2026-10-01_Dd9V9KUz-nV_video.mp4', out: 'roll-bandeja', start: 0, dur: 4.6 },
+  // criadora (@larizgomes): trecho sem texto na imagem nem transição, segurando o roll de pistache; sem áudio
+  { id: 'IV-05', file: '2026-09-04_Dc4TZTRtHO9_video.mp4', out: 'roll-criadora-larizgomes', start: 38, dur: 9, poster: 'roll/poster-criadora-larizgomes.webp', posterAt: 1 },
 ];
 
 fs.mkdirSync(OUT, { recursive: true });
@@ -35,5 +37,9 @@ for (const v of VIDEOS) {
   ];
   const r = spawnSync('ffmpeg', args, { stdio: 'inherit' });
   if (r.status !== 0) { console.error(`✗ ${v.id} falhou`); process.exitCode = 1; continue; }
+  if (v.poster) {
+    const destino = path.join(ROOT, 'src/assets/media', v.poster);
+    spawnSync('ffmpeg', ['-y', '-v', 'error', '-ss', String(v.posterAt ?? 0), '-i', output, '-frames:v', '1', '-c:v', 'libwebp', '-quality', '80', destino], { stdio: 'inherit' });
+  }
   console.log(`✓ ${v.id} → public/media/video/${v.out}.web.mp4  ${(fs.statSync(output).size / 1024).toFixed(0)} KB (${v.dur}s, sem áudio)`);
 }

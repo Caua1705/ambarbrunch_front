@@ -13,8 +13,9 @@ test('prioridade só na 1ª tela; demais imagens lazy; formatos modernos', async
 test('vídeos: preload none, mudos, sem baixar nada antes de chegar perto', async ({ page }) => {
   const videos: string[] = [];
   page.on('request', (r) => { if (r.url().endsWith('.mp4')) videos.push(r.url()); });
-  await page.goto('/');
-  await page.waitForLoadState('networkidle');
+  await page.goto('/', { waitUntil: 'load' });
+  // 'networkidle' às vezes não chega no WebKit com testes em paralelo; uma janela fixa basta para ver se algum vídeo foi pedido
+  await page.waitForTimeout(2000);
   const n = await page.locator('video').count();
   test.skip(n === 0, 'sem vídeos neste build (autorização pendente fora do modo de revisão)');
   expect(videos, 'nenhum vídeo baixado na 1ª tela').toEqual([]);

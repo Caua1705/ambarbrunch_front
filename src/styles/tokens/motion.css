@@ -29,6 +29,9 @@
   --reveal-delay-draw: 200ms;      /* setas e faíscas começam depois das peças */
   --reveal-delay-stamp: 260ms;
   --sheet-items-delay: 80ms;       /* itens do menu depois da folha */
+  --cascade: 35ms;                 /* pílulas do cardápio caindo uma a uma */
+  --shake: 6px;                    /* amplitude da tremida de campo inválido */
+  --slide: 28px;                   /* painéis de ambiente entrando pela diagonal */
 
   /* Loops */
   --spin-period: 24s;    /* selo da Roll */

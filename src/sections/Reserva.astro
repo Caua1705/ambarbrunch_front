@@ -5,6 +5,7 @@ import MegaTitle from '../components/MegaTitle.astro';
 import Pendente from '../components/Pendente.astro';
 import ReservaFlow from '../islands/ReservaFlow';
 import { reservaveis } from '../data/ambientes';
+import { REVISAO } from '../lib/conteudo';
 
 const modoEnv = import.meta.env.PUBLIC_RESERVAS_MODO;
 const apiUrl = import.meta.env.PUBLIC_RESERVAS_API_URL || undefined;
@@ -15,7 +16,7 @@ const { titulo = 'h2' } = Astro.props;
 <section class="reserva" id="reservar" aria-labelledby="reserva-titulo" data-reserva tabindex="-1">
   <MegaTitle linhas={['Reserve', 'sua mesa']} id="reserva-titulo" tom="light" scribble="e chegue com fome" as={titulo} />
   <ReservaFlow client:visible={{ rootMargin: '400px' }} modo={modo} apiUrl={apiUrl} ambientes={reservaveis.opcoes} privacidadeUrl="/privacidade/" />
-  {modo === 'indisponivel' && (
+  {modo === 'indisponivel' && REVISAO && (
     <p class="reserva__pending"><Pendente falta="Contrato da API de reservas (FastAPI), regras de reserva e texto de privacidade" /></p>
   )}
 </section>
