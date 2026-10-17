@@ -1,0 +1,11 @@
+---
+// Seta desenhada à mão (quadro da Mesa cheia; v1: .arrow). Desenha-se ao entrar na tela (data-draw): os <path> têm pathLength="1".
+interface Props { variante: 'a' | 'b' | 'c'; i?: number }
+const TRACOS = {
+  a: ['M8 10C40 4 78 18 96 58', 'M84 52l13 8 3-15'],
+  b: ['M110 12C76 6 40 22 26 62', 'M20 48l5 15 14-6'],
+  c: ['M112 70C86 74 58 60 46 18', 'M38 30l8-13 10 11'],
+};
+const { variante, i } = Astro.props;
+---
+<svg class={`arrow arrow--${variante}`} viewBox="0 0 120 80" aria-hidden="true" data-draw style={i ? `--i:${i}` : undefined}>{TRACOS[variante].map((d) => <path pathLength="1" d={d} />)}</svg>

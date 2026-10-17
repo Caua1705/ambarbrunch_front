@@ -2,9 +2,9 @@
    Mural solto de polaroides, no padrão do hero. Sem estrelas, notas ou depoimentos sem fonte. */
 
 .na-mesa { padding: var(--rhythm-b) var(--gutter) calc(var(--rhythm-b) + var(--rhythm-tail)); background: var(--cream); }
-.mural { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 14px; margin-top: 30px; }
+.mural { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-18) var(--s-14); margin-top: var(--s-30); }
 .mural .cut--polaroid { position: relative; width: auto; }
 .mural .cut--polaroid:nth-child(odd) { rotate: -4deg; }
-.mural .cut--polaroid:nth-child(even) { rotate: 5deg; margin-top: 26px; }
-.na-mesa__pending { margin-top: 18px; }
+.mural .cut--polaroid:nth-child(even) { rotate: 5deg; margin-top: var(--s-26); }
+.na-mesa__pending { margin-top: var(--s-18); }
 .na-mesa--vazia { padding: 28px var(--gutter); }

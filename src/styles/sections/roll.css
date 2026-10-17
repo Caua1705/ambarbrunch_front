@@ -14,26 +14,32 @@
 .roll__head { padding: 0 var(--gutter); }
 .roll__badge { margin-bottom: 20px; }
 .roll__lead { margin-top: 20px; max-width: 32ch; font-size: var(--fs-lead); color: var(--text-on-dark-muted); }
-.roll__credit { margin: 14px var(--gutter) 0; font-size: var(--fs-micro); color: var(--text-on-dark-faint); }
+.roll__credit { margin: var(--s-14) var(--gutter) 0; font-size: var(--fs-micro); color: var(--text-on-dark-faint); }
 
 /* Sabores do mês e chamada final */
-.roll__sabores { margin: 40px var(--gutter) 0; }
+.roll__sabores { margin: var(--s-40) var(--gutter) 0; }
 .roll__sabores .bands__label { color: var(--caramel-lt); }
-.roll__cta { display: flex; justify-content: center; margin-top: 40px; padding: 0 var(--gutter); }
-.roll__cta a { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; font: var(--t-note); font-size: 22px; color: var(--butter); text-decoration: underline 2px; text-underline-offset: 6px; }
-.roll__cta strong { font: var(--t-pill); font-size: 14px; letter-spacing: var(--track-caps); text-transform: uppercase; }
+.roll__cta { display: flex; justify-content: center; margin-top: var(--s-40); padding: 0 var(--gutter); }
+.roll__cta a { display: inline-flex; align-items: center; gap: var(--s-10); min-height: 44px; font: var(--t-call); color: var(--butter); text-decoration: underline 2px; text-underline-offset: 6px; }
+.roll__cta strong { font: var(--t-link); letter-spacing: var(--track-caps); text-transform: uppercase; }
 
 /* Leque de bandejas */
-.trays { display: flex; justify-content: center; margin-top: 44px; padding: 0 var(--gutter); }
+.trays { display: flex; justify-content: center; margin-top: var(--s-44); padding: 0 var(--gutter); }
 .trays figure { width: 39%; margin: 0 -5%; }
-.trays figure:nth-child(1) { rotate: -7deg; margin-top: 18px; }
-.trays figure:nth-child(2) { rotate: 3deg; z-index: 1; }
-.trays figure:nth-child(3) { rotate: -2deg; margin-top: 30px; }
+.trays figure:nth-child(1) { rotate: -7deg; margin-top: var(--s-18); }
+.trays figure:nth-child(2) { rotate: 3deg; z-index: var(--z-1); }
+.trays figure:nth-child(3) { rotate: -2deg; margin-top: var(--s-30); }
 .trays img { aspect-ratio: 3 / 4; object-fit: cover; border: var(--border-photo) solid var(--cream); border-radius: var(--radius-s); box-shadow: var(--shadow-photo-deep); }
-.trays figcaption { margin-top: 8px; text-align: center; font: var(--t-caption-l); color: var(--butter); }
+.trays figcaption { margin-top: var(--s-8); text-align: center; font: var(--t-caption-l); color: var(--butter); }
+
+/* Tablet: vídeos menores (2,6 cards à vista, o carrossel continua) e bandejas num leque de até 560 px */
+@media (min-width: 600px) and (max-width: 959px) {
+  .stories { grid-auto-columns: 38%; }
+  .trays { max-width: 560px; margin-left: auto; margin-right: auto; }
+}
 
 @media (min-width: 960px) {
-  .roll__head { max-width: 1240px; margin: 0 auto; }
+  .roll__head { max-width: var(--container-xl); margin: 0 auto; }
   .stories { grid-auto-columns: 280px; justify-content: center; overflow: visible; }
-  .trays { max-width: 900px; margin-left: auto; margin-right: auto; }
+  .trays { max-width: var(--container-s); margin-left: auto; margin-right: auto; }
 }

@@ -3,8 +3,8 @@
 
 .notice {
   display: inline-block;
-  padding: 10px 14px;
-  border: 2px dashed var(--notice-line); border-radius: var(--radius-control);
+  padding: var(--s-10) var(--s-14);
+  border: var(--border-control) dashed var(--notice-line); border-radius: var(--radius-control);
   color: var(--wine); font-size: var(--fs-small); line-height: 1.35;
 }
 

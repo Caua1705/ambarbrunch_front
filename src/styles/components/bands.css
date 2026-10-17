@@ -2,15 +2,15 @@
    Cada item define --b (fundo) e --t (texto) com pares aprovados em TOKENS.md. */
 
 .bands { margin-top: 36px; }
-.bands__label { margin: 22px 0 12px; font: var(--t-kicker); color: var(--caramel-dk); }
-.bands__list { display: flex; flex-wrap: wrap; gap: 8px; }
+.bands__label { margin: var(--s-22) 0 var(--s-12); font: var(--t-kicker); color: var(--caramel-dk); }
+.bands__list { display: flex; flex-wrap: wrap; gap: var(--s-8); }
 .bands__list li {
-  padding: 13px 18px 12px;
+  padding: 13px var(--s-18) var(--s-12);
   border-radius: var(--radius-pill);
   background: var(--b); color: var(--t, var(--ink));
-  font: var(--t-band); font-variation-settings: var(--wdth-band); font-stretch: var(--stretch-band);
-  text-transform: uppercase; letter-spacing: .02em;
+  font: var(--t-band); font-variation-settings: var(--fvs-text); font-stretch: var(--stretch-band);
+  text-transform: uppercase; letter-spacing: var(--track-tight-caps);
 }
 .bands__list li:nth-child(odd) { rotate: -1.5deg; }
 .bands__list li:nth-child(even) { rotate: 1.5deg; }
-.bands__note { margin-top: 22px; font-size: var(--fs-fine); color: var(--text-muted); }
+.bands__note { margin-top: var(--s-22); font-size: var(--fs-fine); color: var(--text-muted); }

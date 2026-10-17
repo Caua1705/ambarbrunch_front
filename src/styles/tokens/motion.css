@@ -1,0 +1,51 @@
+/* Âmbar Brunch — tokens · MOVIMENTO: curvas, durações, intervalos e a coreografia de entrada do hero.
+   Referência: docs/design/MOTION-SYSTEM.md. As regras que usam estes valores ficam em src/styles/motion.css. */
+
+:root {
+  /* Curvas */
+  --ease: cubic-bezier(.2, .7, .2, 1);          /* nome do v1 */
+  --ease-out: var(--ease);
+  --ease-paper: cubic-bezier(.34, 1.4, .64, 1); /* assentar com leve overshoot */
+  --ease-in: cubic-bezier(.4, 0, 1, 1);
+
+  /* Durações */
+  --dur-xs: 120ms;
+  --dur-reduced: 150ms;  /* opacidade da doca com movimento reduzido */
+  --dur-chip: 200ms;     /* troca de estado do chip */
+  --dur-s: 220ms;
+  --dur-press: 300ms;    /* .btn ao pressionar (v1) */
+  --dur-cta-fade: 300ms; /* opacidade do CTA fixo ao entrar (v1) */
+  --dur-m: 420ms;
+  --dur-cta-in: 500ms;   /* CTA fixo subindo (v1) */
+  --dur-l: 640ms;
+  --dur-reveal: 700ms;   /* revelação do v1 */
+  --dur-loop-busy: 1.6s; /* esqueleto de horários e carimbo girando durante o envio */
+
+  /* Intervalos e amplitudes */
+  --stagger: 70ms;
+  --lift: 28px;
+  --tilt: 5deg;
+  --reveal-delay-scribble: 120ms;  /* depois das linhas do título */
+  --reveal-delay-draw: 200ms;      /* setas e faíscas começam depois das peças */
+  --reveal-delay-stamp: 260ms;
+  --sheet-items-delay: 80ms;       /* itens do menu depois da folha */
+
+  /* Loops */
+  --spin-period: 24s;    /* selo da Roll */
+  --ticker-period: 32s;  /* faixa de categorias */
+
+  /* Coreografia da entrada do hero (atrasos a partir do primeiro quadro; termina em ~1,16 s) */
+  --hero-t-line-dur: 520ms;
+  --hero-t-line-1: 60ms;
+  --hero-t-line-2: 130ms;
+  --hero-t-line-3: 200ms;
+  --hero-t-piece-1: 260ms;
+  --hero-t-piece-2: 330ms;
+  --hero-t-piece-3: 400ms;
+  --hero-t-sticker: 480ms;   /* selo da Roll e selo do menu */
+  --hero-t-sparks: 520ms;
+  --hero-t-cta: 560ms;
+  --hero-t-cta-dur: 360ms;
+  --hero-t-note: 600ms;
+  --hero-t-note-dur: 300ms;
+}

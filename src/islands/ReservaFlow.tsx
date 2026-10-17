@@ -11,15 +11,37 @@ import { criarApiSimulada } from '../lib/api/simulado';
 import { criarApiHttp } from '../lib/api/http';
 
 type Modo = 'indisponivel' | 'simulado' | 'api';
+export type Etapa = 'escolha' | 'revisao' | 'enviando' | 'confirmada' | 'falha';
+type Horarios = { estado: 'ocioso' | 'carregando' | 'ok' | 'vazio' | 'erro'; lista: { hora: string; disponivel: boolean }[]; msg?: string };
+interface Dados { nome: string; telefone: string; email: string; observacoes: string; consentimento: boolean }
+/**
+ * Estado inicial forçado — SÓ para a página interna /design-system/ (nunca no site): mostra cada etapa da comanda
+ * com a API simulada (o aviso de simulação aparece). Sem esta prop, o comportamento é o de sempre.
+ */
+export interface DemoComanda {
+  etapa?: Etapa;
+  horarios?: Exclude<Horarios['estado'], 'ocioso'>;
+  hora?: string;
+  dados?: Partial<Dados>;
+  erros?: Record<string, string>;
+  falha?: string;
+  resultado?: ReservaCriada;
+}
 interface Props {
   modo: Modo;
   apiUrl?: string;
   ambientes: { id: string; nome: string }[];
   privacidadeUrl: string;
+  /** prefixo dos ids (várias comandas na mesma página) */
+  ids?: string;
+  demo?: DemoComanda;
 }
-type Etapa = 'escolha' | 'revisao' | 'enviando' | 'confirmada' | 'falha';
-type Horarios = { estado: 'ocioso' | 'carregando' | 'ok' | 'vazio' | 'erro'; lista: { hora: string; disponivel: boolean }[]; msg?: string };
-interface Dados { nome: string; telefone: string; email: string; observacoes: string; consentimento: boolean }
+const HORAS_DEMO = ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30'].map((hora, i) => ({ hora, disponivel: i % 3 !== 1 }));
+function horariosDemo(estado: DemoComanda['horarios']): Horarios {
+  if (estado === 'ok') return { estado, lista: HORAS_DEMO };
+  if (estado === 'erro') return { estado, lista: [], msg: 'Não foi possível carregar os horários.' };
+  return { estado: estado ?? 'ocioso', lista: [] };
+}
 
 const DIAS_PADRAO = 10;
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -73,9 +95,10 @@ function Escolha<T extends string>(p: { rotulo: string; id: string; opcoes: { va
   );
 }
 
-export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, privacidadeUrl }: Props) {
+export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, privacidadeUrl, ids: px = 'rf', demo }: Props) {
+  const nota = px === 'rf' ? 'ticket-note' : `${px}-note`;
   const api: ReservasApi | null = useMemo(() => {
-    if (modoPedido === 'simulado') return criarApiSimulada();
+    if (demo || modoPedido === 'simulado') return criarApiSimulada();
     if (modoPedido === 'api' && apiUrl) return criarApiHttp(apiUrl);
     return null;
   }, [modoPedido, apiUrl]);
@@ -86,13 +109,13 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
   const [ambiente, setAmbiente] = useState<string>(ambientes[0]?.id ?? '');
   const [pessoas, setPessoas] = useState(2);
   const [data, setData] = useState<string | null>(null);
-  const [hora, setHora] = useState<string | null>(null);
-  const [horarios, setHorarios] = useState<Horarios>({ estado: 'ocioso', lista: [] });
-  const [dados, setDados] = useState<Dados>({ nome: '', telefone: '', email: '', observacoes: '', consentimento: false });
-  const [erros, setErros] = useState<Record<string, string>>({});
-  const [etapa, setEtapa] = useState<Etapa>('escolha');
-  const [resultado, setResultado] = useState<ReservaCriada | null>(null);
-  const [falha, setFalha] = useState<string>('');
+  const [hora, setHora] = useState<string | null>(demo?.hora ?? null);
+  const [horarios, setHorarios] = useState<Horarios>(horariosDemo(demo?.horarios));
+  const [dados, setDados] = useState<Dados>({ nome: '', telefone: '', email: '', observacoes: '', consentimento: false, ...demo?.dados });
+  const [erros, setErros] = useState<Record<string, string>>(demo?.erros ?? {});
+  const [etapa, setEtapa] = useState<Etapa>(demo?.etapa ?? 'escolha');
+  const [resultado, setResultado] = useState<ReservaCriada | null>(demo?.resultado ?? null);
+  const [falha, setFalha] = useState<string>(demo?.falha ?? '');
   const [anuncio, setAnuncio] = useState('');
   const [tentativa, setTentativa] = useState(0);
   const chave = useRef<string>(uuid());
@@ -116,7 +139,7 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
   }, [api]);
   // Horários: buscados a cada mudança de ambiente, pessoas ou data. Requisições antigas são canceladas.
   useEffect(() => {
-    if (!api || !data || !ambiente) return;
+    if (!api || !data || !ambiente || demo?.horarios) return;
     const ctrl = new AbortController();
     setHora(null);
     setHorarios({ estado: 'carregando', lista: [] });
@@ -129,8 +152,9 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
       .catch((e) => { if (e?.name !== 'AbortError') setHorarios({ estado: 'erro', lista: [], msg: e instanceof ErroReserva ? e.message : 'Não foi possível carregar os horários.' }); });
     return () => ctrl.abort();
   }, [api, data, pessoas, ambiente, tentativa]);
-  // Foco no topo da comanda a cada troca de etapa (leitor de tela e teclado).
-  useEffect(() => { if (etapa !== 'escolha') topo.current?.focus(); }, [etapa]);
+  // Foco no topo da comanda a cada TROCA de etapa (leitor de tela e teclado); não na montagem.
+  const montou = useRef(false);
+  useEffect(() => { if (!montou.current) { montou.current = true; return; } if (etapa !== 'escolha') topo.current?.focus(); }, [etapa]);
 
   const datas = useMemo(() => {
     if (!hoje) return [];
@@ -155,7 +179,7 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
     setErros(e);
     if (Object.keys(e).length) {
       setAnuncio('Confira os campos destacados.');
-      requestAnimationFrame(() => document.querySelector<HTMLElement>(`#rf-${Object.keys(e)[0]}`)?.focus());
+      requestAnimationFrame(() => document.querySelector<HTMLElement>(`#${px}-${Object.keys(e)[0]}`)?.focus());
       return;
     }
     chave.current = uuid();
@@ -213,7 +237,7 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
   );
 
   return (
-    <form class="ticket" data-modo={modo} data-etapa={etapa} onSubmit={continuar} noValidate aria-describedby="ticket-note" aria-busy={etapa === 'enviando'}>
+    <form class="ticket" data-modo={modo} data-etapa={etapa} onSubmit={continuar} noValidate aria-describedby={nota} aria-busy={etapa === 'enviando'}>
       <div class="stamp ticket__stamp" data-state={carimbo.estado} aria-hidden="true">{carimbo.texto}</div>
       <p class="ticket__title" ref={topo} tabIndex={-1}>
         {etapa === 'confirmada' ? (modo === 'simulado' ? 'Reserva simulada' : 'Mesa reservada') : etapa === 'escolha' ? 'Comanda de reserva' : 'Confira sua reserva'}
@@ -224,36 +248,36 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
         <>
           {falha && <p class="ticket__status" data-tone="error" role="alert">{falha}</p>}
           <fieldset>
-            <legend id="rf-l1" data-done={api && ambiente ? '' : undefined}>01 · ambiente</legend>
-            <Escolha id="rf-l1" rotulo="Ambiente" valor={ambiente}
+            <legend id={`${px}-l1`} data-done={api && ambiente ? '' : undefined}>01 · ambiente</legend>
+            <Escolha id={`${px}-l1`} rotulo="Ambiente" valor={ambiente}
               opcoes={cfg.ambientes.map((a) => ({ valor: a.id, texto: a.nome }))}
               aoEscolher={(v) => { setAmbiente(v); setFalha(''); }} />
           </fieldset>
           <fieldset>
-            <legend id="rf-l2" data-done={api ? '' : undefined}>02 · pessoas</legend>
+            <legend id={`${px}-l2`} data-done={api ? '' : undefined}>02 · pessoas</legend>
             <div class="stepper">
               <button type="button" aria-label="Menos uma pessoa" disabled={pessoas <= cfg.pessoas.min} onClick={() => setPessoas((n) => Math.max(cfg.pessoas.min, n - 1))}>−</button>
-              <output aria-live="polite" aria-labelledby="rf-l2">{pessoas}</output>
+              <output aria-live="polite" aria-labelledby={`${px}-l2`}>{pessoas}</output>
               <button type="button" aria-label="Mais uma pessoa" disabled={pessoas >= cfg.pessoas.max} onClick={() => setPessoas((n) => Math.min(cfg.pessoas.max, n + 1))}>+</button>
             </div>
-            {pessoas >= cfg.pessoas.max && api && <p class="ticket__slots" style="margin-top:10px">Para grupos maiores, fale direto com o Âmbar.</p>}
+            {pessoas >= cfg.pessoas.max && api && <p class="ticket__slots ticket__slots--after">Para grupos maiores, fale direto com o Âmbar.</p>}
           </fieldset>
           <fieldset>
-            <legend id="rf-l3" data-done={api && data ? '' : undefined}>03 · data</legend>
+            <legend id={`${px}-l3`} data-done={api && data ? '' : undefined}>03 · data</legend>
             {datas.length
-              ? <Escolha id="rf-l3" rotulo="Data" datas valor={data}
+              ? <Escolha id={`${px}-l3`} rotulo="Data" datas valor={data}
                   opcoes={datas.map((d, i) => ({ valor: iso(d), texto: <><small>{i === 0 ? 'hoje' : diaSemana.format(d).replace('.', '')}</small>{d.getDate()}</> }))}
                   aoEscolher={(v) => { setData(v); setFalha(''); }} />
               : <div class="chips chips--dates" aria-hidden="true">{Array.from({ length: 6 }, () => <span class="chip chip--skeleton" />)}</div>}
           </fieldset>
           <fieldset>
-            <legend id="rf-l4" ref={passo4} data-done={hora ? '' : undefined}>04 · horário</legend>
+            <legend id={`${px}-l4`} ref={passo4} data-done={hora ? '' : undefined}>04 · horário</legend>
             {!api && <p class="ticket__slots">Os horários aparecem aqui quando as reservas pelo site forem ativadas.</p>}
-            {api && horarios.estado === 'carregando' && <><div class="chips" aria-hidden="true">{[0, 1, 2, 3].map(() => <span class="chip chip--skeleton" />)}</div><p class="ticket__slots" style="margin-top:10px">Carregando horários…</p></>}
+            {api && horarios.estado === 'carregando' && <><div class="chips" aria-hidden="true">{[0, 1, 2, 3].map(() => <span class="chip chip--skeleton" />)}</div><p class="ticket__slots ticket__slots--after">Carregando horários…</p></>}
             {api && horarios.estado === 'vazio' && <p class="ticket__slots">Sem horários nesta data. Escolha outro dia.</p>}
             {api && horarios.estado === 'erro' && <p class="ticket__status" data-tone="error" role="alert">{horarios.msg} <button type="button" class="ticket__link" onClick={() => setTentativa((t) => t + 1)}>Tentar de novo</button></p>}
             {api && horarios.estado === 'ok' && (
-              <Escolha id="rf-l4" rotulo="Horário" valor={hora}
+              <Escolha id={`${px}-l4`} rotulo="Horário" valor={hora}
                 opcoes={horarios.lista.map((h) => ({ valor: h.hora, texto: h.hora, desabilitado: !h.disponivel }))}
                 aoEscolher={(v) => { setHora(v); setFalha(''); }} />
             )}
@@ -264,28 +288,28 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
               <div class="ticket__fields">
                 <label class="field" data-invalid={erros.nome ? '' : undefined}>
                   <span class="field__label">Nome</span>
-                  <input id="rf-nome" class="field__input" autocomplete="name" value={dados.nome} onInput={mudarDado('nome')} aria-invalid={!!erros.nome} aria-describedby={erros.nome ? 'rf-nome-erro' : undefined} />
-                  <span class="field__error" id="rf-nome-erro">{erros.nome}</span>
+                  <input id={`${px}-nome`} class="field__input" autocomplete="name" value={dados.nome} onInput={mudarDado('nome')} aria-invalid={!!erros.nome} aria-describedby={erros.nome ? `${px}-nome-erro` : undefined} />
+                  <span class="field__error" id={`${px}-nome-erro`}>{erros.nome}</span>
                 </label>
                 <label class="field" data-invalid={erros.telefone ? '' : undefined}>
                   <span class="field__label">WhatsApp ou telefone</span>
-                  <input id="rf-telefone" class="field__input" type="tel" inputMode="tel" autocomplete="tel-national" placeholder="(00) 00000-0000" value={dados.telefone} onInput={mudarDado('telefone')} aria-invalid={!!erros.telefone} aria-describedby={erros.telefone ? 'rf-telefone-erro' : undefined} />
-                  <span class="field__error" id="rf-telefone-erro">{erros.telefone}</span>
+                  <input id={`${px}-telefone`} class="field__input" type="tel" inputMode="tel" autocomplete="tel-national" placeholder="(00) 00000-0000" value={dados.telefone} onInput={mudarDado('telefone')} aria-invalid={!!erros.telefone} aria-describedby={erros.telefone ? `${px}-telefone-erro` : undefined} />
+                  <span class="field__error" id={`${px}-telefone-erro`}>{erros.telefone}</span>
                 </label>
                 <label class="field" data-invalid={erros.email ? '' : undefined}>
                   <span class="field__label">E-mail {!cfg.exigeEmail && <small>(opcional)</small>}</span>
-                  <input id="rf-email" class="field__input" type="email" inputMode="email" autocomplete="email" value={dados.email} onInput={mudarDado('email')} aria-invalid={!!erros.email} aria-describedby={erros.email ? 'rf-email-erro' : undefined} />
-                  <span class="field__error" id="rf-email-erro">{erros.email}</span>
+                  <input id={`${px}-email`} class="field__input" type="email" inputMode="email" autocomplete="email" value={dados.email} onInput={mudarDado('email')} aria-invalid={!!erros.email} aria-describedby={erros.email ? `${px}-email-erro` : undefined} />
+                  <span class="field__error" id={`${px}-email-erro`}>{erros.email}</span>
                 </label>
                 <label class="field">
                   <span class="field__label">Observações <small>(opcional)</small></span>
-                  <textarea id="rf-observacoes" class="field__input" rows={3} maxLength={300} value={dados.observacoes} onInput={mudarDado('observacoes')} placeholder="Aniversário, cadeirinha, restrição alimentar…" />
+                  <textarea id={`${px}-observacoes`} class="field__input" rows={3} maxLength={300} value={dados.observacoes} onInput={mudarDado('observacoes')} placeholder="Aniversário, cadeirinha, restrição alimentar…" />
                 </label>
                 <label class="check" data-invalid={erros.consentimento ? '' : undefined}>
-                  <input id="rf-consentimento" type="checkbox" checked={dados.consentimento} onChange={mudarDado('consentimento')} aria-invalid={!!erros.consentimento} aria-describedby="rf-consentimento-erro" />
+                  <input id={`${px}-consentimento`} type="checkbox" checked={dados.consentimento} onChange={mudarDado('consentimento')} aria-invalid={!!erros.consentimento} aria-describedby={`${px}-consentimento-erro`} />
                   <span>Concordo com o uso dos meus dados para esta reserva, conforme a <a href={privacidadeUrl}>política de privacidade</a>.</span>
                 </label>
-                {erros.consentimento && <span class="field__error" id="rf-consentimento-erro" style="display:block">{erros.consentimento}</span>}
+                {erros.consentimento && <span class="field__error field__error--block" id={`${px}-consentimento-erro`}>{erros.consentimento}</span>}
               </div>
             </fieldset>
           )}
@@ -322,7 +346,7 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
         </>
       )}
 
-      <p class="ticket__note" id="ticket-note">
+      <p class="ticket__note" id={nota}>
         {modo === 'indisponivel' && 'As reservas pelo site ainda não estão ativas. Nada é enviado.'}
         {modo === 'simulado' && 'Simulação: nenhum dado sai deste navegador.'}
         {modo === 'api' && etapa === 'escolha' && 'Você confere tudo antes de confirmar.'}

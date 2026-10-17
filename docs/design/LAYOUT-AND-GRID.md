@@ -3,6 +3,8 @@
 > Fonte da verdade: `src/styles/tokens.css` (§4–7, 10–11) e `src/styles/sections/*.css`. Medidas calculadas no site (Chromium).
 > Parte do [design system](DESIGN-SYSTEM.md).
 
+> **Atualização 2026-10-16 (implementação):** tokens agora em `src/styles/tokens/layout.css` (`--container-*`, `--z-*`, `--rhythm-novo-*`) e escala `--s-*`. **Tablet 600–959 desenhado** (D16): `--gutter` 32 px, mega título até 150 px, quadro da Mesa e bandejas em até 560 px, vídeos em 38%, Escolha o clima e Visite em duas colunas, CTA fixo de 340 px à direita. Nota de foto antiga com 12 px abaixo de 375 px (I-17).
+
 ## 1. Princípio: mobile é o produto
 
 O desenho nasce em **390 × 844** e é validado em 360, 375, 430 (e telas baixas de 640–700 px). Desktop (≥ 960 px) reaproveita o layout de desktop do protótipo. **Tablet (600–959 px) ainda não foi desenhado** — hoje é o mobile ampliado (auditoria I-16).
@@ -89,7 +91,8 @@ Padrão: **passos de 2 px até 18**, depois **22, 26, 30, 34, 40, 44**. A escala
 | Condição | Tipo | O que muda |
 | --- | --- | --- |
 | *(base)* | mobile | tudo |
-| `max-width: 374px` | ajuste | botão do hero com padding 18 px; nota de foto antiga 11,5 px |
+| `max-width: 374px` | ajuste | botão do hero com padding 18 px; nota de foto antiga 12 px (I-17) |
+| `600px` – `959px` | tablet (D16) | margem 32; mega até 150; colagens contidas; clima e Visite em 2 colunas; CTA de 340 px |
 | `max-height: 700px and max-width: 959px` | ajuste de altura | respiros do hero: 22 → 16 (topo), 22 → 14 (título), 14 → 10 (colagem e rodapé do hero) |
 | `min-width: 960px` | **layout** | desktop: gutter 56 px, grids, containers, CTA no canto, folha lateral |
 | Altura em `svh` | fluido | título do hero (`11svh`), etiqueta (`40svh`) e altura da colagem respondem à altura da tela |

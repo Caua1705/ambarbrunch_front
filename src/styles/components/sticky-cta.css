@@ -4,16 +4,16 @@
 .sticky-cta {
   position: fixed; z-index: var(--z-dock);
   left: 12px; right: 12px; bottom: max(12px, env(safe-area-inset-bottom));
-  display: flex; align-items: center; gap: 12px;
-  min-height: 58px; padding: 0 12px 0 16px;
+  display: flex; align-items: center; gap: var(--s-12);
+  min-height: 58px; padding: 0 var(--s-12) 0 var(--s-16);
   border-radius: var(--radius-l);
   background: var(--butter); color: var(--wine);
-  font: var(--t-button-l); font-variation-settings: var(--wdth-button); font-stretch: var(--stretch-button);
+  font: var(--t-button-l); font-variation-settings: var(--fvs-text); font-stretch: var(--stretch-button);
   text-transform: uppercase; letter-spacing: var(--track-caps); text-decoration: none;
   box-shadow: var(--shadow-offset), var(--shadow-float);
   transform: translateY(150%) rotate(-2deg);
   opacity: 0;
-  transition: transform .5s var(--ease), opacity .3s;
+  transition: transform var(--dur-cta-in) var(--ease), opacity var(--dur-cta-fade);
 }
 .sticky-cta svg { width: 28px; fill: none; stroke: var(--wine); stroke-width: 18; stroke-linecap: round; }
 .sticky-cta span:first-of-type { flex: 1; }
@@ -25,6 +25,11 @@
 .has-dock .sticky-cta { left: 80px; }
 /* Saída mais rápida que a entrada (MOTION.md). */
 .sticky-cta:not(.is-visible) { pointer-events: none; transition-duration: var(--dur-s), var(--dur-s); transition-timing-function: var(--ease-in), linear; }
+
+/* Tablet: menu à esquerda, CTA de 340 px à direita (antes, uma barra de 676 px) */
+@media (min-width: 600px) and (max-width: 959px) {
+  .sticky-cta, .has-dock .sticky-cta { left: auto; right: 12px; width: 340px; }
+}
 
 @media (min-width: 960px) {
   .sticky-cta { left: auto; right: 32px; bottom: 28px; width: 320px; }

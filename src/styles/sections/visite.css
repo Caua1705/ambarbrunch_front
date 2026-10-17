@@ -7,42 +7,39 @@
   background: var(--cacao); color: var(--cream);
   overflow: hidden;
 }
-.visite::before {
-  content: ""; position: absolute; inset: 0; z-index: -1;
-  background: var(--grain); opacity: var(--grain-opacity); mix-blend-mode: soft-light; pointer-events: none;
-}
-.visite { --focus-ring: var(--butter); }
+/* grão e anel de foco manteiga: base.css (mesma regra das outras superfícies escuras) */
 
 .placa {
   position: relative;
-  width: min(100%, 340px); margin: 34px auto 0;
+  width: min(100%, 340px); margin: var(--s-34) auto 0;
   rotate: -2deg; filter: var(--drop-label);
 }
-.placa .label { width: 100%; padding: 26px 24px 34px; color: var(--ink); }
+.placa .label { width: 100%; padding: var(--s-26) var(--s-24) var(--s-34); color: var(--ink); }
 .placa__kicker { font: var(--t-legend); letter-spacing: var(--track-legend); text-transform: uppercase; color: var(--caramel-dk); }
-.placa__addr { margin-top: 10px; font: 800 26px/1.02 var(--display); font-variation-settings: var(--wdth-tag); font-stretch: var(--stretch-tag); text-transform: uppercase; color: var(--wine); }
-.placa__city { margin-top: 8px; font: var(--t-caption); color: var(--ink); }
-.placa__pin { position: absolute; z-index: 2; left: 50%; top: -14px; translate: -50% 0; width: 30px; height: 30px; border-radius: 50%; background: var(--berry); box-shadow: inset -4px -4px 0 rgba(0, 0, 0, .18), 0 6px 10px -4px rgba(0, 0, 0, .5); }
-.placa .pending { margin-top: 8px; }
+.placa__addr { margin-top: var(--s-10); font: var(--t-address); font-variation-settings: var(--fvs-text); font-stretch: var(--stretch-tag); text-transform: uppercase; color: var(--wine); }
+.placa__city { margin-top: var(--s-8); font: var(--t-caption); color: var(--ink); }
+.placa__pin { position: absolute; z-index: var(--z-2); left: 50%; top: -14px; translate: -50% 0; width: 30px; height: 30px; border-radius: var(--radius-round); background: var(--berry); box-shadow: var(--shadow-pin); }
+.placa .pending { margin-top: var(--s-8); }
 
-.horarios { margin-top: 26px; rotate: 1.5deg; }
-.horarios .ticket { padding: 26px 24px 22px; gap: 12px; }
-.horarios__row { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 2px dashed var(--rule); font: 700 16px/1.2 var(--display); }
+.horarios { margin-top: var(--s-26); rotate: 1.5deg; }
+.horarios .ticket { padding: var(--s-26) var(--s-24) var(--s-22); gap: var(--s-12); }
+.horarios__row { display: flex; justify-content: space-between; gap: var(--s-12); padding: var(--s-10) 0; border-bottom: var(--border-control) dashed var(--rule); font: var(--t-review); line-height: 1.2; }
 .horarios__row:last-child { border-bottom: 0; }
 .horarios__row span:last-child { font-variant-numeric: tabular-nums; color: var(--wine); }
 
-.visite__actions { display: grid; gap: 12px; margin-top: 30px; }
-.visite__links { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
+.visite__actions { display: grid; gap: var(--s-12); margin-top: var(--s-30); }
+.visite__links { display: flex; flex-wrap: wrap; gap: var(--s-10); margin-top: 4px; }
 .pill-link {
-  display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 16px;
-  border: 2px solid currentColor; border-radius: var(--radius-pill);
+  display: inline-flex; align-items: center; gap: var(--s-6); min-height: 44px; padding: 0 var(--s-16);
+  border: var(--border-control) solid currentColor; border-radius: var(--radius-pill);
   color: var(--butter); text-decoration: none;
   font: var(--t-pill); letter-spacing: var(--track-caps); text-transform: uppercase;
 }
 .pill-link[aria-disabled="true"] { border-style: dashed; opacity: .6; pointer-events: none; }
 
-@media (min-width: 960px) {
-  .visite > * { max-width: 980px; margin-inline: auto; }
-  .visite__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: start; }
+/* a partir do tablet: placa e horários lado a lado; ações em linha */
+@media (min-width: 600px) {
+  .visite > * { max-width: var(--container-m); margin-inline: auto; }
+  .visite__grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-40); align-items: start; }
   .visite__actions { grid-template-columns: auto auto; justify-content: start; }
 }

@@ -1,10 +1,10 @@
 /* RODAPÉ. Origem: .footer do v1. O padding inferior (130 px) reserva o espaço da doca fixa. */
 
-.footer { padding: 64px var(--gutter) 130px; text-align: center; background: var(--cream); }
+.footer { padding: 64px var(--gutter) var(--footer-dock-space); text-align: center; background: var(--cream); }
 .footer__logo { width: 240px; margin: 0 auto; }
-.footer__sig { display: inline-flex; align-items: center; gap: 8px; margin-top: 16px; font: var(--t-sig); color: var(--cacao); }
+.footer__sig { display: inline-flex; align-items: center; gap: var(--s-8); margin-top: var(--s-16); font: var(--t-sig); color: var(--cacao); }
 .footer__sig img { width: 56px; }
-.footer__info { margin-top: 16px; font-size: var(--fs-small); color: var(--text-muted); }
-.footer__tools { display: flex; justify-content: center; margin-top: 22px; color: var(--cacao); }
-.footer__links { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 18px; font: var(--t-pill); letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--wine); }
+.footer__info { margin-top: var(--s-16); font-size: var(--fs-small); color: var(--text-muted); }
+.footer__tools { display: flex; justify-content: center; margin-top: var(--s-22); color: var(--cacao); }
+.footer__links { display: flex; align-items: center; justify-content: center; gap: var(--s-10); margin-top: var(--s-18); font: var(--t-pill); letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--wine); }
 .footer__links a { min-height: 44px; display: inline-flex; align-items: center; }

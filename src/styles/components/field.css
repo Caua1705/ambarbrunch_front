@@ -2,26 +2,26 @@
    papel glacê, contorno tinta de 2 px, raio 14, rótulo no estilo das legendas da comanda.
    Texto do campo em 16 px (evita o zoom automático do iOS). */
 
-.field { display: grid; gap: 8px; }
+.field { display: grid; gap: var(--s-8); }
 .field__label { font: var(--t-legend); letter-spacing: var(--track-legend); text-transform: uppercase; color: var(--caramel-dk); }
 .field__label small { font: var(--t-chip-small); letter-spacing: 0; text-transform: none; color: var(--text-muted); }
 .field__input {
-  width: 100%; min-height: 52px; padding: 0 14px;
+  width: 100%; min-height: 52px; padding: 0 var(--s-14);
   border: var(--border-control) solid var(--ink); border-radius: var(--radius-control);
   background: var(--glaze); color: var(--ink);
-  font: 700 16px/1.2 var(--display);
+  font: var(--t-input);
   transition: box-shadow var(--dur-xs), translate var(--dur-xs);
 }
-textarea.field__input { min-height: 96px; padding: 12px 14px; font-weight: 400; line-height: 1.4; resize: vertical; }
+textarea.field__input { min-height: 96px; padding: var(--s-12) var(--s-14); font-weight: 400; line-height: 1.4; resize: vertical; }
 .field__input::placeholder { color: var(--text-muted); font-weight: 400; }
 .field__input:focus-visible { outline-offset: 2px; box-shadow: var(--shadow-offset-s); translate: -1px -1px; }
 .field__hint { font-size: var(--fs-fine); color: var(--text-muted); }
-.field__error { display: none; font: 700 13px/1.3 var(--display); color: var(--wine); }
-.field[data-invalid] .field__input { border-color: var(--wine); box-shadow: inset 0 0 0 1px var(--wine); }
-.field[data-invalid] .field__error { display: block; }
+.field__error { display: none; font: var(--t-error); color: var(--wine); }
+.field[data-invalid] .field__input { border-color: var(--wine); box-shadow: var(--ring-invalid); }
+.field[data-invalid] .field__error, .field__error--block { display: block; }
 
 /* Consentimento (LGPD): caixa própria, alvo de toque de 44 px */
-.check { display: grid; grid-template-columns: 26px 1fr; gap: 12px; align-items: start; min-height: 44px; font-size: 14px; line-height: 1.4; color: var(--text-soft); cursor: pointer; }
-.check input { appearance: none; width: 26px; height: 26px; margin: 0; border: var(--border-control) solid var(--ink); border-radius: 8px; background: var(--glaze); display: grid; place-items: center; cursor: pointer; }
+.check { display: grid; grid-template-columns: 26px 1fr; gap: var(--s-12); align-items: start; min-height: 44px; font: var(--t-body-s); color: var(--text-soft); cursor: pointer; }
+.check input { appearance: none; width: 26px; height: 26px; margin: 0; border: var(--border-control) solid var(--ink); border-radius: var(--radius-xs); background: var(--glaze); display: grid; place-items: center; cursor: pointer; }
 .check input:checked { background: var(--wine); border-color: var(--wine); box-shadow: var(--shadow-offset-xs); }
-.check input:checked::after { content: "✓"; color: var(--butter); font: 800 16px/1 var(--display); }
+.check input:checked::after { content: "✓"; color: var(--butter); font: var(--t-button); }

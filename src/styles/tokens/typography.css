@@ -1,0 +1,85 @@
+/* Âmbar Brunch — tokens · TIPOGRAFIA: papéis (shorthand `font`), eixos da fonte variável, tamanhos soltos e tracking.
+   Referência: docs/design/TYPOGRAPHY.md. Componentes usam SÓ estes papéis; as únicas exceções são as fórmulas de palco em --u
+   (legenda da polaroide, notas do quadro) e o título do hero, que se ajusta pela altura da tela (sections/hero.css). */
+
+:root {
+  /* Eixos da Bricolage (variável em largura). A LARGURA vai em font-stretch (eixo wdth padrão):
+     com "wdth" em font-variation-settings o WebKit muda o desenho, mas não o avanço dos glifos (letras encavaladas).
+     font-variation-settings fica só com o tamanho óptico dos títulos. */
+  --fvs-display: "opsz" 96;   /* mega títulos, hero, itens do menu */
+  --fvs-text: normal;
+  --stretch-mega: 75%;
+  --stretch-tag: 78%;
+  --stretch-ticker: 80%;
+  --stretch-band: 82%;
+  --stretch-button: 85%;
+  --stretch-body: 100%;
+
+  /* Bricolage Grotesque ---------------------------------------------------------------------- */
+  --t-hero: 800 clamp(70px, 21.5vw, 168px)/.8 var(--display);
+  --t-mega: 800 clamp(78px, 25vw, 200px)/.8 var(--display);   /* 97,5 px em 390 · 150 no tablet · 200 no desktop */
+  --t-menu-item: 800 44px/.9 var(--display);         /* itens da folha do menu */
+  --t-numeral: 800 32px/1 var(--display);
+  --t-tagline: 800 30px/1 var(--display);
+  --t-ticket-title: 800 30px/.9 var(--display);
+  --t-address: 800 26px/1.02 var(--display);         /* placa de endereço */
+  --t-ticker: 800 25px/1 var(--display);
+  --t-step-key: 700 22px/1 var(--display);           /* − e + do stepper */
+  --t-band: 800 17px/1 var(--display);
+  --t-button-l: 800 17px/1 var(--display);
+  --t-button: 800 16px/1 var(--display);
+  --t-input: 700 16px/1.2 var(--display);            /* texto digitado nos campos (16 px: sem zoom no iOS) */
+  --t-review: 700 16px/1.3 var(--display);           /* valores da revisão da reserva */
+  --t-chip: 700 15px/1 var(--display);
+  --t-link: 700 14px/1 var(--display);               /* links de texto sublinhados em caixa alta */
+  --t-status: 700 14px/1.35 var(--display);          /* mensagens dentro da comanda */
+  --t-pill: 700 13px/1 var(--display);
+  --t-error: 700 13px/1.3 var(--display);
+  --t-legend: 700 12.5px/1 var(--display);
+  --t-credit: 700 12.5px/1.25 var(--display);        /* crédito do vídeo */
+  --t-sim: 800 12.5px/1.35 var(--display);           /* aviso de simulação (só testes) */
+  --t-body: 400 16px/1.5 var(--display);
+  --t-prose: 400 16px/1.55 var(--display);           /* páginas de texto (privacidade) */
+  --t-body-s: 400 14px/1.4 var(--display);           /* consentimento */
+  --t-review-tag: 700 12px/1.2 var(--display);       /* marcador “a confirmar” (só revisão) */
+  --t-review-key: 800 10.5px/1.2 var(--display);
+  --t-review-flag: 800 10px/1 var(--display);
+
+  /* tamanhos soltos (texto corrido com a família e o peso herdados) */
+  --fs-lead: 17px;
+  --fs-slots: 14px;
+  --fs-small: 13px;
+  --fs-fine: 12.5px;
+  --fs-micro: 12px;       /* mínimo para texto informativo */
+
+  /* Fraunces itálica (voz manuscrita) ------------------------------------------------------------ */
+  --t-hero-amp: italic 500 .78em/1 var(--serif);     /* o “&” do hero, relativo ao título */
+  --t-scribble: italic 500 24px/1.1 var(--serif);
+  --t-call: italic 500 22px/1.05 var(--serif);       /* chamada final da Roll */
+  --t-kicker: italic 500 22px/1 var(--serif);
+  --t-note: italic 500 19px/1.05 var(--serif);
+  --t-caption-l: italic 500 17px/1 var(--serif);
+  --t-caption: italic 500 16px/1 var(--serif);
+  --t-stamp-l: italic 600 16px/1.05 var(--serif);    /* carimbo grande (Novo capítulo) */
+  --t-tag: italic 500 15px/1 var(--serif);
+  --t-stamp: italic 600 15px/1 var(--serif);
+  --t-sig: italic 500 14px/1 var(--serif);
+  --t-stamp-s: italic 600 12.5px/1.05 var(--serif);  /* carimbo de duas linhas (erro) */
+  --t-fine-serif: italic 400 12.5px/1.25 var(--serif);
+  --t-chip-small: italic 500 12px/1 var(--serif);
+
+  /* Tracking ------------------------------------------------------------------------------------ */
+  --track-mega: -.02em;
+  --track-hero: -.015em;
+  --track-tight-caps: .02em;  /* faixa, pílulas do cardápio, selo, crédito */
+  --track-caps: .04em;
+  --track-code: .06em;        /* código da reserva */
+  --track-review-key: .08em;
+  --track-review-flag: .12em;
+  --track-legend: .14em;
+}
+
+/* tablet: o mega título para em 150 px (em 768 px chegava a 192 px e engolia a página) */
+@media (min-width: 600px) and (max-width: 959px) {
+  :root { --t-mega: 800 min(25vw, 150px)/.8 var(--display); }
+}

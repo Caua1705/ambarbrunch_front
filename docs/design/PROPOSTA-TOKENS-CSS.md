@@ -1,6 +1,9 @@
 # Proposta — centralização dos tokens em CSS
 
-> **Situação:** proposta, **não implementada**. Nenhum CSS foi alterado. A refatoração começa só com a sua autorização.
+> **Situação: implementada em 2026-10-16**, com 0 px de diferença (ver [auditoria §7](AUDITORIA-DESIGN-SYSTEM.md)). Diferenças em relação a esta proposta:
+> a escala ganhou `--s-24` (usado 6×); entraram também `--t-call`, `--t-stamp-l`, `--t-stamp-s`, `--t-sim`, `--t-prose`, `--t-body-s`, `--t-hero-amp`,
+> os papéis de revisão, `--track-code`, `--radius-track`, `--shadow-pin`, `--black`, `--footer-dock-space` e os atrasos de revelação;
+> não foi preciso alias para `--wdth-*` (a troca foi feita de uma vez). Há uma camada extra, `docs`, para a página `/design-system/`.
 > Base: [`AUDITORIA-DESIGN-SYSTEM.md`](AUDITORIA-DESIGN-SYSTEM.md). Parte do [design system](DESIGN-SYSTEM.md).
 
 ## 1. Objetivo e garantia

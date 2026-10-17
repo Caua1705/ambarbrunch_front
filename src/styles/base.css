@@ -7,7 +7,7 @@ body {
   background: var(--cream);
   color: var(--text);
   font: var(--t-body);
-  font-variation-settings: var(--wdth-body); font-stretch: var(--stretch-body);
+  font-variation-settings: var(--fvs-text); font-stretch: var(--stretch-body);
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
 }
@@ -21,14 +21,14 @@ ul, ol { padding: 0; list-style: none; }
 
 /* Foco: vinho em superfícies claras, manteiga nas escuras (o caramelo do v1 dava 2,19:1 sobre manteiga). */
 :focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 3px; border-radius: var(--radius-2xs); }
-.surface-dark, .hero, .ticker, .roll, .reserva { --focus-ring: var(--butter); }
+.surface-dark, .hero, .ticker, .roll, .reserva, .visite { --focus-ring: var(--butter); }
 .surface-light, .ticket, .sheet { --focus-ring: var(--wine); }
 /* destinos de âncora e do menu recebem foco por script (tabindex=-1): sem anel na seção inteira */
 [tabindex="-1"]:focus { outline: none; }
 
-/* Grão de papel sobre as superfícies escuras (hero, Roll, reserva). */
-.surface-grain, .hero, .roll, .reserva { position: relative; isolation: isolate; }
-:is(.surface-grain, .hero, .roll, .reserva)::before {
+/* Grão de papel sobre as superfícies escuras (hero, Roll, reserva, Visite). */
+.surface-grain, .hero, .roll, .reserva, .visite { position: relative; isolation: isolate; }
+:is(.surface-grain, .hero, .roll, .reserva, .visite)::before {
   content: ""; position: absolute; inset: 0; z-index: -1;
   background: var(--grain); opacity: var(--grain-opacity); mix-blend-mode: soft-light; pointer-events: none;
 }
@@ -40,7 +40,7 @@ ul, ol { padding: 0; list-style: none; }
 }
 .skip-link {
   position: fixed; z-index: calc(var(--z-sheet) + 1); left: 12px; top: 12px;
-  padding: 12px 16px; border-radius: var(--radius-control);
+  padding: var(--s-12) var(--s-16); border-radius: var(--radius-control);
   background: var(--butter); color: var(--wine); box-shadow: var(--shadow-offset);
   font: var(--t-pill); letter-spacing: var(--track-caps); text-transform: uppercase; text-decoration: none;
 }

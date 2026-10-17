@@ -1,6 +1,8 @@
 # Cores e tokens — Fornada Âmbar
 
-> Fonte da verdade: [`src/styles/tokens.css`](../../src/styles/tokens.css). Contrastes calculados pela fórmula WCAG 2.2.
+> Fonte da verdade: [`src/styles/tokens/`](../../src/styles/tokens/) (índice em `tokens.css`). Contrastes calculados pela fórmula WCAG 2.2.
+> **Atualização 2026-10-16 (implementação):** os tokens foram centralizados (201, em 5 arquivos) e as tabelas de inventário abaixo descrevem o estado ANTES da refatoração; o inventário vivo, com valores calculados e contraste, está na página `/design-system/` (seções Cores, Tipografia, Espaço). Mudanças de valor: `--overlay-ink` 72% → 80% (I-19); botão indisponível sem opacidade (I-18).
+
 > Parte do [design system](DESIGN-SYSTEM.md). Proposta de centralização: [`PROPOSTA-TOKENS-CSS.md`](PROPOSTA-TOKENS-CSS.md).
 
 ## 1. Paleta

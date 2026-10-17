@@ -5,20 +5,20 @@
 .panel--day img { clip-path: polygon(0 0, 100% 0, 100% 84%, 0 100%); border-radius: var(--radius-xl) var(--radius-xl) 0 0; }
 .panel--amber { margin-top: -16%; }
 .panel--amber img { clip-path: polygon(0 16%, 100% 0, 100% 100%, 0 100%); border-radius: 0 0 var(--radius-xl) var(--radius-xl); }
-.panel figcaption { position: absolute; left: 16px; display: grid; gap: 10px; justify-items: start; }
+.panel figcaption { position: absolute; left: 16px; display: grid; gap: var(--s-10); justify-items: start; }
 .panel--day figcaption { top: 18px; }
 .panel--amber figcaption { bottom: 18px; }
 
 .tagline {
-  padding: 8px 14px 6px;
+  padding: var(--s-8) var(--s-14) var(--s-6);
   background: var(--wine); color: var(--butter);
-  font: var(--t-tagline); font-variation-settings: var(--wdth-tag); font-stretch: var(--stretch-tag);
+  font: var(--t-tagline); font-variation-settings: var(--fvs-text); font-stretch: var(--stretch-tag);
   text-transform: uppercase;
   rotate: -2deg;
 }
 .panel--amber .tagline { background: var(--cream); color: var(--wine); }
 .panel a {
-  padding: 9px 14px; border-radius: var(--radius-pill);
+  padding: 9px var(--s-14); border-radius: var(--radius-pill);
   background: var(--glaze); color: var(--wine);
   font: var(--t-pill); text-decoration: none; text-transform: uppercase; letter-spacing: var(--track-caps);
 }

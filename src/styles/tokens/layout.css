@@ -1,0 +1,52 @@
+/* Âmbar Brunch — tokens · LAYOUT: margem, containers, ritmo das seções, camadas e palcos de colagem.
+   Referência: docs/design/LAYOUT-AND-GRID.md. Breakpoints (não há variável em media query):
+   base = mobile (desenho em 390) · ≤374 ajuste fino · altura ≤700 telas baixas · 600–959 tablet · ≥960 desktop. */
+
+:root {
+  --gutter: 16px;
+
+  /* Containers do desktop (≥ 960 px) */
+  --container-s: 900px;    /* bandejas da Roll */
+  --container-m: 980px;    /* quadro, faixas, reserva, Novo capítulo, Visite */
+  --container-l: 1100px;   /* ambientes */
+  --container-xl: 1240px;  /* Mesa cheia, cabeçalho da Roll */
+
+  /* Ritmo vertical das seções: a base é sempre o topo + 8 px */
+  --rhythm-a: 76px;   /* mesa */
+  --rhythm-b: 84px;   /* climas */
+  --rhythm-c: 88px;   /* roll, visite */
+  --rhythm-d: 92px;   /* reserva */
+  --rhythm-tail: 8px;
+  /* exceção documentada: o Novo capítulo abre com 132 px para o carimbo e fecha com 94 px sobre a borda recortada */
+  --rhythm-novo-top: 132px;
+  --rhythm-novo-bottom: calc(var(--rhythm-a) + 18px);
+  --footer-dock-space: 130px;   /* base do rodapé: espaço da doca fixa */
+
+  /* Camadas ---------------------------------------------------------------------------------- */
+  /* papel sobre papel, dentro de um palco (foto grande → pequena → selo → texto) */
+  --z-1: 1;
+  --z-2: 2;
+  --z-3: 3;
+  --z-4: 4;
+  --z-5: 5;
+  --z-6: 6;
+  /* globais */
+  --z-strip: 3;     /* faixa inclinada sobre o hero */
+  --z-dock: 50;     /* doca (menu + CTA fixo) */
+  --z-sheet: 60;    /* folha do menu */
+
+  /* Unidade do protótipo ----------------------------------------------------------------------
+     As colagens foram desenhadas em 390 px. Cada palco declara `--u` = 1 px do protótipo,
+     calculado com unidades de contêiner. Em 390 px, --u = 1px. */
+  --stage-hero-w: 358;   /* largura da colagem do hero em 390 px */
+  --stage-hero-h: 330;
+  --stage-board-w: 358;  /* largura do quadro da Mesa em 390 px */
+}
+
+/* tablet (600–959): margem maior; o desenho continua o do mobile, com composições contidas */
+@media (min-width: 600px) {
+  :root { --gutter: 32px; }
+}
+@media (min-width: 960px) {
+  :root { --gutter: 56px; }
+}

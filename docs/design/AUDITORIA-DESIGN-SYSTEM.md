@@ -96,3 +96,35 @@ Numeradas para referência na refatoração. **Nenhuma muda o visual se corrigid
 - **Medição:** Playwright abre o site (build de revisão) em 360×740, 390×844, 430×932, 768×1024 e 1440×900 e lê `getComputedStyle` de 41 papéis tipográficos e das 9 seções.
 - **Contraste:** fórmula WCAG 2.2 sobre os HEX dos tokens (e misturas, para cores com transparência).
 - Os scripts ficaram fora do repositório (foram ferramentas desta auditoria); a proposta da página de documentação ([`PROPOSTA-PAGINA-DOCUMENTACAO.md`](PROPOSTA-PAGINA-DOCUMENTACAO.md)) inclui transformar essa leitura num teste permanente.
+
+## 7. Situação após a implementação (2026-10-16)
+
+| # | Situação | Como |
+| --- | --- | --- |
+| I-01 | resolvido | escala real `--s-6` … `--s-44` (inclui 24, que aparece 6×); 134 espaçamentos trocados; `--space-*` removidos |
+| I-02 | resolvido | `--text-on-dark`, `--border-tile`, `--dur-xl` removidos; o teste de contrato falha se um token ficar sem uso |
+| I-03 | resolvido | `--wdth-*` → `--fvs-display` / `--fvs-text` |
+| I-04, I-05 | resolvido | 19 papéis tipográficos e 4 trackings novos, com os mesmos valores |
+| I-06 a I-08 | resolvido | `--overlay-ink(-soft)`, `--track-light`, `--sim-stripe`, `--media-bg`, `--radius-round`, `--radius-track`, `--ring-media`, `--ring-invalid`, `--shadow-offset-l`, `--shadow-pin` |
+| I-09 | resolvido | durações nomeadas e a coreografia do hero em `--hero-t-*` |
+| I-10, I-12 | resolvido | `--z-1…6`; `--container-s/m/l/xl` |
+| I-11 | resolvido | `.visite` usa o grão e o anel de foco de `base.css` |
+| I-13 | resolvido | classes `.ticket__slots--after` e `.field__error--block` |
+| I-14 | resolvido | comentário corrigido (18°) |
+| I-15 | resolvido (documentado) | exceção do Novo capítulo em tokens: `--rhythm-novo-top` (132) e `--rhythm-novo-bottom` (94) |
+| I-16 | resolvido | tablet 600–959 (desvio D16); mobile e desktop sem mudança |
+| I-17 | resolvido | nota de foto antiga e legenda da polaroide com mínimo de 12 px (`--fs-micro`) |
+| I-18 | resolvido | botão indisponível tracejado, texto vinho sobre creme 11:1 (antes 3,15:1) |
+| I-19 | resolvido | faixa do crédito a 80%: pior caso 5,08:1 (antes 3,81:1) |
+| I-20 | resolvido | `@font-face` de reserva com `size-adjust` e métricas medidas (Arial/Roboto e Georgia) |
+| I-21 | resolvido | v1.0 marcada como histórico |
+| I-22 | resolvido | componentes de revisão separados; a página `/design-system/` os rotula como “só revisão” |
+
+**Verificação.** Referência capturada antes da refatoração (`scripts/regressao-visual.mjs`): página inteira de `/`, `/reservar/` e
+`/privacidade/` em 360, 375, 390, 430, 768 e 1440 px, Chromium e WebKit, mais estilos calculados de todos os elementos e os estados da
+interface (`scripts/shots-estados.mjs`). Duas capturas seguidas dão 0 px (determinístico).
+- Refatoração (tokens, camadas, componentes `Seta`, `Faiscas`, `Ticker`, ilha): **0 px e 0 estilos diferentes** em todas as 36 capturas.
+- Correções I-16 a I-20: mudam **só** a faixa do crédito, o botão indisponível, a nota de 12 px (360 px), a legenda da polaroide (375 × 667),
+  o tablet (768) e o nome das famílias (fontes de reserva).
+- Fidelidade ao protótipo v1: 7/7 (o teste ignora os nomes das fontes de reserva, que não mudam a fonte renderizada).
+- Contrato dos tokens (`tests/tokens.spec.ts`): sem cor, tamanho de fonte ou duração literal fora de `tokens/`; todo token usado.

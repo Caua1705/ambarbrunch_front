@@ -1,40 +1,43 @@
-/* Âmbar Brunch — Design System · ponto de entrada (ordem = cascata do v1).
-   No Astro, cada componente importa o seu arquivo; este índice serve às páginas de demonstração. */
+/* Âmbar Brunch — Design System · ponto de entrada (ordem = cascata do v1), importado por src/layouts/Base.astro.
+   Camadas de cascata na mesma ordem dos imports: a ordem efetiva não muda, mas fica explícita e protegida contra
+   regras fora de lugar. Estilos de páginas internas de documentação entram numa camada própria, depois de todas. */
 
-@import url("tokens.css");
-@import url("base.css");
+@layer tokens, base, components, sections, motion, docs;
 
-@import url("components/mega.css");
-@import url("components/button.css");
-@import url("components/label.css");
-@import url("components/cut.css");
-@import url("components/sticker.css");
-@import url("components/ornament.css");
-@import url("components/ticker.css");
-@import url("components/framed.css");
-@import url("components/note.css");
-@import url("components/bands.css");
-@import url("components/story.css");
-@import url("components/panel.css");
-@import url("components/bubble.css");
-@import url("components/notice.css");
-@import url("components/ticket.css");
-@import url("components/chips.css");
-@import url("components/field.css");
-@import url("components/sticky-cta.css");
-@import url("components/menu.css");
-@import url("components/motion-toggle.css");
-@import url("components/pending.css");
+@import url("tokens.css") layer(tokens);
+@import url("base.css") layer(base);
 
-@import url("sections/hero.css");
-@import url("sections/novo-capitulo.css");
-@import url("sections/mesa.css");
-@import url("sections/roll.css");
-@import url("sections/climas.css");
-@import url("sections/na-mesa.css");
-@import url("sections/reserva.css");
-@import url("sections/visite.css");
-@import url("sections/footer.css");
-@import url("sections/pagina.css");
+@import url("components/mega.css") layer(components);
+@import url("components/button.css") layer(components);
+@import url("components/label.css") layer(components);
+@import url("components/cut.css") layer(components);
+@import url("components/sticker.css") layer(components);
+@import url("components/ornament.css") layer(components);
+@import url("components/ticker.css") layer(components);
+@import url("components/framed.css") layer(components);
+@import url("components/note.css") layer(components);
+@import url("components/bands.css") layer(components);
+@import url("components/story.css") layer(components);
+@import url("components/panel.css") layer(components);
+@import url("components/bubble.css") layer(components);
+@import url("components/notice.css") layer(components);
+@import url("components/ticket.css") layer(components);
+@import url("components/chips.css") layer(components);
+@import url("components/field.css") layer(components);
+@import url("components/sticky-cta.css") layer(components);
+@import url("components/menu.css") layer(components);
+@import url("components/motion-toggle.css") layer(components);
+@import url("components/pending.css") layer(components);
 
-@import url("motion.css");
+@import url("sections/hero.css") layer(sections);
+@import url("sections/novo-capitulo.css") layer(sections);
+@import url("sections/mesa.css") layer(sections);
+@import url("sections/roll.css") layer(sections);
+@import url("sections/climas.css") layer(sections);
+@import url("sections/na-mesa.css") layer(sections);
+@import url("sections/reserva.css") layer(sections);
+@import url("sections/visite.css") layer(sections);
+@import url("sections/footer.css") layer(sections);
+@import url("sections/pagina.css") layer(sections);
+
+@import url("motion.css") layer(motion);

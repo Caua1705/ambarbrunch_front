@@ -1,0 +1,57 @@
+/* Âmbar Brunch — tokens · PAPÉIS: o que cada cor, sombra e textura FAZ. Componentes usam estes nomes.
+   Contrastes calculados em docs/design/COLORS-AND-TOKENS.md. */
+
+:root {
+  /* Texto ---------------------------------------------------------------------------------- */
+  --text: var(--ink);
+  --text-muted: rgba(36, 21, 15, .65);            /* 5,19:1 sobre creme */
+  --text-soft: rgba(36, 21, 15, .7);              /* 6,14:1 sobre creme */
+  --text-on-dark-muted: rgba(244, 238, 227, .86);
+  --text-on-dark-faint: rgba(244, 238, 227, .62); /* 5,80:1 sobre cacau */
+
+  /* Linhas, fita, foco, véus ------------------------------------------------------------- */
+  --rule: rgba(36, 21, 15, .18);                  /* pontilhado da comanda */
+  --notice-line: rgba(103, 13, 39, .45);          /* aviso de foto antiga */
+  --tape: rgba(243, 221, 174, .82);
+  --focus-ring: var(--wine);                      /* superfícies claras; as escuras trocam para manteiga (base.css) */
+  --scrim: rgba(36, 21, 15, .58);                 /* fundo da folha do menu */
+  --overlay-ink: rgba(36, 21, 15, .8);            /* faixa de crédito sobre vídeo: ≥ 5:1 mesmo com vídeo branco atrás */
+  --overlay-ink-soft: rgba(36, 21, 15, .62);      /* botão tocar/pausar sobre vídeo */
+  --track-light: rgba(255, 251, 244, .35);        /* trilho do progresso do vídeo */
+  --sim-stripe: rgba(168, 32, 58, .08);           /* listras do aviso de simulação (só testes) */
+  --media-bg: var(--black);                       /* vídeo antes do primeiro quadro */
+
+  /* Sombras ---------------------------------------------------------------------------------- */
+  --shadow-offset-l: 6px 6px 0 var(--cacao);      /* pulo do botão na entrada do hero */
+  --shadow-offset: 4px 4px 0 var(--cacao);        /* assinatura: botões, CTA */
+  --shadow-offset-s: 3px 3px 0 var(--cacao);      /* chip selecionado, selos de menu */
+  --shadow-offset-xs: 2px 2px 0 var(--cacao);     /* estado pressionado */
+  --shadow-photo: 0 16px 26px -14px rgba(0, 0, 0, .55);
+  --shadow-photo-deep: 0 16px 26px -14px rgba(0, 0, 0, .7);
+  --shadow-board: 0 18px 30px -18px rgba(36, 21, 15, .55);
+  --shadow-sticker: 0 10px 18px -8px rgba(0, 0, 0, .45);
+  --shadow-strip: 0 10px 20px -10px rgba(0, 0, 0, .4);
+  --shadow-float: 0 18px 30px -16px rgba(0, 0, 0, .5);
+  --shadow-tape: 0 1px 2px rgba(0, 0, 0, .08);
+  --shadow-pin: inset -4px -4px 0 rgba(0, 0, 0, .18), 0 6px 10px -4px rgba(0, 0, 0, .5);  /* pino da placa */
+  --drop-label: drop-shadow(0 14px 18px rgba(20, 4, 9, .35));
+  /* anéis (box-shadow sem desfoque): moldura do vídeo e campo inválido */
+  --ring-media: 0 0 0 4px;                        /* + cor: var(--caramel) | var(--butter) */
+  --ring-invalid: inset 0 0 0 1px var(--wine);
+
+  /* Texturas e máscaras ----------------------------------------------------------------------- */
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  --grain-opacity: .35;
+  /* borda recortada (etiqueta do logo): ondas de 20 px na base */
+  --mask-scallop:
+    linear-gradient(#000 0 0) top / 100% calc(100% - 10px) no-repeat,
+    radial-gradient(10px at 50% 0, #000 97%, #0000) 50% 100% / 20px 10px repeat-x;
+  /* a mesma borda, virada para cima (folha do menu) */
+  --mask-scallop-top:
+    linear-gradient(#000 0 0) bottom / 100% calc(100% - 10px) no-repeat,
+    radial-gradient(10px at 50% 100%, #000 97%, #0000) 50% 0 / 20px 10px repeat-x;
+  /* picote lateral (comanda): furos de 9 px a cada 28 px */
+  --mask-perforated:
+    radial-gradient(circle 9px at 0 50%, #0000 97%, #000) left / 51% 28px repeat-y,
+    radial-gradient(circle 9px at 100% 50%, #0000 97%, #000) right / 51% 28px repeat-y;
+}

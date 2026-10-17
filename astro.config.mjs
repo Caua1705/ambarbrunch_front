@@ -35,6 +35,20 @@ function podarMidiaNaoReferenciada() {
           let n = 0;
           for (const f of fs.readdirSync(assets)) if (/\.(png|jpe?g|webp|avif|mp4)$/.test(f) && !textos.includes(f)) { fs.rmSync(path.join(assets, f)); n++; }
           if (n) logger.info(`${n} imagens não referenciadas removidas de _astro/`);
+          // Scripts e folhas de estilo sem nenhuma página (ex.: os da página interna /design-system/, que não é gerada
+          // em produção): alcançáveis = citados no HTML ou em outro arquivo alcançável.
+          const codigo = fs.readdirSync(assets).filter((f) => /\.(css|js)$/.test(f));
+          const vivos = new Set(codigo.filter((f) => todo.includes(f)));
+          for (let novo = true; novo;) {
+            novo = false;
+            for (const f of [...vivos]) {
+              const txt = fs.readFileSync(path.join(assets, f), 'utf8');
+              for (const g of codigo) if (!vivos.has(g) && txt.includes(g)) { vivos.add(g); novo = true; }
+            }
+          }
+          const mortos = codigo.filter((f) => !vivos.has(f));
+          for (const f of mortos) fs.rmSync(path.join(assets, f));
+          if (mortos.length) logger.info(`${mortos.length} scripts/estilos sem página removidos de _astro/`);
         }
       },
     },

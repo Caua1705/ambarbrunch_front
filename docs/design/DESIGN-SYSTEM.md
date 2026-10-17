@@ -2,15 +2,16 @@
 
 > **Referência principal** do design system do Âmbar Brunch (Conceito B · Fornada Âmbar, aprovado em 2026-10-16).
 > **Versão:** 1.1 — formalizada a partir do **código real** do site (commit `35feae3`) e de medições no navegador, em 2026-10-16.
-> **Situação:** documentação completa + auditoria. Os tokens ainda **não** foram refatorados: a proposta aguarda autorização.
-> O visual aprovado não muda com esta documentação.
+> **Situação:** implementado. Tokens centralizados em `src/styles/tokens/` (201 tokens, 5 arquivos, camadas `@layer`), correções I-15 a I-20
+> aplicadas e página visual **`/design-system/`** (só em desenvolvimento e revisão). Refatoração verificada com 0 px de diferença; as
+> correções mudam só o que foi aprovado (tablet, textos pequenos, contraste). Detalhes: [`AUDITORIA-DESIGN-SYSTEM.md`](AUDITORIA-DESIGN-SYSTEM.md) §7.
 
 ## 1. O que é
 
 O design system descreve, com valores reais, a identidade que já está no ar no site local: **papel recortado sobre uma mesa de brunch** — etiqueta, polaroide, comanda, fita, selo e carimbo —, tipografia condensada usada como imagem, a paleta do logo (vinho e creme) aquecida por manteiga, cacau e caramelo, e um movimento discreto de objetos que assentam.
 
 **Fontes da verdade (nesta ordem):**
-1. código: `src/styles/tokens.css` → `base.css` → `components/` → `sections/` → `motion.css`; `src/components/`, `src/sections/`, `src/islands/`, `src/lib/`;
+1. código: `src/styles/tokens/` (primitivos, papéis, tipografia, layout, movimento) → `base.css` → `components/` → `sections/` → `motion.css`; `src/components/`, `src/sections/`, `src/islands/`, `src/lib/`;
 2. este conjunto de documentos;
 3. o protótipo congelado `experiments/concept-b-aprovado-v1/` (referência de fidelidade, verificada por teste automático).
 
@@ -35,8 +36,9 @@ O design system descreve, com valores reais, a identidade que já está no ar no
 | [`MOTION-SYSTEM.md`](MOTION-SYSTEM.md) | tokens, primitivas, coreografias com tempos exatos, estados, microinterações, performance, movimento reduzido |
 | [`VISUAL-GUIDELINES.md`](VISUAL-GUIDELINES.md) | logos, fotografia, proporções, sobreposição, ornamentos, texturas, materiais oficiais × reais × conceitos |
 | [`AUDITORIA-DESIGN-SYSTEM.md`](AUDITORIA-DESIGN-SYSTEM.md) | o que está implementado e o que falta padronizar (I-01 a I-22) |
-| [`PROPOSTA-TOKENS-CSS.md`](PROPOSTA-TOKENS-CSS.md) | centralização dos tokens, sem mudança visual (aguarda autorização) |
-| [`PROPOSTA-PAGINA-DOCUMENTACAO.md`](PROPOSTA-PAGINA-DOCUMENTACAO.md) | página interna para inspecionar componentes e estados (não implementada) |
+| [`PROPOSTA-TOKENS-CSS.md`](PROPOSTA-TOKENS-CSS.md) | centralização dos tokens, sem mudança visual (**implementada**) |
+| [`PROPOSTA-PAGINA-DOCUMENTACAO.md`](PROPOSTA-PAGINA-DOCUMENTACAO.md) | página interna para inspecionar componentes e estados (**implementada**: `/design-system/`) |
+| **`/design-system/`** (site local) | o design system **visual e navegável**: identidade, cores com contraste ao vivo, tipografia medida, espaço, componentes com estados, comanda em todas as etapas, colagens, animações com “rever”, movimento reduzido simulado e telas de 360 a 1440 px |
 
 Contexto e histórico (preservados): [`CONCEITO-B-APROVADO.md`](CONCEITO-B-APROVADO.md) · [`HOMEPAGE-STORYBOARD.md`](HOMEPAGE-STORYBOARD.md) · [`MOTION-PLAN.md`](MOTION-PLAN.md) (coreografia pretendida) · [`COMPONENTIZATION-PLAN.md`](COMPONENTIZATION-PLAN.md) · [`design-system/`](design-system/README.md) (v1.0 da Etapa 3). **Em caso de divergência, valem os documentos desta lista** (auditoria I-21).
 
@@ -56,7 +58,7 @@ Hero `clamp(70px, min(21.5vw, 11svh), 168px)/.8` · mega `clamp(78px, 25vw, 200p
 
 ### Forma
 
-Gutter 16 px (56 no desktop) · raios 14 (controles), 16 (botão), 18 (CTA/ladrilho), 26 (mídia), pílula · **sombra deslocada `4px 4px 0` cacau** (assinatura) · grão só no escuro · borda recortada e picote como máscaras.
+Gutter 16 px (32 no tablet, 56 no desktop) · raios 14 (controles), 16 (botão), 18 (CTA/ladrilho), 26 (mídia), pílula · **sombra deslocada `4px 4px 0` cacau** (assinatura) · grão só no escuro · borda recortada e picote como máscaras.
 
 ### Movimento
 
@@ -66,12 +68,12 @@ Gutter 16 px (56 no desktop) · raios 14 (controles), 16 (botão), 18 (CTA/ladri
 
 | Área | Implementado | A padronizar |
 | --- | --- | --- |
-| Cores | 22 tokens; todo uso em seções via token | 6 literais em componentes novos (I-06) |
-| Tipografia | 23 papéis (`--t-*`) + 5 tamanhos; eixos via `font-stretch` | 31 declarações fora dos papéis (I-04); nome legado `--wdth-*` (I-03) |
-| Espaço | gutter e ritmo de seção | escala declarada nunca usada; 125 literais (I-01) |
-| Forma | raios, sombras, máscaras | `50%` e 4 sombras literais (I-07, I-08) |
-| Movimento | 15 tokens, primitivas, reduzido e pausa | 22 durações literais (I-09) |
-| Layout | breakpoint 960, palcos `--u`, ajuste por altura | 4 containers soltos (I-12); tablet não desenhado (I-16) |
+| Cores | primitivos + papéis + overlays; nenhuma cor literal fora de `tokens/` (teste) | — |
+| Tipografia | 42 papéis (`--t-*`) + 5 tamanhos + 7 trackings; `--fvs-*` e `--stretch-*`; fontes de reserva com métricas | — |
+| Espaço | escala real `--s-6` … `--s-44` (14 passos); ritmo de seção, incluindo as exceções | espaçamentos de composição únicos ficam na seção (o teste avisa) |
+| Forma | raios (11), sombras e anéis, máscaras | — |
+| Movimento | curvas, 11 durações, intervalos, coreografia do hero em tokens; nenhuma duração literal (teste) | — |
+| Layout | containers `--container-s…xl`, camadas `--z-*`; tablet 600–959 desenhado | revisão do tablet em aparelho real |
 
 Detalhes e prioridades: [`AUDITORIA-DESIGN-SYSTEM.md`](AUDITORIA-DESIGN-SYSTEM.md).
 
@@ -86,7 +88,7 @@ Detalhes e prioridades: [`AUDITORIA-DESIGN-SYSTEM.md`](AUDITORIA-DESIGN-SYSTEM.m
 - alvo de toque ≥ 44 px; anel de foco por superfície; `aria-*`;
 - movimento: escolher uma primitiva existente; comportamento definido para movimento reduzido e pausa;
 - testes: estilos calculados (fidelidade, quando vier do v1), e2e em Chromium e WebKit, axe sem violações graves;
-- entrada nesta documentação e na página de documentação (quando existir).
+- entrada nesta documentação e na página `/design-system/` (com os estados lado a lado).
 
 ## 7. Desvios aprovados em relação ao protótipo
 
@@ -106,6 +108,9 @@ Detalhes e prioridades: [`AUDITORIA-DESIGN-SYSTEM.md`](AUDITORIA-DESIGN-SYSTEM.m
 | D12 | Largura variável via `font-stretch` | WebKit encavalava as letras |
 | D13 | Título e etiqueta do hero limitados pela altura; respiros menores abaixo de 700 px | colagem maior em telas baixas |
 | D14 | Doca inteira some na seção de reserva | o menu fixo cobria o aceite de privacidade |
+| D15 | Fontes de reserva com métricas ajustadas (`Bricolage Fallback`, `Fraunces Fallback`) | I-20: a troca de fonte não empurra o layout |
+| D16 | Tablet (600–959): margem 32, mega até 150 px, colagens contidas, clima e Visite em duas colunas, CTA de 340 px | I-16 |
+| D17 | Botão indisponível tracejado e legível (sem opacidade); faixa do crédito do vídeo a 80% | I-18, I-19 (contraste) |
 
 ## 8. Registro de decisões
 

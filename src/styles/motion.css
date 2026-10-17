@@ -26,32 +26,32 @@
 .js [data-reveal="lines"] > span:nth-child(2) { transition-delay: var(--stagger); }
 .js [data-reveal="lines"] > span:nth-child(3) { transition-delay: calc(2 * var(--stagger)); }
 .js [data-reveal="lines"] > .mega__r { translate: 6% .32em; }
-.js [data-reveal="lines"] > .scribble { opacity: 0; translate: 0 .2em; rotate: -10deg; transition: opacity var(--dur-l) var(--ease), translate var(--dur-l) var(--ease-paper), rotate var(--dur-l) var(--ease-paper); transition-delay: calc(2 * var(--stagger) + 120ms); }
+.js [data-reveal="lines"] > .scribble { opacity: 0; translate: 0 .2em; rotate: -10deg; transition: opacity var(--dur-l) var(--ease), translate var(--dur-l) var(--ease-paper), rotate var(--dur-l) var(--ease-paper); transition-delay: calc(2 * var(--stagger) + var(--reveal-delay-scribble)); }
 .js [data-reveal="lines"].is-in > span { opacity: 1; translate: none; }
 .js [data-reveal="lines"].is-in > .scribble { opacity: 1; translate: none; rotate: -4deg; }
 /* traço desenhado (setas, faíscas): os <path> precisam de pathLength="1" */
-.js [data-draw] path { stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset var(--dur-m) var(--ease); transition-delay: calc(var(--i, 0) * var(--stagger) + 200ms); }
+.js [data-draw] path { stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset var(--dur-m) var(--ease); transition-delay: calc(var(--i, 0) * var(--stagger) + var(--reveal-delay-draw)); }
 .js [data-draw].is-in path, .js .is-in [data-draw] path { stroke-dashoffset: 0; }
 
-/* carimbo: bate uma vez (escala 1,6 → 1, gira 30° → final) */
-.js [data-reveal="stamp"] { translate: none; transform: scale(1.6) rotate(18deg); transition: opacity var(--dur-s) linear, transform var(--dur-m) var(--ease-paper); transition-delay: 260ms; }
+/* carimbo: bate uma vez (escala 1,6 → 1, gira 18° → final) */
+.js [data-reveal="stamp"] { translate: none; transform: scale(1.6) rotate(18deg); transition: opacity var(--dur-s) linear, transform var(--dur-m) var(--ease-paper); transition-delay: var(--reveal-delay-stamp); }
 .js [data-reveal="stamp"].is-in { transform: none; }
 
 /* 2 · Entrada do hero (só no primeiro carregamento, no topo, sem âncora) — classe .enter no <html> */
 .enter .hero__label { animation: label-settle var(--dur-l) var(--ease-paper) both; }
-.enter .hero__headline > span { animation: line-settle 520ms var(--ease-paper) both; }
-.enter .hero__headline .l1 { animation-delay: 60ms; }
-.enter .hero__headline .l2 { animation-name: line-settle-r; animation-delay: 130ms; }
-.enter .hero__headline .l3 { animation-delay: 200ms; }
+.enter .hero__headline > span { animation: line-settle var(--hero-t-line-dur) var(--ease-paper) both; }
+.enter .hero__headline .l1 { animation-delay: var(--hero-t-line-1); }
+.enter .hero__headline .l2 { animation-name: line-settle-r; animation-delay: var(--hero-t-line-2); }
+.enter .hero__headline .l3 { animation-delay: var(--hero-t-line-3); }
 .enter .hero__collage > * { animation: piece-in var(--dur-l) var(--ease-paper) both; }
-.enter .hero__collage > :nth-child(1) { animation-delay: 260ms; }
-.enter .hero__collage > :nth-child(2) { animation-delay: 330ms; }
-.enter .hero__collage > :nth-child(3) { animation-delay: 400ms; }
-.enter .hero__collage > :nth-child(4) { animation-name: sticker-in; animation-delay: 480ms; }
-.enter .hero__collage > :nth-child(5) { animation-name: fade; animation-delay: 520ms; }
-.enter .hero__foot .btn { animation: bump 360ms var(--ease-paper) 560ms both; }
-.enter .hero__foot .ref-note { animation: fade 300ms linear 600ms both; }
-.enter .menu-btn--hero { animation: sticker-in var(--dur-m) var(--ease-paper) 480ms both; }
+.enter .hero__collage > :nth-child(1) { animation-delay: var(--hero-t-piece-1); }
+.enter .hero__collage > :nth-child(2) { animation-delay: var(--hero-t-piece-2); }
+.enter .hero__collage > :nth-child(3) { animation-delay: var(--hero-t-piece-3); }
+.enter .hero__collage > :nth-child(4) { animation-name: sticker-in; animation-delay: var(--hero-t-sticker); }
+.enter .hero__collage > :nth-child(5) { animation-name: fade; animation-delay: var(--hero-t-sparks); }
+.enter .hero__foot .btn { animation: bump var(--hero-t-cta-dur) var(--ease-paper) var(--hero-t-cta) both; }
+.enter .hero__foot .ref-note { animation: fade var(--hero-t-note-dur) linear var(--hero-t-note) both; }
+.enter .menu-btn--hero { animation: sticker-in var(--dur-m) var(--ease-paper) var(--hero-t-sticker) both; }
 /* sem opacidade no texto: o título é o maior elemento da 1ª tela (LCP) e precisa pintar já no 1º quadro */
 @keyframes label-settle { from { transform: translateY(-14px) rotate(-3.5deg); } }
 @keyframes line-settle { from { transform: translateY(.18em); } }
@@ -59,7 +59,7 @@
 @keyframes piece-in { from { opacity: 0; transform: translateY(var(--lift)) rotate(var(--tilt)) scale(.94); } }
 @keyframes sticker-in { from { opacity: 0; transform: scale(.6); } }
 @keyframes fade { from { opacity: 0; } }
-@keyframes bump { 50% { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 var(--cacao); } }
+@keyframes bump { 50% { transform: translate(-2px, -2px); box-shadow: var(--shadow-offset-l); } }
 
 /* 3 · Parallax e efeitos ligados ao scroll — só onde há suporte nativo; sem JS de scroll. */
 @supports (animation-timeline: view()) {
@@ -95,5 +95,5 @@
   .js [data-reveal="lines"] > .scribble { opacity: 1; translate: none; rotate: -4deg; }
   .js [data-draw] path { stroke-dashoffset: 0; }
   /* CTA, doca e folha: só opacidade (a transição é religada de propósito, curta) */
-  .sticky-cta, .menu-btn--dock { transform: none !important; transition: opacity 150ms linear !important; }
+  .sticky-cta, .menu-btn--dock { transform: none !important; transition: opacity var(--dur-reduced) linear !important; }
 }

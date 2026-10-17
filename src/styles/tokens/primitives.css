@@ -1,0 +1,58 @@
+/* Âmbar Brunch — tokens · PRIMITIVOS: valores crus do Conceito B (paleta do logo, famílias, escala de espaço, raios, bordas).
+   Os componentes usam de preferência os papéis (semantic.css, typography.css); os primitivos são a matéria-prima.
+   Referência: docs/design/COLORS-AND-TOKENS.md e docs/design/LAYOUT-AND-GRID.md. */
+
+:root {
+  /* Cor ---------------------------------------------------------------------------------- */
+  --wine: #670D27;        /* tinta do logo (pág. 1 do PDF) */
+  --cacao: #3A2218;
+  --caramel: #C98A45;
+  --caramel-lt: #E7B676;
+  --caramel-dk: #9A5F25;  /* 4,50:1 sobre creme — só texto ≥ 12,5 px em negrito ou ≥ 18 px; nunca sobre manteiga */
+  --butter: #F3DDAE;
+  --cream: #F4EEE3;       /* fundo do logo (pág. 1 do PDF) */
+  --glaze: #FFFBF4;
+  --berry: #A8203A;
+  --leaf: #3D5A3E;
+  --ink: #24150F;
+  --black: #000;          /* fundo do vídeo antes do primeiro quadro */
+
+  /* Famílias ------------------------------------------------------------------------------
+     Antes das fontes carregarem, o texto usa Arial/Roboto e Georgia com as métricas ajustadas às da Bricolage e da Fraunces
+     (@font-face “… Fallback”, em src/layouts/Base.astro): a troca de fonte não empurra o layout. */
+  --display: "Bricolage Grotesque", "Bricolage Fallback", "Arial Narrow", system-ui, sans-serif;
+  --serif: "Fraunces", "Fraunces Fallback", Georgia, serif;
+
+  /* Espaço — a escala que o desenho usa de fato (nomeada pelo valor: passos de 2 até 18, depois 22…44) ---------------- */
+  --s-6: 6px;
+  --s-8: 8px;
+  --s-10: 10px;
+  --s-12: 12px;
+  --s-14: 14px;
+  --s-16: 16px;
+  --s-18: 18px;
+  --s-22: 22px;
+  --s-24: 24px;
+  --s-26: 26px;
+  --s-30: 30px;
+  --s-34: 34px;
+  --s-40: 40px;
+  --s-44: 44px;
+
+  /* Raios ---------------------------------------------------------------------------------- */
+  --radius-2xs: 6px;      /* anel de foco */
+  --radius-xs: 8px;       /* comanda, caixa de seleção */
+  --radius-s: 10px;       /* bandejas */
+  --radius-m: 12px;       /* caixa da seta do CTA */
+  --radius-control: 14px; /* chips, stepper, aviso, campos */
+  --radius-button: 16px;
+  --radius-l: 18px;       /* ladrilho, CTA fixo, botão de menu */
+  --radius-xl: 26px;      /* vídeos, painéis */
+  --radius-pill: 999px;
+  --radius-round: 50%;    /* círculos: recorte, bolha, selos, carimbo, pino */
+  --radius-track: 3px;    /* trilho do progresso do vídeo */
+
+  /* Bordas --------------------------------------------------------------------------------- */
+  --border-photo: 6px;    /* círculo, bolhas, bandejas */
+  --border-control: 2px;  /* chips, campos, pontilhados, pílulas */
+}

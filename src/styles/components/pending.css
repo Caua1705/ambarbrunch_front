@@ -2,24 +2,24 @@
    Visual propositalmente “de rascunho”: tracejado frutas vermelhas, para não ser confundido com conteúdo real. */
 
 .pending {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 5px 10px 6px; border-radius: var(--radius-pill);
-  border: 2px dashed var(--berry);
+  display: inline-flex; align-items: center; gap: var(--s-6);
+  padding: 5px var(--s-10) var(--s-6); border-radius: var(--radius-pill);
+  border: var(--border-control) dashed var(--berry);
   background: var(--glaze); color: var(--berry);
-  font: 700 12px/1.2 var(--display); letter-spacing: .02em; text-transform: none; text-align: left;
-  font-variation-settings: var(--wdth-body); font-stretch: var(--stretch-body);
+  font: var(--t-review-tag); letter-spacing: var(--track-tight-caps); text-transform: none; text-align: left;
+  font-variation-settings: var(--fvs-text); font-stretch: var(--stretch-body);
   rotate: 0deg;
 }
 .pending { flex-wrap: wrap; }
-.pending::before { white-space: nowrap; content: "a confirmar ·"; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; font-size: 10.5px; }
-.pending--block { display: flex; border-radius: var(--radius-control); padding: 10px 12px; }
+.pending::before { white-space: nowrap; content: "a confirmar ·"; font: var(--t-review-key); text-transform: uppercase; letter-spacing: var(--track-review-key); }
+.pending--block { display: flex; border-radius: var(--radius-control); padding: var(--s-10) var(--s-12); }
 
 /* faixa fixa do modo de revisão (canto inferior esquerdo, acima da doca) */
 .review-flag {
   position: fixed; z-index: calc(var(--z-dock) - 1); left: 0; top: 50%;
-  padding: 6px 8px; border-radius: 0 10px 10px 0;
+  padding: var(--s-6) var(--s-8); border-radius: 0 var(--radius-s) var(--radius-s) 0;
   background: var(--berry); color: var(--cream);
-  font: 800 10px/1 var(--display); letter-spacing: .12em; text-transform: uppercase;
+  font: var(--t-review-flag); letter-spacing: var(--track-review-flag); text-transform: uppercase;
   writing-mode: vertical-rl; rotate: 180deg;
   pointer-events: none;
 }

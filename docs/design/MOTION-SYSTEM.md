@@ -5,6 +5,8 @@
 > [`nav-sheet.js`](../../src/lib/nav-sheet.js). O plano original (com a coreografia pretendida) é [`MOTION-PLAN.md`](MOTION-PLAN.md);
 > **este documento descreve o que está implementado**. Parte do [design system](DESIGN-SYSTEM.md).
 
+> **Atualização 2026-10-16 (implementação):** durações e atrasos literais viraram tokens em `src/styles/tokens/motion.css` (`--dur-press`, `--dur-chip`, `--dur-cta-in`, `--dur-cta-fade`, `--dur-reduced`, `--dur-loop-busy`, `--reveal-delay-*`, `--sheet-items-delay`, `--hero-t-*`), com os mesmos valores. Demonstrações com “rever”, curvas, durações, linha do tempo do hero, parallax e movimento reduzido simulado: `/design-system/` → Movimento.
+
 ## 1. Princípios
 
 1. **Papel, não tela.** Peças assentam, fitas esticam, carimbos batem, traços se desenham. Sem brilho, desfoque, 3D ou cortinas.

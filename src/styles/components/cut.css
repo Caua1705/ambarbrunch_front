@@ -7,7 +7,7 @@
 
 .cut--circle {
   aspect-ratio: 1;
-  border-radius: 50%; overflow: hidden;
+  border-radius: var(--radius-round); overflow: hidden;
   border: max(3px, calc(6 * var(--u, 1px))) solid var(--butter);
   rotate: -10deg;
 }
@@ -22,7 +22,7 @@
 .cut--polaroid figcaption {
   position: absolute; left: 0; right: 0; bottom: calc(8 * var(--u, 1px));
   text-align: center;
-  font: var(--t-caption); font-size: max(11px, calc(16 * var(--u, 1px))); color: var(--ink);
+  font: var(--t-caption); font-size: max(var(--fs-micro), calc(16 * var(--u, 1px))); color: var(--ink);
 }
 
 .cut--tile {

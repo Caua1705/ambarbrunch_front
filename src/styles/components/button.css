@@ -2,15 +2,18 @@
 
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: .55em;
-  min-height: 54px; padding: 0 26px;
+  min-height: 54px; padding: 0 var(--s-26);
   border: 0; border-radius: var(--radius-button);
-  font: var(--t-button); font-variation-settings: var(--wdth-button); font-stretch: var(--stretch-button);
+  font: var(--t-button); font-variation-settings: var(--fvs-text); font-stretch: var(--stretch-button);
   text-transform: uppercase; letter-spacing: var(--track-caps); text-decoration: none; cursor: pointer;
-  transition: transform .3s var(--ease);
+  transition: transform var(--dur-press) var(--ease);
 }
 .btn:active { transform: scale(.96); }
 .btn--butter { background: var(--butter); color: var(--wine); box-shadow: var(--shadow-offset); }
 .btn--wine { background: var(--wine); color: var(--butter); box-shadow: var(--shadow-offset); }
 .btn--block { width: 100%; }
-/* novo: indisponível de verdade (durante o envio ou sem horário escolhido). O v1 só tinha aria-disabled. */
-.btn:disabled, .btn[data-disabled] { opacity: .55; cursor: not-allowed; box-shadow: var(--shadow-offset-xs); }
+/* novo: indisponível de verdade (reservas ainda não ativas, durante o envio). O v1 só tinha aria-disabled.
+   Sem opacidade: a mensagem continua legível (vinho sobre creme 11:1; antes 3,15:1). Indisponível = papel vazio com
+   contorno tracejado, a mesma linguagem do chip indisponível e do carimbo “em breve”. */
+.btn:disabled, .btn[data-disabled] { background: transparent; color: var(--wine); border: var(--border-control) dashed currentColor; box-shadow: none; cursor: not-allowed; }
+.btn--butter:disabled, .btn--butter[data-disabled] { color: var(--butter); }

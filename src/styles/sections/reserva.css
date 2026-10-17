@@ -6,8 +6,8 @@
   background: var(--wine); color: var(--butter);
   overflow: hidden;
 }
-.reserva .ticket { margin-top: 40px; }
+.reserva .ticket { margin-top: var(--s-40); }
 
 @media (min-width: 960px) {
-  .reserva > .mega { max-width: 980px; margin: 0 auto; }
+  .reserva > .mega { max-width: var(--container-m); margin: 0 auto; }
 }

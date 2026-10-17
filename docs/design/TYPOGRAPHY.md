@@ -3,6 +3,8 @@
 > Fonte da verdade: [`src/styles/tokens.css`](../../src/styles/tokens.css) §3 e [`src/layouts/Base.astro`](../../src/layouts/Base.astro) (`@font-face`).
 > Valores **calculados** medidos no site (Chromium) em 2026-10-16. Parte do [design system](DESIGN-SYSTEM.md).
 
+> **Atualização 2026-10-16 (implementação):** os papéis do §8 foram criados (mais `--t-call`, `--t-stamp-l/s`, `--t-sim`, `--t-prose`, `--t-body-s`, `--t-hero-amp` e os de revisão), em `src/styles/tokens/typography.css`. No tablet o mega título para em 150 px. Mínimo de 12 px aplicado à nota de foto antiga e à legenda da polaroide (I-17). Fontes de reserva com métricas ajustadas (I-20). Valores medidos ao vivo em `/design-system/` → Tipografia.
+
 ## 1. Famílias
 
 | Família | Arquivo servido | Pacote | Eixos disponíveis | Peso do arquivo | Papel |

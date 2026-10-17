@@ -3,7 +3,7 @@
 
 .label {
   width: min(76vw, 320px);
-  padding: 20px 24px 30px;
+  padding: 20px var(--s-24) var(--s-30);
   background: var(--cream);
   -webkit-mask: var(--mask-scallop);
           mask: var(--mask-scallop);

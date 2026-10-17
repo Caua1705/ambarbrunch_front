@@ -13,6 +13,6 @@
 .ticker__track { display: flex; width: max-content; animation: ticker var(--ticker-period) linear infinite; }
 .ticker span {
   padding-right: .4em;
-  font: var(--t-ticker); font-variation-settings: var(--wdth-ticker); font-stretch: var(--stretch-ticker);
-  text-transform: uppercase; letter-spacing: .02em; color: var(--butter); white-space: nowrap;
+  font: var(--t-ticker); font-variation-settings: var(--fvs-text); font-stretch: var(--stretch-ticker);
+  text-transform: uppercase; letter-spacing: var(--track-tight-caps); color: var(--butter); white-space: nowrap;
 }

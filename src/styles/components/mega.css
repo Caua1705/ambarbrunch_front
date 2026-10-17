@@ -2,7 +2,7 @@
 
 .mega {
   font: var(--t-mega);
-  font-variation-settings: var(--wdth-mega); font-stretch: var(--stretch-mega);
+  font-variation-settings: var(--fvs-display); font-stretch: var(--stretch-mega);
   letter-spacing: var(--track-mega);
   text-transform: uppercase;
   color: var(--wine);
@@ -14,7 +14,7 @@
 
 .scribble {
   display: block; width: max-content; max-width: 100%;
-  margin: 10px 0 0 6px;
+  margin: var(--s-10) 0 0 var(--s-6);
   font: var(--t-scribble);
   letter-spacing: 0; text-transform: none;
   color: var(--caramel-dk);

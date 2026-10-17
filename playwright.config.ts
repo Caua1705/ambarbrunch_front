@@ -21,7 +21,8 @@ export default defineConfig({
   ],
   projects: [
     { name: 'fidelity', testMatch: /fidelity\.spec\.ts/, use: { browserName: 'chromium', ...mobile } },
-    { name: 'chromium', testIgnore: /fidelity\.spec\.ts/, use: { browserName: 'chromium', ...mobile } },
-    { name: 'webkit', testIgnore: /fidelity\.spec\.ts/, use: { browserName: 'webkit', ...mobile } },
+    { name: 'contrato', testMatch: /tokens\.spec\.ts/ },
+    { name: 'chromium', testIgnore: /(fidelity|tokens)\.spec\.ts/, use: { browserName: 'chromium', ...mobile } },
+    { name: 'webkit', testIgnore: /(fidelity|tokens)\.spec\.ts/, use: { browserName: 'webkit', ...mobile } },
   ],
 });

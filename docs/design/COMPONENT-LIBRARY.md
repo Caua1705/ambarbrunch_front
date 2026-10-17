@@ -3,6 +3,8 @@
 > Inventário do que **está implementado** (commit `35feae3`). CSS em `src/styles/components/` e `src/styles/sections/`;
 > markup em `src/components/`, `src/sections/`, `src/islands/`; comportamento em `src/lib/`. Parte do [design system](DESIGN-SYSTEM.md).
 
+> **Atualização 2026-10-16 (implementação):** novos componentes Astro extraídos sem mudar o HTML: `Seta` (setas do quadro), `Faiscas` (hero) e `Ticker` (faixa). Botão indisponível agora tracejado e legível (I-18). A ilha `ReservaFlow` aceita `ids` (várias comandas na mesma página) e `demo` (estado inicial forçado, só na página `/design-system/`). Todos os estados lado a lado: `/design-system/` → Componentes e Reserva.
+
 ## 0. Duas famílias
 
 | Família | O que é | Regra |

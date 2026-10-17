@@ -4,6 +4,7 @@
 import Foto from '../components/Foto.astro';
 import MegaTitle from '../components/MegaTitle.astro';
 import Pendente from '../components/Pendente.astro';
+import Seta from '../components/Seta.astro';
 import { cardapio, PARES } from '../data/cardapio';
 const cor = (c: keyof typeof PARES) => { const p = PARES[c]; return `--b:${p.b}${'t' in p ? `;--t:${p.t}` : ''}`; };
 ---
@@ -25,11 +26,11 @@ const cor = (c: keyof typeof PARES) => { const p = PARES[c]; return `--b:${p.b}$
     </figure>
 
     <p class="note note--a">bruschettas<br />&amp; toasts</p>
-    <svg class="arrow arrow--a" viewBox="0 0 120 80" aria-hidden="true" data-draw><path pathLength="1" d="M8 10C40 4 78 18 96 58" /><path pathLength="1" d="M84 52l13 8 3-15" /></svg>
+    <Seta variante="a" />
     <p class="note note--b">croissant</p>
-    <svg class="arrow arrow--b" viewBox="0 0 120 80" aria-hidden="true" data-draw style="--i:1"><path pathLength="1" d="M110 12C76 6 40 22 26 62" /><path pathLength="1" d="M20 48l5 15 14-6" /></svg>
+    <Seta variante="b" i={1} />
     <p class="note note--c">bebidas<br />geladas</p>
-    <svg class="arrow arrow--c" viewBox="0 0 120 80" aria-hidden="true" data-draw style="--i:2"><path pathLength="1" d="M112 70C86 74 58 60 46 18" /><path pathLength="1" d="M38 30l8-13 10 11" /></svg>
+    <Seta variante="c" i={2} />
   </div>
 
   <div class="bands" data-reveal>

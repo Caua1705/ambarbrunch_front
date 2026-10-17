@@ -24,7 +24,12 @@ const {
 const LATIN = 'U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD';
 const fontes = `
 @font-face{font-family:"Bricolage Grotesque";font-style:normal;font-display:swap;font-weight:200 800;font-stretch:75% 100%;src:url(${bricolage}) format("woff2");unicode-range:${LATIN}}
-@font-face{font-family:"Fraunces";font-style:italic;font-display:swap;font-weight:100 900;src:url(${fraunces}) format("woff2");unicode-range:${LATIN}}`;
+@font-face{font-family:"Fraunces";font-style:italic;font-display:swap;font-weight:100 900;src:url(${fraunces}) format("woff2");unicode-range:${LATIN}}
+@font-face{font-family:"Bricolage Fallback";src:local("Arial"),local("ArialMT"),local("Roboto"),local("Helvetica");size-adjust:90.9%;ascent-override:102.3%;descent-override:29.7%;line-gap-override:0%;unicode-range:${LATIN}}
+@font-face{font-family:"Fraunces Fallback";font-style:italic;src:local("Georgia Italic"),local("Georgia-Italic"),local("Georgia");size-adjust:85.1%;ascent-override:115.2%;descent-override:30.6%;line-gap-override:0%;unicode-range:${LATIN}}`;
+// Fontes de reserva (auditoria I-20): Arial/Roboto e Georgia com as métricas da Bricolage e da Fraunces (medidas no navegador:
+// largura média de um texto do site, ascendente e descendente). Antes das fontes carregarem, o texto ocupa o mesmo espaço.
+// Mesmo unicode-range das fontes reais: glifos fora dele (→, ✺) continuam na cadeia de antes.
 ---
 <!doctype html>
 <html lang="pt-BR">

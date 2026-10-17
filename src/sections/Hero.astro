@@ -4,9 +4,10 @@
 import Foto from '../components/Foto.astro';
 import MenuButton from '../components/MenuButton.astro';
 import StickerRoll from '../components/StickerRoll.astro';
+import Faiscas from '../components/Faiscas.astro';
+import Ticker from '../components/Ticker.astro';
 import { ambientes } from '../data/ambientes';
 import { cardapio } from '../data/cardapio';
-const faixa = cardapio.faixa.map((c) => `${c} ✺ `).join('');
 ---
 <header class="hero" id="topo" data-hero>
   <MenuButton variante="hero" />
@@ -34,7 +35,7 @@ const faixa = cardapio.faixa.map((c) => `${c} ✺ `).join('');
       <Foto src="gastronomia/bruschetta-brunch.webp" alt="Torrada coberta com café ao lado" sizes="(min-width: 960px) 15vw, 27vw" />
     </figure>
     <StickerRoll />
-    <svg class="sparks" viewBox="0 0 320 200" aria-hidden="true" data-draw><path pathLength="1" d="M63 12L67 45M40 28L50 54M88 28L80 55M22 65L50 70M92 66L110 67" /></svg>
+    <Faiscas />
   </div>
 
   <div class="hero__foot">
@@ -44,6 +45,4 @@ const faixa = cardapio.faixa.map((c) => `${c} ✺ `).join('');
 </header>
 
 <!-- 2 · Faixa de categorias (costura o hero à seção seguinte) -->
-<div class="ticker" aria-hidden="true">
-  <div class="ticker__track"><span>{faixa}</span><span>{faixa}</span></div>
-</div>
+<Ticker itens={cardapio.faixa} />

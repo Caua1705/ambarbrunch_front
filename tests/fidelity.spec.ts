@@ -60,7 +60,8 @@ async function medir(page: Page, sel: string, pecas: string[]) {
       const r = el.getBoundingClientRect();
       geo[`${p}#${i}`] = [r.left - r0.left, r.top - r0.top, r.width, r.height].map((n) => Math.round(n * 10) / 10);
       const cs = getComputedStyle(el);
-      for (const k of props as string[]) css[`${p}#${i} ${k}`] = cs.getPropertyValue(k).replace(/"/g, '');
+      // as fontes de reserva com métricas ajustadas (desvio D15) não existem no v1: a fonte RENDERIZADA é a mesma
+      for (const k of props as string[]) css[`${p}#${i} ${k}`] = cs.getPropertyValue(k).replace(/"/g, '').replace(/, (Bricolage|Fraunces) Fallback/g, '');
       const fvs = cs.fontVariationSettings;
       const wdth = /wdth"?\s+([\d.]+)/.exec(fvs)?.[1] ?? String(parseFloat(cs.fontStretch) || 100);
       const opsz = /opsz"?\s+([\d.]+)/.exec(fvs)?.[1] ?? 'auto';

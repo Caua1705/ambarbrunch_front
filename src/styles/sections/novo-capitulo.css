@@ -3,7 +3,7 @@
 
 .novo {
   position: relative;
-  padding: 132px var(--gutter) calc(var(--rhythm-a) + 18px);
+  padding: var(--rhythm-novo-top) var(--gutter) var(--rhythm-novo-bottom);
   background: var(--butter);
   -webkit-mask: var(--mask-scallop);
           mask: var(--mask-scallop);
@@ -12,23 +12,23 @@
 .novo .mega span:nth-child(3) { text-align: left; }
 .novo__stamp {
   position: absolute; right: var(--gutter); top: 26px;
-  width: 92px; font-size: 16px; line-height: 1.05;
+  width: 92px; font: var(--t-stamp-l);
   rotate: 12deg;
 }
-.novo__body { display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: end; margin-top: 26px; }
+.novo__body { display: grid; grid-template-columns: 1fr auto; gap: var(--s-18); align-items: end; margin-top: var(--s-26); }
 .novo__text { max-width: 30ch; font-size: var(--fs-lead); color: var(--ink); }
 .novo .badge { width: 86px; rotate: 8deg; box-shadow: var(--shadow-sticker); }
 .novo__link {
-  display: inline-flex; align-items: center; gap: 8px; margin-top: 22px;
-  font: var(--t-pill); font-size: 14px; letter-spacing: var(--track-caps); text-transform: uppercase;
+  display: inline-flex; align-items: center; gap: var(--s-8); margin-top: var(--s-22);
+  font: var(--t-link); letter-spacing: var(--track-caps); text-transform: uppercase;
   color: var(--wine); text-decoration: underline 2px; text-underline-offset: 5px;
   min-height: 44px;
 }
 .novo__spiral { position: absolute; z-index: 0; width: 210px; right: -70px; bottom: -40px; color: var(--caramel); stroke-width: 9; opacity: .25; pointer-events: none; }
-.novo > :not(.novo__spiral) { position: relative; z-index: 1; }
+.novo > :not(.novo__spiral) { position: relative; z-index: var(--z-1); }
 .novo > .novo__stamp { position: absolute; }
 
 @media (min-width: 960px) {
-  .novo { padding-inline: max(var(--gutter), calc((100% - 980px) / 2)); }
-  .novo__stamp { right: max(var(--gutter), calc((100% - 980px) / 2)); width: 120px; }
+  .novo { padding-inline: max(var(--gutter), calc((100% - var(--container-m)) / 2)); }
+  .novo__stamp { right: max(var(--gutter), calc((100% - var(--container-m)) / 2)); width: 120px; }
 }

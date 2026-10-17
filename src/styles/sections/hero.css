@@ -6,16 +6,16 @@
   position: relative; isolation: isolate;
   min-height: calc(100svh - 28px);
   display: flex; flex-direction: column;
-  padding: 22px var(--gutter) 22px;
+  padding: var(--s-22) var(--gutter) var(--s-22);
   background: var(--wine);
   color: var(--butter);
   overflow: hidden;
   /* Tamanhos que também respeitam a ALTURA da tela (só agem em telas baixas; em 390×844 valem os do v1). */
   --hero-fs: clamp(70px, min(21.5vw, 11svh), 168px);
   --label-w: min(76vw, 320px, 40svh);
-  --hero-pt: 22px;
-  --hero-gap-title: 22px;
-  --hero-gap: 14px;
+  --hero-pt: var(--s-22);
+  --hero-gap-title: var(--s-22);
+  --hero-gap: var(--s-14);
   /* Altura do hero SEM a colagem, calculada com as mesmas medidas (conferida no v1: 497 px em 390 px). */
   --hero-rest: calc(var(--hero-pt) + 22px + 50px + (var(--label-w) - 48px) * .3812 + var(--hero-gap-title) + 2.44 * var(--hero-fs) + 2 * var(--hero-gap) + 54px);
   padding-top: var(--hero-pt);
@@ -27,14 +27,14 @@
   margin-top: var(--hero-gap-title);
   font: var(--t-hero);
   font-size: var(--hero-fs);
-  font-variation-settings: var(--wdth-mega); font-stretch: var(--stretch-mega);
+  font-variation-settings: var(--fvs-display); font-stretch: var(--stretch-mega);
   text-transform: uppercase;
   letter-spacing: var(--track-hero);
 }
 .hero__headline span { display: block; }
 .hero__headline .l2 { text-align: right; color: var(--caramel-lt); }
 .hero__headline .l3 { white-space: nowrap; }
-.hero__headline em { font: italic 500 .78em/1 var(--serif); text-transform: none; color: var(--caramel-lt); }
+.hero__headline em { font: var(--t-hero-amp); text-transform: none; color: var(--caramel-lt); }
 
 /* Palco da colagem: 358 × 330 px do protótipo. --u = 1 px do protótipo, limitado pela largura E pela altura. */
 .hero__collage {
@@ -45,29 +45,35 @@
   --u: min(calc(100cqw / var(--stage-hero-w)), calc(100cqh / var(--stage-hero-h)));
   --ox: calc((100cqw - var(--stage-hero-w) * var(--u)) / 2);   /* centraliza quando a altura manda */
 }
-.hero__collage .cut--circle   { width: calc(179 * var(--u));    left: calc(var(--ox) - 21.48 * var(--u)); top: calc(22 * var(--u));  z-index: 2; }
-.hero__collage .cut--polaroid { width: calc(150.36 * var(--u)); left: calc(var(--ox) + 207.64 * var(--u)); top: 0; z-index: 1; }
-.hero__collage .cut--tile     { width: calc(110.98 * var(--u)); left: calc(var(--ox) + 118.14 * var(--u)); top: calc(150 * var(--u)); z-index: 3; }
-.hero__collage .sticker--roll { position: absolute; z-index: 4; width: calc(104 * var(--u)); left: calc(var(--ox) + 239.68 * var(--u)); top: calc(238 * var(--u)); }
-.hero__collage .sparks        { position: absolute; z-index: 2; width: calc(86 * var(--u));  left: calc(var(--ox) + 143.2 * var(--u)); top: calc(40 * var(--u)); }
+.hero__collage .cut--circle   { width: calc(179 * var(--u));    left: calc(var(--ox) - 21.48 * var(--u)); top: calc(22 * var(--u));  z-index: var(--z-2); }
+.hero__collage .cut--polaroid { width: calc(150.36 * var(--u)); left: calc(var(--ox) + 207.64 * var(--u)); top: 0; z-index: var(--z-1); }
+.hero__collage .cut--tile     { width: calc(110.98 * var(--u)); left: calc(var(--ox) + 118.14 * var(--u)); top: calc(150 * var(--u)); z-index: var(--z-3); }
+.hero__collage .sticker--roll { position: absolute; z-index: var(--z-4); width: calc(104 * var(--u)); left: calc(var(--ox) + 239.68 * var(--u)); top: calc(238 * var(--u)); }
+.hero__collage .sparks        { position: absolute; z-index: var(--z-2); width: calc(86 * var(--u));  left: calc(var(--ox) + 143.2 * var(--u)); top: calc(40 * var(--u)); }
 
-.hero__foot { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: var(--hero-gap); position: relative; z-index: 5; }
+.hero__foot { display: flex; align-items: center; justify-content: space-between; gap: var(--s-14); margin-top: var(--hero-gap); position: relative; z-index: var(--z-5); }
 /* Telas baixas (iPhone SE, Androids de 640–700 px): respiros menores para a colagem não encolher demais. */
 @media (max-height: 700px) and (max-width: 959px) {
-  .hero { --hero-pt: 16px; --hero-gap-title: 14px; --hero-gap: 10px; }
+  .hero { --hero-pt: var(--s-16); --hero-gap-title: var(--s-14); --hero-gap: var(--s-10); }
 }
 /* correção: no v1 o botão quebrava em duas linhas abaixo de ~375 px; agora ele nunca quebra e a nota cede espaço */
 .hero__foot .btn { flex: none; white-space: nowrap; }
-@media (max-width: 374px) { .hero__foot .btn { padding: 0 18px; } .hero__foot .ref-note { font-size: 11.5px; } }
+@media (max-width: 374px) { .hero__foot .btn { padding: 0 var(--s-18); } .hero__foot .ref-note { font-size: var(--fs-micro); } }
+
+/* Tablet: a colagem pode crescer até 1,5× o protótipo (antes ficava presa em 358 × 330 no meio da tela). */
+@media (min-width: 600px) and (max-width: 959px) {
+  .hero__collage { height: clamp(160px, calc(100svh - 12px - var(--hero-rest)), calc(var(--stage-hero-h) * 1.5px)); }
+}
 
 @media (min-width: 960px) {
   .hero {
     display: grid; grid-template-columns: 1fr 1.05fr; grid-template-rows: auto 1fr auto;
-    column-gap: 40px; min-height: calc(100vh - 28px); padding-top: 40px;
+    column-gap: var(--s-40); min-height: calc(100vh - 28px); padding-top: var(--s-40);
+    --hero-fs: clamp(90px, 9.5vw, 160px);
   }
   .hero__label { grid-column: 1; justify-self: start; }
   .hero__label .label { width: 360px; }
-  .hero__headline { grid-column: 1; font-size: clamp(90px, 9.5vw, 160px); }
+  .hero__headline { grid-column: 1; }
   /* no desktop vale a composição em % do v1 */
   .hero__collage { grid-column: 2; grid-row: 1 / 4; margin: 0; height: auto; min-height: 620px; container-type: normal; --u: 1px; --ox: 0px; }
   .hero__collage .cut--circle   { width: 50%; left: -6%; top: 120px; }

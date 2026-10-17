@@ -1,0 +1,669 @@
+---
+// /design-system/ — página interna do DESIGN SYSTEM (docs/design/PROPOSTA-PAGINA-DOCUMENTACAO.md).
+// Existe só no `astro dev` e nos builds de revisão: no build de produção a rota não é gerada (getStaticPaths vazio).
+// Tudo aqui usa os componentes, as classes e os tokens REAIS do site; os tokens são lidos dos próprios arquivos CSS
+// (no build) e os valores calculados, do navegador (src/lib/design-system.js). Nada é redesenhado nesta página.
+import Base from '../../layouts/Base.astro';
+import Foto from '../../components/Foto.astro';
+import MegaTitle from '../../components/MegaTitle.astro';
+import Badge from '../../components/Badge.astro';
+import StickerRoll from '../../components/StickerRoll.astro';
+import Stamp from '../../components/Stamp.astro';
+import Spiral from '../../components/Spiral.astro';
+import Seta from '../../components/Seta.astro';
+import Faiscas from '../../components/Faiscas.astro';
+import Ticker from '../../components/Ticker.astro';
+import MenuButton from '../../components/MenuButton.astro';
+import MotionToggle from '../../components/MotionToggle.astro';
+import Pendente from '../../components/Pendente.astro';
+import Story from '../../components/Story.astro';
+import Footer from '../../sections/Footer.astro';
+import ReservaFlow from '../../islands/ReservaFlow';
+import { REVISAO, podeMostrar } from '../../lib/conteudo';
+import { video } from '../../lib/media';
+import { cardapio, PARES } from '../../data/cardapio';
+import { ambientes as amb, reservaveis } from '../../data/ambientes';
+import { roll } from '../../data/roll';
+import '../../styles/docs/design-system.css';
+
+export function getStaticPaths() {
+  return REVISAO ? [{ params: { secao: undefined } }] : [];
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Tokens: lidos dos arquivos de src/styles/tokens (fonte única). Bloco :root base + sobrescritas por media query.
+type Token = { nome: string; valor: string; nota?: string; arquivo: string; media: { cond: string; valor: string }[] };
+const fontes = import.meta.glob('../../styles/tokens/*.css', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+const tokens = new Map<string, Token>();
+const DECL = /(--[\w-]+):\s*([^;]+);[ \t]*(?:\/\*\s*([\s\S]*?)\s*\*\/)?/g;
+for (const [caminho, css] of Object.entries(fontes)) {
+  const arquivo = caminho.split('/').pop()!.replace('.css', '');
+  const [base, ...medias] = css.replace(/^\/\*[\s\S]*?\*\//, '').split(/@media/);
+  for (const m of base.matchAll(DECL)) tokens.set(m[1], { nome: m[1], valor: m[2].replace(/\s+/g, ' ').trim(), nota: m[3]?.split('\n')[0], arquivo, media: [] });
+  for (const bloco of medias) {
+    const cond = bloco.slice(0, bloco.indexOf('{')).trim();
+    for (const m of bloco.matchAll(DECL)) tokens.get(m[1])?.media.push({ cond, valor: m[2].trim() });
+  }
+}
+const grupo = (re: RegExp) => [...tokens.values()].filter((t) => re.test(t.nome));
+const PRIMITIVOS = ['--wine', '--cream', '--butter', '--cacao', '--ink', '--glaze', '--caramel', '--caramel-lt', '--caramel-dk', '--berry', '--leaf', '--black'].map((n) => tokens.get(n)!).filter(Boolean);
+const PAPEIS_COR = grupo(/^--(text|rule|notice-line|tape|focus-ring|scrim|overlay|track-light|sim-stripe|media-bg)/);
+const TIPOS = grupo(/^--t-/);
+const TAMANHOS = grupo(/^--fs-/);
+const TRACKS = grupo(/^--track-(?!light)/);
+const ESPACOS = grupo(/^--s-\d/);
+const RAIOS = grupo(/^--radius-/);
+const SOMBRAS = grupo(/^--(shadow|drop|ring)-/);
+const RITMO = grupo(/^--(rhythm|footer-dock)/);
+const CONTAINERS = grupo(/^--container-/);
+const CAMADAS = grupo(/^--z-/);
+const CURVAS = grupo(/^--ease/);
+const DURACOES = grupo(/^--dur-/);
+const HERO_T = grupo(/^--hero-t-/);
+const contagem = tokens.size;
+
+// Pares de contraste em uso (frente · fundo · onde). O valor é calculado no navegador com as cores reais.
+const CONTRASTES: [string, string, string, string?][] = [
+  ['--wine', '--cream', 'títulos, botão vinho, comanda'],
+  ['--ink', '--cream', 'texto corrido'],
+  ['--text-muted', '--cream', 'notas e avisos'],
+  ['--caramel-dk', '--cream', 'legendas da comanda (≥ 12,5 px negrito)'],
+  ['--butter', '--wine', 'hero, Reserva, texto do botão vinho'],
+  ['--caramel-lt', '--wine', '2ª linha do hero, scribble claro'],
+  ['--wine', '--butter', 'botão manteiga, Novo capítulo, Escolha o clima'],
+  ['--cream', '--cacao', 'Fornadas, Visite'],
+  ['--text-on-dark-muted', '--cacao', 'texto de apoio da Roll'],
+  ['--text-on-dark-faint', '--cacao', 'créditos'],
+  ['--caramel-lt', '--cacao', 'rótulos sobre cacau'],
+  ['--cream', '--leaf', 'pílula “saladas”'],
+  ['--cream', '--berry', 'pílula “bowls”'],
+  ['--ink', '--caramel', 'pílula “cheesecakes”'],
+  ['--cream', '--overlay-ink', 'crédito do vídeo sobre vídeo branco (I-19)', '#ffffff'],
+  ['--caramel-lt', '--overlay-ink', 'autoria do vídeo sobre vídeo branco (I-19)', '#ffffff'],
+];
+const EVITAR: [string, string, string][] = [
+  ['--caramel', '--cream', 'caramelo como texto sobre claro'],
+  ['--caramel', '--butter', 'caramelo sobre manteiga'],
+  ['--caramel-dk', '--butter', 'caramelo escuro sobre manteiga'],
+  ['--caramel-lt', '--cream', 'caramelo claro sobre creme'],
+];
+
+// Amostra e companheiros (largura, eixo óptico, caixa) de cada papel tipográfico, como os componentes reais usam.
+const AMOSTRA: Record<string, [string, string?]> = {
+  '--t-hero': ['Café,', 'font-stretch:var(--stretch-mega);font-variation-settings:var(--fvs-display);text-transform:uppercase;letter-spacing:var(--track-hero);color:var(--wine)'],
+  '--t-mega': ['Mesa', 'font-stretch:var(--stretch-mega);font-variation-settings:var(--fvs-display);text-transform:uppercase;letter-spacing:var(--track-mega);color:var(--wine)'],
+  '--t-menu-item': ['Cardápio', 'font-stretch:var(--stretch-mega);font-variation-settings:var(--fvs-display);text-transform:uppercase;letter-spacing:var(--track-mega);color:var(--wine)'],
+  '--t-numeral': ['12', 'font-stretch:var(--stretch-tag);color:var(--wine)'],
+  '--t-tagline': ['Luz âmbar', 'font-stretch:var(--stretch-tag);text-transform:uppercase'],
+  '--t-ticket-title': ['Comanda de reserva', 'font-stretch:var(--stretch-tag);text-transform:uppercase;color:var(--wine)'],
+  '--t-address': ['Placa de endereço', 'font-stretch:var(--stretch-tag);text-transform:uppercase;color:var(--wine)'],
+  '--t-ticker': ['Bruschettas ✺ Bowls', 'font-stretch:var(--stretch-ticker);text-transform:uppercase;letter-spacing:var(--track-tight-caps)'],
+  '--t-step-key': ['− +', 'color:var(--wine)'],
+  '--t-band': ['Cafés gelados', 'font-stretch:var(--stretch-band);text-transform:uppercase;letter-spacing:var(--track-tight-caps)'],
+  '--t-button-l': ['Reservar mesa', 'font-stretch:var(--stretch-button);text-transform:uppercase;letter-spacing:var(--track-caps)'],
+  '--t-button': ['Reservar mesa', 'font-stretch:var(--stretch-button);text-transform:uppercase;letter-spacing:var(--track-caps)'],
+  '--t-input': ['Seu nome'],
+  '--t-review': ['Jardim · 2 pessoas'],
+  '--t-chip': ['Jardim'],
+  '--t-link': ['Reservar mesa →', 'text-transform:uppercase;letter-spacing:var(--track-caps);text-decoration:underline 2px;text-underline-offset:5px;color:var(--wine)'],
+  '--t-status': ['Recebemos seu pedido.', 'color:var(--wine)'],
+  '--t-pill': ['Reservar aqui', 'text-transform:uppercase;letter-spacing:var(--track-caps)'],
+  '--t-error': ['Confira o número com DDD.', 'color:var(--wine)'],
+  '--t-legend': ['03 · data', 'text-transform:uppercase;letter-spacing:var(--track-legend);color:var(--caramel-dk)'],
+  '--t-credit': ['@roll.ofc · vídeo da própria Roll', 'letter-spacing:var(--track-tight-caps)'],
+  '--t-sim': ['Simulação para testes', 'text-transform:uppercase;letter-spacing:var(--track-caps);color:var(--berry)'],
+  '--t-body': ['Café da manhã sem pressa, brunch de mesa cheia e cinnamon rolls que saem do forno.'],
+  '--t-prose': ['Hoje este site não coleta dados pessoais e não envia formulários.'],
+  '--t-body-s': ['Concordo com o uso dos meus dados para esta reserva.'],
+  '--t-review-tag': ['a confirmar · só no build de revisão', 'color:var(--berry)'],
+  '--t-review-key': ['a confirmar', 'text-transform:uppercase;letter-spacing:var(--track-review-key);color:var(--berry)'],
+  '--t-review-flag': ['Revisão', 'text-transform:uppercase;letter-spacing:var(--track-review-flag);color:var(--berry)'],
+  '--t-hero-amp': ['&', 'font-size:64px;color:var(--caramel-dk)'],
+  '--t-scribble': ['do brunch ao café gelado', 'color:var(--caramel-dk)'],
+  '--t-call': ['prove no Âmbar', 'color:var(--wine)'],
+  '--t-kicker': ['pra comer', 'color:var(--caramel-dk)'],
+  '--t-note': ['bruschettas & toasts'],
+  '--t-caption-l': ['Biscoff'],
+  '--t-caption': ['salão âmbar'],
+  '--t-stamp-l': ['novo capítulo', 'color:var(--wine)'],
+  '--t-tag': ['do forno'],
+  '--t-stamp': ['em breve', 'color:var(--wine)'],
+  '--t-sig': ['com assinatura gastronômica'],
+  '--t-stamp-s': ['tente de novo', 'color:var(--berry)'],
+  '--t-fine-serif': ['foto de referência do espaço anterior', 'color:var(--text-muted)'],
+  '--t-chip-small': ['hoje'],
+};
+const familiaDe = (t: Token) => (t.valor.includes('var(--serif)') ? 'Fraunces' : 'Bricolage');
+
+// Breakpoints (não há variável CSS em media query: a lista é a do LAYOUT-AND-GRID.md, conferida pelo indicador ao vivo).
+const BREAKPOINTS = [
+  { nome: 'Mobile (base)', q: '(max-width: 599px)', nota: 'o produto: desenho em 390 × 844; margem 16 px' },
+  { nome: 'Ajuste fino', q: '(max-width: 374px)', nota: 'botão do hero mais estreito; nota com 12 px' },
+  { nome: 'Telas baixas', q: '(max-height: 700px) and (max-width: 959px)', nota: 'respiros menores no hero' },
+  { nome: 'Tablet', q: '(min-width: 600px) and (max-width: 959px)', nota: 'margem 32 px; mega título até 150 px; composições contidas' },
+  { nome: 'Desktop', q: '(min-width: 960px)', nota: 'margem 56 px; containers de 900 a 1240 px; menu sem doca' },
+];
+
+// Comanda: cada estado é a ilha real com a API simulada (o aviso de simulação aparece) ou no modo de produção atual.
+const hoje = new Date();
+const iso = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
+const dadosOk = { nome: 'Cliente de Teste', telefone: '(00) 00000-0000', consentimento: true };
+const ESTADOS = [
+  { id: 'indisponivel', rotulo: 'Indisponível', nota: 'O que o site publicado mostra hoje: reservas pelo site ainda não ativas; nada é enviado.', modo: 'indisponivel' as const },
+  { id: 'interativa', rotulo: 'Interativa', nota: 'A comanda inteira, com a API simulada: escolha, preencha e confirme (nada sai do navegador). Nome com “erro” simula uma falha; com “ocupado”, um conflito.', demo: {} },
+  { id: 'carregando', rotulo: 'Carregando', nota: 'Esqueleto de horários enquanto a disponibilidade chega.', demo: { horarios: 'carregando' } },
+  { id: 'horarios', rotulo: 'Horários', nota: 'Horários livres e esgotados (tracejados e riscados); o escolhido abre o passo 05.', demo: { horarios: 'ok', hora: '10:00' } },
+  { id: 'vazio', rotulo: 'Sem horários', nota: 'Data sem horários: a comanda pede outro dia.', demo: { horarios: 'vazio' } },
+  { id: 'erro-horarios', rotulo: 'Erro ao carregar', nota: 'Falha ao buscar horários, com “tentar de novo”.', demo: { horarios: 'erro' } },
+  { id: 'validacao', rotulo: 'Validação', nota: 'Campos inválidos destacados, mensagem em cada um, foco no primeiro.', demo: { horarios: 'ok', hora: '10:00', dados: { nome: 'A', telefone: '(00) 0000' }, erros: { nome: 'Diga como podemos chamar você.', telefone: 'Confira o número com DDD (10 ou 11 dígitos).', consentimento: 'Para reservar, é preciso concordar com o uso dos dados.' } } },
+  { id: 'revisao', rotulo: 'Revisão', nota: 'Confira antes de confirmar.', demo: { etapa: 'revisao', horarios: 'ok', hora: '10:00', dados: dadosOk } },
+  { id: 'enviando', rotulo: 'Enviando', nota: 'Botão indisponível e carimbo girando enquanto envia.', demo: { etapa: 'enviando', horarios: 'ok', hora: '10:00', dados: dadosOk } },
+  { id: 'confirmada', rotulo: 'Confirmada', nota: 'Carimbo cheio, código e “adicionar à agenda”. Na simulação, o carimbo diz “simulado”.', demo: { etapa: 'confirmada', horarios: 'ok', hora: '10:00', dados: dadosOk, resultado: { codigo: 'SIM-DEMO1', status: 'confirmada', ambienteId: 'jardim', pessoas: 2, data: iso, hora: '10:00' } } },
+  { id: 'falha', rotulo: 'Falha', nota: 'Erro no envio: carimbo “tente de novo” e a mesma comanda para tentar outra vez.', demo: { etapa: 'falha', horarios: 'ok', hora: '10:00', dados: dadosOk, falha: 'Não foi possível concluir. Tente de novo em instantes.' } },
+];
+
+const historia = roll.videos.find((v) => podeMostrar(v.autorizado) && video(v.arquivo));
+const cor = (c: keyof typeof PARES) => { const p = PARES[c]; return `--b:${p.b}${'t' in p ? `;--t:${p.t}` : ''}`; };
+const SECOES = [
+  ['identidade', 'Identidade'], ['cores', 'Cores'], ['tipografia', 'Tipografia'], ['espaco', 'Espaço e layout'],
+  ['componentes', 'Componentes'], ['reserva', 'Reserva'], ['colagens', 'Colagens e fotos'], ['movimento', 'Movimento'], ['telas', 'Telas'],
+];
+---
+<Base titulo="Design system — Âmbar Brunch" home={false} indexar={false}>
+  <header class="ds-capa surface-grain surface-dark" id="topo">
+    <MenuButton variante="hero" />
+    <div class="ds-capa__top">
+      <a class="ds-capa__logo" href="/" aria-label="Âmbar Brunch — abrir o site"><span class="label"><Foto src="brand/logo-ambar.png" alt="Âmbar Brunch" sizes="180px" widths={[180, 360, 540]} prioridade qualidade={82} /></span></a>
+      <StickerRoll id="ds-selo-capa" />
+    </div>
+    <MegaTitle linhas={['Design', 'system']} id="ds-titulo" tom="light" as="h1" scribble="Fornada Âmbar · v1.1" reveal="" />
+    <p class="ds-capa__lead">Os elementos reais do site do Âmbar Brunch, montados com os mesmos componentes, estilos e tokens. Toque, role, pause, rode em câmera lenta.</p>
+    <dl class="ds-capa__meta">
+      <div><dt>Tokens</dt><dd>{contagem}</dd></div>
+      <div><dt>Componentes</dt><dd>15 + ilha</dd></div>
+      <div><dt>Largura agora</dt><dd><span data-largura>—</span></dd></div>
+    </dl>
+    <div class="ds-capa__acoes">
+      <a class="btn btn--butter" href="/#reservar" data-cta-trigger>Reservar mesa <span aria-hidden="true">→</span></a>
+      <a class="pill-link" href="/">Abrir o site</a>
+    </div>
+    <p class="ds-capa__aviso">Página interna · só existe em desenvolvimento e revisão · fora do site publicado</p>
+  </header>
+
+  <nav class="ds-nav" aria-label="Categorias do design system">
+    <ol>{SECOES.map(([id, nome], i) => <li><a class="ds-nav__link" href={`#${id}`} data-nav={id}><small>{String(i + 1).padStart(2, '0')}</small>{nome}</a></li>)}</ol>
+  </nav>
+
+  <main class="ds">
+    <!-- 01 · IDENTIDADE ---------------------------------------------------------------------------------- -->
+    <section class="ds-sec ds-sec--cream" id="identidade" aria-labelledby="t-identidade" tabindex="-1">
+      <p class="ds-kicker">01 · marca</p>
+      <MegaTitle linhas={['Identi', 'dade']} id="t-identidade" scribble="Âmbar é o destino; a Roll, a assinatura" />
+      <p class="ds-lead">Papel recortado sobre uma mesa de brunch: etiqueta, polaroide, comanda, fita, selo e carimbo. A paleta vem do logo (vinho e creme), aquecida por manteiga, cacau e caramelo.</p>
+
+      <div class="ds-duo">
+        <figure class="ds-card ds-card--wine ds-marca surface-grain">
+          <div class="ds-marca__palco"><span class="label ds-marca__label"><Foto src="brand/logo-ambar.png" alt="Logo âmbar café & brunch" sizes="240px" widths={[240, 480]} qualidade={82} /></span></div>
+          <figcaption><strong>Âmbar · café &amp; brunch</strong> Marca da página. Sempre sobre creme, dentro da etiqueta com borda recortada. Hero ≈ 248 px · rodapé 240 · menu 132.</figcaption>
+        </figure>
+        <figure class="ds-card ds-marca">
+          <div class="ds-marca__palco ds-marca__palco--roll"><StickerRoll id="ds-selo-id" /><Badge /></div>
+          <figcaption><strong>Roll</strong> Assinatura gastronômica. Sempre num círculo creme, nunca maior que a marca Âmbar na mesma tela. Selo com texto girando (24 s) ou selo simples.</figcaption>
+        </figure>
+      </div>
+
+      <div class="ds-card ds-assinatura">
+        <p class="footer__sig">com assinatura gastronômica <Foto src="brand/logo-roll.png" alt="Roll" sizes="56px" widths={[56, 112]} qualidade={80} /></p>
+        <p class="ds-nota">A relação das marcas em uma linha: o Âmbar assina a casa; a Roll assina as fornadas.</p>
+      </div>
+
+      <div class="ds-regras">
+        <div class="ds-card"><h3 class="ds-h3">Sempre</h3><ul class="ds-lista ds-lista--sim">
+          <li>Só os arquivos oficiais dos logos</li>
+          <li>Âmbar sobre creme, na etiqueta recortada</li>
+          <li>Roll num círculo creme, como selo</li>
+          <li>Foto antiga com aviso; vídeo com crédito</li>
+          <li>Reservar a um toque, com uma mão</li>
+        </ul></div>
+        <div class="ds-card"><h3 class="ds-h3">Nunca</h3><ul class="ds-lista ds-lista--nao">
+          <li>Redesenhar, recolorir ou contornar logos</li>
+          <li>Logo direto sobre vinho, cacau ou foto</li>
+          <li>Conceito de IA como produto, embalagem ou logo</li>
+          <li>Avaliação, preço ou informação inventada</li>
+          <li>Reserva simulada apresentada como real</li>
+        </ul></div>
+      </div>
+
+      <h3 class="ds-h3">Princípios</h3>
+      <ol class="ds-principios">
+        <li><strong>Mobile é o produto.</strong> Desenho em 390 × 844; o desktop reaproveita, nunca dita.</li>
+        <li><strong>Papel sobre mesa.</strong> Sombras deslocadas e sólidas; sem vidro, gradiente ou 3D.</li>
+        <li><strong>Tipografia como imagem.</strong> O mega título ocupa a largura e faz parte da composição.</li>
+        <li><strong>Âmbar é o destino; a Roll, a assinatura.</strong></li>
+        <li><strong>Reservar a um toque.</strong> Botão do hero na 1ª tela; depois, a doca.</li>
+        <li><strong>Verdade antes de efeito.</strong> Nada pendente é simulado como pronto.</li>
+        <li><strong>Movimento com motivo.</strong> Peças assentam; o texto nunca espera; pausa e movimento reduzido respeitados.</li>
+      </ol>
+    </section>
+
+    <!-- 02 · CORES --------------------------------------------------------------------------------------- -->
+    <section class="ds-sec ds-sec--butter" id="cores" aria-labelledby="t-cores" tabindex="-1">
+      <p class="ds-kicker">02 · fundamentos</p>
+      <MegaTitle linhas={['Cores', '& tokens']} id="t-cores" tom="wine" scribble="a paleta do logo, aquecida" />
+      <p class="ds-lead">Valores lidos ao vivo do CSS (<code>src/styles/tokens/</code>). Contrastes calculados no navegador com a fórmula WCAG 2.2.</p>
+
+      <h3 class="ds-h3">Paleta</h3>
+      <ul class="ds-paleta">
+        {PRIMITIVOS.map((t) => (
+          <li class="ds-cor" style={`--c:var(${t.nome})`}>
+            <span class="ds-cor__amostra" aria-hidden="true"></span>
+            <code>{t.nome}</code>
+            <span class="ds-cor__valor" data-cor={t.nome}>{t.valor}</span>
+            {t.nota && <span class="ds-cor__nota">{t.nota}</span>}
+          </li>
+        ))}
+      </ul>
+
+      <h3 class="ds-h3">Superfícies</h3>
+      <div class="ds-superficies">
+        <div class="ds-sup surface-grain surface-dark" style="background:var(--wine);color:var(--butter)"><strong>Vinho + grão</strong><span>hero · reserva</span></div>
+        <div class="ds-sup surface-grain surface-dark" style="background:var(--cacao);color:var(--cream)"><strong>Cacau + grão</strong><span>Fornadas · Visite</span></div>
+        <div class="ds-sup" style="background:var(--butter);color:var(--wine)"><strong>Manteiga</strong><span>Novo capítulo · clima</span></div>
+        <div class="ds-sup" style="background:var(--cream);color:var(--ink)"><strong>Creme</strong><span>Mesa · rodapé · comanda</span></div>
+        <div class="ds-sup" style="background:var(--glaze);color:var(--ink)"><strong>Glacê</strong><span>molduras · campos</span></div>
+      </div>
+
+      <h3 class="ds-h3">Papéis de cor</h3>
+      <ul class="ds-papeis">
+        {PAPEIS_COR.map((t) => (
+          <li><span class="ds-papel__amostra" style={`--c:var(${t.nome})`} aria-hidden="true"></span><code>{t.nome}</code><span class="ds-cor__valor" data-cor={t.nome}>{t.valor}</span>{t.nota && <span class="ds-cor__nota">{t.nota}</span>}</li>
+        ))}
+      </ul>
+
+      <h3 class="ds-h3">Contraste</h3>
+      <ul class="ds-contrastes">
+        {CONTRASTES.map(([f, b, onde, base]) => (
+          <li class="ds-par" data-contraste={`${f}|${b}${base ? `|${base}` : ''}`} style={`--f:var(${f});--bk:var(${b})${base ? `;--base:${base}` : ''}`}>
+            <span class="ds-par__amostra" aria-hidden="true">Aa</span>
+            <span class="ds-par__info"><code>{f} / {b}</code><span>{onde}</span></span>
+            <span class="ds-par__razao" data-razao>—</span>
+          </li>
+        ))}
+      </ul>
+      <p class="ds-subtitulo">Evitar</p>
+      <ul class="ds-contrastes ds-contrastes--evitar">
+        {EVITAR.map(([f, b, onde]) => (
+          <li class="ds-par" data-contraste={`${f}|${b}`} style={`--f:var(${f});--bk:var(${b})`}>
+            <span class="ds-par__amostra" aria-hidden="true">Aa</span>
+            <span class="ds-par__info"><code>{f} / {b}</code><span>{onde}</span></span>
+            <span class="ds-par__razao" data-razao>—</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+
+    <!-- 03 · TIPOGRAFIA ---------------------------------------------------------------------------------- -->
+    <section class="ds-sec ds-sec--cream" id="tipografia" aria-labelledby="t-tipografia" tabindex="-1">
+      <p class="ds-kicker">03 · fundamentos</p>
+      <MegaTitle linhas={['Tipo', 'grafia']} id="t-tipografia" scribble="condensada, como imagem" />
+      <p class="ds-lead">Bricolage Grotesque (variável em peso e largura) para títulos, interface e texto; Fraunces itálica para a voz manuscrita. Tamanhos medidos <strong>nesta largura de tela</strong>.</p>
+
+      <div class="ds-duo">
+        <div class="ds-card ds-familia">
+          <p class="ds-familia__aa" data-largura-amostra>Aa</p>
+          <p class="ds-familia__nome">Bricolage Grotesque</p>
+          <p class="ds-nota">400 · 700 · 800 · largura 75–100% (font-stretch) · tamanho óptico 96 nos títulos</p>
+          <label class="ds-slider"><span>Largura <output data-largura-valor>75%</output></span><input type="range" min="75" max="100" value="75" data-largura-controle /></label>
+          <p class="ds-pesos"><span style="font-weight:400">Regular 400</span><span style="font-weight:700">Bold 700</span><span style="font-weight:800">Extra 800</span></p>
+        </div>
+        <div class="ds-card ds-familia ds-familia--serif">
+          <p class="ds-familia__aa">Aa</p>
+          <p class="ds-familia__nome">Fraunces itálica</p>
+          <p class="ds-nota">400 · 500 · 600 · scribbles, notas, legendas, carimbos</p>
+          <p class="ds-pesos"><span style="font-weight:400">Regular 400</span><span style="font-weight:500">Medium 500</span><span style="font-weight:600">Semibold 600</span></p>
+        </div>
+      </div>
+
+      <h3 class="ds-h3">Papéis ({TIPOS.length})</h3>
+      <ul class="ds-tipos">
+        {TIPOS.map((t) => {
+          const [texto, extra] = AMOSTRA[t.nome] ?? ['Café, brunch & fornadas'];
+          return (
+            <li class:list={['ds-tipo', familiaDe(t) === 'Fraunces' && 'ds-tipo--serif']}>
+              <p class="ds-tipo__amostra" style={`font:var(${t.nome});${extra ?? ''}`} data-tipo>{texto}</p>
+              <p class="ds-tipo__meta"><code>{t.nome}</code><span data-medida>—</span>{t.nota && <span class="ds-cor__nota">{t.nota}</span>}{t.media.length > 0 && <span class="ds-cor__nota">{t.media.map((m) => `${m.cond}: ${m.valor}`).join(' · ')}</span>}</p>
+            </li>
+          );
+        })}
+      </ul>
+
+      <div class="ds-duo">
+        <div class="ds-card"><h3 class="ds-h3">Tamanhos soltos</h3><ul class="ds-tokens">{TAMANHOS.map((t) => <li><code>{t.nome}</code><span>{t.valor}</span>{t.nota && <em>{t.nota}</em>}</li>)}</ul></div>
+        <div class="ds-card"><h3 class="ds-h3">Tracking</h3><ul class="ds-tokens">{TRACKS.map((t) => <li><code>{t.nome}</code><span>{t.valor}</span>{t.nota && <em>{t.nota}</em>}</li>)}</ul></div>
+      </div>
+
+      <h3 class="ds-h3">Em uso</h3>
+      <div class="ds-emuso">
+        <div class="ds-card"><MegaTitle linhas={['Mesa', 'cheia']} id="ds-mega-uso" scribble="do brunch ao café gelado" reveal="" /><p class="ds-legenda">MegaTitle · <code>.mega</code> + <code>.scribble</code></p></div>
+        <div class="ds-card ds-card--wine"><p class="ds-hero-amostra"><span>Café,</span><span class="ds-hero-amostra__r">brunch</span><span><em>&amp;</em> fornadas</span></p><p class="ds-legenda">Título do hero · <code>--t-hero</code> (ajusta-se também pela altura da tela)</p></div>
+      </div>
+    </section>
+
+    <!-- 04 · ESPAÇO E LAYOUT ----------------------------------------------------------------------------- -->
+    <section class="ds-sec ds-sec--butter" id="espaco" aria-labelledby="t-espaco" tabindex="-1">
+      <p class="ds-kicker">04 · fundamentos</p>
+      <MegaTitle linhas={['Espaço', '& forma']} id="t-espaco" tom="wine" scribble="passos de 2, depois 22 a 44" />
+      <p class="ds-lead">A escala real do desenho, a margem, os containers, o ritmo das seções, os breakpoints, raios, sombras e camadas.</p>
+
+      <h3 class="ds-h3">Escala de espaço</h3>
+      <ul class="ds-escala">{ESPACOS.map((t) => <li><code>{t.nome}</code><span class="ds-escala__barra" style={`width:var(${t.nome})`}></span><span>{t.valor}</span></li>)}</ul>
+
+      <h3 class="ds-h3">Breakpoints</h3>
+      <p class="ds-agora">Agora: <strong data-largura>—</strong></p>
+      <ul class="ds-bps">{BREAKPOINTS.map((b) => <li data-bp={b.q}><strong>{b.nome}</strong><code>{b.q}</code><span>{b.nota}</span></li>)}</ul>
+
+      <h3 class="ds-h3">Margem e containers</h3>
+      <div class="ds-card ds-containers">
+        <div class="ds-margem"><span class="ds-margem__g"></span><span class="ds-margem__c">conteúdo</span><span class="ds-margem__g"></span></div>
+        <p class="ds-nota"><code>--gutter</code> agora: <strong data-token="--gutter">—</strong> (16 mobile · 32 tablet · 56 desktop)</p>
+        <ul class="ds-tokens">{CONTAINERS.map((t) => <li><code>{t.nome}</code><span>{t.valor}</span>{t.nota && <em>{t.nota}</em>}</li>)}</ul>
+        <button class="ds-botao" type="button" data-grade aria-pressed="false">Mostrar margens sobre a página</button>
+      </div>
+
+      <h3 class="ds-h3">Ritmo das seções</h3>
+      <ul class="ds-ritmo">{RITMO.map((t) => <li><code>{t.nome}</code><span class="ds-ritmo__barra" style={`height:min(var(${t.nome}), 132px)`}></span><span>{t.valor}</span>{t.nota && <em>{t.nota}</em>}</li>)}</ul>
+      <p class="ds-nota">Regra: a base de cada seção é o topo + 8 px. Exceções documentadas: Novo capítulo (132/94, espaço do carimbo) e rodapé (130 px de base, espaço da doca).</p>
+
+      <h3 class="ds-h3">Raios</h3>
+      <ul class="ds-raios">{RAIOS.map((t) => <li><span style={`border-radius:var(${t.nome})`}></span><code>{t.nome}</code><em>{t.valor}{t.nota ? ` · ${t.nota}` : ''}</em></li>)}</ul>
+
+      <h3 class="ds-h3">Sombras e anéis</h3>
+      <ul class="ds-sombras">{SOMBRAS.map((t) => (
+        <li><span class="ds-sombras__papel" style={t.nome.startsWith('--drop') ? `filter:var(${t.nome})` : t.nome === '--ring-media' ? 'box-shadow:var(--ring-media) var(--caramel)' : `box-shadow:var(${t.nome})`}></span><code>{t.nome}</code>{t.nota && <em>{t.nota}</em>}</li>
+      ))}</ul>
+
+      <h3 class="ds-h3">Camadas</h3>
+      <div class="ds-card ds-camadas">
+        <div class="ds-camadas__palco">{[1, 2, 3, 4, 5, 6].map((n) => <span style={`z-index:var(--z-${n});--n:${n}`}>{n}</span>)}</div>
+        <ul class="ds-tokens">{CAMADAS.filter((t) => !/^--z-\d$/.test(t.nome)).map((t) => <li><code>{t.nome}</code><span>{t.valor}</span>{t.nota && <em>{t.nota}</em>}</li>)}</ul>
+        <p class="ds-nota">Dentro de um palco: foto grande → foto pequena → selo → texto (<code>--z-1</code> a <code>--z-6</code>).</p>
+      </div>
+    </section>
+
+    <!-- 05 · COMPONENTES -------------------------------------------------------------------------------- -->
+    <section class="ds-sec ds-sec--cream" id="componentes" aria-labelledby="t-componentes" tabindex="-1">
+      <p class="ds-kicker">05 · biblioteca</p>
+      <MegaTitle linhas={['Compo', 'nentes']} id="t-componentes" scribble="toque, segure, navegue com Tab" />
+      <p class="ds-lead">Cada componente com os estados lado a lado. Os estados de foco e pressionado são reais: use o teclado (Tab) ou toque e segure.</p>
+
+      <h3 class="ds-h3">Botões</h3>
+      <div class="ds-vitrine">
+        <div class="ds-palco ds-palco--wine surface-grain surface-dark"><a class="btn btn--butter" href="#componentes">Reservar mesa <span aria-hidden="true">→</span></a><span class="ds-legenda">.btn--butter · sobre escuro</span></div>
+        <div class="ds-palco"><button class="btn btn--wine" type="button">Continuar</button><span class="ds-legenda">.btn--wine · sobre claro</span></div>
+        <div class="ds-palco"><button class="btn btn--wine" type="button" disabled>Reservas online em breve</button><span class="ds-legenda">indisponível · tracejado, legível (I-18)</span></div>
+        <div class="ds-palco ds-palco--wine surface-dark"><button class="btn btn--butter" type="button" disabled>Em breve</button><span class="ds-legenda">indisponível sobre escuro</span></div>
+        <div class="ds-palco ds-palco--largo"><button class="btn btn--wine btn--block" type="button">Confirmar reserva</button><span class="ds-legenda">.btn--block · largura total</span></div>
+      </div>
+
+      <h3 class="ds-h3">Links e alternadores</h3>
+      <div class="ds-vitrine">
+        <div class="ds-palco ds-palco--cacao surface-dark"><a class="pill-link" href="#componentes">Roll @roll.ofc</a><span class="pill-link" aria-disabled="true">Como chegar · em breve</span><span class="ds-legenda">.pill-link · normal e indisponível</span></div>
+        <div class="ds-palco"><a class="novo__link" href="#componentes">Reservar mesa <span aria-hidden="true">→</span></a><button class="ticket__link" type="button">Editar</button><span class="ds-legenda">links de texto · --t-link</span></div>
+        <div class="ds-palco"><MotionToggle /><span class="ds-legenda">pausar animações (real: vale para o site todo)</span></div>
+        <div class="ds-palco ds-palco--cacao surface-dark"><p class="roll__cta"><a href="#componentes">prove no Âmbar <strong>reservar →</strong></a></p><span class="ds-legenda">chamada final da Roll</span></div>
+      </div>
+
+      <h3 class="ds-h3">Escolhas</h3>
+      <div class="ds-vitrine">
+        <div class="ds-palco ds-palco--largo">
+          <div class="chips" data-group="ambiente"><button class="chip" type="button" aria-pressed="true">Jardim</button><button class="chip" type="button" aria-pressed="false">Salão</button><button class="chip" type="button" aria-pressed="false">Lounge</button></div>
+          <span class="ds-legenda">chips · toque para escolher (o selecionado ganha a sombra deslocada)</span>
+        </div>
+        <div class="ds-palco ds-palco--largo">
+          <div class="chips"><button class="chip" type="button">Normal</button><button class="chip" type="button" aria-checked="true" role="radio">Selecionado</button><button class="chip" type="button" disabled>Esgotado</button><span class="chip chip--skeleton" aria-hidden="true"></span></div>
+          <span class="ds-legenda">normal · selecionado · indisponível · carregando</span>
+        </div>
+        <div class="ds-palco ds-palco--largo"><div class="chips chips--dates" data-dates data-group="datas"></div><span class="ds-legenda">datas · rolagem lateral</span></div>
+        <div class="ds-palco">
+          <div class="stepper"><button type="button" data-step="-1" aria-label="Menos uma pessoa">−</button><output data-people>2</output><button type="button" data-step="1" aria-label="Mais uma pessoa">+</button></div>
+          <span class="ds-legenda">stepper</span>
+        </div>
+        <div class="ds-palco">
+          <div class="stepper"><button type="button" disabled aria-label="Menos uma pessoa">−</button><output>1</output><button type="button" aria-label="Mais uma pessoa">+</button></div>
+          <span class="ds-legenda">no limite · botão tracejado</span>
+        </div>
+      </div>
+
+      <h3 class="ds-h3">Campos</h3>
+      <div class="ds-vitrine ds-vitrine--campos">
+        <div class="ds-palco ds-palco--papel"><label class="field"><span class="field__label">Nome</span><input class="field__input" placeholder="Como chamamos você" /></label><span class="ds-legenda">normal · toque para ver o foco</span></div>
+        <div class="ds-palco ds-palco--papel"><label class="field"><span class="field__label">E-mail <small>(opcional)</small></span><input class="field__input" type="email" value="voce@exemplo.com" /></label><span class="ds-legenda">preenchido · opcional</span></div>
+        <div class="ds-palco ds-palco--papel"><label class="field" data-invalid=""><span class="field__label">WhatsApp ou telefone</span><input class="field__input" value="(00) 0000" aria-invalid="true" /><span class="field__error">Confira o número com DDD (10 ou 11 dígitos).</span></label><span class="ds-legenda">inválido · contorno vinho + mensagem</span></div>
+        <div class="ds-palco ds-palco--papel"><label class="field"><span class="field__label">Observações <small>(opcional)</small></span><textarea class="field__input" rows="3" placeholder="Aniversário, cadeirinha, restrição alimentar…"></textarea></label><span class="ds-legenda">área de texto</span></div>
+        <div class="ds-palco ds-palco--papel"><label class="check"><input type="checkbox" checked /><span>Concordo com o uso dos meus dados para esta reserva.</span></label><label class="check" data-invalid=""><input type="checkbox" /><span>Consentimento pendente</span></label><span class="ds-legenda">caixa · marcada e inválida</span></div>
+      </div>
+
+      <h3 class="ds-h3">Avisos e mensagens</h3>
+      <div class="ds-vitrine">
+        <div class="ds-palco"><p class="notice">Fotos de referência do espaço anterior — serão trocadas por imagens atuais do Âmbar.</p><span class="ds-legenda">.notice · procedência</span></div>
+        <div class="ds-palco ds-palco--wine surface-dark"><p class="ref-note"><sup>*</sup>foto de referência do espaço anterior</p><span class="ds-legenda">.ref-note · nota com asterisco</span></div>
+        <div class="ds-palco ds-palco--papel"><p class="ticket__status" role="status">Tudo certo! Código <strong class="ticket__code">SIM-DEMO1</strong></p><p class="ticket__status" data-tone="error">Não foi possível carregar os horários.</p><span class="ds-legenda">status · normal e erro</span></div>
+        <div class="ds-palco ds-palco--papel"><p class="ticket__sim">Simulação para testes — nenhuma reserva é feita.</p><span class="ds-legenda">aviso de simulação (só testes)</span></div>
+        <div class="ds-palco"><Pendente falta="Exemplo de conteúdo pendente" /><span class="ds-legenda">marcador “a confirmar” · só no build de revisão</span></div>
+      </div>
+
+      <h3 class="ds-h3">Etiquetas, selos e carimbos</h3>
+      <div class="ds-vitrine">
+        <div class="ds-palco ds-palco--largo"><ul class="bands__list">{cardapio.comer.slice(0, 5).map((i) => <li style={cor(i.cor)}>{i.nome}</li>)}</ul><span class="ds-legenda">pílulas do cardápio · pares de cor aprovados</span></div>
+        <div class="ds-palco ds-palco--butter"><span class="tagline">luz do jardim</span><span class="ds-legenda">.tagline</span></div>
+        <div class="ds-palco ds-palco--papel"><span class="ds-solto story__tag">do forno</span><span class="ds-legenda">etiqueta de vídeo (.story__tag)</span></div>
+        <div class="ds-palco ds-palco--papel ds-carimbos"><Stamp>em breve</Stamp><Stamp estado="reservado">reservado</Stamp><Stamp estado="erro">tente de novo</Stamp><span class="ds-legenda">carimbo · prévia, reservado, erro</span></div>
+        <div class="ds-palco"><StickerRoll id="ds-selo-comp" /><Badge /><span class="ds-legenda">selo com texto girando · selo simples</span></div>
+      </div>
+
+      <h3 class="ds-h3">Menu</h3>
+      <div class="ds-vitrine">
+        <div class="ds-palco ds-palco--wine ds-palco--canto surface-dark"><MenuButton variante="hero" /><span class="ds-legenda">selo do hero (canto superior)</span></div>
+        <div class="ds-palco ds-palco--papel"><MenuButton variante="close" /><span class="ds-legenda">fechar (dentro da folha)</span></div>
+        <div class="ds-palco ds-palco--largo"><button class="btn btn--wine" type="button" data-menu-open="menu">Abrir a folha do menu</button><span class="ds-legenda">a folha real (&lt;dialog&gt;): sobe da base, itens em sequência, Esc fecha</span></div>
+      </div>
+
+      <h3 class="ds-h3">Doca e CTA fixo</h3>
+      <div class="ds-card ds-doca">
+        <div class="ds-frame" data-frame data-w="390" data-h="560"><iframe title="Doca e CTA fixo no site, 390 px" src="/" data-rolar="#gastronomia" loading="lazy" tabindex="-1"></iframe></div>
+        <div>
+          <p class="ds-nota"><strong>Regra:</strong> o CTA “Reservar mesa” aparece quando o botão do hero sai da tela; o menu, quando o selo do hero sai. A doca inteira some na seção de reserva, com o teclado aberto e com o menu aberto.</p>
+          <p class="ds-nota">Ela também funciona <strong>nesta página</strong>: role além da capa e a doca aparece.</p>
+        </div>
+      </div>
+
+      <h3 class="ds-h3">Peças e cartões</h3>
+      <div class="ds-pecas">
+        <figure class="ds-peca"><div class="ds-peca__palco"><figure class="cut cut--circle"><Foto src="gastronomia/croissant-prato-azul.webp" alt="Croissant em prato azul" sizes="180px" /></figure></div><figcaption>recorte circular · 1:1 · borda manteiga</figcaption></figure>
+        <figure class="ds-peca"><div class="ds-peca__palco"><figure class="cut cut--polaroid"><Foto src={amb.salao.foto} alt={amb.salao.alt} sizes="160px" /><figcaption>salão âmbar<sup>*</sup></figcaption></figure></div><figcaption>polaroide · 3:3,6 · legenda Fraunces</figcaption></figure>
+        <figure class="ds-peca"><div class="ds-peca__palco"><figure class="cut cut--tile"><Foto src="gastronomia/bruschetta-brunch.webp" alt="Torrada coberta" sizes="140px" /></figure></div><figcaption>ladrilho · 3:3,9 · borda creme</figcaption></figure>
+        <figure class="ds-peca"><div class="ds-peca__palco"><figure class="board__item"><i class="tape" aria-hidden="true"></i><Foto src="gastronomia/bebida-chocolate-creme.webp" alt="Bebida gelada de chocolate" sizes="160px" /></figure></div><figcaption>foto emoldurada + fita · quadro da Mesa</figcaption></figure>
+        <figure class="ds-peca"><div class="ds-peca__palco"><figure class="bubble"><Foto src={amb.lounge.foto} alt={amb.lounge.alt} sizes="160px" /><figcaption>{amb.lounge.tagline}</figcaption></figure></div><figcaption>bolha · 1:1 · pílula cacau</figcaption></figure>
+        <figure class="ds-peca ds-peca--painel"><figure class="panel panel--day"><Foto src={amb.jardim.foto} alt={amb.jardim.alt} sizes="300px" /><figcaption><span class="tagline">{amb.jardim.tagline}</span><a href="#componentes">reservar aqui →</a></figcaption></figure><figcaption>painel em diagonal · 4:5</figcaption></figure>
+        {historia && <figure class="ds-peca ds-peca--story"><ol class="stories ds-stories"><Story {...historia} /></ol><figcaption>vídeo · 9:16 · crédito, progresso, tocar/pausar</figcaption></figure>}
+        <figure class="ds-peca ds-peca--ticket"><div class="ticket"><div class="stamp ticket__stamp" aria-hidden="true">prévia</div><p class="ticket__title">Comanda</p><fieldset><legend data-done="">01 · ambiente</legend><p class="ticket__slots">A comanda: papel picotado, passos numerados, pontilhado entre eles.</p></fieldset></div><figcaption>comanda · picote lateral · carimbo</figcaption></figure>
+      </div>
+    </section>
+
+    <!-- 06 · RESERVA ------------------------------------------------------------------------------------ -->
+    <section class="ds-sec ds-sec--wine surface-grain surface-dark" id="reserva" aria-labelledby="t-reserva" tabindex="-1">
+      <p class="ds-kicker">06 · fluxo</p>
+      <MegaTitle linhas={['Comanda', 'de reserva']} id="t-reserva" tom="light" scribble="todos os estados, um por vez" />
+      <p class="ds-lead">A ilha real (<code>ReservaFlow</code>). “Indisponível” é o que o site publicado mostra hoje. Os outros estados usam a <strong>API simulada</strong>, com o aviso visível; nada sai do navegador. A reserva real só é ligada depois de validar o contrato da API.</p>
+      <div class="chips ds-estados" role="tablist" aria-label="Estado da comanda">
+        {ESTADOS.map((e, i) => <button class="chip" type="button" role="tab" id={`tab-${e.id}`} aria-controls={`painel-${e.id}`} aria-selected={i === 0 ? 'true' : 'false'} tabindex={i === 0 ? 0 : -1} data-estado={e.id}>{e.rotulo}</button>)}
+      </div>
+      {ESTADOS.map((e, i) => (
+        <div class="ds-estado" role="tabpanel" id={`painel-${e.id}`} aria-labelledby={`tab-${e.id}`} hidden={i !== 0}>
+          <p class="ds-estado__nota">{e.nota}</p>
+          {e.modo
+            ? <ReservaFlow client:visible modo="indisponivel" ambientes={reservaveis.opcoes} privacidadeUrl="/privacidade/" ids={`ds-${e.id}`} />
+            : <ReservaFlow client:visible modo="simulado" ambientes={reservaveis.opcoes} privacidadeUrl="/privacidade/" ids={`ds-${e.id}`} demo={e.demo as any} />}
+        </div>
+      ))}
+    </section>
+
+    <!-- 07 · COLAGENS, FOTOS E ORNAMENTOS ---------------------------------------------------------------- -->
+    <section class="ds-sec ds-sec--cream" id="colagens" aria-labelledby="t-colagens" tabindex="-1">
+      <p class="ds-kicker">07 · imagem</p>
+      <MegaTitle linhas={['Cola', 'gens']} id="t-colagens" scribble="papel sobre papel, com regra" />
+      <p class="ds-lead">Composições artísticas montadas com as peças da biblioteca. As posições ficam na seção; a forma, no componente.</p>
+
+      <div class="ds-regras">
+        <div class="ds-card"><h3 class="ds-h3">Montagem</h3><ul class="ds-lista">
+          <li>Até 3 fotos + 1 selo + 1 ornamento por palco</li>
+          <li>Sobreposição de 15 a 35% da peça menor</li>
+          <li>Rotação de −10° a +8° (carimbos até +14°); vizinhas alternam o sinal</li>
+          <li>Camadas: foto grande → pequena → selo → texto</li>
+          <li>Moldura conforme o fundo: glacê, creme ou manteiga</li>
+          <li>Posições em <code>--u</code> (1 px do protótipo): a composição escala inteira</li>
+        </ul></div>
+        <div class="ds-card"><h3 class="ds-h3">Fotografia</h3><ul class="ds-lista">
+          <li>Fotos reais do Âmbar; da Roll, só com autorização</li>
+          <li>Sem filtros, duotone ou correção estilizada</li>
+          <li>Nenhum ornamento sobre rosto ou prato principal</li>
+          <li>Foto do espaço anterior sempre com aviso</li>
+          <li>AVIF + WebP, só 2 imagens com prioridade (logo e círculo do hero)</li>
+        </ul></div>
+      </div>
+
+      <h3 class="ds-h3">Proporções</h3>
+      <ul class="ds-proporcoes">
+        <li><span style="aspect-ratio:1"><Foto src="gastronomia/croissant-prato-azul.webp" alt="" sizes="120px" /></span>1 : 1<em>círculo, bolha</em></li>
+        <li><span style="aspect-ratio:3/3.6"><Foto src={amb.salao.foto} alt="" sizes="120px" /></span>3 : 3,6<em>polaroide</em></li>
+        <li><span style="aspect-ratio:3/3.9"><Foto src="gastronomia/bruschetta-brunch.webp" alt="" sizes="120px" /></span>3 : 3,9<em>ladrilho</em></li>
+        <li><span style="aspect-ratio:3/4"><Foto src={amb.leitura.foto} alt="" sizes="120px" /></span>3 : 4<em>bandeja</em></li>
+        <li><span style="aspect-ratio:4/5"><Foto src={amb.jardim.foto} alt="" sizes="120px" /></span>4 : 5<em>painel</em></li>
+        <li><span style="aspect-ratio:9/16"><Foto src="gastronomia/bebida-chocolate-creme.webp" alt="" sizes="120px" /></span>9 : 16<em>vídeo</em></li>
+      </ul>
+
+      <h3 class="ds-h3">Ornamentos</h3>
+      <div class="ds-vitrine">
+        <div class="ds-palco ds-palco--wine surface-dark"><Faiscas /><span class="ds-legenda">faíscas · manteiga</span></div>
+        <div class="ds-palco ds-palco--cacao surface-dark"><Spiral class="spiral ds-espiral" /><span class="ds-legenda">espiral da Roll · caramelo</span></div>
+        <div class="ds-palco ds-setas"><Seta variante="a" /><Seta variante="b" /><Seta variante="c" /><span class="ds-legenda">setas à mão · vinho</span></div>
+        <div class="ds-palco ds-palco--cacao surface-dark ds-palco--faixa"><Ticker itens={cardapio.faixa.slice(0, 4)} /><span class="ds-legenda">faixa inclinada com ✺</span></div>
+        <div class="ds-palco ds-palco--papel"><span class="ds-pino"><i class="placa__pin" aria-hidden="true"></i></span><span class="ds-fita"><i class="tape" aria-hidden="true"></i></span><span class="ds-legenda">pino da placa · fita</span></div>
+      </div>
+
+      <h3 class="ds-h3">Texturas e máscaras</h3>
+      <div class="ds-vitrine">
+        <div class="ds-palco ds-palco--wine surface-grain"><span class="ds-legenda ds-legenda--clara">grão · só sobre vinho e cacau</span></div>
+        <div class="ds-palco ds-palco--wine"><span class="label ds-mascara">borda recortada</span><span class="ds-legenda ds-legenda--clara">--mask-scallop</span></div>
+        <div class="ds-palco ds-palco--wine"><span class="ticket ds-mascara">picote lateral</span><span class="ds-legenda ds-legenda--clara">--mask-perforated · só em comandas</span></div>
+      </div>
+    </section>
+
+    <!-- 08 · MOVIMENTO --------------------------------------------------------------------------------- -->
+    <section class="ds-sec ds-sec--cacao surface-grain surface-dark" id="movimento" aria-labelledby="t-movimento" tabindex="-1">
+      <p class="ds-kicker">08 · movimento</p>
+      <MegaTitle linhas={['Movi', 'mento']} id="t-movimento" tom="light" scribble="objetos que assentam" />
+      <p class="ds-lead">Peças, títulos e elementos fixos se movem; o texto nunca espera. Cada demonstração usa as primitivas reais de <code>src/styles/motion.css</code>.</p>
+
+      <div class="ds-controles">
+        <button class="ds-botao ds-botao--claro" type="button" data-reduzido aria-pressed="false">Simular movimento reduzido</button>
+        <MotionToggle />
+        <p class="ds-nota" data-suporte-parallax></p>
+      </div>
+
+      <h3 class="ds-h3">Curvas</h3>
+      <ul class="ds-curvas">{CURVAS.map((t) => (
+        <li><code>{t.nome}</code><button class="ds-trilho" type="button" style={`--curva:var(${t.nome})`} aria-label={`Animar com ${t.nome}`}><span></span></button><em>{t.valor}{t.nota ? ` · ${t.nota}` : ''}</em></li>
+      ))}</ul>
+
+      <h3 class="ds-h3">Durações</h3>
+      <ul class="ds-duracoes">{DURACOES.map((t) => (
+        <li><code>{t.nome}</code><button class="ds-trilho" type="button" style={`--dur:var(${t.nome})`} aria-label={`Animar com ${t.nome}`}><span></span></button><em>{t.valor}{t.nota ? ` · ${t.nota}` : ''}</em></li>
+      ))}</ul>
+
+      <h3 class="ds-h3">Primitivas</h3>
+      <div class="ds-primitivas">
+        <div class="ds-card"><div class="ds-prim__palco" id="prim-lines"><MegaTitle linhas={['Mesa', 'cheia']} id="ds-mega-mov" scribble="linhas sobem" /></div><p class="ds-legenda"><code>data-reveal="lines"</code> · linhas com atraso de 70 ms; scribble por último</p><button class="ds-botao" type="button" data-rever="#prim-lines [data-reveal]">Rever</button></div>
+        <div class="ds-card"><div class="ds-prim__palco ds-prim__palco--peca" id="prim-piece"><figure class="cut cut--polaroid" data-reveal="piece"><Foto src="gastronomia/croissant-prato-azul.webp" alt="" sizes="160px" /><figcaption>assenta</figcaption></figure></div><p class="ds-legenda"><code>data-reveal="piece"</code> · sobe 28 px, gira 5°, escala .94 → assenta com overshoot</p><button class="ds-botao" type="button" data-rever="#prim-piece [data-reveal]">Rever</button></div>
+        <div class="ds-card"><div class="ds-prim__palco ds-prim__palco--carimbo" id="prim-stamp"><Stamp reveal>novo capítulo</Stamp></div><p class="ds-legenda"><code>data-reveal="stamp"</code> · bate: escala 1,6 → 1, gira 18°</p><button class="ds-botao" type="button" data-rever="#prim-stamp [data-reveal]">Rever</button></div>
+        <div class="ds-card"><div class="ds-prim__palco ds-prim__palco--draw" id="prim-draw"><Seta variante="a" /><Faiscas /></div><p class="ds-legenda"><code>data-draw</code> · traço desenhado (setas, faíscas)</p><button class="ds-botao" type="button" data-rever="#prim-draw [data-draw]">Rever</button></div>
+        <div class="ds-card"><div class="ds-prim__palco" id="prim-fade"><p class="notice" data-reveal>Revelação simples do v1: opacidade e 30 px.</p></div><p class="ds-legenda"><code>data-reveal</code> · 700 ms, uma vez por elemento</p><button class="ds-botao" type="button" data-rever="#prim-fade [data-reveal]">Rever</button></div>
+      </div>
+
+      <h3 class="ds-h3">Entrada do hero</h3>
+      <div class="ds-card ds-entrada">
+        <div class="ds-frame" data-frame data-w="390" data-h="844" id="frame-hero"><iframe title="Entrada do hero, 390 px" src="/" loading="lazy" tabindex="-1"></iframe></div>
+        <div>
+          <button class="btn btn--wine" type="button" data-recarregar="#frame-hero">Rever a entrada</button>
+          <ol class="ds-linha-tempo">{HERO_T.filter((t) => !t.nome.endsWith('-dur')).map((t) => (
+            <li style={`--p:${parseInt(t.valor) / 1200}`}><code>{t.nome.replace('--hero-t-', '')}</code><span class="ds-linha-tempo__barra"></span><em>{t.valor}{t.nota ? ` · ${t.nota}` : ''}</em></li>
+          ))}</ol>
+          <p class="ds-nota">Só na primeira pintura, no topo e sem âncora; termina em ~1,16 s. O título nunca fica invisível (é o maior elemento da 1ª tela).</p>
+        </div>
+      </div>
+
+      <h3 class="ds-h3">Parallax e rolagem</h3>
+      <div class="ds-card ds-parallax">
+        <div class="ds-parallax__rolagem" tabindex="0" aria-label="Área de demonstração do parallax: role aqui dentro">
+          <div class="ds-parallax__trilho">
+            <p class="ds-parallax__dica">role aqui dentro ↓</p>
+            <Spiral class="roll__spiral ds-parallax__espiral" />
+            <figure class="cut cut--circle ds-parallax__a" data-parallax="up"><Foto src="gastronomia/croissant-prato-azul.webp" alt="" sizes="140px" /></figure>
+            <figure class="cut cut--tile ds-parallax__b" data-parallax="down"><Foto src="gastronomia/bruschetta-brunch.webp" alt="" sizes="120px" /></figure>
+            <figure class="cut cut--polaroid ds-parallax__c" data-parallax="soft"><Foto src={amb.salao.foto} alt="" sizes="120px" /><figcaption>soft</figcaption></figure>
+            <p class="ds-parallax__fim">fim</p>
+          </div>
+        </div>
+        <ul class="ds-tokens">
+          <li><code>up</code><span>−16 px</span><em>sobe mais rápido que a página</em></li>
+          <li><code>down</code><span>+16 px</span><em>desce</em></li>
+          <li><code>soft</code><span>−6 px</span><em>quase nada (fotos do quadro)</em></li>
+          <li><code>hero-exit</code><span>−24 px</span><em>a colagem se afasta quando o hero sai</em></li>
+          <li><code>espiral</code><span>−40° → 80°</span><em>gira com a rolagem</em></li>
+        </ul>
+      </div>
+
+      <h3 class="ds-h3">Loops e microinterações</h3>
+      <div class="ds-vitrine">
+        <div class="ds-palco ds-palco--largo ds-palco--faixa"><Ticker itens={cardapio.faixa} /><span class="ds-legenda ds-legenda--clara">faixa · 32 s por volta · pausa com o botão</span></div>
+        <div class="ds-palco ds-palco--papel"><StickerRoll id="ds-selo-mov" /><span class="ds-legenda">selo · 24 s por volta</span></div>
+        <div class="ds-palco ds-palco--papel"><div class="chips"><span class="chip chip--skeleton" aria-hidden="true"></span><span class="chip chip--skeleton" aria-hidden="true"></span></div><span class="ds-legenda">esqueleto · brilho de 1,6 s</span></div>
+        <div class="ds-palco ds-palco--papel"><div class="ticket ds-mini-ticket" aria-busy="true"><div class="stamp ticket__stamp" aria-hidden="true">enviando</div></div><span class="ds-legenda">carimbo girando durante o envio</span></div>
+        <div class="ds-palco ds-palco--papel"><button class="btn btn--wine" type="button">Pressione</button><span class="ds-legenda">pressionar · escala .96</span></div>
+      </div>
+
+      <div class="ds-card ds-reduzido">
+        <h3 class="ds-h3">Movimento reduzido e pausa</h3>
+        <ul class="ds-lista">
+          <li><strong>Movimento reduzido (sistema):</strong> tudo no estado final, sem loops, sem parallax, sem rolagem suave; doca e CTA só com opacidade (150 ms).</li>
+          <li><strong>Pausar animações (botão do site):</strong> para faixa, selo, esqueleto, vídeos e parallax; a escolha fica salva no navegador.</li>
+          <li>Use “Simular movimento reduzido” acima: ele liga as regras reais de <code>prefers-reduced-motion</code> nesta página e nas pré-visualizações.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 09 · TELAS ------------------------------------------------------------------------------------- -->
+    <section class="ds-sec ds-sec--butter" id="telas" aria-labelledby="t-telas" tabindex="-1">
+      <p class="ds-kicker">09 · responsivo</p>
+      <MegaTitle linhas={['Telas', 'reais']} id="t-telas" tom="wine" scribble="do celular ao desktop" />
+      <p class="ds-lead">O site de verdade, em cada largura. Role dentro da tela; “Rever a entrada” recarrega a página.</p>
+      <div class="ds-telas__controles">
+        <div class="chips" role="group" aria-label="Largura">
+          {[[360, 740], [375, 667], [390, 844], [430, 932], [768, 1024], [1440, 900]].map(([w, h]) => <button class="chip" type="button" data-tela-w={w} data-tela-h={h} aria-pressed={w === 390 ? 'true' : 'false'}>{w}</button>)}
+        </div>
+        <div class="chips" role="group" aria-label="Página">
+          {[['/', 'Início'], ['/reservar/', 'Reservar'], ['/privacidade/', 'Privacidade']].map(([url, nome], i) => <button class="chip" type="button" data-tela-url={url} aria-pressed={i === 0 ? 'true' : 'false'}>{nome}</button>)}
+        </div>
+        <div class="ds-telas__acoes">
+          <button class="ds-botao" type="button" data-recarregar="#frame-tela">Rever a entrada</button>
+          <a class="ds-botao" href="/" target="_blank" rel="noopener" data-tela-abrir>Abrir em nova aba ↗</a>
+        </div>
+      </div>
+      <p class="ds-agora"><strong data-tela-rotulo>390 × 844</strong> · escala <span data-tela-escala>1</span></p>
+      <div class="ds-frame ds-frame--tela" data-frame data-w="390" data-h="844" id="frame-tela"><iframe title="Pré-visualização do site" src="/" loading="lazy"></iframe></div>
+    </section>
+  </main>
+
+  <Footer />
+  <script>import '../../lib/design-system.js';</script>
+</Base>
