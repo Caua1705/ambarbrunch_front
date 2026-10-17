@@ -8,7 +8,7 @@
 
 | Logo | Arquivo no site | Origem | Onde aparece | Tamanho exibido |
 | --- | --- | --- | --- | --- |
-| **Âmbar · café & brunch** | `src/assets/media/brand/logo-ambar.png` (1296 × 494, fundo transparente, tinta `#670D27`) | OF-15, extraído da pág. 1 do PDF oficial | etiqueta do hero (`h1`), folha do menu, rodapé, barra das páginas internas, favicon provisório | hero ≈ 248 px (390) · 312 px (desktop) · rodapé 240 · menu 132 · barra 122 |
+| **Âmbar · café & brunch** | `src/assets/media/brand/logo-ambar.png` (1296 × 494, fundo transparente, tinta `#670D27`) | OF-15, extraído da pág. 1 do PDF oficial | etiqueta do hero (`h1`), folha do menu, rodapé, barra das páginas internas, ícone do site | hero ≈ 248 px (390) · 312 px (desktop) · rodapé 240 · menu 132 · barra 122 |
 | **Roll** | `src/assets/media/brand/logo-roll.png` (reduzido a 420 px) | OF-03 | selo do hero, selo da seção Fornadas e do Novo capítulo, rodapé | selo hero ≈ 60 px · selo 87 px · rodapé 56 px |
 
 **Regras**
@@ -18,7 +18,7 @@
 3. **Roll sempre sobre creme e dentro de um círculo** (`.badge`, `.sticker--roll`) — nunca solta sobre cor ou foto, nunca maior que a marca Âmbar na mesma tela.
 4. **Hierarquia:** Âmbar Brunch é a marca da página; a Roll aparece como **assinatura** (“assinatura gastronômica”, “com assinatura gastronômica”), nunca como marca principal.
 5. **Respiro:** a etiqueta tem padding de 20/24/30 px ao redor do logo; não colocar texto dentro da etiqueta do logo.
-6. **Favicon:** provisório (o logo oficial reduzido sobre creme 512 × 512). Um ícone oficial está pendente.
+6. **Ícone do site (oficial, confirmado em 2026-10-16):** o logo do Âmbar Brunch sobre creme — `favicon.png` (512), `favicon-48.png`, `apple-touch-icon.png` (180), `icon-192.png` e `site.webmanifest`.
 
 ## 2. Fotografia
 

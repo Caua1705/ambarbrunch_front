@@ -1,0 +1,11 @@
+{
+  "name": "Âmbar Brunch",
+  "short_name": "Âmbar",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/favicon.png", "sizes": "512x512", "type": "image/png" }
+  ],
+  "theme_color": "#670D27",
+  "background_color": "#F4EEE3",
+  "display": "browser"
+}

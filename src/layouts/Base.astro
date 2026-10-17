@@ -43,7 +43,11 @@ const fontes = `
   <meta property="og:title" content={titulo} />
   <meta property="og:description" content={descricao} />
   <meta property="og:locale" content="pt_BR" />
-  <link rel="icon" href="/favicon.png" type="image/png" />
+  <!-- ícone oficial: o logo do Âmbar Brunch sobre creme -->
+  <link rel="icon" href="/favicon-48.png" type="image/png" sizes="48x48" />
+  <link rel="icon" href="/favicon.png" type="image/png" sizes="512x512" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="manifest" href="/site.webmanifest" />
   <link rel="preload" href={bricolage} as="font" type="font/woff2" crossorigin />
   <!-- a Fraunces também é pré-carregada: o “&” do título usa essa fonte, e a troca tardia empurrava a colagem (CLS) -->
   <link rel="preload" href={fraunces} as="font" type="font/woff2" crossorigin />
