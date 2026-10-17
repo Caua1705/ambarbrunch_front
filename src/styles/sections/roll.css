@@ -26,12 +26,21 @@
 
 /* Leque de bandejas */
 .trays { display: flex; justify-content: center; margin-top: var(--s-44); padding: 0 var(--gutter); }
-.trays figure { width: 39%; margin: 0 -5%; }
+.trays figure { position: relative; width: 39%; margin: 0 -5%; }
 .trays figure:nth-child(1) { rotate: -7deg; margin-top: var(--s-18); }
 .trays figure:nth-child(2) { rotate: 3deg; z-index: var(--z-1); }
 .trays figure:nth-child(3) { rotate: -2deg; margin-top: var(--s-30); }
 .trays img { aspect-ratio: 3 / 4; object-fit: cover; border: var(--border-photo) solid var(--cream); border-radius: var(--radius-s); box-shadow: var(--shadow-photo-deep); }
-.trays figcaption { margin-top: var(--s-8); text-align: center; font: var(--t-caption-l); color: var(--butter); }
+/* Legenda como etiqueta sobre a PRÓPRIA foto (mesma etiqueta dos vídeos): nunca invade a bandeja vizinha,
+   nem com o parallax da do meio. As das pontas vão para o lado de fora, longe da sobreposição. */
+.trays figcaption {
+  position: absolute; bottom: var(--s-12); left: 50%; translate: -50% 0; z-index: var(--z-1);
+  max-width: calc(100% - 2 * var(--s-12)); padding: 6px var(--s-10) 7px; border-radius: var(--radius-pill);
+  background: var(--butter); color: var(--wine); box-shadow: var(--shadow-photo);
+  font: var(--t-caption-l); white-space: nowrap; rotate: -3deg;
+}
+.trays figure:nth-child(1) figcaption { left: var(--s-12); translate: none; }
+.trays figure:nth-child(3) figcaption { left: auto; right: var(--s-12); translate: none; rotate: 2deg; }
 
 /* Tablet: vídeos menores (2,6 cards à vista, o carrossel continua) e bandejas num leque de até 560 px */
 @media (min-width: 600px) and (max-width: 959px) {
@@ -43,4 +52,7 @@
   .roll__head { max-width: var(--container-xl); margin: 0 auto; }
   .stories { grid-auto-columns: 280px; justify-content: center; overflow: visible; }
   .trays { max-width: var(--container-s); margin-left: auto; margin-right: auto; }
+  /* crédito e sabores na mesma coluna do cabeçalho (antes encostavam na margem da página) */
+  .roll__credit, .roll__sabores { max-width: calc(var(--container-xl) - 2 * var(--gutter)); margin-left: auto; margin-right: auto; }
+  .roll__credit { text-align: center; }
 }

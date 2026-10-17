@@ -5,7 +5,7 @@
   padding: var(--s-18) var(--gutter) var(--s-22);
   background: var(--wine); color: var(--butter);
 }
-.page-bar .label { width: 150px; padding: var(--s-12) var(--s-14) 20px; rotate: -2.5deg; filter: var(--drop-label); }
+.page-bar .label { display: block; width: 150px; padding: var(--s-12) var(--s-14) 20px; rotate: -2.5deg; filter: var(--drop-label); }
 .page-bar a { color: inherit; }
 .page-back { font: var(--t-pill); letter-spacing: var(--track-caps); text-transform: uppercase; text-decoration: none; min-height: 44px; display: inline-flex; align-items: center; }
 

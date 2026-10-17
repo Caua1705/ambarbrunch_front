@@ -15,7 +15,8 @@ export const roll = {
   /** Vídeos reexportados sem áudio (npm run media:video). Crédito sempre visível; autorizados em 2026-10-17. */
   videos: [
     { id: 'IV-06', arquivo: 'roll-do-forno', poster: 'roll/poster-do-forno.webp', tag: 'do forno', descricao: 'carrinho de forno com fornadas de cinnamon rolls', autor: '@roll.ofc', tipo: 'roll', autorizado: true },
-    { id: 'IV-09', arquivo: 'roll-sabores-do-mes', poster: 'roll/poster-sabores-do-mes.webp', tag: 'sabores do mês', descricao: 'closes de cinnamon rolls com cobertura', autor: '@roll.ofc', tipo: 'roll', autorizado: true },
+    // 2º trecho do IV-06 (sem texto na imagem): o IV-09 tinha “Outubro” gravado e ficaria datado
+    { id: 'IV-06b', arquivo: 'roll-sabores-do-mes', poster: 'roll/poster-sabores-do-mes.webp', tag: 'sabores do mês', descricao: 'fornada de cinnamon rolls de Nutella saindo do rack', autor: '@roll.ofc', tipo: 'roll', autorizado: true },
     { id: 'IV-08', arquivo: 'roll-bandeja', poster: 'roll/poster-bandeja.webp', tag: 'bandeja', descricao: 'bandeja de cinnamon rolls com cobertura de chocolate', autor: '@roll.ofc', tipo: 'roll', autorizado: true },
     // criadora: gravado em casa, sobre a box da Roll — NUNCA apresentado como avaliação do Âmbar. Trecho de 9 s, sem áudio, autorizado pela autora.
     { id: 'IV-05', arquivo: 'roll-criadora-larizgomes', poster: 'roll/poster-criadora-larizgomes.webp', tag: 'provou a Roll', descricao: 'criadora provando um cinnamon roll de pistache da Roll', autor: '@larizgomes', tipo: 'criadora', quando: 'set/2026', autorizado: true },

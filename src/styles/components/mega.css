@@ -9,6 +9,7 @@
 }
 .mega span { display: block; }
 .mega__r { text-align: right; }
+.mega__acento { padding-top: .12em; }   /* respiro só para o acento (ver MegaTitle.astro) */
 .mega--light { color: var(--butter); }
 .mega--wine { color: var(--wine); }
 

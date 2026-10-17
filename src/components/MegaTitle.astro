@@ -10,8 +10,10 @@ interface Props {
   reveal?: 'lines' | '' ;      // '' = revelação simples do v1
 }
 const { linhas, id, tom, scribble, as: Tag = 'h2', direita = [1], reveal = 'lines' } = Astro.props;
+// Entrelinha .8: um acento em maiúscula (Â, É…) a partir da 2ª linha encostaria na linha de cima.
+const acentoAlto = (l: string) => /[ÁÀÂÃÉÊÍÓÔÕÚ]/.test(l.toUpperCase());
 ---
 <Tag class:list={['mega', tom && `mega--${tom}`]} id={id} data-reveal={reveal || ''}>
-  {linhas.map((l, i) => <span class:list={[direita.includes(i) && 'mega__r']}>{l}</span>)}
+  {linhas.map((l, i) => <span class:list={[direita.includes(i) && 'mega__r', i > 0 && acentoAlto(l) && 'mega__acento']}>{l}</span>)}
   {scribble && <em class:list={['scribble', tom === 'light' && 'scribble--light']}>{scribble}</em>}
 </Tag>

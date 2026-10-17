@@ -73,7 +73,8 @@
   }
   .hero__label { grid-column: 1; justify-self: start; }
   .hero__label .label { width: 360px; }
-  .hero__headline { grid-column: 1; }
+  /* o título fica no meio da sobra vertical (antes, todo o vazio ficava entre ele e o botão) */
+  .hero__headline { grid-column: 1; align-self: center; }
   /* no desktop vale a composição em % do v1 */
   .hero__collage { grid-column: 2; grid-row: 1 / 4; margin: 0; height: auto; min-height: 620px; container-type: normal; --u: 1px; --ox: 0px; }
   .hero__collage .cut--circle   { width: 50%; left: -6%; top: 120px; }

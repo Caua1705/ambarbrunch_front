@@ -80,6 +80,9 @@ Toda diferença visual ou de comportamento em relação ao protótipo está aqui
 | D12 | Largura variável via `font-stretch` (eixos efetivos iguais) | tipografia | WebKit encavalava as letras |
 | D13 | Título e etiqueta do hero limitados pela altura; respiros menores abaixo de 700 px | telas baixas | colagem maior em 375×667 |
 | D14 | Doca inteira (menu + CTA) some na seção de reserva | comportamento | o menu fixo cobria o aceite de privacidade |
+| D16 | Legenda das bandejas como etiqueta sobre a própria foto (as das pontas para fora) | Fornadas | a legenda do meio invadia a bandeja vizinha (e mudava com o parallax) |
+| D17 | Linha de mega título com acento em maiúscula (Â, É…) a partir da 2ª linha ganha `.12em` em cima | mega títulos | o Â de “o Âmbar” encostava no E de “Visite” |
+| D18 | Desktop: título do hero centrado na sobra vertical; crédito e sabores da Roll na coluna do cabeçalho | ≥ 960 px | vazio entre título e botão; textos encostados na margem |
 
 ## Registro de decisões
 
@@ -92,3 +95,4 @@ Toda diferença visual ou de comportamento em relação ao protótipo está aqui
 | 2026-10-16 | Astro + CSS próprio + Preact só na reserva | cliente (planejamento) |
 | 2026-10-16 | Design system v1.0 (este documento) | cliente |
 | 2026-10-16 | Implementação em Astro (Etapa 4) com os desvios D12–D14 | **aguardando revisão** |
+| 2026-10-17 | Rodada de acabamento: desvios D16–D18; vídeo “sabores do mês” sem referência a mês | cliente |

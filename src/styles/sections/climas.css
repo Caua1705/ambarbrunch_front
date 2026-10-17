@@ -6,7 +6,8 @@
 .bubble--a { right: -4%; top: 36%; }
 .bubble--b { right: 4%; bottom: -8%; }
 
-.climas__pending { margin-top: 64px; }
+/* a bolha “leitura” pendura ~8–10% da altura do painel abaixo dele: o marcador de revisão começa depois dela */
+.climas__pending { margin-top: clamp(112px, 30vw, 136px); }
 
 /* a partir do tablet: os dois painéis lado a lado (antes, em 768 px, cada painel tinha 880 px de altura) */
 @media (min-width: 600px) {
