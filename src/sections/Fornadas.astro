@@ -1,5 +1,6 @@
 ---
-// 5 · FORNADAS — a Roll como assinatura gastronômica do Âmbar (markup do v1 + créditos e controles dos vídeos).
+// 5 · DIRETO DA FORNADA — a Roll como assinatura gastronômica do Âmbar: bastidores (vídeos da própria Roll, mudos),
+// anatomia de um roll (composição editorial animada) e bandejas. Vídeos de criadores ficam em “Quem provou, conta”.
 // Não é vitrine de loja: sem preço, sem compra, sem delivery. Mídia da Roll só com autorização (ou no modo de revisão).
 import Foto from '../components/Foto.astro';
 import MegaTitle from '../components/MegaTitle.astro';
@@ -13,6 +14,7 @@ import { imagem, video } from '../lib/media';
 
 const videos = roll.videos.filter((v) => podeMostrar(v.autorizado) && video(v.arquivo));
 const bandejas = podeMostrar(roll.bandejasAutorizadas) ? roll.bandejas.filter((b) => imagem(b.foto)) : [];
+const anatomia = podeMostrar(roll.fotos.anatomia.autorizado) && imagem(roll.fotos.anatomia.foto) ? roll.fotos.anatomia : undefined;
 const pendentesAutorizacao = roll.videos.some((v) => !v.autorizado) || !roll.bandejasAutorizadas;
 const doMes = roll.sabores.doMes;
 ---
@@ -21,12 +23,28 @@ const doMes = roll.sabores.doMes;
 
   <div class="roll__head">
     <Badge class="roll__badge" />
-    <MegaTitle linhas={['Forna', 'das']} id="roll-titulo" tom="light" />
+    <MegaTitle linhas={['Direto da', 'fornada']} id="roll-titulo" tom="light" />
     <p class="roll__lead" data-reveal>{roll.lead}</p>
   </div>
 
+  <!-- Anatomia de um roll: a foto gira para o lugar como massa sendo enrolada, a espiral se desenha e as notas entram.
+       Só CSS (transições do data-reveal + timeline de scroll onde houver suporte); nada em movimento reduzido. -->
+  {anatomia && (
+    <figure class="anatomia" data-reveal="fade">
+      <div class="anatomia__palco">
+        <svg class="anatomia__espiral" viewBox="0 0 240 240" aria-hidden="true" data-draw><path pathLength="1" d="M121 219C56 218 19 164 28 103 40 31 127 2 182 51c34 30 31 82-9 105-37 21-80 2-83-30-4-30 26-46 47-33 13 7 15 27 2 35" /></svg>
+        <div class="anatomia__foto"><Foto src={anatomia.foto} alt={anatomia.alt} sizes="(min-width: 960px) 340px, 62vw" widths={[300, 480, 680]} qualidade={56} /></div>
+        <p class="anatomia__nota anatomia__nota--a" style="--i:1">massa fresquinha</p>
+        <p class="anatomia__nota anatomia__nota--b" style="--i:2">espiral de canela</p>
+        <p class="anatomia__nota anatomia__nota--c" style="--i:3">direto da fornada</p>
+      </div>
+      {REVISAO && !roll.fotos.anatomia.autorizado && <Pendente falta={`Autorização da Roll para a foto ${roll.fotos.anatomia.id} (a de 17/10 cobriu IG-06/08/09)`} bloco class="anatomia__pendente" />}
+    </figure>
+  )}
+
   {videos.length > 0 && (
     <>
+      <p class="roll__kicker">bastidores da Roll</p>
       <ol class="stories" aria-label="Vídeos da Roll">
         {videos.map((v) => <Story {...v} />)}
       </ol>
@@ -61,7 +79,7 @@ const doMes = roll.sabores.doMes;
     </div>
   )}
   {REVISAO && pendentesAutorizacao && (
-    <div class="roll__credit roll__pending"><Pendente falta="Autorização da Roll (fotos e vídeos do Instagram) e de @larizgomes (vídeo da criadora); sem ela, saem do site publicado" bloco /></div>
+    <div class="roll__credit roll__pending"><Pendente falta="Autorização da Roll (fotos e vídeos do Instagram); sem ela, saem do site publicado" bloco /></div>
   )}
 
   <p class="roll__cta"><a href="#reservar">prove no Âmbar <strong>reservar →</strong></a></p>

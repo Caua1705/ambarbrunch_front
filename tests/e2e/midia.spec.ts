@@ -29,7 +29,7 @@ test.describe('reprodução', () => {
   test.use({ reducedMotion: 'no-preference' });
   test('toca no máximo um vídeo por vez', async ({ page }) => {
     await page.goto('/');
-    await page.locator('.stories').evaluate((el) => el.scrollIntoView({ block: 'center' }));
+    await page.locator('#roll .stories').evaluate((el) => el.scrollIntoView({ block: 'center' }));
     await expect.poll(() => page.$$eval('video', (vs) => vs.filter((v) => !(v as HTMLVideoElement).paused).length), { timeout: 8000 }).toBe(1);
     // botão do card pausa
     const tocando = page.locator('.story[data-state="playing"] .story__toggle');

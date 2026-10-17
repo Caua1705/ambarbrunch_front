@@ -19,7 +19,9 @@ initDock({
   heroMenu: document.querySelector('.menu-btn--hero'),
   sheet,
 });
-initStories();
+// vídeos da Roll (bastidores); o carrossel de criadores tem a própria lógica (lib/carrossel.js)
+const bastidores = document.getElementById('roll');
+if (bastidores) initStories(bastidores);
 
 // “Reservar aqui” num ambiente: avisa a comanda (ilha Preact), mesmo que ela ainda não tenha carregado.
 document.addEventListener('click', (ev) => {

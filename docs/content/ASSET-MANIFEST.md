@@ -18,6 +18,8 @@ Catálogo de todos os arquivos recebidos, gerados ou selecionados para o projeto
 | 2026-10-16 | Decisão: nome do site **Âmbar Brunch**; logo provisório = OF-14/15 (“âmbar CAFÉ & BRUNCH”) |
 | 2026-10-17 | **Autorização registrada** (aprovado por Caua Carvalho, responsável pelo projeto) para uso no site e no repositório público: bandejas IG-OPT-06 (Biscoff), IG-09 (red velvet), IG-OPT-07 (Oreo); vídeos IV-06, IV-08, IV-09 (@roll.ofc) e trecho de 9 s de IV-05 (@larizgomes), todos sem áudio; e as 4 capas derivadas. Situação → **publicado** (ver “Mídia autorizada no site”) |
 | 2026-10-17 | Card “sabores do mês”: o IV-09 (texto “Outubro 🤍” gravado no centro de todos os quadros) foi trocado pelo 2º trecho do IV-06 (14,5 s → 20 s, fornada de Nutella; não repete o mirtilo do card “do forno”), da mesma conta e já autorizado; sem texto na imagem, não fica datado. IV-09 sai do site |
+| 2026-10-17 | **Revisão visual e influenciadores:** 7 vídeos de criadores catalogados (IF-01…07; IF-01 e IF-03 são trechos duplicados de IF-02 e IF-04), 2 reels de @_magall baixados (script do kit corrigido), 8 cortes em revisão com áudio igualado; referências RF-08/09 e DC-19/20. **Nada autorizado nem publicado.** Detalhes em [`INFLUENCIADORES.md`](INFLUENCIADORES.md) |
+| 2026-10-17 | Conceito B, implementação local: hero “& rolls” com recorte da **IG-02** (`hero-roll-espiral.webp`) e “anatomia do roll” com outro recorte da IG-02 (`roll-anatomia.webp`), ambos em `src/assets/media/revisao/` (fora do Git). **A autorização de 17/10 não cobre a IG-02**: no build de produção o hero volta ao croissant e a anatomia não aparece. Vídeos de criadores IF-02a/04a/05a/06a/06b com legendas .vtt revisadas, só na revisão |
 
 > O CSV de origem (`ASSET-MANIFEST-IMPORT.csv`) é mantido como registro histórico e ainda cita os caminhos antigos.
 > Seleção inicial em [`CURADORIA-INICIAL.md`](CURADORIA-INICIAL.md) · Reels em [`REVISAO-REELS.md`](REVISAO-REELS.md).
@@ -223,6 +225,11 @@ Pasta `creative/source/photography/roll_instagram/otimizadas/`. O nome do arquiv
 | CR-17 | `…/ornaments/linha-editorial-conceito.svg` | 900×130 | Linha ondulada com folhas | ornamento | Conceito | P2 | Divisor de seção |
 | CR-18 | `…/ornaments/sparkles-artesanais-conceito.svg` | 320×200 | Riscos de “brilho” | ornamento | Conceito | P2 | Parecido com os riscos laterais do logo Roll — usar com moderação |
 
+### IF — Vídeos de criadores (influenciadores), em revisão
+
+Catálogo completo, origem, cortes e pendências em [`INFLUENCIADORES.md`](INFLUENCIADORES.md). Originais e derivados em
+`creative/source/video/influenciadores/` (ignorado no Git). Situação: **em revisão** · aprovação **pendente**.
+
 ### RF — Referência externa (7)
 
 | ID | Arquivo | Dimensões | Conteúdo | Uso | Observações |
@@ -230,6 +237,8 @@ Pasta `creative/source/photography/roll_instagram/otimizadas/`. O nome do arquiv
 | RF-01–05 | `references/screenshots/zuzzi-1000332175…183.jpg` | 316–709 × 1536 | Site mobile Zuzzi Drinks: blocos de cor, tipografia condensada, carrossel de vídeos de reviews, barra fixa de compra | Estudo de ritmo, carrossel de reviews e CTA fixo | Marca e assets proprietários; **não publicar nem copiar** |
 | RF-06 | `references/motion/giardini-referencia-01.mp4` | 1916×948 · 71,8 s · 66,7 MB | Gravação do site antigo Giardini: hero, cardápio escuro, “Reserve sua mesa” | Estudo de UX | Mostra fotos de ambiente/pessoa que **não estão no pacote** |
 | RF-07 | `references/motion/giardini-referencia-02.mp4` | 1918×854 · 14,7 s · 12,8 MB | Fluxo de reserva antigo: ambiente (Jardim Externo, Salão Principal, Lounge Reservado, Sala Privativa) → pessoas → data → horário → dados | Estudo de UX de reservas | Base para mapear a API existente |
+| RF-08 | `references/motion/zuzzi_carrossel_influenciadores.mp4` | 450×910 · 26,8 s | Carrossel de reviews da Zuzzi: card central maior, vizinhos parcialmente visíveis | Estudo do carrossel de influenciadores | Pacote de revisão 2026-10-17; **não copiar** |
+| RF-09 | `references/screenshots/zuzzi_informacao_nutricional.png` | 453×876 | Tabela nutricional da Zuzzi | Estudo de UI futura | Não copiar dados nem layout; tabela do Âmbar só com ficha técnica |
 
 ### DC — Documentos e derivados (18)
 
@@ -245,6 +254,8 @@ Pasta `creative/source/photography/roll_instagram/otimizadas/`. O nome do arquiv
 | DC-08 | `docs/content/instagram-roll-inventario-original.csv` | Inventário Instagram anterior | Contém URLs assinadas da CDN: ignorado no Git |
 | DC-09–17 | `docs/content/reel-capa-*.jpg` (9) | Capas dos reels, 280×498 | Só para curadoria; resolução insuficiente para o site |
 | DC-18 | `docs/design/DIRECAO-CRIATIVA-INICIAL.md` | Direção criativa inicial (não aprovada) | Paleta sugerida diverge das cores amostradas dos logos |
+| DC-19 | `references/motion/ambar_homepage_atual_390px.mp4` | Gravação da home atual em 390 px (406×870, 27,6 s) | Pacote de revisão 2026-10-17; base da proposta de evolução |
+| DC-20 | `references/screenshots/hero_ambar_atual.png` | Captura do hero atual (434×899) | Idem |
 
 ### Catálogos gerados na Etapa 1 (derivados, uso interno, ignorados no Git)
 

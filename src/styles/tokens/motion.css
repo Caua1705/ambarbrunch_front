@@ -27,6 +27,9 @@
   --tilt: 5deg;
   --reveal-delay-scribble: 120ms;  /* depois das linhas do título */
   --reveal-delay-draw: 200ms;      /* setas e faíscas começam depois das peças */
+  --dur-roll: 1100ms;              /* anatomia do roll: a foto gira para o lugar (massa sendo enrolada) */
+  --dur-draw-long: 1500ms;         /* espiral grande da anatomia se desenhando */
+  --reveal-delay-notes: 550ms;     /* notas da anatomia entram depois que a foto assenta */
   --reveal-delay-stamp: 260ms;
   --sheet-items-delay: 80ms;       /* itens do menu depois da folha */
   --cascade: 35ms;                 /* pílulas do cardápio caindo uma a uma */

@@ -5,6 +5,7 @@
 // - preload="none" + poster: o arquivo só é baixado quando o vídeo vai tocar.
 import { motionAllowed } from './motion.js';
 
+/** @param {ParentNode} [scope] */
 export function initStories(scope = document) {
   /** @type {HTMLVideoElement[]} */
   const videos = [...scope.querySelectorAll('video[data-autoplay]')].map((v) => /** @type {HTMLVideoElement} */ (v));

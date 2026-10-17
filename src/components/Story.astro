@@ -1,30 +1,60 @@
 ---
 // Vídeo vertical (v1: .story) com crédito obrigatório, progresso e tocar/pausar.
-// O vídeo é mudo, sem faixa de áudio, preload="none"; o poster (data-poster) só baixa quando o carrossel se aproxima
+// O vídeo começa mudo, preload="none"; o poster (data-poster) só baixa quando o carrossel se aproxima
 // da tela — o atributo poster baixaria a imagem já no carregamento da página — e o vídeo só quando o card vai tocar.
+// Novos (Quem provou, conta): `audio` (botão de som; o arquivo tem a voz do criador), legendas .vtt ao lado do vídeo,
+// formato horizontal (janela emoldurada dentro do card, sem zoom) e `carrossel` (quem toca é lib/carrossel.js).
 import { getImage } from 'astro:assets';
-import { imagem, video } from '../lib/media';
+import { imagem, video, legendas } from '../lib/media';
+import { isPendente, type Pendente } from '../lib/conteudo';
 
 interface Props {
   arquivo: string; poster: string; tag: string; descricao: string;
-  autor: string; tipo: 'roll' | 'criadora'; quando?: string;
+  autor: string | Pendente; tipo: 'roll' | 'criador'; quando?: string;
+  formato?: 'vertical' | 'horizontal'; audio?: boolean; carrossel?: boolean; legendaOriginal?: string[];
 }
-const { arquivo, poster, tag, descricao, autor, tipo, quando } = Astro.props;
+const { arquivo, poster, tag, descricao, autor, tipo, quando, formato = 'vertical', audio = false, carrossel = false, legendaOriginal } = Astro.props;
 const src = video(arquivo);
+const vtt = audio ? legendas(arquivo) : undefined;
 const meta = imagem(poster);
-const posterUrl = meta ? (await getImage({ src: meta, width: 480, format: 'webp', quality: 64 })).src : undefined;
-const credito = (tipo === 'roll' ? 'vídeo da própria Roll' : 'criadora · conteúdo sobre a Roll') + (quando ? ` · ${quando}` : '');
+const posterUrl = meta ? (await getImage({ src: meta, width: formato === 'horizontal' ? 640 : 480, format: 'webp', quality: 64 })).src : undefined;
+const credito = (tipo === 'roll' ? 'vídeo da própria Roll' : 'sobre a Roll') + (quando ? ` · ${quando}` : '');
+const quem = isPendente(autor) ? 'crédito a confirmar' : autor;
+const [w, h] = formato === 'horizontal' ? [480, 268] : [540, 960];
 ---
 {src && (
-  <li class="story" data-tipo={tipo}>
+  <li class:list={['story', formato === 'horizontal' && 'story--wide']} data-tipo={tipo} data-audio={audio ? '' : undefined}>
     <i class="story__progress" aria-hidden="true"></i>
-    <video muted playsinline loop preload="none" data-autoplay data-poster={posterUrl} aria-label={`Vídeo: ${descricao}`} width="540" height="960">
-      <source src={src} type="video/mp4" />
-    </video>
+    <div class="story__janela">
+      {carrossel ? (
+        <>
+          <!-- carrossel: capa leve (img lazy) e o <video> num <template>, criado só quando o card fica ativo —
+               cada <video> custa caro no carregamento do WebKit, mesmo com preload="none" -->
+          {posterUrl && <img class="story__poster" src={posterUrl} alt="" loading="lazy" decoding="async" width={w} height={h} />}
+          <template data-video>
+            <video muted playsinline loop preload="none" data-carrossel poster={posterUrl} aria-label={`Vídeo: ${descricao}`} width={w} height={h}>
+              <source src={src} type="video/mp4" />
+              {vtt && <track kind="captions" src={vtt} srclang="pt-BR" label="Português" />}
+            </video>
+          </template>
+        </>
+      ) : (
+        <video muted playsinline loop preload="none" data-autoplay data-poster={posterUrl} aria-label={`Vídeo: ${descricao}`} width={w} height={h}>
+          <source src={src} type="video/mp4" />
+        </video>
+      )}
+    </div>
+    {legendaOriginal && <p class="story__original" aria-label={`Legenda original do story: ${legendaOriginal.join(' ')}`}>{legendaOriginal.map((l) => <span>{l}</span>)}</p>}
     <button class="story__toggle" type="button" aria-pressed="false" aria-label={`Tocar ou pausar o vídeo: ${tag}`}>
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
     </button>
+    {audio && (
+      <button class="story__som" type="button" aria-pressed="false" aria-label={`Ativar o som do vídeo: ${tag}`} data-som>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path class="story__som-alto" d="M4 9h4l5-4v14l-5-4H4zM16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" /><path class="story__som-mudo" d="M4 9h4l5-4v14l-5-4H4zM16.5 9.5l5 5M21.5 9.5l-5 5" /></svg>
+        <span class="story__som-txt">som</span>
+      </button>
+    )}
     <p class="story__tag">{tag}</p>
-    <p class="story__by">{autor} <em>{credito}</em></p>
+    <p class="story__by" data-pendente={isPendente(autor) ? '' : undefined}>{quem} <em>{credito}</em></p>
   </li>
 )}

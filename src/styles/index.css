@@ -33,6 +33,7 @@
 @import url("sections/novo-capitulo.css") layer(sections);
 @import url("sections/mesa.css") layer(sections);
 @import url("sections/roll.css") layer(sections);
+@import url("sections/provou.css") layer(sections);
 @import url("sections/climas.css") layer(sections);
 @import url("sections/na-mesa.css") layer(sections);
 @import url("sections/reserva.css") layer(sections);

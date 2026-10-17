@@ -1,0 +1,123 @@
+# Vídeos de criadores (influenciadores): importação e curadoria
+
+> **Situação:** em revisão (2026-10-17). **Nenhum vídeo desta página está autorizado.** Originais e derivados ficam em
+> `creative/source/video/influenciadores/` (ignorado no Git). Nada foi copiado para `public/media` nem `src/assets`.
+> Publicar exige autorização de **imagem, voz e nome** de cada criador, inclusive para cortes reeditados.
+
+## Origem
+
+| Pacote recebido | Onde está agora | Observação |
+| --- | --- | --- |
+| `AMBAR_REVISAO_VISUAL_E_INFLUENCIADORES/` (raiz; já veio extraído, sem o `.zip`) | mantido intacto na raiz (ignorado no Git); cópias de trabalho abaixo | `LEIA-PRIMEIRO.txt` do pacote lido e seguido |
+| `ROLL_REELS_MAGALL_download_kit/` (raiz) | mantido na raiz (ignorado no Git); script corrigido no lugar | o pacote acima tem uma cópia idêntica e **não corrigida** do kit em `json_instagram/` |
+
+### Script `baixar_reels_magall.ps1`: correções
+
+1. **`$id:` → `${id}:`** na mensagem de falha (o erro `InvalidVariableReferenceWithDrive` impedia o script de rodar).
+2. **Loop de uma volta só.** No PowerShell 5.1, `@(Get-Content … | ConvertFrom-Json)` embrulha o array inteiro num único
+   item; o `foreach` rodaria uma vez com as duas URLs juntas e falharia. Comprovado no PS 5.1.26100 e corrigido.
+3. Download em `*.part` e renomeado só quando completo (um download interrompido não é mais tomado como pronto).
+4. Barra de progresso desligada (deixa o `Invoke-WebRequest` muito lento no 5.1), TLS 1.2 e User-Agent de navegador.
+5. Áudio copiado sem recompressão (AAC original); recompressão só como alternativa. Contagem de falhas e código de saída 1.
+
+Executado em 2026-10-17 às 13:45 UTC. As URLs assinadas venciam em 18/10 entre 21:45 e 23:17 UTC; **as 4 baixaram**
+(nenhuma expirada).
+
+### Verificação técnica dos reels baixados
+
+| Reel | Vídeo | Áudio | Duração | Integridade | Sincronização |
+| --- | --- | --- | --- | --- | --- |
+| `DdFJq86OyLo` (09/09/2026) | H.264 720×1280 30 fps | AAC 44,1 kHz estéreo | 33,1 s | decodificação completa sem erros | 0 ms |
+| `Db_ajKouIuH` (13/08/2026) | H.264 720×1280 30 fps | AAC 44,1 kHz estéreo | 49,8 s | decodificação completa sem erros | 0 ms |
+
+O `videoUrl` do Instagram já trazia áudio embutido. A faixa separada (`audioUrl`) é **idêntica** a ele (correlação 1,000 e
+defasagem 0 ms medidas por correlação cruzada), então o `*_com_audio.mp4` está sincronizado. Os 3 arquivos de cada reel ficam guardados.
+
+## Inventário (`IF` = influenciador)
+
+| ID | Arquivo de trabalho (`creative/source/video/influenciadores/originais/`) | Formato | Conteúdo | Situação |
+| --- | --- | --- | --- | --- |
+| IF-01 | `stories/stories_01_elevador_trecho_curto.mp4` | 506×782 · 5,5 s | **Duplicata parcial do IF-02**: 1 s do story anterior (“@roll.ofc 1000/10”) + os primeiros ~4 s do IF-02 | descartado (o IF-02 contém tudo) |
+| IF-02 | `stories/stories_02_elevador_completo.mp4` | 510×782 · 33,9 s | Gravação de tela de um story: criadora no elevador abre a caixa de 4 rolls. Textos gravados: “taste test de hoje @roll.ofc”, “cinamon ROLLLLL”. O último 1 s já é o story seguinte | em revisão · crédito **desconhecido** |
+| IF-03 | `stories/stories_03_grupo_trecho_curto.mp4` | 502×774 · 12,9 s | **Duplicata parcial do IF-04**: 1 s do story “AI NAOOOO @roll.ofc” + os primeiros ~12 s do IF-04 | descartado |
+| IF-04 | `stories/stories_04_grupo_completo.mp4` | 506×762 · 74,2 s | Gravação de tela de **2 stories seguidos** de um grupo (4 pessoas) provando a caixa: story A 0,4–28,5 s (vídeo horizontal dentro do story, legenda “@roll.ofc a gente tava tão ansioso pra issoooo”) e story B 28,5–72,5 s (texto “1- Biscoff 1000/10”). Último 1,7 s = outro story | em revisão · crédito **desconhecido** |
+| IF-05 | `stories/stories_05_pistache.mp4` | 512×780 · 22,4 s | Story de **@dailysocass** (nome visível no topo) provando o roll de pistache. Texto: “o de pistache suuurreallll @roll.ofc” | em revisão |
+| IF-06 | `magall/roll_influencer_DdFJq86OyLo_*.mp4` (vídeo, áudio, com_audio) | 720×1280 · 33,1 s | Reel de **@_magall** (Guilherme Magalhães), coautoria @roll.ofc, áudio original. Caixa com pistache, tradicional, Nutella com castanha e mirtilo | em revisão |
+| IF-07 | `magall/roll_influencer_Db_ajKouIuH_*.mp4` | 720×1280 · 49,8 s | Reel de **@_magall**, coautoria @roll.ofc. Prova o tradicional à noite; **palavrões na fala e nas legendas gravadas** a partir de 12 s | em revisão · P3 |
+| — | `transcricoes/*.json` | — | Transcrição automática (faster-whisper `medium`, com tempo por palavra). **Não é fonte de citação**: conferir ouvindo | uso interno |
+
+Os IF-01…05 são gravações de tela (cursor do mouse visível no IF-01), por isso a resolução baixa (~510 px de largura).
+
+### Referências do pacote (somente estudo)
+
+| ID | Arquivo | Conteúdo |
+| --- | --- | --- |
+| RF-08 | `references/motion/zuzzi_carrossel_influenciadores.mp4` | Carrossel de reviews da Zuzzi (card central maior, vizinhos cortados). Não copiar |
+| RF-09 | `references/screenshots/zuzzi_informacao_nutricional.png` | Tabela nutricional da Zuzzi. Não copiar dados nem layout |
+| DC-19 | `references/motion/ambar_homepage_atual_390px.mp4` | Gravação da home atual em 390 px |
+| DC-20 | `references/screenshots/hero_ambar_atual.png` | Captura do hero atual |
+
+## Curadoria: cortes preparados
+
+Regras: **um trecho contínuo por arquivo** (nada colado de momentos diferentes), começo e fim em pausa da fala, sem palavrão
+na fala nem na legenda gravada, sem quadros do story seguinte, textos e @ gravados pelo criador **preservados**.
+Recriar: `npm run media:influenciadores` (`scripts/encode-influenciadores.mjs`). Saída em
+`creative/source/video/influenciadores/derivados/criadores/` (`*.web.mp4` + `*.poster.webp` + `derivados.json`).
+Página local para assistir com som: `creative/source/video/influenciadores/derivados/revisao.html`.
+
+| ID | Arquivo | Origem · trecho | Formato | Peso | Fala (transcrição automática) | Prior. |
+| --- | --- | --- | --- | ---: | --- | --- |
+| IF-06b | `criador-magall-viciado` | IF-06 · 0–3,98 s | 540×960 · 4 s | 468 KB | “Eu definitivamente estou viciado, e esse vício tem nome: Roll.” | **P1** |
+| IF-05a | `criadora-dailysocass-pistache` | IF-05 · 12,7–20,7 s · recorte da moldura | 398×708 · 8 s | 548 KB | “Meu Deus, tá muito bom. É que eu amo o doce com salgado, que é tipo pão. Essa massa é boa.” | **P1** |
+| IF-04a | `criadores-grupo-expectativa` | IF-04 · 0,5–14,3 s · recorte do vídeo horizontal | 478×266 · 14 s | 954 KB | “Gente, simplesmente hoje vamos provar isso aqui, que a gente tava muito ansioso. Num mundo onde todos os doces já estão saturados, achei o máximo começarem a vender cinnamon roll aqui em Fortaleza.” | **P1** |
+| IF-04a-story | `criadores-grupo-expectativa-story` | mesmo trecho, story inteiro sem recorte | 506×762 · 14 s | 1010 KB | idem; mantém a legenda “@roll.ofc a gente tava tão ansioso…” | alternativa |
+| IF-02a | `criador-elevador-abrindo` | IF-02 · 0,1–13,5 s | 510×782 · 13 s | 1529 KB | “…sempre a gente traz um doce pra provar, e o do dia não foi cookie, foi cinnamon roll. Olha esses.” | P1 |
+| IF-06a | `criador-magall-sabores` | IF-06 · 8,45–16,0 s | 540×960 · 8 s | 932 KB | “E olha a perfeição desses sabores. Isso aqui é absurdo: pistache, tradicional, Nutella com castanha.” | P2 (cita sabores que mudam por mês) |
+| IF-04b | `criadores-grupo-biscoff` | IF-04 · 49,6–59,9 s · recorte do vídeo horizontal | 490×274 · 10 s | 799 KB | várias vozes ao mesmo tempo; elogios ao Biscoff, coerentes com o texto “1- Biscoff 1000/10” | P2 |
+| IF-07a | `criador-magall-apresentacao` | IF-07 · 1,2–11,6 s | 540×960 · 10 s | 1465 KB | “Rapaziada, hoje eu vou apresentar pra vocês a novidade aqui de Fortaleza, o nome é cinnamon roll, lá da Roll. Esse é o tradicional, eu nunca comi esse doce…” | P3 |
+
+### O que ficou de fora, e por quê
+
+- **IF-06, 4–8,4 s:** “fornadas de quinta a domingo”, dia de funcionamento antigo da Roll que não vale para o Âmbar.
+  **16–22 s:** convite para encomendar com a Roll; o site não vende.
+- **IF-07, depois de 12 s:** palavrões falados **e** gravados como legenda (“porra”, “caralho muito bom”, “puta que pariu”).
+  Não há trecho de veredito limpo; o único trecho aproveitável é a apresentação (P3).
+- **IF-02, 13,7–17,7 s:** a transcrição indica uma possível palavra imprópria (~15,8 s). Ficou fora de todos os cortes.
+- **IF-04, 43,5 s e 67–69 s:** palavrões. **59,8–64 s:** comparação com outra marca (“Mr. Pretzel”).
+- **IF-05, 10–12 s:** fala incompreensível na transcrição; não usar sem ouvir.
+
+### Recortes e textos sobrepostos
+
+- **IF-05a:** só a borda escura da gravação de tela sai (`crop=398:708:58:30`, 9:16). Nome **@dailysocass** e “@roll.ofc” continuam na imagem.
+- **IF-04a / IF-04b (horizontais):** o story mostrava um vídeo horizontal sobre fundo bege. O recorte pega a janela do vídeo
+  (sem zoom, ninguém é cortado). A legenda do story A ficava **fora** do vídeo e sai do recorte. Ela pode voltar como texto
+  do card, ou usa-se a alternativa IF-04a-story. O “1- Biscoff 1000/10” do story B fica dentro do vídeo e foi mantido.
+- **IF-02a:** sem recorte (proporção original 510×782); textos “taste test de hoje @roll.ofc” / “cinamon ROLLLLL” mantidos.
+- **IF-06/07:** 720×1280 → 540×960, sem recorte. As legendas do IF-07a (“rapaziada hoje eu vou…”) são do autor e ficam.
+
+### Áudio (para a seção de influenciadores)
+
+- AAC 96 kbps 48 kHz; **volume igualado** em −16 LUFS (loudnorm em 2 passadas; medido depois: −15,2 a −16,0 LUFS, picos ≤ −1,2 dBFS),
+  para o botão de som não “estourar” de um criador para outro. Fade de 0,12 s na entrada e 0,2 s na saída, para não estalar no corte.
+- Um arquivo por corte: o player começa **mudo** (`muted`) e o mesmo arquivo toca com som quando o visitante pede.
+- Comportamento testado em `revisao.html`: só o card central toca; “ativar som” liga o áudio só dele; ao trocar de card ou sair da tela,
+  o anterior pausa e volta a ficar mudo; vídeos da Roll nunca ganham botão de som.
+- Diferente dos vídeos da Roll (música de biblioteca do Instagram, publicados sem faixa de áudio), aqui o áudio é **a voz do criador**
+  (`uses_original_audio: true` nos reels). Ainda assim depende da autorização de voz.
+
+## Roll × criadores
+
+| Grupo | Vídeos | Seção |
+| --- | --- | --- |
+| **Bastidores da própria Roll** (@roll.ofc) | IV-06, IV-06b, IV-08 (publicados, sem áudio); candidatos IV-01 e IV-02 (`REVISAO-REELS.md`) | “Bastidores da Roll” |
+| **Criadores** | IF-02a, IF-04a/b, IF-05a, IF-06a/b, IF-07a e IV-05 (@larizgomes, já autorizado sem áudio) | “Influenciadores” (carrossel próprio) |
+
+Nenhum arquivo do pacote novo é da própria Roll: os reels de @_magall têm a Roll como **coautora**, mas o conteúdo e a voz são do criador.
+
+## Pendências antes de publicar
+
+1. **Identificar** os criadores do IF-02 (elevador) e do IF-04 (grupo). O pacote não traz o @ deles.
+2. **Autorização por escrito** de @_magall, @dailysocass e dos criadores acima: imagem, voz, nome e corte reeditado.
+3. Ouvir cada corte e confirmar a fala (as citações acima são transcrição automática).
+4. Confirmar que os sabores citados (pistache, Nutella com castanha etc.) aparecem no Âmbar. Se não, usar só os cortes sem sabor (IF-06b, IF-05a, IF-04a).
+5. Os reels têm data (ago e set/2026) e falam em “novidade em Fortaleza”. Exibir a data no crédito, como no IV-05.

@@ -53,6 +53,13 @@
 .js [data-reveal="slide-l"] { translate: calc(var(--slide) * -1) var(--slide); }
 .js [data-reveal="slide-r"] { translate: var(--slide) var(--slide); }
 
+/* anatomia do roll: a foto gira para o lugar (massa sendo enrolada), a espiral se desenha, as notas entram */
+.js .anatomia .anatomia__foto { transform: rotate(-140deg) scale(.72); transition: transform var(--dur-roll) var(--ease-paper); }
+.js .anatomia .anatomia__espiral path { transition-duration: var(--dur-draw-long); }
+.js .anatomia .anatomia__nota { opacity: 0; translate: 0 12px; transition: opacity var(--dur-m) var(--ease), translate var(--dur-m) var(--ease-paper); transition-delay: calc(var(--reveal-delay-notes) + var(--i, 0) * var(--stagger)); }
+.js .anatomia.is-in .anatomia__foto { transform: none; }
+.js .anatomia.is-in .anatomia__nota { opacity: 1; translate: none; }
+
 /* 2 · Entrada do hero (só no primeiro carregamento, no topo, sem âncora) — classe .enter no <html> */
 .enter .hero__label { animation: label-settle var(--dur-l) var(--ease-paper) both; }
 .enter .hero__headline > span { animation: line-settle var(--hero-t-line-dur) var(--ease-paper) both; }
@@ -88,7 +95,7 @@
 
 /* 3 · Parallax e efeitos ligados ao scroll — só onde há suporte nativo; sem JS de scroll. */
 @supports (animation-timeline: view()) {
-  .roll__spiral { animation: twist linear both; animation-timeline: view(); }
+  .roll__spiral, .anatomia__espiral { animation: twist linear both; animation-timeline: view(); }
   @keyframes twist { from { rotate: -40deg; } to { rotate: 80deg; } }
 
   [data-parallax] { animation: drift linear both; animation-timeline: view(); }
@@ -108,7 +115,8 @@
 [data-motion="paused"] .sticker--roll svg,
 [data-motion="paused"] .chip--skeleton { animation-play-state: paused; }
 [data-motion="paused"] [data-parallax],
-[data-motion="paused"] .roll__spiral { animation: none; }
+[data-motion="paused"] .roll__spiral,
+[data-motion="paused"] .anatomia__espiral { animation: none; }
 
 /* 5 · Movimento reduzido (v1): tudo no estado final, sem loops, sem rolagem suave. */
 @media (prefers-reduced-motion: reduce) {
@@ -120,6 +128,8 @@
   .js [data-reveal="lines"] > .scribble { opacity: 1; translate: none; rotate: -4deg; }
   .js [data-draw] path { stroke-dashoffset: 0; }
   .js .board__item .tape { scale: none; }
+  .js .anatomia .anatomia__foto { transform: none; }
+  .js .anatomia .anatomia__nota { opacity: 1; translate: none; }
   .js .bands[data-reveal] .bands__list li, .js .trays[data-reveal] figure:nth-child(n) { opacity: 1; transform: none; }
   /* CTA, doca e folha: só opacidade (a transição é religada de propósito, curta) */
   .sticky-cta, .menu-btn--dock { transform: none !important; transition: opacity var(--dur-reduced) linear !important; }

@@ -196,3 +196,16 @@ test-results/
 playwright-report/
 tests/**/__screenshots__/fidelity/
 reports/
+
+# -------------------------------------------------------------
+# Revisão visual e influenciadores (2026-10-17) — pacotes deixados na raiz.
+# Brutos de criadores ainda SEM autorização; o JSON do scraper tem URLs assinadas e
+# usernames/comentários de terceiros. Cópia de trabalho em creative/source/video/influenciadores/
+# (já ignorada acima). Ver docs/content/INFLUENCIADORES.md.
+# -------------------------------------------------------------
+/AMBAR_REVISAO_VISUAL_E_INFLUENCIADORES/
+/ROLL_REELS_MAGALL_download_kit/
+# Mídia SÓ DE REVISÃO (criadores sem autorização, foto IG-02 do hero): servida no build de revisão local,
+# nunca versionada. O build de produção não a referencia e o podador do astro.config a remove do dist.
+public/media/revisao/
+src/assets/media/revisao/

@@ -22,10 +22,18 @@ function podarMidiaNaoReferenciada() {
         const andar = (/** @type {string} */ d) => { for (const f of fs.readdirSync(d)) { const p = path.join(d, f); if (fs.statSync(p).isDirectory()) andar(p); else if (p.endsWith('.html')) htmls.push(fs.readFileSync(p, 'utf8')); } };
         andar(raiz);
         const todo = htmls.join('\n');
-        const videos = path.join(raiz, 'media/video');
-        if (fs.existsSync(videos)) for (const f of fs.readdirSync(videos)) {
-          if (f === '.gitkeep' || !todo.includes(`/media/video/${f}`)) { fs.rmSync(path.join(videos, f)); if (f !== '.gitkeep') logger.info(`fora do build (não referenciado): media/video/${f}`); }
-        }
+        // vídeos e legendas em qualquer pasta de media/ (inclusive media/revisao/, só de revisão local)
+        const media = path.join(raiz, 'media');
+        const podar = (/** @type {string} */ d) => {
+          for (const f of fs.readdirSync(d)) {
+            const p = path.join(d, f);
+            if (fs.statSync(p).isDirectory()) { podar(p); if (!fs.readdirSync(p).length) fs.rmdirSync(p); continue; }
+            const rel = path.relative(raiz, p).replaceAll('\\', '/');
+            if (f === '.gitkeep' && rel.startsWith('media/video/')) { fs.rmSync(p); continue; }
+            if (/\.(mp4|webm|vtt)$/.test(f) && !todo.includes(`/${rel}`)) { fs.rmSync(p); logger.info(`fora do build (não referenciado): ${rel}`); }
+          }
+        };
+        if (fs.existsSync(media)) podar(media);
         for (const sub of ['brand', 'graphics', 'photography']) { const g = path.join(raiz, 'media', sub, '.gitkeep'); if (fs.existsSync(g)) fs.rmSync(g); }
         // Imagens emitidas pelo bundler e não usadas por nenhuma página, folha de estilo ou script
         // (ex.: originais importados pelo glob de mídia, inclusive os de autorização pendente).

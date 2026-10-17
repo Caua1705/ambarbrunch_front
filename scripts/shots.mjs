@@ -12,7 +12,7 @@ const BROWSER = arg('browser', 'chromium');
 const OUT = path.resolve(arg('out', 'reports/shots'));
 const MOTION = arg('motion', 'reduce');
 const PATH = arg('path', '/');
-const SECOES = { hero: 'header.hero', faixa: '.ticker', novo: '#novo', mesa: '#gastronomia', fornadas: '#roll', climas: '#ambientes', reserva: '#reservar', visite: '#visite', rodape: 'footer' };
+const SECOES = { hero: 'header.hero', faixa: '.ticker', novo: '#novo', mesa: '#gastronomia', fornada: '#roll', provou: '#quem-provou', climas: '#ambientes', reserva: '#reservar', visite: '#visite', rodape: 'footer' };
 
 const engine = BROWSER === 'webkit' ? webkit : chromium;
 const browser = await engine.launch();

@@ -16,6 +16,32 @@
 .roll__lead { margin-top: 20px; max-width: 32ch; font-size: var(--fs-lead); color: var(--text-on-dark-muted); }
 .roll__credit { margin: var(--s-14) var(--gutter) 0; font-size: var(--fs-micro); color: var(--text-on-dark-faint); }
 
+/* Anatomia de um roll (novo): foto em círculo sobre a espiral da Roll + três notas manuscritas.
+   A montagem (foto girando para o lugar, espiral se desenhando, notas entrando) mora em motion.css. */
+.anatomia { margin: var(--s-34) var(--gutter) 0; }
+.anatomia__palco { position: relative; width: min(100%, 380px); aspect-ratio: 1; margin: 0 auto; }
+.anatomia__espiral {
+  position: absolute; inset: -4% -2% auto; width: 104%;
+  fill: none; stroke: var(--caramel); stroke-width: 7; stroke-linecap: round; opacity: .9;
+}
+.anatomia__foto {
+  position: absolute; left: 19%; top: 11%; width: 62%; aspect-ratio: 1; z-index: var(--z-1);
+  border-radius: var(--radius-round); overflow: hidden;
+  border: 6px solid var(--butter); box-shadow: var(--shadow-photo-deep);
+}
+.anatomia__foto img { width: 100%; height: 100%; object-fit: cover; }
+.anatomia__nota {
+  position: absolute; z-index: var(--z-2); margin: 0;
+  font: var(--t-note); color: var(--caramel-lt); white-space: nowrap;
+}
+.anatomia__nota::before { content: ''; display: inline-block; width: 22px; height: 2px; margin-right: 6px; vertical-align: middle; background: currentColor; border-radius: 2px; }
+.anatomia__nota--a { left: 0; top: 2%; rotate: -6deg; }
+.anatomia__nota--b { right: 0; top: 75%; rotate: 4deg; }
+.anatomia__nota--c { left: 2%; bottom: 0; rotate: -3deg; }
+.anatomia__pendente { margin-top: var(--s-12); }
+.roll__kicker { margin: var(--s-44) var(--gutter) 0; font: var(--t-scribble); color: var(--caramel-lt); rotate: -3deg; width: max-content; }
+.roll__kicker + .stories { margin-top: var(--s-18); }
+
 /* Sabores do mês e chamada final */
 .roll__sabores { margin: var(--s-40) var(--gutter) 0; }
 .roll__sabores .bands__label { color: var(--caramel-lt); }
@@ -50,6 +76,7 @@
 
 @media (min-width: 960px) {
   .roll__head { max-width: var(--container-xl); margin: 0 auto; }
+  .roll__kicker { margin-left: auto; margin-right: auto; }
   .stories { grid-auto-columns: 280px; justify-content: center; overflow: visible; }
   .trays { max-width: var(--container-s); margin-left: auto; margin-right: auto; }
   /* crédito e sabores na mesma coluna do cabeçalho (antes encostavam na margem da página) */

@@ -13,7 +13,8 @@ const irParaComanda = async (page: Page, url = '/') => {
 test.describe('modo indisponível (padrão)', () => {
   test('deixa claro que a reserva online não está ativa e não envia nada', async ({ page }) => {
     const externos: string[] = [];
-    page.on('request', (r) => { const u = new URL(r.url()); if (!['127.0.0.1', 'localhost'].includes(u.hostname)) externos.push(r.url()); });
+    // blob:/data: são do próprio navegador (o WebKit cria blob: para as faixas de legenda), não saem do site
+    page.on('request', (r) => { const u = new URL(r.url()); if (['blob:', 'data:'].includes(u.protocol)) return; if (!['127.0.0.1', 'localhost'].includes(u.hostname)) externos.push(r.url()); });
     await irParaComanda(page);
     const botao = page.locator('.ticket .btn');
     await expect(botao).toBeDisabled();

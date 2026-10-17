@@ -12,13 +12,19 @@ export const roll = {
   ],
   bandejasAutorizadas: true,
   sabores: { fixos: ['Tradicional', 'Oreo', 'Biscoff', 'Red velvet'], doMes: pendente('Sabores do mês atuais (mudam todo mês)') },
-  /** Vídeos reexportados sem áudio (npm run media:video). Crédito sempre visível; autorizados em 2026-10-17. */
+  /** Bastidores da própria Roll: vídeos reexportados sem áudio (npm run media:video), autorizados em 2026-10-17.
+   *  Vídeos de criadores ficam em data/criadores.ts (seção “Quem provou, conta”). */
   videos: [
     { id: 'IV-06', arquivo: 'roll-do-forno', poster: 'roll/poster-do-forno.webp', tag: 'do forno', descricao: 'carrinho de forno com fornadas de cinnamon rolls', autor: '@roll.ofc', tipo: 'roll', autorizado: true },
     // 2º trecho do IV-06 (sem texto na imagem): o IV-09 tinha “Outubro” gravado e ficaria datado
     { id: 'IV-06b', arquivo: 'roll-sabores-do-mes', poster: 'roll/poster-sabores-do-mes.webp', tag: 'sabores do mês', descricao: 'fornada de cinnamon rolls de Nutella saindo do rack', autor: '@roll.ofc', tipo: 'roll', autorizado: true },
     { id: 'IV-08', arquivo: 'roll-bandeja', poster: 'roll/poster-bandeja.webp', tag: 'bandeja', descricao: 'bandeja de cinnamon rolls com cobertura de chocolate', autor: '@roll.ofc', tipo: 'roll', autorizado: true },
-    // criadora: gravado em casa, sobre a box da Roll — NUNCA apresentado como avaliação do Âmbar. Trecho de 9 s, sem áudio, autorizado pela autora.
-    { id: 'IV-05', arquivo: 'roll-criadora-larizgomes', poster: 'roll/poster-criadora-larizgomes.webp', tag: 'provou a Roll', descricao: 'criadora provando um cinnamon roll de pistache da Roll', autor: '@larizgomes', tipo: 'criadora', quando: 'set/2026', autorizado: true },
-  ] as { id: string; arquivo: string; poster: string; tag: string; descricao: string; autor: string; tipo: 'roll' | 'criadora'; quando?: string; autorizado: boolean }[],
+  ] as { id: string; arquivo: string; poster: string; tag: string; descricao: string; autor: string; tipo: 'roll'; autorizado: boolean }[],
+  /** Fotos de um roll só (recortes da IG-02, bandeja de estreia da Roll). A autorização de 2026-10-17 cobriu IG-06/08/09,
+   *  NÃO a IG-02: até confirmar, os arquivos ficam em src/assets/media/revisao/ (fora do Git) e só aparecem na revisão.
+   *  Sem eles, o hero volta ao croissant e a “anatomia” não aparece. Ao autorizar: mover para roll/ e marcar true. */
+  fotos: {
+    hero: { foto: 'revisao/hero-roll-espiral.webp', alt: 'Cinnamon roll em espiral, recém-saído da fornada, entre rolls red velvet', id: 'IG-02', autorizado: false },
+    anatomia: { foto: 'revisao/roll-anatomia.webp', alt: 'Cinnamon roll visto de cima, com a espiral de canela à mostra', id: 'IG-02', autorizado: false },
+  },
 };

@@ -8,6 +8,13 @@ import Faiscas from '../components/Faiscas.astro';
 import Ticker from '../components/Ticker.astro';
 import { ambientes } from '../data/ambientes';
 import { cardapio } from '../data/cardapio';
+import { roll } from '../data/roll';
+import { podeMostrar } from '../lib/conteudo';
+import { imagem } from '../lib/media';
+
+// Círculo do hero: um cinnamon roll real (IG-02) — no site publicado só depois da autorização dessa foto; até lá, o croissant.
+const fotoRoll = podeMostrar(roll.fotos.hero.autorizado) && imagem(roll.fotos.hero.foto) ? roll.fotos.hero : undefined;
+const circulo = fotoRoll ?? { foto: 'gastronomia/croissant-prato-azul.webp', alt: 'Croissant em prato azul sobre sofá laranja' };
 ---
 <header class="hero" id="topo" data-hero>
   <MenuButton variante="hero" />
@@ -20,12 +27,12 @@ import { cardapio } from '../data/cardapio';
   <p class="hero__headline">
     <span class="l1">Café,</span>
     <span class="l2">brunch</span>
-    <span class="l3"><em>&amp;</em> fornadas</span>
+    <span class="l3"><em>&amp;</em> rolls</span>
   </p>
 
   <div class="hero__collage" data-parallax="hero-exit">
-    <figure class="cut cut--circle">
-      <Foto src="gastronomia/croissant-prato-azul.webp" alt="Croissant em prato azul sobre sofá laranja" sizes="(min-width: 960px) 26vw, 46vw" prioridade />
+    <figure class:list={["cut cut--circle", fotoRoll && "cut--roll"]}>
+      <Foto src={circulo.foto} alt={circulo.alt} sizes="(min-width: 960px) 26vw, 46vw" prioridade />
     </figure>
     <figure class="cut cut--polaroid">
       <Foto src={ambientes.salao.foto} alt="Salão com parede laranja e luminária pendente" sizes="(min-width: 960px) 20vw, 36vw" />

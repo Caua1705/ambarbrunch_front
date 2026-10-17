@@ -17,10 +17,13 @@
   box-shadow: var(--ring-media) var(--caramel);
 }
 .story:nth-child(even) { margin-top: var(--s-44); box-shadow: var(--ring-media) var(--butter); }
-/* novo · vídeo de criadora: moldura creme e etiqueta própria — nunca confundido com vídeo da Roll nem com avaliação do Âmbar */
-.story[data-tipo="criadora"] { box-shadow: var(--ring-media) var(--cream); }
-.story[data-tipo="criadora"] .story__tag { background: var(--cream); }
-.story video { width: 100%; height: 100%; object-fit: cover; }
+/* novo · vídeo de criador: moldura creme e etiqueta própria — nunca confundido com vídeo da Roll nem com avaliação do Âmbar */
+.story[data-tipo="criador"] { box-shadow: var(--ring-media) var(--cream); }
+.story[data-tipo="criador"] .story__tag { background: var(--cream); }
+.story__janela { position: absolute; inset: 0; }
+.story video, .story__poster { width: 100%; height: 100%; object-fit: cover; }
+/* carrossel: o vídeo é criado por cima da capa quando o card fica ativo */
+.story__poster + video { position: absolute; inset: 0; }
 .story__tag {
   position: absolute; left: 12px; top: 12px;
   padding: 7px var(--s-12) var(--s-8); border-radius: var(--radius-pill);
@@ -28,7 +31,7 @@
   font: var(--t-tag);
 }
 
-/* novo · crédito: quem gravou e sobre o quê (ex.: “@criadora · sobre a Roll”) */
+/* novo · crédito: quem gravou e sobre o quê (ex.: “@criador · conteúdo sobre a Roll”) */
 .story__by {
   position: absolute; left: 12px; right: 12px; bottom: 12px;
   padding: var(--s-8) var(--s-12); border-radius: var(--radius-control);
@@ -54,3 +57,40 @@
 }
 .story[data-state="paused"] .story__toggle svg, .story__toggle:focus-visible svg { opacity: 1; scale: 1; }
 .story__tag, .story__by, .story__progress { z-index: 2; pointer-events: none; }
+.story__by[data-pendente] { background: var(--overlay-ink-soft); font-style: italic; }
+
+/* novo · botão de som (só em vídeo com a voz do criador). Mostra o estado: alto-falante riscado = mudo. */
+.story__som {
+  position: absolute; right: 10px; top: 10px; z-index: 3;
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 44px; padding: 0 var(--s-14) 0 var(--s-12); border: 0; border-radius: var(--radius-pill);
+  background: var(--butter); color: var(--wine); box-shadow: var(--shadow-offset-s);
+  font: var(--t-tag); cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: scale var(--dur-s) var(--ease-paper);
+}
+.story__som:active { scale: .94; box-shadow: var(--shadow-offset-xs); }
+.story__som svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.story__som-alto, [data-som-ligado] .story__som-mudo { display: none; }
+[data-som-ligado] .story__som-alto { display: inline; }
+[data-som-ligado] .story__som { background: var(--wine); color: var(--butter); }
+/* com o som no canto, a etiqueta desce para não disputar o topo */
+.story[data-audio] .story__tag { top: auto; bottom: 66px; }
+
+/* novo · formato horizontal: o vídeo dos criadores fica numa janela emoldurada (sem zoom, ninguém cortado),
+   com a legenda que eles escreveram no story logo abaixo — como no story original. */
+.story--wide {
+  display: flex; flex-direction: column; justify-content: center; gap: var(--s-18);
+  padding: var(--s-44) var(--s-12) 84px; background: var(--cream);
+}
+.story--wide .story__janela {
+  position: relative; inset: auto;
+  padding: 6px; background: var(--glaze); border-radius: var(--radius-s); box-shadow: var(--shadow-photo); rotate: -1.5deg;
+}
+.story--wide :is(video, .story__poster) { display: block; height: auto; aspect-ratio: 478 / 266; object-fit: contain; border-radius: 4px; background: var(--media-bg); }
+.story--wide .story__poster + video { inset: 6px; width: calc(100% - 12px); }
+.story__original {
+  display: grid; justify-items: center; gap: 2px; text-align: center; pointer-events: none;
+  font: var(--t-credit); font-size: var(--fs-small); color: var(--cacao);
+}
+.story__original span:first-child { text-decoration: underline 1.5px; text-underline-offset: 3px; }
+

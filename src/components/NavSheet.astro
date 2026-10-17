@@ -12,7 +12,8 @@ interface Props { base?: string }
 const { base = '' } = Astro.props;   // '' na home (âncoras locais), '/' nas páginas internas
 const itens = [
   { href: `${base}#gastronomia`, texto: 'Cardápio' },
-  { href: `${base}#roll`, texto: 'Fornadas' },
+  { href: `${base}#roll`, texto: 'Fornada' },
+  { href: `${base}#quem-provou`, texto: 'Quem provou' },
   { href: `${base}#ambientes`, texto: 'Ambientes' },
   { href: `${base}#visite`, texto: 'Visite' },
 ];

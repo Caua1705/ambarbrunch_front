@@ -11,8 +11,20 @@ export function imagem(caminho: string): ImageMetadata | undefined {
   return imagens[`/src/assets/media/${caminho}`]?.default;
 }
 
-/** URL pública do vídeo reexportado (public/media/video/<nome>.web.mp4), se o arquivo existir. */
+/** URL de um arquivo em public/media, se ele existir. */
+function publico(rel: string): string | undefined {
+  return fs.existsSync(path.join(process.cwd(), 'public/media', rel)) ? `/media/${rel}` : undefined;
+}
+
+/**
+ * URL pública do vídeo reexportado, se o arquivo existir: `<nome>` → public/media/video/<nome>.web.mp4;
+ * com pasta (`revisao/criadores/<nome>`) → public/media/<pasta>/<nome>.web.mp4 (mídia só de revisão, ignorada no Git).
+ */
 export function video(nome: string): string | undefined {
-  const arquivo = path.join(process.cwd(), 'public/media/video', `${nome}.web.mp4`);
-  return fs.existsSync(arquivo) ? `/media/video/${nome}.web.mp4` : undefined;
+  return publico(nome.includes('/') ? `${nome}.web.mp4` : `video/${nome}.web.mp4`);
+}
+
+/** Legendas WebVTT ao lado do vídeo (<nome>.vtt), se existirem. */
+export function legendas(nome: string): string | undefined {
+  return publico(nome.includes('/') ? `${nome}.vtt` : `video/${nome}.vtt`);
 }

@@ -1,0 +1,67 @@
+/* QUEM PROVOU, CONTA · carrossel de vídeos de criadores (novo). Vinho entre os bastidores (cacau) e os climas (manteiga).
+   O card ativo fica no centro e maior; os vizinhos aparecem nas bordas, menores e apagados. Swipe = scroll-snap nativo. */
+
+.provou {
+  padding: var(--rhythm-c) 0 calc(var(--rhythm-c) + var(--rhythm-tail));
+  background: var(--wine); color: var(--butter);
+  overflow: hidden;
+}
+.provou__spiral {
+  position: absolute; z-index: -1;
+  width: 440px; left: -230px; top: 90px;
+  fill: none; stroke: var(--berry); stroke-width: 10; stroke-linecap: round; opacity: .55;
+}
+.provou__head { padding: 0 var(--gutter); }
+.provou__lead { margin-top: var(--s-22); max-width: 32ch; font-size: var(--fs-lead); color: var(--text-on-dark-muted); }
+
+/* Trilho: padding de meia tela para o 1º e o último card também chegarem ao centro */
+.stories--provou {
+  --card: min(64vw, 300px);
+  display: flex; align-items: center; gap: var(--s-10);
+  margin-top: var(--s-30);
+  padding: var(--s-14) calc(50% - var(--card) / 2) var(--s-12);
+  scroll-padding-inline: 0; overscroll-behavior-x: contain;
+}
+.stories--provou[data-unico] { justify-content: center; }
+.stories--provou .story {
+  flex: none; width: var(--card); margin-top: 0;
+  scroll-snap-align: center; scroll-snap-stop: always;
+  scale: .86; opacity: .5;
+  transition: scale var(--dur-m) var(--ease-paper), opacity var(--dur-m) var(--ease);
+}
+.stories--provou .story:nth-child(even) { margin-top: 0; box-shadow: var(--ring-media) var(--cream); }
+.stories--provou .story[data-ativo] { scale: 1; opacity: 1; box-shadow: var(--ring-media) var(--butter), var(--shadow-photo); }
+/* card horizontal: um pouco mais largo, mesma altura dos verticais (o ritmo do trilho não quebra) */
+.stories--provou .story--wide { width: calc(var(--card) * 1.28); aspect-ratio: auto; height: calc(var(--card) * 16 / 9); }
+/* controles só no ativo (nos vizinhos, o toque traz o card para o centro) */
+.stories--provou .story:not([data-ativo]) .story__som,
+.stories--provou .story:not([data-ativo]) .story__progress { visibility: hidden; }
+
+/* Legenda do vídeo ativo (transcrição revisada), fora da imagem: não cobre rosto, crédito nem texto dos criadores */
+.provou__fala {
+  min-height: 2.5em; margin: var(--s-14) auto 0; padding: 0 var(--gutter); max-width: 30ch;
+  text-align: center; font: var(--t-note); line-height: 1.25; color: var(--butter);
+}
+.provou__fala:not(:empty)::before { content: "“"; }
+.provou__fala:not(:empty)::after { content: "”"; }
+/* sem fala no momento: uma dica discreta no lugar (e o espaço não pula quando a legenda chega) */
+.provou__fala:empty::before { content: attr(data-dica); font: var(--t-caption); color: var(--text-on-dark-faint); }
+.provou__fala[data-vazia]:empty::before { content: attr(data-dica-mudo); }
+.provou__fala[data-tocando]:not([data-vazia]):empty::before { content: none; }
+
+.provou__setas { display: flex; justify-content: center; gap: var(--s-14); margin-top: var(--s-10); }
+.provou__seta {
+  display: grid; place-items: center; width: 44px; height: 44px;
+  border: 2px solid var(--butter); border-radius: var(--radius-round);
+  background: transparent; color: var(--butter); cursor: pointer;
+}
+.provou__seta svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.provou__seta:disabled { opacity: .35; cursor: default; }
+
+.provou__nota { margin: var(--s-22) var(--gutter) 0; text-align: center; font-size: var(--fs-micro); color: var(--text-on-dark-faint); }
+.provou__pendente { margin-top: var(--s-12); }
+
+@media (min-width: 960px) {
+  .stories--provou { --card: 300px; }
+  .provou__head { max-width: var(--container-xl); margin: 0 auto; }
+}
