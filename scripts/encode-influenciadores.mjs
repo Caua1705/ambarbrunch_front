@@ -23,7 +23,7 @@ const OUT = path.join(BASE, 'derivados/criadores');
 const MOLDURA = {
   grupoA: 'crop=478:266:15:243',   // story A do grupo: vídeo horizontal dentro do story (fundo bege + legenda abaixo)
   grupoB: 'crop=490:274:8:240',    // story B do grupo: outra janela, um pouco maior
-  pistache: 'crop=398:708:58:30',  // story com borda escura da gravação; mantém o @dailysocass do topo
+  pistache: 'crop=398:654:58:84',  // story com borda escura da gravação, sem a faixa do Instagram no topo (avatar + nome do perfil); a legenda e o @roll.ofc que a criadora escreveu ficam
 };
 
 const CLIPES = [

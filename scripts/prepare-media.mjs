@@ -24,8 +24,6 @@ const MEDIA = [
   { id: 'FR-06', from: 'photography/gastronomia/bruschetta-brunch.webp', to: 'gastronomia/bruschetta-brunch.webp', git: true },
   { id: 'FR-05', from: 'photography/gastronomia/bebida-chocolate-creme.webp', to: 'gastronomia/bebida-chocolate-creme.webp', git: true },
   { id: 'FR-01', from: 'photography/ambientes/sala-01.webp', to: 'ambientes/sala-01-lounge.webp', git: true },
-  { id: 'FR-02', from: 'photography/ambientes/sala-02.webp', to: 'ambientes/sala-02-leitura.webp', git: true },
-  { id: 'FR-03', from: 'photography/ambientes/sala-03.webp', to: 'ambientes/sala-03-salao.webp', git: true },
   { id: 'FR-04', from: 'photography/ambientes/sala-04.webp', to: 'ambientes/sala-04-jardim.webp', git: true },
   // Roll (Instagram) — autorização pendente: fora do Git
   { id: 'IG-OPT-06', from: 'photography/roll_instagram/otimizadas/2026-08-16_DcGojKjlvml_image.webp', to: 'roll/bandeja-biscoff.webp', git: false },

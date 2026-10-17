@@ -17,6 +17,7 @@
     "media:prepare": "node scripts/prepare-media.mjs",
     "media:video": "node scripts/encode-video.mjs",
     "media:influenciadores": "node scripts/encode-influenciadores.mjs",
+    "media:kit": "node scripts/importar-kit-v2.mjs",
     "test": "playwright test",
     "test:fidelity": "playwright test --project=fidelity",
     "test:e2e": "playwright test --project=chromium --project=webkit",
