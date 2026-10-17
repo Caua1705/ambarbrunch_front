@@ -10,10 +10,11 @@ interface Props {
   sizes: string;             // largura real da peça na página
   widths?: number[];
   class?: string;
-  prioridade?: boolean;      // só para a 1ª tela (logo e foto principal do hero)
+  prioridade?: boolean;      // só para o LCP (logo do hero): eager + fetchpriority alta
+  eager?: boolean;           // outras peças da 1ª tela: eager, sem disputar prioridade com o LCP
   qualidade?: number;
 }
-const { src, alt, sizes, widths = [240, 360, 540, 720, 1080], class: cls, prioridade = false, qualidade = 64 } = Astro.props;
+const { src, alt, sizes, widths = [240, 360, 540, 720, 1080], class: cls, prioridade = false, eager = false, qualidade = 64 } = Astro.props;
 const meta = imagem(src);
 const larguras = meta ? [...new Set(widths.map((w) => Math.min(w, meta.width)))] : [];
 ---
@@ -27,7 +28,7 @@ const larguras = meta ? [...new Set(widths.map((w) => Math.min(w, meta.width)))]
     fallbackFormat="webp"
     quality={qualidade}
     class={cls}
-    loading={prioridade ? 'eager' : 'lazy'}
+    loading={prioridade || eager ? 'eager' : 'lazy'}
     decoding="async"
     fetchpriority={prioridade ? 'high' : undefined}
     pictureAttributes={{ style: 'display:contents' }}

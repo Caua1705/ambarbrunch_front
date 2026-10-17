@@ -1,18 +1,20 @@
 // @ts-check
-// Âmbar Brunch — abertura de “Direto da fornada”: a espiral de caramelo (vídeo ilustrativo de 8 s) toca UMA vez.
+// Âmbar Brunch — abertura de “Direto da fornada”: a espiral de caramelo (vídeo decorativo de 8 s) em volta suave.
 // - o <video> sai do <template> só quando a seção chega a ~1 tela (nada baixa no carregamento da página);
 // - toca mudo quando a janela está ≥ 60% visível; sai da tela, pausa; volta, continua de onde parou;
-// - o fio de caramelo (SVG) se desenha no ritmo do vídeo (currentTime), e fica inteiro no fim;
-// - no fim, o último quadro fica parado e aparece “ver de novo” (gesto do visitante);
+// - o 1º e o último quadro não se emendam: perto do fim o vídeo esmaece sobre a capa, recomeça e reaparece
+//   (data-voltando) — sem salto visível e sem botão;
+// - o fio de caramelo (SVG) se desenha no ritmo da 1ª passada (currentTime) e depois fica inteiro;
 // - movimento reduzido, economia de dados ou reprodução bloqueada: fica a capa e o fio inteiro, sem vídeo.
 import { motionAllowed } from './motion.js';
+
+const PONTE = 0.9;   // segundos antes do fim em que a volta começa (≈ a transição da capa, --dur-espiral-fade)
 
 /** @param {HTMLElement} root */
 export function initEspiral(root) {
   const janela = /** @type {HTMLElement | null} */ (root.querySelector('.abertura__janela'));
   const tpl = /** @type {HTMLTemplateElement | null} */ (root.querySelector('template[data-video]'));
   const fio = /** @type {SVGPathElement | null} */ (root.querySelector('.abertura__fio path'));
-  const denovo = /** @type {HTMLButtonElement | null} */ (root.querySelector('[data-denovo]'));
   if (!janela || !tpl) return;
 
   const estatico = () => { root.setAttribute('data-estatico', ''); if (fio) fio.style.strokeDashoffset = '0'; };
@@ -22,10 +24,11 @@ export function initEspiral(root) {
   /** @type {HTMLVideoElement | null} */
   let v = null;
   let visivel = false;
-  let terminou = false;
+  let primeira = true;   // o fio só acompanha a 1ª passada
+  let voltando = false;
   let raf = 0;
   const desenhar = () => {
-    if (v && fio) fio.style.strokeDashoffset = String(Math.max(0, 1 - v.currentTime / (v.duration || 8)));
+    if (v && fio && primeira) fio.style.strokeDashoffset = String(Math.max(0, 1 - v.currentTime / (v.duration || 8)));
     raf = requestAnimationFrame(desenhar);
   };
 
@@ -33,14 +36,26 @@ export function initEspiral(root) {
     if (v) return v;
     const novo = /** @type {HTMLVideoElement} */ (tpl.content.firstElementChild?.cloneNode(true));
     tpl.replaceWith(novo);
-    novo.addEventListener('playing', () => { root.setAttribute('data-tocando', ''); cancelAnimationFrame(raf); raf = requestAnimationFrame(desenhar); });
+    novo.addEventListener('playing', () => {
+      root.setAttribute('data-tocando', '');
+      root.removeAttribute('data-voltando');
+      voltando = false;
+      cancelAnimationFrame(raf);
+      if (primeira) raf = requestAnimationFrame(desenhar);
+    });
     novo.addEventListener('pause', () => cancelAnimationFrame(raf));
+    novo.addEventListener('timeupdate', () => {
+      if (voltando || !novo.duration || novo.currentTime < novo.duration - PONTE) return;
+      voltando = true;
+      root.setAttribute('data-voltando', '');
+      root.removeAttribute('data-tocando');   // a capa volta por cima enquanto o vídeo esmaece
+    });
     novo.addEventListener('ended', () => {
       cancelAnimationFrame(raf);
-      terminou = true;
+      primeira = false;
       if (fio) fio.style.strokeDashoffset = '0';
-      root.setAttribute('data-fim', '');
-      if (denovo) denovo.hidden = false;
+      novo.currentTime = 0;
+      if (visivel && motionAllowed()) novo.play().catch(() => {});
     });
     v = novo;
     return novo;
@@ -48,7 +63,7 @@ export function initEspiral(root) {
 
   const decidir = () => {
     if (!v) return;
-    if (visivel && !terminou && motionAllowed()) {
+    if (visivel && motionAllowed()) {
       if (v.paused) v.play().catch(() => { if (!root.hasAttribute('data-tocando')) estatico(); });
     } else if (!v.paused) v.pause();
   };
@@ -61,15 +76,5 @@ export function initEspiral(root) {
   }, { rootMargin: '100% 0px' });
   perto.observe(root);
   new IntersectionObserver(([e]) => { visivel = e.intersectionRatio >= 0.6; decidir(); }, { threshold: [0, 0.6, 1] }).observe(janela);
-
-  denovo?.addEventListener('click', () => {
-    if (!v) return;
-    terminou = false;
-    root.removeAttribute('data-fim');
-    denovo.hidden = true;
-    if (fio) fio.style.strokeDashoffset = '1';
-    v.currentTime = 0;
-    v.play().catch(() => {});
-  });
   window.addEventListener('ambar:motion', decidir);
 }

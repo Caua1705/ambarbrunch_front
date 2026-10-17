@@ -1,24 +1,31 @@
 ---
-// 6 · ESCOLHA O CLIMA — painéis em diagonal + bolha (markup do v1). Ambientes públicos: Jardim, Salão principal, Lounge.
+// 8 · ESCOLHA SEU LUGAR — os quatro ambientes numa colagem (painéis em diagonal do v1 + bolha + polaroide), para dar
+// vontade de conhecer, não uma lista operacional: nome, uma linha do que se vê na foto, nada de capacidade ou regra.
 import Foto from '../components/Foto.astro';
 import MegaTitle from '../components/MegaTitle.astro';
 import { ambientes as a } from '../data/ambientes';
+import { secoes } from '../data/secoes';
+const s = secoes.lugar;
 ---
-<section class="climas" id="ambientes" aria-labelledby="climas-titulo" tabindex="-1">
-  <MegaTitle linhas={['Escolha', 'o clima']} id="climas-titulo" tom="wine" scribble="jardim, salão ou lounge" />
+<section class="climas" id={s.id} aria-labelledby="climas-titulo" tabindex="-1">
+  <MegaTitle linhas={[...s.linhas]} id="climas-titulo" tom="wine" scribble={s.sub} />
 
   <div class="climas__stack">
     <figure class="panel panel--day" data-reveal="slide-l">
       <Foto src={a.jardim.foto} alt={a.jardim.alt} sizes="(min-width: 960px) 538px, 92vw" />
-      <figcaption><span class="tagline">{a.jardim.tagline}</span><a href="#reservar" data-ambiente={a.jardim.id}>reservar aqui →</a></figcaption>
+      <figcaption><span class="tagline">{a.jardim.tagline}</span><span class="clima">{a.jardim.clima}</span></figcaption>
     </figure>
     <figure class="panel panel--amber" data-reveal="slide-r">
       <Foto src={a.salao.foto} alt={a.salao.alt} sizes="(min-width: 960px) 538px, 92vw" />
-      <figcaption><span class="tagline">{a.salao.tagline}</span><a href="#reservar" data-ambiente={a.salao.id}>reservar aqui →</a></figcaption>
+      <figcaption><span class="tagline">{a.salao.tagline}</span><span class="clima">{a.salao.clima}</span></figcaption>
     </figure>
     <figure class="bubble bubble--a" data-reveal="fade" data-parallax="up">
-      <Foto src={a.lounge.foto} alt={a.lounge.alt} sizes="(min-width: 960px) 220px, 36vw" />
+      <Foto src={a.lounge.foto} alt={a.lounge.alt} sizes="(min-width: 960px) 220px, 38vw" />
       <figcaption>{a.lounge.tagline}</figcaption>
+    </figure>
+    <figure class="climas__privativa" data-reveal="piece" style="--i:2">
+      <Foto src={a.privativa.foto} alt={a.privativa.alt} sizes="(min-width: 960px) 300px, 50vw" widths={[200, 300, 450, 600]} />
+      <figcaption><span class="tagline tagline--s">{a.privativa.tagline}</span><span class="clima">{a.privativa.clima}</span></figcaption>
     </figure>
   </div>
 </section>

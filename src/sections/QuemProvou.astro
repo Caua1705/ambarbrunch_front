@@ -1,24 +1,26 @@
 ---
-// 6 · QUEM PROVOU, CONTA — vídeos de criadores sobre a Roll (seção própria, separada dos bastidores da Roll).
-// Feed: ~2 vídeos lado a lado no celular (e a ponta do próximo); os visíveis tocam juntos, mudos; som por card, um de
-// cada vez; legendas opcionais (CC) por card. Créditos discretos: só o @ de quem gravou.
-// Nunca apresentados como avaliação do Âmbar. No site publicado só entram vídeos com autorização do criador.
+// 7 · QUEM PROVOU, CONTA — vídeos de criadores sobre a Roll, num carrossel com o card ativo no centro e os vizinhos
+// aparecendo nas bordas. Swipe = scroll-snap nativo; setas e contador seguem o card ativo (lib/carrossel.js).
+// No máximo dois vídeos tocam juntos, sempre mudos; o som é por card, um de cada vez, só depois do toque do visitante.
+// Cards limpos: sem @ ou descrição sobrepostos pelo site (o que o criador gravou no vídeo fica). Áudio original preservado.
+// No site publicado só entram vídeos com autorização do criador.
 import MegaTitle from '../components/MegaTitle.astro';
 import Story from '../components/Story.astro';
 import Spiral from '../components/Spiral.astro';
 import { criadores } from '../data/criadores';
+import { secoes } from '../data/secoes';
 import { podeMostrar } from '../lib/conteudo';
 import { video } from '../lib/media';
 
+const s = secoes.provou;
 const videos = criadores.videos.filter((v) => podeMostrar(v.autorizado) && video(v.arquivo));
-const comAudio = videos.some((v) => v.audio);
 ---
 {videos.length > 0 && (
-  <section class="provou" id="quem-provou" aria-labelledby="provou-titulo" tabindex="-1" data-provou>
+  <section class="provou" id={s.id} aria-labelledby="provou-titulo" tabindex="-1" data-provou>
     <Spiral class="provou__spiral" />
     <div class="provou__head">
-      <MegaTitle linhas={['Quem', 'provou,', 'conta']} direita={[2]} id="provou-titulo" tom="light" scribble="nas palavras de quem gravou" />
-      <p class="provou__lead" data-reveal>Criadores que provaram a Roll e contaram no próprio perfil. Vídeos e falas originais{comAudio ? '; o som fica por sua conta' : ''}.</p>
+      <MegaTitle linhas={[...s.linhas]} direita={[...s.direita]} id="provou-titulo" tom="light" />
+      <p class="provou__lead" data-reveal><strong>{s.sub}</strong></p>
     </div>
 
     <div class="provou__palco">
@@ -33,8 +35,6 @@ const comAudio = videos.some((v) => v.audio);
         </div>
       )}
     </div>
-
-    <p class="provou__nota">Conteúdo publicado pelos criadores sobre a Roll · não são avaliações do Âmbar Brunch</p>
   </section>
 )}
 

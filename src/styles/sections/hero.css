@@ -93,7 +93,7 @@
   .hero__collage .cut--tile     { width: 31%; left: 33%; top: 300px; }
   .hero__collage .sticker--roll { width: 150px; left: auto; right: 4%; top: 360px; }
   .hero__collage .sparks        { left: 40%; }
-  .hero__anota { left: 2%; top: 440px; font-size: calc(22 * var(--u)); }
+  .hero__anota { left: 0; top: 510px; font-size: calc(22 * var(--u)); }
   .hero__foot { grid-column: 1; justify-content: flex-start; gap: 28px; }
   .hero__note { text-align: left; }
 }

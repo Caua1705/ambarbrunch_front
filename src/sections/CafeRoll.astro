@@ -1,0 +1,99 @@
+---
+// 5 · CAFÉ + ROLL — seção curta e marcante: um gelado da casa + um roll da Roll, numa colagem em camadas.
+// Peças: a caixa REAL da Roll (foto), o roll da dupla (fotos reais da Roll) e um copo DESENHADO (SVG: não é foto nem
+// mockup de embalagem, então não finge ser produto oficial). Trocar a dupla muda o roll, a cor do copo e as etiquetas
+// (lib/cafe-roll.js). Profundidade: as camadas derivam em velocidades diferentes com a rolagem (CSS, onde houver suporte)
+// e acompanham o ponteiro no desktop. As 6 categorias de bebida ficam num bloco compacto que abre o cardápio.
+// Movimento reduzido: colagem parada; a troca de dupla continua funcionando, sem animação.
+import Foto from '../components/Foto.astro';
+import MegaTitle from '../components/MegaTitle.astro';
+import Badge from '../components/Badge.astro';
+import { cafeRoll as cr } from '../data/cafe-roll';
+import { cardapio } from '../data/cardapio';
+import { secoes } from '../data/secoes';
+import { imagem } from '../lib/media';
+
+const s = secoes.cafeRoll;
+const pares = cr.pares.filter((p) => imagem(p.foto.src));
+const [primeiro] = pares;
+---
+{primeiro && (
+  <section class="cafe-roll" id={s.id} aria-labelledby="cafe-roll-titulo" tabindex="-1" data-cafe-roll data-vivo>
+    <div class="cafe-roll__texto">
+      <MegaTitle linhas={[...s.linhas]} id="cafe-roll-titulo" tom="wine" scribble={s.sub} />
+      <p class="cafe-roll__lead" data-reveal>{cr.lead}</p>
+    </div>
+
+    <div class="dupla" data-dupla style={`--liq-a:${primeiro.liquido[0]};--liq-b:${primeiro.liquido[1]}`}>
+      <figure class="dupla__caixa dupla__camada" style="--z:1">
+        <i class="tape" aria-hidden="true"></i>
+        <Foto src={cr.caixa.src} alt={cr.caixa.alt} sizes="(min-width: 960px) 330px, 58vw" widths={[220, 330, 480, 660]} qualidade={64} />
+      </figure>
+
+      <div class="dupla__copo dupla__camada" style="--z:2" aria-hidden="true">
+        <svg viewBox="0 0 200 300">
+          <defs>
+            <linearGradient id="liquido" x1="0" y1="1" x2="0" y2="0">
+              <stop offset="0" class="dupla__liq-a" /><stop offset=".55" class="dupla__liq-a" /><stop offset="1" class="dupla__liq-b" />
+            </linearGradient>
+            <clipPath id="copo-corpo"><path d="M34 78h132l-17 206a10 10 0 0 1-10 9H61a10 10 0 0 1-10-9z" /></clipPath>
+          </defs>
+          <rect class="dupla__canudo" x="112" y="6" width="13" height="150" rx="5" transform="rotate(12 118 80)" />
+          <g clip-path="url(#copo-corpo)">
+            <rect x="0" y="112" width="200" height="190" fill="url(#liquido)" />
+            <rect class="dupla__gelo" x="58" y="104" width="34" height="30" rx="7" transform="rotate(-12 75 119)" />
+            <rect class="dupla__gelo" x="98" y="112" width="30" height="28" rx="7" transform="rotate(16 113 126)" />
+            <rect class="dupla__gelo" x="74" y="138" width="28" height="26" rx="6" transform="rotate(6 88 151)" />
+            <path class="dupla__brilho" d="M50 96l12 176" />
+          </g>
+          <path class="dupla__vidro" d="M34 78h132l-17 206a10 10 0 0 1-10 9H61a10 10 0 0 1-10-9z" />
+          <path class="dupla__tampa" d="M26 80h148a4 4 0 0 0 4-4v-4a6 6 0 0 0-6-6h-6C162 40 134 26 100 26S38 40 34 66h-6a6 6 0 0 0-6 6v4a4 4 0 0 0 4 4z" />
+        </svg>
+        <p class="dupla__etiqueta dupla__etiqueta--bebida" data-bebida>{primeiro.bebida}</p>
+      </div>
+
+      <span class="dupla__mais dupla__camada" style="--z:3" aria-hidden="true">+</span>
+
+      <figure class="dupla__roll dupla__camada" style="--z:4">
+        <div class="dupla__fotos">
+          {pares.map((p, i) => (
+            <div class="dupla__foto" data-foto={p.id} data-ativo={i === 0 ? '' : undefined}>
+              <Foto src={p.foto.src} alt={p.foto.alt} sizes="(min-width: 960px) 260px, 48vw" widths={[180, 260, 360, 520]} qualidade={66} />
+            </div>
+          ))}
+        </div>
+        <figcaption class="dupla__etiqueta dupla__etiqueta--roll"><span class="visually-hidden">Roll </span><span data-roll>{primeiro.roll}</span></figcaption>
+      </figure>
+
+      <Badge class="dupla__selo dupla__camada" />
+      <span class="dupla__adesivo dupla__camada" style="--z:3" aria-hidden="true">gelado</span>
+      <p class="dupla__frase" aria-live="polite" data-frase>{primeiro.frase}</p>
+    </div>
+
+    <div class="cafe-roll__escolha">
+      <p class="cafe-roll__rotulo" id="pares-rotulo">escolha a dupla</p>
+      <div class="pares" role="radiogroup" aria-labelledby="pares-rotulo">
+        {pares.map((p, i) => (
+          <button type="button" role="radio" class="par" aria-checked={i === 0 ? 'true' : 'false'} tabindex={i === 0 ? 0 : -1}
+            data-par={p.id} data-bebida={p.bebida} data-roll={p.roll} data-frase={p.frase} data-liq-a={p.liquido[0]} data-liq-b={p.liquido[1]}>
+            <strong>{p.bebida}</strong><span><i aria-hidden="true">+</i> {p.roll}</span>
+          </button>
+        ))}
+      </div>
+      <p class="cafe-roll__nota">{cr.nota}</p>
+
+      <div class="cafe-roll__bebidas">
+        <p class="cafe-roll__rotulo">todas as bebidas</p>
+        <ul>
+          {cardapio.beber.map((b) => <li><a href="#gastronomia" data-abrir={b.id}>{b.nome}</a></li>)}
+        </ul>
+      </div>
+    </div>
+  </section>
+)}
+
+<script>
+  import { initCafeRoll } from '../lib/cafe-roll.js';
+  const raiz = document.querySelector<HTMLElement>('[data-cafe-roll]');
+  if (raiz) initCafeRoll(raiz);
+</script>

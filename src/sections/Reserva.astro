@@ -1,21 +1,20 @@
 ---
-// 8 · RESERVE SUA MESA — comanda (ilha Preact, carregada quando chega perto da tela).
-// O modo vem do ambiente de build: por padrão “indisponível” (não finge funcionar). Ver docs/technical/CONTRATO-API-RESERVAS.md.
+// 9 · RESERVE SUA MESA — comanda (ilha Preact, carregada quando chega perto da tela).
+// O modo vem do ambiente de build: por padrão “indisponível” — a comanda é ilustrativa, não coleta dados, não simula
+// disponibilidade nem confirmação; o próprio botão diz “Reservas online em breve”. Ver docs/technical/CONTRATO-API-RESERVAS.md.
 import MegaTitle from '../components/MegaTitle.astro';
 import ReservaFlow from '../islands/ReservaFlow';
 import { reservaveis } from '../data/ambientes';
-import { visita } from '../data/visita';
+import { secoes } from '../data/secoes';
 
 const modoEnv = import.meta.env.PUBLIC_RESERVAS_MODO;
 const apiUrl = import.meta.env.PUBLIC_RESERVAS_API_URL || undefined;
 const modo = modoEnv === 'simulado' ? 'simulado' : modoEnv === 'api' && apiUrl ? 'api' : 'indisponivel';
 interface Props { titulo?: 'h1' | 'h2' }
 const { titulo = 'h2' } = Astro.props;
+const s = secoes.reserva;
 ---
-<section class="reserva" id="reservar" aria-labelledby="reserva-titulo" data-reserva data-vivo tabindex="-1">
-  <MegaTitle linhas={['Reserve', 'sua mesa']} id="reserva-titulo" tom="light" scribble="e chegue com fome" as={titulo} />
+<section class="reserva" id={s.id} aria-labelledby="reserva-titulo" data-reserva data-vivo tabindex="-1">
+  <MegaTitle linhas={[...s.linhas]} id="reserva-titulo" tom="light" scribble={s.sub} as={titulo} />
   <ReservaFlow client:visible={{ rootMargin: '400px' }} modo={modo} apiUrl={apiUrl} ambientes={reservaveis.opcoes} privacidadeUrl="/privacidade/" />
-  {modo === 'indisponivel' && (
-    <p class="reserva__whats">Enquanto as reservas online não chegam, fale com a gente: <a class="btn btn--butter" href={visita.whatsapp.url} rel="noopener" target="_blank">Reservar pelo WhatsApp <span aria-hidden="true">↗</span></a></p>
-  )}
 </section>

@@ -1,0 +1,148 @@
+/* CAFÉ + ROLL (seção 5, nova). Caramelo entre o cacau da Fornada e o creme de Saladas & bowls.
+   Palco da colagem: 358 × 420 px em 390 (aspect-ratio). Camadas: caixa real da Roll (fundo) → copo desenhado → “+” →
+   roll da dupla (frente) → selo, adesivo e etiquetas. Cada camada tem uma profundidade --z (1 a 4) que multiplica o
+   deslocamento pela rolagem e pelo ponteiro (--px/--py, de -1 a 1, lib/cafe-roll.js). Contraste: texto cacau/vinho
+   sobre caramelo (≥ 4,7:1); nada de manteiga sobre caramelo. */
+
+.cafe-roll {
+  position: relative; isolation: isolate;
+  padding: var(--rhythm-c) var(--gutter) calc(var(--rhythm-c) + var(--rhythm-tail));
+  background: var(--caramel); color: var(--ink);
+  overflow: hidden;
+}
+.cafe-roll::before {
+  content: ""; position: absolute; inset: 0; z-index: -1;
+  background: var(--grain); opacity: var(--grain-opacity); mix-blend-mode: soft-light; pointer-events: none;
+}
+.cafe-roll .scribble { color: var(--cacao); }
+.cafe-roll__lead { margin-top: var(--s-30); max-width: 30ch; font-size: var(--fs-lead); color: var(--ink); }
+
+/* Palco ------------------------------------------------------------------------------------------------------- */
+.dupla {
+  --px: 0; --py: 0;
+  position: relative; margin-top: var(--s-34);
+  width: 100%; max-width: 520px; aspect-ratio: 358 / 420; margin-inline: auto;
+  container-type: inline-size;
+}
+.dupla__camada {
+  position: absolute;
+  translate: calc(var(--px) * var(--z, 1) * 5px) calc(var(--py) * var(--z, 1) * 4px);
+  transition: translate var(--dur-m) var(--ease);
+}
+
+.dupla__caixa {
+  right: 0; top: 0; width: 60%; margin: 0;
+  padding: 6px; background: var(--glaze); border-radius: var(--radius-s);
+  box-shadow: var(--shadow-board); rotate: 5deg;
+}
+.dupla__caixa img { width: 100%; aspect-ratio: 1052 / 1220; object-fit: cover; border-radius: 4px; }
+.dupla__caixa .tape { top: -12px; left: 30%; width: 70px; height: 24px; }
+
+.dupla__copo { left: 0; top: 16%; width: 44%; rotate: -7deg; filter: var(--drop-produto); }
+.dupla__copo svg { width: 100%; overflow: visible; }
+.dupla__liq-a { stop-color: var(--liq-a); transition: stop-color var(--dur-l) var(--ease); }
+.dupla__liq-b { stop-color: var(--liq-b); transition: stop-color var(--dur-l) var(--ease); }
+.dupla__vidro { fill: var(--glass-fill); stroke: var(--glaze); stroke-width: 4; stroke-linejoin: round; }
+.dupla__tampa { fill: var(--glass-lid); stroke: var(--glaze); stroke-width: 3.5; stroke-linejoin: round; }
+.dupla__gelo { fill: var(--glass-lid); stroke: var(--glass-edge); stroke-width: 2; }
+.dupla__brilho { fill: none; stroke: var(--glass-shine); stroke-width: 6; stroke-linecap: round; }
+.dupla__canudo { fill: var(--wine); }
+
+.dupla__mais {
+  z-index: 5; left: 31%; top: 71%;
+  font: var(--t-mega); font-size: calc(30 * 1cqi); line-height: .8;
+  text-shadow: 3px 3px 0 var(--glaze);
+  font-variation-settings: var(--fvs-display); font-stretch: var(--stretch-mega);
+  color: var(--wine); rotate: -8deg;
+}
+
+.dupla__roll { right: 2%; top: 47%; width: 52%; margin: 0; }
+.dupla__fotos {
+  position: relative; aspect-ratio: 1; border-radius: var(--radius-round); overflow: hidden;
+  background: var(--glaze); border: 6px solid var(--glaze); box-shadow: var(--shadow-photo-deep);
+}
+.dupla__foto { position: absolute; inset: 0; opacity: 0; transition: opacity var(--dur-m) var(--ease); }
+.dupla__foto[data-ativo] { opacity: 1; }
+.dupla__foto img { width: 100%; height: 100%; object-fit: cover; }
+
+.dupla__etiqueta {
+  position: absolute; margin: 0; padding: 6px var(--s-12) 7px; border-radius: var(--radius-pill);
+  font: var(--t-chip); text-transform: uppercase; letter-spacing: var(--track-tight-caps); white-space: nowrap;
+  box-shadow: var(--shadow-offset-xs);
+}
+.dupla__etiqueta--bebida { left: 50%; bottom: 16%; translate: -50% 0; rotate: 4deg; background: var(--butter); color: var(--wine); font-size: var(--fs-micro); max-width: 110%; }
+.dupla__etiqueta--roll { left: 50%; bottom: -14px; translate: -50% 0; rotate: -3deg; background: var(--wine); color: var(--butter); }
+
+.dupla__selo { left: 33%; top: -2%; width: 21%; --z: 3; rotate: -10deg; box-shadow: var(--shadow-sticker); }
+.dupla__adesivo {
+  left: 2%; top: 4%; display: grid; place-items: center; width: 17%; aspect-ratio: 1; border-radius: var(--radius-round);
+  background: var(--berry); color: var(--cream); box-shadow: var(--shadow-sticker);
+  font: var(--t-stamp-s); rotate: -14deg;
+}
+.dupla__frase {
+  position: absolute; left: 0; bottom: 0; max-width: 46%; margin: 0;
+  font: var(--t-note); color: var(--cacao); rotate: -4deg;
+}
+
+/* troca de dupla: o roll gira e assenta, o copo dá um tranco, as etiquetas pulam (só com movimento) */
+.dupla[data-trocando] .dupla__fotos { animation: dupla-roll var(--dur-m) var(--ease-paper); }
+.dupla[data-trocando] .dupla__copo svg { animation: dupla-copo var(--dur-m) var(--ease-paper); }
+.dupla[data-trocando] .dupla__etiqueta, .dupla[data-trocando] .dupla__frase { animation: dupla-etiqueta var(--dur-m) var(--ease-paper); }
+@keyframes dupla-roll { from { transform: rotate(-24deg) scale(.88); } }
+@keyframes dupla-copo { 40% { transform: rotate(3deg) translateY(-6px); } }
+@keyframes dupla-etiqueta { from { opacity: 0; transform: translateY(6px) scale(.9); } }
+
+/* Escolha da dupla e bebidas ------------------------------------------------------------------------------------ */
+.cafe-roll__escolha { margin-top: var(--s-44); }
+.cafe-roll__rotulo { margin-bottom: var(--s-10); font: var(--t-kicker); color: var(--cacao); }
+html:not(.js) .cafe-roll__escolha > :is(#pares-rotulo, .pares) { display: none; }
+.pares { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-10); }
+.par {
+  display: grid; align-content: center; gap: 2px; min-height: 64px; padding: var(--s-10) var(--s-12);
+  border: var(--border-control) solid var(--cacao); border-radius: var(--radius-control);
+  background: var(--glaze); color: var(--ink); text-align: left; cursor: pointer;
+  box-shadow: 0 3px 0 var(--cacao);
+  transition: transform var(--dur-xs) var(--ease), box-shadow var(--dur-xs) var(--ease), background-color var(--dur-s) var(--ease), color var(--dur-s) var(--ease);
+}
+.par strong { font: var(--t-chip); font-size: var(--fs-pair); line-height: 1.15; }
+.par span { font: var(--t-tag); color: var(--caramel-dk); }
+.par i { font-style: normal; font-weight: 800; }
+.par:active { transform: translateY(3px); box-shadow: 0 0 0 var(--cacao); transition-duration: var(--dur-press-in); }
+.par[aria-checked="true"] { background: var(--wine); border-color: var(--wine); color: var(--butter); box-shadow: var(--shadow-offset-s); transform: translate(-1px, -2px); }
+.par[aria-checked="true"] span { color: var(--caramel-lt); }
+.cafe-roll__nota { margin-top: var(--s-12); font: var(--t-chip-small); color: var(--cacao); }
+
+.cafe-roll__bebidas { margin-top: var(--s-30); padding-top: var(--s-18); border-top: var(--border-control) dashed var(--rule-cacao); }
+.cafe-roll__bebidas ul { display: flex; flex-wrap: wrap; gap: var(--s-8); }
+.cafe-roll__bebidas a {
+  display: inline-flex; align-items: center; min-height: 40px; padding: 0 var(--s-14);
+  border-radius: var(--radius-pill); background: var(--cacao); color: var(--butter); text-decoration: none;
+  font: var(--t-pill); text-transform: uppercase; letter-spacing: var(--track-caps);
+  transition: transform var(--dur-xs) var(--ease), background-color var(--dur-s) var(--ease);
+}
+.cafe-roll__bebidas li:nth-child(odd) a { rotate: -1.5deg; }
+.cafe-roll__bebidas li:nth-child(even) a { rotate: 1.5deg; }
+.cafe-roll__bebidas a::after { content: "↑"; margin-left: var(--s-6); opacity: .7; }
+.cafe-roll__bebidas a:active { transform: scale(.95); }
+@media (hover: hover) { .cafe-roll__bebidas a:hover { background: var(--wine); } }
+
+/* Profundidade pela rolagem: cada camada deriva conforme a sua --z (só onde há scroll-driven animations) */
+@supports (animation-timeline: view()) {
+  .dupla__camada { animation: dupla-deriva linear both; animation-timeline: view(); }
+  @keyframes dupla-deriva { from { transform: translateY(calc(var(--z, 1) * 9px)); } to { transform: translateY(calc(var(--z, 1) * -9px)); } }
+}
+
+@media (min-width: 600px) and (max-width: 959px) {
+  .dupla { max-width: 460px; }
+  .pares { grid-template-columns: repeat(4, 1fr); }
+}
+@media (min-width: 960px) {
+  .cafe-roll {
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); grid-template-rows: auto 1fr; column-gap: var(--s-44);
+    padding-inline: max(var(--gutter), calc((100% - var(--container-xl)) / 2));
+  }
+  .cafe-roll__texto { grid-column: 1; }
+  .cafe-roll__escolha { grid-column: 1; grid-row: 2; align-self: start; }
+  .dupla { grid-column: 2; grid-row: 1 / 3; align-self: center; margin-top: 0; max-width: 560px; }
+  .cafe-roll .mega { font-size: var(--fs-mega-split); }
+}

@@ -1,6 +1,9 @@
 // Cardápio do Âmbar Brunch — 13 CATEGORIAS da proposta Âmbar × Roll (PDF, págs. 5–6), confirmadas em 2026-10-17.
-// Itens: só os que aparecem nos cardápios do próprio cliente (artes recebidas por WhatsApp e pág. 12 da proposta).
-// Sem preço. Categoria sem itens confirmados fica como etiqueta editorial (não abre painel).
+// Itens e descrições: só os dos cardápios do próprio cliente (artes recebidas por WhatsApp: Âmbar Café, Cafés gelados e
+// Roll · cinnamon rolls; pág. 12 da proposta para os rolls salgados). Sem preço e sem disponibilidade do dia.
+// Cada categoria tem uma foto principal (real ou ilustrativa, ver lib/conteudo.ts → Origem). Categoria sem itens
+// confirmados mostra só a foto e uma nota neutra — nunca sabores inventados.
+import type { Origem } from '../lib/conteudo';
 import { bebidas } from './bebidas';
 
 /** Pares fundo/texto aprovados em TOKENS.md §1 (faixas do cardápio). */
@@ -15,75 +18,124 @@ export const PARES = {
 } as const;
 export type Cor = keyof typeof PARES;
 
-export interface Item { nome: string; desc?: string }
-/** Foto de apoio do painel. `confirmado: false` = imagem da proposta do cliente (ilustrativa): só no modo de revisão. */
-export interface FotoCardapio { src: string; alt: string; confirmado: boolean }
+export interface FotoCardapio { src: string; alt: string; origem: Origem }
+/** `foto` = miniatura: só nos itens principais, quando acrescenta. */
+export interface Item { nome: string; desc?: string; foto?: FotoCardapio }
+export interface Grupo {
+  id?: string;
+  titulo?: string;
+  itens: Item[];
+  /** itens válidos guardados atrás de um “ver mais” (não pesam no cartão) */
+  mais?: { rotulo: string; itens: string[] };
+  nota?: string;
+}
 export interface Detalhe {
   linha?: string;                                  // subtítulo do cardápio do cliente (ex.: “no pão rústico tostado”)
-  grupos: { titulo?: string; itens: Item[] }[];
-  fotos?: FotoCardapio[];
+  foto: FotoCardapio;                              // foto principal da categoria
+  grupos: Grupo[];
+  /** grupos viram abas (ex.: doces | salgados) */
+  abas?: boolean;
+  nota?: string;
   ancora?: { href: string; texto: string };       // leva à seção que aprofunda a categoria
 }
-export interface Categoria { id: string; nome: string; cor: Cor; detalhe?: Detalhe }
+export interface Categoria { id: string; nome: string; cor: Cor; detalhe: Detalhe }
 
-const revisao = (src: string, alt: string): FotoCardapio => ({ src: `revisao/cardapio/${src}`, alt, confirmado: false });
+const real = (src: string, alt: string): FotoCardapio => ({ src, alt, origem: 'real' });
+const ilustrativa = (src: string, alt: string): FotoCardapio => ({ src, alt, origem: 'ilustrativa' });
+const VARIA = 'as opções variam · consulte a equipe';
+
+/** Sabores da Roll em destaque no cartão (cardápio “Roll · cinnamon rolls”, descrições encurtadas). */
+const rollsDoces: Item[] = [
+  { nome: 'Tradicional', desc: 'fermentação lenta, manteiga, açúcar mascavo, canela e glacê' },
+  { nome: 'Mood cheesecake', desc: 'creme de cheesecake, geleia de morango e crumble', foto: real('roll/roll-mood-cheesecake.webp', 'Cinnamon roll Mood cheesecake com geleia de morango e crumble') },
+  { nome: 'S’mores', desc: 'chocolate, marshmallow tostado e biscoito', foto: real('roll/roll-smores.webp', 'Cinnamon roll S’mores com marshmallow tostado') },
+  { nome: 'Kinder Bueno', desc: 'creme de Kinder Bueno e Nutella', foto: real('roll/roll-kinder-bueno.webp', 'Cinnamon roll Kinder Bueno com fios de Nutella') },
+];
 
 export const cardapio: { comer: Categoria[]; beber: Categoria[]; faixa: string[]; nota: string } = {
   comer: [
     { id: 'bruschettas', nome: 'Bruschettas', cor: 'wine', detalhe: {
       linha: 'bruschettas & toasts',
-      grupos: [{ itens: [{ nome: 'Caprese' }, { nome: 'Confit rústica' }, { nome: 'Avocado toast' }] }],
-      fotos: [{ src: 'gastronomia/bruschetta-brunch.webp', alt: 'Torrada coberta vista de cima com xícara de café', confirmado: true }],
+      foto: real('gastronomia/bruschetta-brunch.webp', 'Torrada coberta vista de cima, com xícara de café ao lado'),
+      grupos: [{ itens: [
+        { nome: 'Caprese', foto: ilustrativa('cardapio/bruschetta-caprese.webp', 'Bruschetta caprese com tomate, muçarela e manjericão') },
+        { nome: 'Confit rústica' }, { nome: 'Vigente cremoso' }, { nome: 'Avocado toast' },
+      ] }],
     } },
-    { id: 'cheesecakes', nome: 'Cheesecakes', cor: 'caramel' },
+    { id: 'cheesecakes', nome: 'Cheesecakes', cor: 'caramel', detalhe: {
+      foto: ilustrativa('cardapio/cheesecakes.webp', 'Fatia de cheesecake com calda de frutas vermelhas'),
+      grupos: [], nota: VARIA,
+    } },
     { id: 'sanduiches', nome: 'Sanduíches', cor: 'cacao', detalhe: {
       linha: 'no pão rústico tostado',
+      foto: ilustrativa('cardapio/sanduiche-brie.webp', 'Sanduíche de brie com geleia de mirtilo no pão rústico'),
       grupos: [{ itens: [
         { nome: 'Brie & mirtilo', desc: 'mirtilo, brie e parmesão' },
         { nome: 'Ragu', desc: 'ragu, muçarela, tomate confitado e mel' },
         { nome: 'Atum & abacate', desc: 'atum, gergelim, creme de ricota, shoyu e abacate' },
         { nome: 'Mortadela ou parma', desc: 'rúcula, parmesão e tomate confitado' },
       ] }],
-      fotos: [revisao('sanduiche.webp', 'Sanduíche de brie com geleia de mirtilo no pão rústico')],
     } },
     { id: 'saladas', nome: 'Saladas', cor: 'leaf', detalhe: {
       linha: 'menu saudável',
+      foto: ilustrativa('cardapio/salada-atum.webp', 'Salada de atum com abacate, pepino, tomate e folhas'),
       grupos: [{ itens: [
         { nome: 'Salada de atum', desc: 'atum, abacate, mix de folhas, pepino, shoyu e manga' },
         { nome: 'Carne do sol', desc: 'creme de carne do sol, dadinhos de tapioca, folhas e parmesão' },
       ] }],
-      fotos: [revisao('salada-atum.webp', 'Salada de atum com abacate, pepino e folhas')],
-      ancora: { href: '#por-dentro', texto: 'por dentro do prato' },
+      ancora: { href: '#saladas', texto: 'saladas & bowls' },
     } },
-    { id: 'rolls', nome: 'Cinnamon roll salgado & doce', cor: 'butter', detalhe: {
+    { id: 'rolls', nome: 'Cinnamon rolls doces & salgados', cor: 'butter', detalhe: {
+      linha: 'com assinatura da Roll',
+      foto: real('roll/roll-espiral.webp', 'Cinnamon roll em espiral entre rolls red velvet, na bandeja da Roll'),
+      abas: true,
       grupos: [
-        { titulo: 'doces · Roll', itens: [{ nome: 'Tradicional', desc: 'massa de fermentação lenta, manteiga, açúcar mascavo, canela e glacê' }, { nome: 'Mood cheesecake' }, { nome: 'S’mores' }, { nome: 'Kinder Bueno' }] },
-        { titulo: 'salgados', itens: [{ nome: 'Pesto & ricota' }, { nome: 'Quatro queijos' }, { nome: 'Caprese' }, { nome: 'Cogumelos & brie' }] },
-      ],
-      fotos: [
-        revisao('roll-salgado-pesto.webp', 'Roll salgado de pesto e ricota'),
-        revisao('roll-salgado-caprese.webp', 'Roll salgado caprese'),
-        revisao('roll-salgado-cogumelos.webp', 'Roll salgado de cogumelos e brie'),
+        { id: 'doces', titulo: 'doces', itens: rollsDoces,
+          mais: { rotulo: 'sabores que já passaram pela fornada', itens: ['Oreo', 'Biscoff', 'Red velvet', 'Pistache', 'Mirtilo', 'Nutella'] },
+          nota: 'os sabores mudam com a fornada' },
+        { id: 'salgados', titulo: 'salgados', itens: [
+          { nome: 'Pesto & ricota', foto: ilustrativa('cardapio/roll-salgado-pesto.webp', 'Roll salgado de pesto e ricota') },
+          { nome: 'Quatro queijos' },
+          { nome: 'Caprese', foto: ilustrativa('cardapio/roll-salgado-caprese.webp', 'Roll salgado caprese') },
+          { nome: 'Cogumelos & brie' },
+        ] },
       ],
       ancora: { href: '#roll', texto: 'direto da fornada' },
     } },
     { id: 'bowls', nome: 'Bowls', cor: 'berry', detalhe: {
+      foto: ilustrativa('cardapio/bowls-poke.webp', 'Poke com arroz, salmão, milho, abacate e gergelim'),
       grupos: [{ itens: [{ nome: 'Poke', desc: 'arroz, salmão, milho crocante, abacate e gergelim' }] }],
+      ancora: { href: '#saladas', texto: 'saladas & bowls' },
     } },
-    { id: 'brownies', nome: 'Brownies diferentes', cor: 'cacao-lt' },
+    { id: 'brownies', nome: 'Brownies diferentes', cor: 'cacao-lt', detalhe: {
+      foto: ilustrativa('cardapio/brownies.webp', 'Brownies empilhados com calda de chocolate'),
+      grupos: [], nota: VARIA,
+    } },
   ],
   beber: [
     { id: 'gelados', nome: 'Cafés gelados', cor: 'caramel', detalhe: {
-      grupos: [{ itens: bebidas.gelados.map((b) => ({ nome: b.nome, desc: b.desc })) }],
-      ancora: { href: '#bebidas', texto: 'café e bebidas' },
+      linha: 'gelados da casa',
+      foto: ilustrativa('cardapio/cafes-gelados.webp', 'Latte gelado e matcha latte em copos com gelo'),
+      grupos: [{ itens: bebidas.gelados.map((b) => ({ nome: b.nome, desc: b.desc })), nota: `leite: ${bebidas.leites.join(' · ')}` }],
+      ancora: { href: '#cafe-roll', texto: 'café + roll' },
     } },
-    { id: 'cappuccino', nome: 'Cappuccino', cor: 'wine' },
-    { id: 'frappe', nome: 'Frappé', cor: 'butter' },
-    { id: 'cafes', nome: 'Cafés diversos', cor: 'cacao' },
-    { id: 'cha', nome: 'Chá', cor: 'leaf' },
-    { id: 'smoothies', nome: 'Smoothies proteicos', cor: 'berry' },
+    { id: 'cappuccino', nome: 'Cappuccino', cor: 'wine', detalhe: {
+      foto: ilustrativa('cardapio/cappuccino.webp', 'Cappuccino com desenho de folha na espuma'), grupos: [], nota: VARIA,
+    } },
+    { id: 'frappe', nome: 'Frappé', cor: 'butter', detalhe: {
+      foto: real('gastronomia/bebida-chocolate-creme.webp', 'Bebida gelada de chocolate com calda escorrendo no copo'), grupos: [], nota: VARIA,
+    } },
+    { id: 'cafes', nome: 'Cafés diversos', cor: 'cacao', detalhe: {
+      foto: ilustrativa('cardapio/cafes-diversos.webp', 'Espresso e café com leite em copos de vidro'), grupos: [], nota: VARIA,
+    } },
+    { id: 'cha', nome: 'Chá', cor: 'leaf', detalhe: {
+      foto: ilustrativa('cardapio/cha.webp', 'Chás gelados vermelho e dourado em copos altos'), grupos: [], nota: VARIA,
+    } },
+    { id: 'smoothies', nome: 'Smoothies proteicos', cor: 'berry', detalhe: {
+      foto: ilustrativa('cardapio/smoothies.webp', 'Smoothie de frutas vermelhas em copo alto'), grupos: [], nota: VARIA,
+    } },
   ],
   /** Faixa em movimento abaixo do hero: as 13 categorias, alternando comer e beber. */
-  faixa: ['Bruschettas', 'Cafés gelados', 'Cheesecakes', 'Cappuccino', 'Sanduíches', 'Frappé', 'Saladas', 'Cafés diversos', 'Cinnamon roll salgado & doce', 'Chá', 'Bowls', 'Smoothies proteicos', 'Brownies diferentes'],
-  nota: 'Itens do cardápio de estreia · podem variar com a fornada e a estação',
+  faixa: ['Bruschettas', 'Cafés gelados', 'Cheesecakes', 'Cappuccino', 'Sanduíches', 'Frappé', 'Saladas', 'Cafés diversos', 'Cinnamon rolls doces & salgados', 'Chá', 'Bowls', 'Smoothies proteicos', 'Brownies diferentes'],
+  nota: 'Itens do cardápio de estreia · podem variar com a fornada e a estação · imagens ilustrativas sinalizadas',
 };

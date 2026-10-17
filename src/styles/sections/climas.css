@@ -1,20 +1,35 @@
-/* ESCOLHA O CLIMA · painéis em diagonal + bolhas. Origem: .climas do v1. */
+/* ESCOLHA SEU LUGAR · painéis em diagonal + bolha + polaroide. Origem: .climas do v1 (dois painéis e bolha);
+   a sala privativa entra como polaroide colada sobre o canto do salão. */
 
-.climas { padding: var(--rhythm-b) var(--gutter) calc(var(--rhythm-b) + var(--rhythm-tail)); background: var(--butter); }
-.climas__notice { margin-top: var(--s-22); }
-.climas__stack { position: relative; margin-top: 28px; }
-.bubble--a { right: -4%; top: 36%; }
-.bubble--b { right: 4%; bottom: -8%; }
+.climas { padding: var(--rhythm-b) var(--gutter) calc(var(--rhythm-b) + var(--rhythm-tail)); background: var(--butter); overflow: hidden; }
+.climas__stack { position: relative; margin-top: 28px; padding-bottom: 44%; }
+.bubble--a { right: -4%; top: 30%; }
 
-/* a bolha “leitura” pendura ~8–10% da altura do painel abaixo dele: o marcador de revisão começa depois dela */
-.climas__pending { margin-top: clamp(112px, 30vw, 136px); }
+/* linha do que se vê na foto, sob o nome */
+.clima { padding: 5px var(--s-10) 6px; border-radius: var(--radius-pill); background: var(--glaze); color: var(--ink); font: var(--t-tag); }
+.panel figcaption .clima { rotate: 1deg; }
+.panel img, .climas__privativa img, .bubble img { transition: scale var(--dur-l) var(--ease); }
+@media (hover: hover) {
+  .panel:hover img, .climas__privativa:hover img, .bubble:hover img { scale: 1.03; }
+}
 
-/* a partir do tablet: os dois painéis lado a lado (antes, em 768 px, cada painel tinha 880 px de altura) */
+/* polaroide da sala privativa: cola sobre a base do salão, inclinada */
+.climas__privativa {
+  position: absolute; z-index: var(--z-3); left: -2%; bottom: 0; width: 56%; margin: 0;
+  padding: 8px 8px 0; background: var(--glaze); box-shadow: var(--shadow-photo-deep); rotate: -5deg;
+}
+.climas__privativa img { width: 100%; aspect-ratio: 4 / 4.6; object-fit: cover; }
+.climas__privativa figcaption { display: grid; justify-items: start; gap: var(--s-6); padding: var(--s-10) 2px var(--s-12); }
+.tagline--s { font-size: var(--fs-tagline-s); }
+
+/* a partir do tablet: os dois painéis lado a lado; bolha e polaroide nas costuras */
 @media (min-width: 600px) {
-  .climas__stack { display: grid; grid-template-columns: 1fr 1fr; gap: 0 var(--s-24); max-width: var(--container-l); margin-left: auto; margin-right: auto; }
+  .climas__stack { display: grid; grid-template-columns: 1fr 1fr; gap: 0 var(--s-24); max-width: var(--container-l); margin-left: auto; margin-right: auto; padding-bottom: 22%; }
   .panel--amber { margin-top: 80px; }
   .bubble--a { right: auto; left: 41%; top: -4%; width: 20%; }
-  .bubble--b { right: -2%; bottom: -10%; width: 20%; }
-  .climas > .mega, .climas__notice { max-width: var(--container-l); margin-left: auto; margin-right: auto; }
-  .climas__notice { display: block; width: fit-content; }
+  .climas__privativa { left: 30%; width: 30%; bottom: 0; }
+  .climas > .mega { max-width: var(--container-l); margin-left: auto; margin-right: auto; }
 }
+/* a polaroide cobre o canto inferior esquerdo do salão: o nome dele vai para a direita */
+.panel--amber figcaption { left: auto; right: 16px; top: 8%; bottom: auto; justify-items: end; }
+@media (min-width: 600px) { .panel--amber figcaption { top: auto; bottom: 18px; } }

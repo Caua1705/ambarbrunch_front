@@ -14,3 +14,13 @@ export const isPendente = (v: unknown): v is Pendente => typeof v === 'object' &
 
 /** Mídia de terceiros só aparece com autorização registrada — ou no modo de revisão local. */
 export const podeMostrar = (autorizado: boolean) => autorizado || REVISAO;
+
+/**
+ * Origem de uma imagem de produto:
+ * - `real`: foto do Âmbar ou da Roll;
+ * - `ilustrativa`: recorte de imagem gerada por IA ou arte da proposta Âmbar × Roll — sai sempre com o selo
+ *   “imagem ilustrativa” e nunca sustenta ingrediente, preço ou dado nutricional próprio;
+ * - `revisao`: ainda não confirmada para publicação — só no modo de revisão.
+ */
+export type Origem = 'real' | 'ilustrativa' | 'revisao';
+export const origemVisivel = (o: Origem) => o !== 'revisao' || REVISAO;

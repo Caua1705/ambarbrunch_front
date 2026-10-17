@@ -1,16 +1,34 @@
-/* POR DENTRO DO PRATO (nova) · creme, com o verde da folha só nos detalhes.
-   Foto recortada sobre um disco de papel; pinos de ingrediente entram um a um; ficha nutricional em <details>. */
+/* SALADAS & BOWLS (seção 6) · creme, com o verde da folha nos detalhes.
+   Abas com miniatura (um prato por vez); foto num prato de papel; pinos de ingrediente entram um a um;
+   “informações do prato” em <details> (alergênicos e ficha nutricional — validados ou “em validação”). */
 
 .prato { padding: var(--rhythm-b) var(--gutter) calc(var(--rhythm-b) + var(--rhythm-tail)); background: var(--cream); overflow: hidden; }
-.prato__grid { display: grid; gap: var(--s-30); margin-top: var(--s-30); }
+.prato__grid { display: grid; gap: var(--s-34); margin-top: var(--s-30); }
+.prato__grid[hidden] { display: none; }
 
-.prato__foto { position: relative; margin: 0 auto; width: min(100%, 420px); aspect-ratio: 1 / .86; }
+/* abas: dois cartões de papel com miniatura redonda */
+.pratos__abas { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-10); margin-top: var(--s-30); }
+.pratos__abas[hidden] { display: none; }
+.pratos__abas [role="tab"] {
+  display: grid; grid-template-columns: 44px 1fr; align-items: center; gap: var(--s-10);
+  min-height: 60px; padding: var(--s-8) var(--s-10); text-align: left; cursor: pointer;
+  border: var(--border-control) solid var(--rule); border-radius: var(--radius-control);
+  background: var(--glaze); color: var(--ink); box-shadow: 0 3px 0 var(--rule);
+  transition: transform var(--dur-xs) var(--ease), box-shadow var(--dur-xs) var(--ease), border-color var(--dur-s) var(--ease), background-color var(--dur-s) var(--ease);
+}
+.pratos__abas [role="tab"]:active { transform: translateY(3px); box-shadow: none; transition-duration: var(--dur-press-in); }
+.pratos__abas [role="tab"][aria-selected="true"] { border-color: var(--leaf); background: var(--leaf); color: var(--cream); box-shadow: var(--shadow-offset-s); transform: translate(-1px, -2px); }
+.pratos__abas [role="tab"] > span:last-child { display: grid; font: var(--t-chip); text-transform: uppercase; letter-spacing: var(--track-tight-caps); line-height: 1.1; }
+.pratos__abas small { font: var(--t-chip-small); text-transform: none; letter-spacing: 0; opacity: .8; }
+.pratos__mini img { width: 44px; height: 44px; object-fit: cover; border-radius: var(--radius-round); box-shadow: 0 0 0 2px var(--butter); }
+
+.prato__foto { position: relative; margin: 0 auto; width: min(100%, 400px); aspect-ratio: 1 / .92; }
 .prato__fundo {
-  position: absolute; inset: 6% 4% 2%; border-radius: var(--radius-round);
+  position: absolute; inset: 4% 2% 0; border-radius: var(--radius-round);
   background: var(--butter); box-shadow: inset 0 0 0 10px var(--glaze), inset 0 0 0 12px var(--caramel-lt);
 }
-.prato__tigela { position: absolute; left: 4%; right: 4%; top: 10%; filter: var(--drop-label); }
-.prato__tigela img { display: block; width: 100%; height: auto; }
+.prato__tigela { position: absolute; left: 14%; right: 14%; top: 10%; aspect-ratio: 1; border-radius: var(--radius-round); overflow: hidden; box-shadow: var(--shadow-photo-deep); border: 5px solid var(--glaze); }
+.prato__tigela img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .prato__pino {
   position: absolute; left: var(--x); top: var(--y); z-index: var(--z-2);
   display: inline-flex; align-items: center; gap: 6px; translate: -8px -50%;
@@ -19,7 +37,7 @@
   font: var(--t-chip-small); white-space: nowrap;
 }
 .prato__pino i { width: 10px; height: 10px; border-radius: var(--radius-round); background: var(--leaf); box-shadow: 0 0 0 3px var(--butter); }
-.prato__legenda { position: absolute; right: 2%; bottom: -4px; font: var(--t-fine-serif); color: var(--text-muted); }
+.prato__selo { bottom: 0; }
 
 .prato__card {
   padding: var(--s-22) var(--s-18); background: var(--glaze); color: var(--ink);
@@ -33,15 +51,21 @@
 
 .ficha { margin-top: var(--s-18); border-top: 2px solid var(--wine); }
 .ficha summary {
-  display: grid; grid-template-columns: 1fr auto 20px; align-items: center; gap: var(--s-10);
+  display: grid; grid-template-columns: 1fr 20px; align-items: center; gap: var(--s-10);
   min-height: 52px; cursor: pointer; list-style: none;
   font: var(--t-chip); text-transform: uppercase; letter-spacing: var(--track-tight-caps); color: var(--wine);
 }
 .ficha summary::-webkit-details-marker { display: none; }
-.ficha__porcao { font: var(--t-chip-small); text-transform: none; letter-spacing: 0; color: var(--text-muted); }
 .ficha__seta { width: 12px; height: 12px; border-right: 2.5px solid currentColor; border-bottom: 2.5px solid currentColor; rotate: 45deg; translate: 0 -3px; transition: rotate var(--dur-s) var(--ease), translate var(--dur-s) var(--ease); }
 .ficha[open] .ficha__seta { rotate: 225deg; translate: 0 3px; }
-.ficha__tabela { width: 100%; border-collapse: collapse; }
+.ficha__corpo { padding-bottom: var(--s-6); }
+.ficha__titulo { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s-10); margin-top: var(--s-12); font: var(--t-caption); color: var(--caramel-dk); }
+.ficha__titulo:first-child { margin-top: 0; }
+.ficha__porcao { font: var(--t-chip-small); color: var(--text-muted); }
+.ficha__aviso { margin-top: var(--s-6); font: var(--t-body-s); color: var(--ink); }
+.ficha__alergenicos { display: flex; flex-wrap: wrap; gap: var(--s-6); margin-top: var(--s-8); }
+.ficha__alergenicos li { padding: 5px var(--s-10); border: 1.5px solid var(--wine); border-radius: var(--radius-pill); font: var(--t-pill); color: var(--wine); }
+.ficha__tabela { width: 100%; margin-top: var(--s-6); border-collapse: collapse; }
 .ficha__tabela th, .ficha__tabela td { padding: var(--s-8) 0; border-bottom: 1px dashed var(--caramel-lt); text-align: left; vertical-align: middle; }
 .ficha__tabela th { width: 42%; font: var(--t-body-s); color: var(--ink); }
 .ficha__tabela td { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--s-10); }
@@ -50,7 +74,10 @@
 .ficha__barra i { display: block; height: 100%; width: calc(var(--v) * 100%); border-radius: inherit; background: var(--leaf); transform-origin: left; }
 .ficha__nota { margin-top: var(--s-10); font: var(--t-chip-small); color: var(--text-muted); }
 
+@media (min-width: 600px) {
+  .pratos__abas { max-width: 520px; }
+}
 @media (min-width: 960px) {
-  .prato { max-width: var(--container-xl); margin: 0 auto; }
+  .prato { padding-inline: max(var(--gutter), calc((100% - var(--container-xl)) / 2)); }
   .prato__grid { grid-template-columns: 1fr 1fr; align-items: center; }
 }

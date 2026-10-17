@@ -1,19 +1,21 @@
 ---
-// 3 · NOVO CAPÍTULO (nova). Explica em 5 segundos a hierarquia: Âmbar Brunch é o destino; a Roll, a assinatura.
-// Texto PROVISÓRIO (storyboard) até a revisão do cliente; a data de reabertura só entra quando for pública.
+// 2 · NOVO CAPÍTULO — explica em 5 segundos a hierarquia: Âmbar Brunch é o destino; a Roll, a assinatura gastronômica.
+// Copy final em data/secoes.ts e data/novo-capitulo.ts. Sem data de inauguração.
 import MegaTitle from '../components/MegaTitle.astro';
 import Badge from '../components/Badge.astro';
 import Stamp from '../components/Stamp.astro';
 import Spiral from '../components/Spiral.astro';
 import { novoCapitulo as nc } from '../data/novo-capitulo';
+import { secoes } from '../data/secoes';
+const s = secoes.novo;
 ---
-<section class="novo" id="novo" aria-labelledby="novo-titulo" tabindex="-1">
+<section class="novo" id={s.id} aria-labelledby="novo-titulo" tabindex="-1">
   <Spiral class="spiral novo__spiral" data-parallax="down" />
   <Stamp class="novo__stamp" reveal>{nc.carimbo}</Stamp>
-  <MegaTitle linhas={nc.titulo} id="novo-titulo" tom="wine" scribble={nc.scribble} />
+  <MegaTitle linhas={[...s.linhas]} id="novo-titulo" tom="wine" scribble={s.sub} />
   <div class="novo__body" data-reveal>
     <p class="novo__text">{nc.texto}</p>
     <div class="novo__selo" data-parallax="soft"><Badge /></div>
   </div>
-  <a class="novo__link" href="#reservar">Reservar mesa <span aria-hidden="true">→</span></a>
+  <a class="novo__link" href="#gastronomia">Ver o cardápio <span aria-hidden="true">↓</span></a>
 </section>

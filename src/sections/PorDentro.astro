@@ -1,58 +1,117 @@
 ---
-// 7 · POR DENTRO DO PRATO (nova) — um prato do menu saudável em destaque: foto com marcadores de ingrediente,
-// texto curto e ficha nutricional expansível (<details>, funciona sem JS; as barras crescem ao abrir).
-// FICHA COM NÚMEROS DE EXEMPLO (data/prato.ts → demo: true): a seção inteira fica FORA do build de produção.
+// 6 · SALADAS & BOWLS — pratos do menu saudável, um de cada vez (abas com miniatura): foto num prato de papel com
+// marcadores de ingrediente, texto curto, ingredientes e “informações do prato” (<details>: alergênicos e ficha
+// nutricional). Sem JS, os pratos aparecem um embaixo do outro.
+// Site publicado: alergênicos e ficha só quando validados (data/prato.ts); até lá, o aviso de “em validação”.
+// Modo de revisão: a ficha de EXEMPLO aparece, marcada como tal. Nenhuma alegação de saúde ou de calorias.
 import Foto from '../components/Foto.astro';
 import MegaTitle from '../components/MegaTitle.astro';
-import { prato } from '../data/prato';
-import { podeMostrar, REVISAO } from '../lib/conteudo';
+import { pratos, fichaEmValidacao, type Ficha } from '../data/prato';
+import { secoes } from '../data/secoes';
+import { REVISAO, isPendente, origemVisivel } from '../lib/conteudo';
 import { imagem } from '../lib/media';
 
-const mostrar = !prato.demo || REVISAO;
-const foto = podeMostrar(prato.foto.confirmado) && imagem(prato.foto.src) ? prato.foto : undefined;
+const s = secoes.saladas;
+const lista = pratos.filter((p) => origemVisivel(p.foto.origem) && imagem(p.foto.src));
+const fichaDe = (p: (typeof pratos)[number]): { ficha: Ficha; demo: boolean } | undefined =>
+  !isPendente(p.ficha) ? { ficha: p.ficha, demo: false } : REVISAO && p.fichaDemo ? { ficha: p.fichaDemo, demo: true } : undefined;
 ---
-{mostrar && (
-  <section class="prato" id="por-dentro" aria-labelledby="prato-titulo" tabindex="-1">
-    <MegaTitle linhas={['Por dentro', 'do prato']} id="prato-titulo" tom="wine" scribble={prato.linha} />
+{lista.length > 0 && (
+  <section class="prato" id={s.id} aria-labelledby="prato-titulo" tabindex="-1" data-pratos>
+    <MegaTitle linhas={[...s.linhas]} id="prato-titulo" tom="wine" scribble={s.sub} />
 
-    <div class="prato__grid">
-      {foto && (
-        <figure class="prato__foto" data-reveal="fade">
-          <i class="prato__fundo" aria-hidden="true"></i>
-          <div class="prato__tigela" data-parallax="soft"><Foto src={foto.src} alt={foto.alt} sizes="(min-width: 960px) 420px, 82vw" widths={[320, 410]} qualidade={70} /></div>
-          {prato.marcadores.map((m, i) => (
-            <span class="prato__pino" style={`--x:${m.x}%;--y:${m.y}%;--i:${i}`} aria-hidden="true"><i></i>{m.nome}</span>
-          ))}
-          <figcaption class="prato__legenda">imagem ilustrativa</figcaption>
-        </figure>
-      )}
+    {lista.length > 1 && (
+      <div class="pratos__abas" role="tablist" aria-label="Pratos" data-abas hidden>
+        {lista.map((p, i) => (
+          <button type="button" role="tab" id={`aba-${p.id}`} aria-controls={`prato-${p.id}`} aria-selected={i === 0 ? 'true' : 'false'} tabindex={i === 0 ? 0 : -1}>
+            <span class="pratos__mini"><Foto src={p.foto.src} alt="" sizes="44px" widths={[44, 88, 132]} qualidade={70} /></span>
+            <span><small>{p.linha}</small>{p.nome}</span>
+          </button>
+        ))}
+      </div>
+    )}
 
-      <article class="prato__card" data-reveal>
-        <p class="prato__kicker">em destaque</p>
-        <h3 class="prato__nome">{prato.nome}</h3>
-        <p class="prato__texto">{prato.texto}</p>
-        <ul class="prato__ingredientes" aria-label="Ingredientes">{prato.ingredientes.map((i) => <li>{i}</li>)}</ul>
+    {lista.map((p) => {
+      const f = fichaDe(p);
+      return (
+        <article class="prato__grid" id={`prato-${p.id}`} role={lista.length > 1 ? 'tabpanel' : undefined} aria-labelledby={lista.length > 1 ? `aba-${p.id}` : `nome-${p.id}`} data-prato>
+          <figure class="prato__foto" data-reveal="fade">
+            <i class="prato__fundo" aria-hidden="true"></i>
+            <div class="prato__tigela" data-parallax="soft"><Foto src={p.foto.src} alt={p.foto.alt} sizes="(min-width: 960px) 400px, 76vw" widths={[300, 400, 540, 800]} qualidade={70} /></div>
+            {p.marcadores.map((m, i) => (
+              <span class="prato__pino" style={`--x:${m.x}%;--y:${m.y}%;--i:${i}`} aria-hidden="true"><i></i>{m.nome}</span>
+            ))}
+            {p.foto.origem === 'ilustrativa' && <figcaption class="selo-ia prato__selo">imagem ilustrativa</figcaption>}
+          </figure>
 
-        <details class="ficha">
-          <summary>
-            <span>Ficha nutricional</span>
-            <span class="ficha__porcao">porção {prato.porcao}</span>
-            <i class="ficha__seta" aria-hidden="true"></i>
-          </summary>
-          <table class="ficha__tabela">
-            <caption class="visually-hidden">Informação nutricional por porção de {prato.porcao}{prato.demo ? ' (valores de exemplo)' : ''}</caption>
-            <tbody>
-              {prato.nutricao.map((n, i) => (
-                <tr style={`--v:${Math.min(1, n.valor / n.max)};--i:${i}`}>
-                  <th scope="row">{n.rotulo}</th>
-                  <td><span class="ficha__barra" aria-hidden="true"><i></i></span><strong>{n.valor.toLocaleString('pt-BR')} {n.unidade}</strong></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {prato.demo && <p class="ficha__nota">valores de exemplo · trocar pela ficha técnica do prato</p>}
-        </details>
-      </article>
-    </div>
+          <div class="prato__card" data-reveal>
+            <p class="prato__kicker">{p.linha}</p>
+            <h3 class="prato__nome" id={`nome-${p.id}`}>{p.nome}</h3>
+            <p class="prato__texto">{p.texto}</p>
+            <ul class="prato__ingredientes" aria-label="Ingredientes">{p.ingredientes.map((i) => <li>{i}</li>)}</ul>
+
+            <details class="ficha">
+              <summary>
+                <span>Informações do prato</span>
+                <i class="ficha__seta" aria-hidden="true"></i>
+              </summary>
+              <div class="ficha__corpo">
+                <p class="ficha__titulo">Alergênicos</p>
+                {isPendente(p.alergenicos)
+                  ? <p class="ficha__aviso">{fichaEmValidacao}</p>
+                  : <ul class="ficha__alergenicos">{p.alergenicos.map((a) => <li>{a}</li>)}</ul>}
+                <p class="ficha__titulo">Informação nutricional {f && <span class="ficha__porcao">porção {f.ficha.porcao}</span>}</p>
+                {f ? (
+                  <>
+                    <table class="ficha__tabela">
+                      <caption class="visually-hidden">Informação nutricional por porção de {f.ficha.porcao}{f.demo ? ' (valores de exemplo)' : ''}</caption>
+                      <tbody>
+                        {f.ficha.valores.map((n, i) => (
+                          <tr style={`--v:${Math.min(1, n.valor / n.max)};--i:${i}`}>
+                            <th scope="row">{n.rotulo}</th>
+                            <td><span class="ficha__barra" aria-hidden="true"><i></i></span><strong>{n.valor.toLocaleString('pt-BR')} {n.unidade}</strong></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {f.demo && <p class="ficha__nota">valores de exemplo (revisão interna) · trocar pela ficha técnica do prato</p>}
+                  </>
+                ) : <p class="ficha__aviso">em validação</p>}
+              </div>
+            </details>
+          </div>
+        </article>
+      );
+    })}
   </section>
 )}
+
+<script>
+  // abas dos pratos (padrão WAI-ARIA): sem JS, os pratos ficam um embaixo do outro
+  const raiz = document.querySelector<HTMLElement>('[data-pratos]');
+  const lista = raiz?.querySelector<HTMLElement>('[data-abas]');
+  if (raiz && lista) {
+    const abas = [...lista.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
+    const escolher = (aba: HTMLButtonElement, focar = false) => {
+      abas.forEach((t) => {
+        const sel = t === aba;
+        t.setAttribute('aria-selected', String(sel));
+        t.tabIndex = sel ? 0 : -1;
+        const painel = document.getElementById(t.getAttribute('aria-controls') ?? '');
+        if (painel) { painel.hidden = !sel; if (sel) painel.querySelectorAll('[data-reveal]').forEach((el) => el.classList.add('is-in')); }
+      });
+      if (focar) aba.focus();
+    };
+    lista.hidden = false;
+    escolher(abas[0]);
+    abas.forEach((a, i) => {
+      a.addEventListener('click', () => escolher(a));
+      a.addEventListener('keydown', (e) => {
+        const n = e.key === 'ArrowRight' ? i + 1 : e.key === 'ArrowLeft' ? i - 1 : null;
+        if (n === null) return;
+        e.preventDefault();
+        escolher(abas[(n + abas.length) % abas.length], true);
+      });
+    });
+  }
+</script>

@@ -10,7 +10,8 @@ const { base = '' } = Astro.props;   // '' na home (âncoras locais), '/' nas p�
 const itens = [
   { href: `${base}#gastronomia`, texto: 'Cardápio' },
   { href: `${base}#roll`, texto: 'Fornada' },
-  { href: `${base}#bebidas`, texto: 'Café e bebidas' },
+  { href: `${base}#cafe-roll`, texto: 'Café + Roll' },
+  { href: `${base}#saladas`, texto: 'Saladas & bowls' },
   { href: `${base}#quem-provou`, texto: 'Quem provou' },
   { href: `${base}#ambientes`, texto: 'Ambientes' },
   { href: `${base}#visite`, texto: 'Visite' },
@@ -30,7 +31,7 @@ const itens = [
   <div class="sheet__foot">
     <p class="sheet__hours">{visita.endereco} · {visita.horarioCurto}</p>
     <span class="sheet__contacts">
-      <a href={visita.whatsapp.url} rel="noopener">WhatsApp</a>
+      <a href={visita.whatsapp.url} rel="noopener" target="_blank">WhatsApp</a>
       {' '}
       <a href={visita.instagram.url} rel="noopener">{visita.instagram.handle}</a>
       {' '}

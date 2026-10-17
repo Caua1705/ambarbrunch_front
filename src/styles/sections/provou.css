@@ -12,31 +12,36 @@
   fill: none; stroke: var(--berry); stroke-width: 10; stroke-linecap: round; opacity: .55;
 }
 .provou__head { padding: 0 var(--gutter); }
-.provou__lead { margin-top: var(--s-22); max-width: 32ch; font-size: var(--fs-lead); color: var(--text-on-dark-muted); }
+.provou__lead { margin-top: var(--s-22); max-width: 32ch; font-size: var(--fs-lead); color: var(--butter); }
+.provou__lead strong { font-weight: 700; }
 
-/* Trilho em feed: no celular cabem ~2 vídeos lado a lado e a ponta do 3º (convite ao swipe). Swipe = scroll-snap nativo;
-   cards alinhados pela esquerda, com a mesma margem do texto. Os visíveis tocam juntos, mudos (lib/carrossel.js). */
+/* Trilho: o card ativo no centro, o anterior e o próximo aparecendo nas bordas (as pontas também centralizam: o padding
+   lateral é meia tela menos meio card). Swipe = scroll-snap nativo, alinhado ao centro. Respiro perceptível entre cards.
+   Destaque do ativo: tamanho cheio, anel manteiga e um leve levantar; os vizinhos ficam menores e mais apagados.
+   Só transform/opacity/box-shadow (nada de filtro sobre vídeo). */
 .stories--provou {
-  --gap: var(--s-10);
-  --card: min(calc((100vw - var(--gutter) - 2 * var(--gap)) / 2.28), 236px);
+  --gap: var(--s-18);
+  --card: min(64vw, 300px);
   display: flex; align-items: center; gap: var(--gap);
   margin-top: var(--s-30);
-  padding: var(--s-14) var(--gutter) var(--s-22);
-  scroll-padding-inline: var(--gutter); overscroll-behavior-x: contain;
+  padding: var(--s-22) calc((100% - var(--card)) / 2) var(--s-26);
+  scroll-padding-inline: calc((100% - var(--card)) / 2); overscroll-behavior-x: contain;
 }
 .stories--provou[data-unico] { justify-content: center; }
 .stories--provou .story {
   flex: none; width: var(--card); margin-top: 0;
-  scroll-snap-align: start;
+  scroll-snap-align: center; scroll-snap-stop: always;
   border-radius: var(--radius-l);
-  transition: box-shadow var(--dur-m) var(--ease);
+  transform: scale(.88); opacity: .62;
+  transition: transform var(--dur-m) var(--ease), opacity var(--dur-m) var(--ease), box-shadow var(--dur-m) var(--ease);
 }
 .stories--provou .story:nth-child(even) { margin-top: 0; box-shadow: var(--ring-media) var(--cream); }
-/* o vídeo com som ligado ganha o anel manteiga e o brilho: dá para ver de onde vem a voz */
-.stories--provou .story[data-som-ligado] { box-shadow: var(--ring-media) var(--butter), var(--glow-ativo); }
-/* horizontal: mesma altura dos verticais, mais largo; o vídeo inteiro numa janela emoldurada sobre papel creme */
+.stories--provou .story[data-ativo] { transform: translateY(-4px); opacity: 1; box-shadow: var(--ring-media) var(--butter), var(--shadow-lift); }
+/* o vídeo com som ligado ganha o brilho: dá para ver de onde vem a voz */
+.stories--provou .story[data-som-ligado] { opacity: 1; box-shadow: var(--ring-media) var(--butter), var(--glow-ativo); }
+/* horizontal: mesmo tamanho dos verticais; o vídeo inteiro numa janela emoldurada sobre papel creme */
 .stories--provou .story--wide {
-  width: calc(var(--card) * 1.75); height: calc(var(--card) * 16 / 9); aspect-ratio: auto;
+  height: calc(var(--card) * 16 / 9); aspect-ratio: auto;
   padding: var(--s-12) var(--s-10); gap: 0;
 }
 
@@ -51,10 +56,8 @@
 .provou__seta svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
 .provou__seta:disabled { opacity: .35; cursor: default; }
 
-.provou__nota { margin: var(--s-22) var(--gutter) 0; text-align: center; font-size: var(--fs-micro); color: var(--text-on-dark-faint); }
 
 @media (min-width: 960px) {
-  /* desktop: o trilho começa na margem do conteúdo (até 3 vídeos tocando; ver lib/carrossel.js) */
-  .stories--provou { padding-inline: max(var(--gutter), (100% - var(--container-xl)) / 2); scroll-padding-inline: max(var(--gutter), (100% - var(--container-xl)) / 2); }
+  .stories--provou { --card: 300px; --gap: var(--s-30); }
   .provou__head { max-width: var(--container-xl); margin: 0 auto; }
 }

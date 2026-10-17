@@ -13,7 +13,6 @@
 }
 .roll__head { padding: 0 var(--gutter); }
 .roll__lead { margin-top: 20px; max-width: 32ch; font-size: var(--fs-lead); color: var(--text-on-dark-muted); }
-.roll__credit { margin: var(--s-14) var(--gutter) 0; font-size: var(--fs-micro); color: var(--text-on-dark-faint); }
 
 /* ABERTURA (novo): a espiral ilustrativa numa janela em arco, com selo da Roll e notas ao lado; um fio de caramelo sai
    da janela e desce até a foto real do roll. Arco com contorno caramelo deslocado, como impressão fora de registro. */
@@ -40,13 +39,10 @@
 .abertura__video, .abertura__capa { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .abertura__capa { z-index: var(--z-1); transition: opacity var(--dur-espiral-fade) var(--ease); }
 .abertura[data-tocando] .abertura__capa { opacity: 0; }
-.abertura__denovo {
-  position: absolute; z-index: var(--z-2); left: 50%; bottom: var(--s-14); translate: -50% 0;
-  min-height: 44px; padding: 0 var(--s-14); border: 0; border-radius: var(--radius-pill);
-  background: var(--overlay-ink-soft); color: var(--cream); font: var(--t-tag); white-space: nowrap; cursor: pointer;
-}
-.abertura__legenda { margin-top: var(--s-18); text-align: right; font: var(--t-chip-small); color: var(--text-on-dark-faint); }
-.abertura__nota--b { grid-column: 1; grid-row: 2; z-index: var(--z-1); margin-top: var(--s-30); rotate: -3deg; }
+/* volta ao início: o vídeo esmaece sobre a capa, recomeça e reaparece (lib/espiral.js) */
+.abertura__video { transition: opacity var(--dur-l) var(--ease); }
+.abertura[data-voltando] .abertura__video { opacity: 0; }
+.abertura__nota--b { grid-column: 1; grid-row: 2; z-index: var(--z-1); margin-top: var(--s-44); rotate: -3deg; }
 .abertura__fio { grid-column: 1 / -1; grid-row: 2; width: 100%; height: 150px; margin-top: var(--s-6); overflow: visible; fill: none; stroke: var(--caramel); stroke-width: 4; stroke-linecap: round; }
 .abertura__fio path { vector-effect: non-scaling-stroke; stroke-dasharray: 1; stroke-dashoffset: 0; }
 .js .abertura:not([data-estatico]) .abertura__fio path { stroke-dashoffset: 1; }
@@ -76,14 +72,6 @@
 .anatomia__nota--c { left: 2%; bottom: 0; rotate: -3deg; }
 .anatomia__selo { position: absolute; z-index: var(--z-2); width: 27%; right: 4%; top: 2%; color: var(--wine); rotate: 12deg; }
 
-/* A caixa da Roll (novo): foto recortada da caixa aberta + duas anotações */
-.caixa { position: relative; margin: var(--s-44) 0 0; padding: 0 var(--gutter); }
-.caixa__foto { filter: var(--drop-produto); }
-.caixa__foto img { width: 100%; height: auto; }
-.caixa__nota { position: absolute; margin: 0; font: var(--t-note); color: var(--caramel-lt); }
-.caixa__nota--a { left: var(--gutter); top: -6px; rotate: -5deg; }
-.caixa__nota--b { position: static; margin-top: var(--s-8); text-align: right; rotate: 3deg; color: var(--butter); }
-
 /* Sabores que já passaram pela fornada: etiquetas de papel em leque solto */
 .sabores { display: flex; flex-wrap: wrap; gap: var(--s-8); }
 .sabores li {
@@ -94,9 +82,15 @@
 }
 .sabores li:nth-child(3n) { background: var(--butter); }
 .sabores li:nth-child(4n) { background: var(--caramel-lt); color: var(--cacao); }
-.roll__mes { margin-top: var(--s-14); max-width: 34ch; font: var(--t-caption-l); color: var(--text-on-dark-muted); }
-.roll__kicker { margin: var(--s-44) var(--gutter) 0; font: var(--t-scribble); color: var(--caramel-lt); rotate: -3deg; width: max-content; }
-.roll__kicker + .stories { margin-top: var(--s-18); }
+/* frase dos sabores: em destaque, grande, na voz manuscrita */
+.roll__frase { margin-bottom: var(--s-18); max-width: 20ch; text-wrap: balance; font: var(--t-scribble); font-size: var(--fs-frase); line-height: 1.05; color: var(--butter); rotate: -2deg; }
+
+/* abertura dos vídeos do processo: espiral da Roll + fio pontilhado + contagem (no lugar de um rótulo escrito) */
+.roll__fita { display: flex; align-items: center; gap: var(--s-12); margin: var(--s-44) var(--gutter) 0; color: var(--caramel-lt); }
+.roll__fita::after { content: ""; flex: 1; height: 0; border-top: var(--border-control) dashed currentColor; opacity: .55; }
+.roll__fita svg { width: 34px; fill: none; stroke: currentColor; stroke-width: 16; stroke-linecap: round; }
+.roll__fita span { order: 2; font: var(--t-legend); letter-spacing: var(--track-legend); }
+.roll__fita + .stories { margin-top: var(--s-18); }
 
 /* Sabores do mês e chamada final */
 .roll__sabores { margin: var(--s-40) var(--gutter) 0; }
@@ -126,7 +120,7 @@
 
 /* Tablet: vídeos menores (2,6 cards à vista, o carrossel continua) e bandejas num leque de até 560 px */
 @media (min-width: 600px) and (max-width: 959px) {
-  .stories { grid-auto-columns: 38%; }
+  .roll .stories { grid-auto-columns: 38%; }
   .trays { max-width: 560px; margin-left: auto; margin-right: auto; }
 }
 
@@ -134,10 +128,9 @@
   .roll__head { max-width: var(--container-xl); margin: 0 auto; }
   .abertura { max-width: 760px; margin-left: auto; margin-right: auto; grid-template-columns: 1fr 340px; column-gap: var(--s-40); }
   .abertura__lado { justify-items: end; padding-top: var(--s-44); }
-  .roll__kicker { margin-left: auto; margin-right: auto; }
-  .stories { grid-auto-columns: 280px; justify-content: center; overflow: visible; }
+  .roll__fita { max-width: calc(var(--container-xl) - 2 * var(--gutter)); margin-left: auto; margin-right: auto; }
+  .roll .stories { grid-auto-columns: 280px; justify-content: center; overflow: visible; }
   .trays { max-width: var(--container-s); margin-left: auto; margin-right: auto; }
-  /* crédito e sabores na mesma coluna do cabeçalho (antes encostavam na margem da página) */
-  .roll__credit, .roll__sabores { max-width: calc(var(--container-xl) - 2 * var(--gutter)); margin-left: auto; margin-right: auto; }
-  .roll__credit { text-align: center; }
+  /* sabores na mesma coluna do cabeçalho */
+  .roll__sabores { max-width: calc(var(--container-xl) - 2 * var(--gutter)); margin-left: auto; margin-right: auto; }
 }

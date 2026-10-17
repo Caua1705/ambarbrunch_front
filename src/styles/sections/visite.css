@@ -9,19 +9,35 @@
 }
 /* grão e anel de foco manteiga: base.css (mesma regra das outras superfícies escuras) */
 
-.placa {
-  position: relative;
-  width: min(100%, 340px); margin: var(--s-34) auto 0;
-  rotate: -2deg; filter: var(--drop-label);
+/* Cartão de localização: mapa desenhado (ruas e quadras abstratas, sem dados de terceiros) + endereço + botão */
+.mapa {
+  --focus-ring: var(--wine);
+  position: relative; margin: var(--s-34) auto 0; width: min(100%, 420px);
+  background: var(--cream); color: var(--ink); border-radius: var(--radius-l); overflow: hidden;
+  box-shadow: var(--shadow-photo-deep), var(--shadow-offset); rotate: -1.5deg;
 }
-.placa .label { width: 100%; padding: var(--s-26) var(--s-24) var(--s-34); color: var(--ink); }
+.mapa__desenho { position: relative; aspect-ratio: 340 / 170; }
+.mapa__desenho svg { width: 100%; height: 100%; }
+.mapa__fundo { fill: var(--butter); }
+.mapa__quadra { fill: var(--glaze); stroke: var(--caramel-lt); stroke-width: 1.5; }
+.mapa__rua { fill: none; stroke: var(--cream); stroke-width: 9; stroke-linecap: round; }
+.mapa__rua--larga { stroke-width: 15; }
+.mapa__trajeto { fill: none; stroke: var(--wine); stroke-width: 3; stroke-dasharray: 2 7; stroke-linecap: round; }
+.mapa__pino path { fill: var(--berry); stroke: var(--glaze); stroke-width: 3; }
+.mapa__pino circle { fill: var(--glaze); }
+.mapa__selo {
+  position: absolute; left: 70%; top: 10%; padding: 4px var(--s-10) 5px; border-radius: var(--radius-pill);
+  background: var(--wine); color: var(--butter); font: var(--t-tag); rotate: -6deg; box-shadow: var(--shadow-offset-xs);
+}
+.mapa__info { padding: var(--s-18) var(--s-22) var(--s-22); }
 .placa__kicker { font: var(--t-legend); letter-spacing: var(--track-legend); text-transform: uppercase; color: var(--caramel-dk); }
-.placa__addr { margin-top: var(--s-10); font: var(--t-address); font-variation-settings: var(--fvs-text); font-stretch: var(--stretch-tag); text-transform: uppercase; color: var(--wine); }
-.placa__city { margin-top: var(--s-8); font: var(--t-caption); color: var(--ink); }
-.placa__pin { position: absolute; z-index: var(--z-2); left: 50%; top: -14px; translate: -50% 0; width: 30px; height: 30px; border-radius: var(--radius-round); background: var(--berry); box-shadow: var(--shadow-pin); }
-.placa .pending { margin-top: var(--s-8); }
+.placa__addr { margin-top: var(--s-8); font: var(--t-address); font-variation-settings: var(--fvs-text); font-stretch: var(--stretch-tag); text-transform: uppercase; color: var(--wine); }
+.placa__city { margin-top: var(--s-6); font: var(--t-caption); color: var(--ink); }
+.mapa__btn { margin-top: var(--s-18); width: 100%; justify-content: center; }
+@media (hover: hover) { .mapa:hover .mapa__pino { translate: 0 -3px; } }
+.mapa__pino { transition: translate var(--dur-s) var(--ease-paper); }
 
-.horarios { margin-top: var(--s-26); rotate: 1.5deg; }
+.horarios { margin-top: var(--s-40); rotate: 1.5deg; }
 .horarios .ticket { padding: var(--s-26) var(--s-24) var(--s-22); gap: var(--s-12); }
 .horarios__row { display: flex; justify-content: space-between; gap: var(--s-12); padding: var(--s-10) 0; border-bottom: var(--border-control) dashed var(--rule); font: var(--t-review); line-height: 1.2; }
 .horarios__row:last-child { border-bottom: 0; }

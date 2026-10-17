@@ -9,6 +9,7 @@
   --ease-in: cubic-bezier(.4, 0, 1, 1);
 
   /* Durações */
+  --dur-press-in: 60ms;  /* afundar ao pressionar (etiquetas, duplas, abas): imediato */
   --dur-xs: 120ms;
   --dur-reduced: 150ms;  /* opacidade da doca com movimento reduzido */
   --dur-chip: 200ms;     /* troca de estado do chip */
@@ -17,6 +18,8 @@
   --dur-cta-fade: 300ms; /* opacidade do CTA fixo ao entrar (v1) */
   --dur-m: 420ms;
   --dur-cta-in: 500ms;   /* CTA fixo subindo (v1) */
+  --dur-card-in: 320ms;  /* cartão do cardápio se desdobrando */
+  --dur-card-out: 180ms;
   --dur-l: 640ms;
   --dur-reveal: 700ms;   /* revelação do v1 */
   --dur-loop-busy: 1.6s; /* esqueleto de horários e carimbo girando durante o envio */
@@ -35,6 +38,9 @@
   --reveal-delay-stamp: 260ms;
   --sheet-items-delay: 80ms;       /* itens do menu depois da folha */
   --cascade: 35ms;                 /* pílulas do cardápio caindo uma a uma */
+  --card-delay-photo: 60ms;        /* foto do cartão estala logo depois do papel */
+  --card-delay-items: 80ms;        /* itens do cartão começam depois da foto… */
+  --card-stagger: 40ms;            /* …um a um */
   --shake: 6px;                    /* amplitude da tremida de campo inválido */
   --slide: 28px;                   /* painéis de ambiente entrando pela diagonal */
 

@@ -1,22 +1,40 @@
 ---
-// 9 · VISITE — onde fica e quando abre (dados oficiais, data/visita.ts). Sem mapa embutido: “Como chegar” abre o app de mapas.
+// 10 · VISITE O ÂMBAR — onde fica e quando abre (dados oficiais, data/visita.ts). Sem mapa embutido (pesado e coleta
+// dados): um cartão de localização desenhado (SVG leve) com o botão “Abrir no Maps”, que abre o endereço real no app de
+// mapas. Contatos: WhatsApp e Instagram do Âmbar e da Roll.
 import MegaTitle from '../components/MegaTitle.astro';
 import SeloFornada from '../components/SeloFornada.astro';
 import { visita as v } from '../data/visita';
 import { roll } from '../data/roll';
+import { secoes } from '../data/secoes';
+const s = secoes.visite;
 ---
-<section class="visite" id="visite" aria-labelledby="visite-titulo" tabindex="-1" data-vivo>
-  <MegaTitle linhas={['Visite', 'o Âmbar']} id="visite-titulo" tom="light" scribble="a mesa tá posta" />
+<section class="visite" id={s.id} aria-labelledby="visite-titulo" tabindex="-1" data-vivo>
+  <MegaTitle linhas={[...s.linhas]} id="visite-titulo" tom="light" scribble={s.sub} />
 
   <div class="visite__grid">
-    <div class="placa" data-reveal="piece" data-parallax="soft">
-      <i class="placa__pin" aria-hidden="true"></i>
-      <div class="label">
-        <p class="placa__kicker">Endereço</p>
-        <p class="placa__addr">{v.endereco}</p>
-        <p class="placa__city">{v.cidade}</p>
+    <article class="mapa" data-reveal="piece" aria-labelledby="mapa-endereco">
+      <div class="mapa__desenho" aria-hidden="true">
+        <svg viewBox="0 0 340 200" preserveAspectRatio="xMidYMid slice">
+          <rect width="340" height="200" class="mapa__fundo" />
+          <path class="mapa__quadra" d="M-10 30h96l14 52H-10zM120 -10h88l-10 70h-92zM228 -10h122v86H214zM-10 112h118l16 98H-10zM146 104h70l8 106h-92zM246 108h104v102H254z" />
+          <path class="mapa__rua mapa__rua--larga" d="M-10 96C80 92 180 96 350 92" />
+          <path class="mapa__rua" d="M112 -10L132 210M232 -10l10 220" />
+          <path class="mapa__trajeto" d="M30 170C70 150 100 120 126 104S196 92 236 96" />
+          <g class="mapa__pino" transform="translate(236 96)">
+            <path d="M0 0C-12-16-18-24-18-33a18 18 0 0 1 36 0c0 9-6 17-18 33z" />
+            <circle cy="-33" r="7" />
+          </g>
+        </svg>
+        <span class="mapa__selo">Âmbar</span>
       </div>
-    </div>
+      <div class="mapa__info">
+        <p class="placa__kicker">Endereço</p>
+        <p class="placa__addr" id="mapa-endereco">{v.endereco}</p>
+        <p class="placa__city">{v.cidade}</p>
+        <a class="btn btn--wine mapa__btn" href={v.mapaUrl} rel="noopener" target="_blank">Abrir no Maps <span aria-hidden="true">↗</span></a>
+      </div>
+    </article>
 
     <div class="horarios" data-reveal="piece" style="--i:1">
       <div class="ticket">
@@ -31,10 +49,9 @@ import { roll } from '../data/roll';
   <div class="visite__actions">
     <a class="btn btn--butter" href="#reservar">Reservar mesa <span aria-hidden="true">→</span></a>
     <div class="visite__links">
-      <a class="pill-link" href={v.mapaUrl} rel="noopener" target="_blank">Como chegar ↗</a>
       <a class="pill-link" href={v.whatsapp.url} rel="noopener" target="_blank">WhatsApp {v.whatsapp.numero}</a>
-      <a class="pill-link" href={v.instagram.url} rel="noopener">{v.instagram.handle}</a>
-      <a class="pill-link" href={roll.instagram.url} rel="noopener">Roll {roll.instagram.handle}</a>
+      <a class="pill-link" href={v.instagram.url} rel="noopener" target="_blank">{v.instagram.handle}</a>
+      <a class="pill-link" href={roll.instagram.url} rel="noopener" target="_blank">Roll {roll.instagram.handle}</a>
     </div>
   </div>
 </section>

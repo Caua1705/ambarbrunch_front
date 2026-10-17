@@ -53,7 +53,7 @@ html:has(.sheet[open]) { overflow: hidden; }
 .sheet__nav li { border-bottom: var(--border-control) dashed var(--rule); }
 .sheet__nav a {
   display: flex; align-items: baseline; gap: var(--s-12);
-  min-height: 60px; padding: var(--s-14) 0 var(--s-10);
+  min-height: 54px; padding: var(--s-12) 0 var(--s-8);
   text-decoration: none; color: var(--wine);
   font: var(--t-menu-item); font-variation-settings: var(--fvs-display); font-stretch: var(--stretch-mega);
   text-transform: uppercase; letter-spacing: var(--track-mega);
@@ -72,7 +72,7 @@ html:has(.sheet[open]) { overflow: hidden; }
 .sheet[open] { animation: sheet-in var(--dur-m) var(--ease-paper); }
 .sheet[open]::backdrop { animation: fade-in var(--dur-s) linear; }
 .sheet[open] .sheet__nav li { animation: rise var(--dur-m) var(--ease-out) both; animation-delay: calc(var(--sheet-items-delay) + var(--i, 0) * var(--stagger)); }
-.sheet__nav li:nth-child(2) { --i: 1; } .sheet__nav li:nth-child(3) { --i: 2; } .sheet__nav li:nth-child(4) { --i: 3; } .sheet__nav li:nth-child(5) { --i: 4; }
+.sheet__nav li:nth-child(2) { --i: 1; } .sheet__nav li:nth-child(3) { --i: 2; } .sheet__nav li:nth-child(4) { --i: 3; } .sheet__nav li:nth-child(5) { --i: 4; } .sheet__nav li:nth-child(6) { --i: 5; } .sheet__nav li:nth-child(7) { --i: 6; }
 @keyframes sheet-in { from { transform: translateY(100%); } }
 @keyframes fade-in { from { opacity: 0; } }
 @keyframes rise { from { opacity: 0; transform: translateY(14px); } }
@@ -83,3 +83,4 @@ html:has(.sheet[open]) { overflow: hidden; }
   @keyframes sheet-in { from { transform: translateX(100%); } }
 }
 .sheet__hours { flex-basis: 100%; margin: 0; font: var(--t-caption); color: var(--text-muted); }
+.sheet__nav a { font-size: var(--fs-menu-fluid); }
