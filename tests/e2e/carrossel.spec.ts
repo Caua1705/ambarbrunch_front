@@ -100,5 +100,8 @@ test('desempenho: nenhum <video> do carrossel no carregamento; só o ativo é cr
   expect(await page.locator('[data-trilho] video').count()).toBe(0);
   expect(await page.locator('[data-trilho] template[data-video]').count()).toBeGreaterThan(0);
   await centralizar(page);
+  await page.waitForTimeout(800);
+  expect(await page.locator('[data-trilho] video').count()).toBeLessThanOrEqual(1);   // só o ativo (com legenda ou tocando)
+  await page.locator('.story[data-ativo] .story__toggle').click();
   await expect.poll(() => page.locator('[data-trilho] video').count()).toBe(1);
 });
