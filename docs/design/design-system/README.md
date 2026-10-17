@@ -1,5 +1,7 @@
 # Design System — Fornada Âmbar (Conceito B)
 
+> **Histórico (v1.0, Etapa 3).** A referência atual é [`../DESIGN-SYSTEM.md`](../DESIGN-SYSTEM.md) (v1.1, formalizada a partir do site real). Em caso de divergência, vale a v1.1.
+
 > **Situação:** v1.0 extraída do protótipo aprovado (2026-10-16), **aguardando revisão** antes da construção final.
 > Nada foi instalado, publicado ou conectado a backend. O protótipo aprovado (`experiments/concept-b-aprovado-v1/`) continua intacto (SHA-256 conferido).
 
