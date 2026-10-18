@@ -52,15 +52,42 @@ export function initReveal(scope = document) {
 }
 
 /**
- * Entrada do hero: só na primeira pintura, no topo da página e sem âncora.
- * O <head> deve rodar antes: `if(!location.hash&&!scrollY)document.documentElement.classList.add('enter')`.
- * Aqui só removemos a classe quando a última peça (o CTA, ~1,34 s) termina, para que nada repita; o prazo de 2 s
+ * Descida da 3ª foto do hero ([data-desce]) ligada à rolagem: o progresso vai de 0 (topo) a 1 (hero inteiro fora da tela),
+ * então a foto continua descendo até o hero sair — antes, a deriva do scroll-timeline terminava cedo e não existia no
+ * Safari antigo. Um rAF por quadro de rolagem, só enquanto o hero está na tela; escreve uma variável CSS (só transform).
+ */
+export function initHeroDescida() {
+  const peca = /** @type {HTMLElement | null} */ (document.querySelector('[data-desce]'));
+  const hero = peca?.closest('.hero');
+  if (!peca || !hero || !('IntersectionObserver' in window)) return;
+  let raf = 0;
+  let ligado = false;
+  const aplicar = () => {
+    raf = 0;
+    const h = /** @type {HTMLElement} */ (hero).offsetHeight || 1;
+    const p = motionAllowed() ? Math.min(1, Math.max(0, window.scrollY / h)) : 0;
+    peca.style.setProperty('--desce', p.toFixed(4));
+  };
+  const rolar = () => { if (!raf) raf = requestAnimationFrame(aplicar); };
+  new IntersectionObserver(([e]) => {
+    if (e.isIntersecting && !ligado) { ligado = true; window.addEventListener('scroll', rolar, { passive: true }); rolar(); }
+    else if (!e.isIntersecting && ligado) { ligado = false; window.removeEventListener('scroll', rolar); peca.style.setProperty('--desce', '1'); }
+  }).observe(hero);
+}
+
+/**
+ * Entrada do hero: em todo carregamento, F5 incluso (o <head> põe a classe `enter` antes da 1ª pintura, volta ao topo no
+ * recarregamento e tira a âncora velha da URL — ver layouts/Base.astro).
+ * Aqui só removemos a classe quando a última peça (a faixa de categorias, ~1,6 s) termina, para que nada repita; o prazo de 2,4 s
  * cobre abas abertas em segundo plano (onde as animações não andam).
  */
 export function initHeroEntrance() {
   if (!root.classList.contains('enter')) return;
   if (!motionAllowed()) { root.classList.remove('enter'); return; }
   const sair = () => root.classList.remove('enter');
-  document.querySelector('.hero__foot .btn')?.addEventListener('animationend', sair, { once: true });
-  window.setTimeout(sair, 2000);
+  // a última peça é a faixa de categorias (~1,6 s); o evento da trilha em loop (filha) não conta
+  const faixa = document.querySelector('.ticker');
+  if (faixa) faixa.addEventListener('animationend', (e) => { if (e.target === faixa) sair(); });
+  else document.querySelector('.hero__foot .btn')?.addEventListener('animationend', sair, { once: true });
+  window.setTimeout(sair, 2400);
 }

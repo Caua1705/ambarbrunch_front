@@ -30,6 +30,10 @@ ul, ol { padding: 0; list-style: none; }
    de teclado continua no :focus-visible acima. Controles e peças arrastáveis não selecionam texto nem abrem o menu de
    toque longo; textos informativos e campos seguem selecionáveis. */
 html { -webkit-tap-highlight-color: transparent; }
+/* reforço: alguns WebKit/Chrome Android aplicam o realce por elemento (links dentro de cards, <summary>, <label>) */
+*, *::before, *::after { -webkit-tap-highlight-color: transparent; }
+/* foco de teclado mais acabado: anel na cor da superfície + um halo suave (nada do contorno azul padrão) */
+:where(a, button, summary, [role="tab"], [role="radio"]):focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 3px; box-shadow: 0 0 0 7px color-mix(in srgb, var(--focus-ring) 22%, transparent); }
 /* foco só pelo teclado: o clique/toque não deixa contorno (o :focus-visible acima continua valendo) */
 :focus:not(:focus-visible) { outline: none; }
 /* seleção de texto nas cores da marca (nada do azul do sistema) */

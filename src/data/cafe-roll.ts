@@ -15,7 +15,8 @@ export interface Par {
 }
 
 export const cafeRoll = {
-  lead: 'Um gelado da casa e um roll da fornada. Toque para trocar a dupla.',
+  /** frase curta sob o título: a seção é uma sugestão editorial, não um cardápio repetido */
+  lead: 'Um gelado da casa, um roll da fornada.',
   pares: [
     { id: 'biscoff', bebida: 'Biscoff latte', roll: 'Biscoff', frase: 'Biscoff em dobro', liquido: ['var(--caramel)', 'var(--butter)'],
       foto: { src: 'roll/roll-biscoff.webp', alt: 'Cinnamon roll de Biscoff com creme e biscoito triturado', origem: 'real' } },
@@ -27,5 +28,5 @@ export const cafeRoll = {
       foto: { src: 'roll/roll-kinder-bueno.webp', alt: 'Cinnamon roll Kinder Bueno com fios de Nutella', origem: 'real' } },
   ] satisfies Par[],
   caixa: { src: 'roll/caixa-roll.webp', alt: 'Caixa da Roll aberta com quatro cinnamon rolls de sabores diferentes' },
-  nota: 'sugestões para combinar · os sabores da Roll mudam com a fornada',
+  nota: 'os sabores da Roll mudam com a fornada',
 };

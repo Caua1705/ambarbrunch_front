@@ -18,8 +18,9 @@ export const podeMostrar = (autorizado: boolean) => autorizado || REVISAO;
 /**
  * Origem de uma imagem de produto:
  * - `real`: foto do Âmbar ou da Roll;
- * - `ilustrativa`: recorte de imagem gerada por IA ou arte da proposta Âmbar × Roll — sai sempre com o selo
- *   “imagem ilustrativa” e nunca sustenta ingrediente, preço ou dado nutricional próprio;
+ * - `ilustrativa`: recorte de imagem gerada por IA ou arte da proposta Âmbar × Roll — nunca sustenta ingrediente,
+ *   preço ou dado nutricional próprio. Desde a rodada final (2026-10-17) o site não mostra mais o selo
+ *   “imagem ilustrativa” (pedido do responsável); a origem continua registrada aqui para a troca por fotos reais;
  * - `revisao`: ainda não confirmada para publicação — só no modo de revisão.
  */
 export type Origem = 'real' | 'ilustrativa' | 'revisao';

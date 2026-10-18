@@ -88,37 +88,21 @@
 .story--wide :is(video, .story__poster) { display: block; height: auto; aspect-ratio: 478 / 266; object-fit: contain; border-radius: 4px; background: var(--media-bg); }
 .story--wide .story__poster + video { inset: 6px; width: calc(100% - 12px); }
 
-/* novo · card de feed (Quem provou, conta): pequeno, ~2 por tela no celular. Sem etiqueta nem descrição: só o vídeo,
-   o @ do criador como crédito discreto, som (ícone) e legendas opcionais (CC). Alvos de toque de 44 px. */
+/* novo · card de feed (Provou, conta): sem etiqueta, sem @, sem legenda: só o vídeo e o som (ícone). Alvo de 44 px. */
 .story--feed .story__toggle svg { width: 44px; height: 44px; padding: var(--s-12); }
 .story--feed .story__som {
-  right: 4px; top: 8px; justify-content: center;
+  right: 6px; top: 6px; transition: opacity var(--dur-m) var(--ease), scale var(--dur-s) var(--ease-paper); justify-content: center;
   width: 44px; min-height: 44px; padding: 0;
   background: transparent; box-shadow: none; color: var(--cream);
 }
-.story--feed .story__som svg, .story__cc span {
+.story--feed .story__som svg {
   box-sizing: content-box; padding: 7px; border-radius: var(--radius-round);
   background: var(--overlay-ink-soft); transition: background-color var(--dur-s) var(--ease), color var(--dur-s) var(--ease);
 }
 .story--feed .story__som svg { width: 18px; height: 18px; }
-.story--feed .story__som:active, .story__cc:active { scale: var(--press-scale); box-shadow: none; }
+.story--feed .story__som:active { scale: var(--press-scale); box-shadow: none; }
 .story--feed[data-som-ligado] .story__som { background: transparent; color: var(--wine); }
 .story--feed[data-som-ligado] .story__som svg { background: var(--butter); }
-.story__cc {
-  position: absolute; left: 4px; top: 8px; z-index: 3;
-  display: grid; place-items: center; width: 44px; height: 44px; padding: 0;
-  border: 0; background: transparent; color: var(--cream); cursor: pointer;
-}
-.story__cc span { display: block; min-width: 18px; font: var(--t-credit); font-size: var(--fs-micro); line-height: 18px; text-align: center; letter-spacing: var(--track-tight-caps); }
-.story__cc[aria-pressed="true"] span { background: var(--butter); color: var(--wine); }
-/* legenda opcional: sobre o vídeo, acima do crédito, só com CC ligado e enquanto há fala */
-.story__legenda {
-  position: absolute; left: 6px; right: 6px; bottom: 40px; z-index: 2; pointer-events: none;
-  padding: var(--s-6) var(--s-8); border-radius: var(--radius-control);
-  background: var(--overlay-ink); color: var(--cream);
-  font: var(--t-credit); font-size: var(--fs-micro); text-align: center; text-wrap: balance;
-}
-.story__legenda:empty { display: none; }
 .story__by--min {
   right: auto; left: 6px; bottom: 6px; max-width: calc(100% - 12px);
   padding: var(--s-6) var(--s-8); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;

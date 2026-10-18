@@ -14,8 +14,10 @@
   content: ""; position: absolute; inset: 0; z-index: -1;
   background: var(--grain); opacity: var(--grain-opacity); mix-blend-mode: soft-light; pointer-events: none;
 }
-.cafe-roll .scribble { color: var(--cacao); }
-.cafe-roll__lead { margin-top: var(--s-30); max-width: 30ch; font-size: var(--fs-lead); color: var(--ink); }
+.cafe-roll .scribble { color: var(--cacao); max-width: 30ch; width: auto; }
+/* título “CAFÉ / + ROLL”: as duas linhas à esquerda; o “+ Roll” recua meio passo e encosta na 1ª linha */
+.cafe-roll .mega span + span { padding-left: .32em; margin-top: -.04em; }
+.cafe-roll__lead { margin-top: var(--s-22); max-width: 30ch; font-size: var(--fs-lead); font-weight: 600; color: var(--ink); }
 
 /* Palco ------------------------------------------------------------------------------------------------------- */
 .dupla {
@@ -110,21 +112,16 @@ html:not(.js) .cafe-roll__escolha > :is(#pares-rotulo, .pares) { display: none; 
 .par:active { transform: translateY(3px); box-shadow: 0 0 0 var(--cacao); transition-duration: var(--dur-press-in); }
 .par[aria-checked="true"] { background: var(--wine); border-color: var(--wine); color: var(--butter); box-shadow: var(--shadow-offset-s); transform: translate(-1px, -2px); }
 .par[aria-checked="true"] span { color: var(--caramel-lt); }
-.cafe-roll__nota { margin-top: var(--s-12); font: var(--t-chip-small); color: var(--cacao); }
-
-.cafe-roll__bebidas { margin-top: var(--s-30); padding-top: var(--s-18); border-top: var(--border-control) dashed var(--rule-cacao); }
-.cafe-roll__bebidas ul { display: flex; flex-wrap: wrap; gap: var(--s-8); }
-.cafe-roll__bebidas a {
-  display: inline-flex; align-items: center; min-height: 40px; padding: 0 var(--s-14);
-  border-radius: var(--radius-pill); background: var(--cacao); color: var(--butter); text-decoration: none;
-  font: var(--t-pill); text-transform: uppercase; letter-spacing: var(--track-caps);
-  transition: transform var(--dur-xs) var(--ease), background-color var(--dur-s) var(--ease);
+/* rodapé da seção: a nota e UM link discreto para os gelados no cardápio (antes: 6 pílulas repetindo o cardápio) */
+.cafe-roll__rodape { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-6) var(--s-14); margin-top: var(--s-14); }
+.cafe-roll__nota { font: var(--t-chip-small); color: var(--cacao); }
+.cafe-roll__link {
+  display: inline-flex; align-items: center; gap: var(--s-6); min-height: 44px;
+  font: var(--t-link); font-size: var(--fs-micro); letter-spacing: var(--track-caps); text-transform: uppercase;
+  color: var(--wine); text-decoration: underline 2px; text-underline-offset: 5px;
+  transition: color var(--dur-s) var(--ease);
 }
-.cafe-roll__bebidas li:nth-child(odd) a { rotate: -1.5deg; }
-.cafe-roll__bebidas li:nth-child(even) a { rotate: 1.5deg; }
-.cafe-roll__bebidas a::after { content: "↑"; margin-left: var(--s-6); opacity: .7; }
-.cafe-roll__bebidas a:active { transform: scale(.95); }
-@media (hover: hover) { .cafe-roll__bebidas a:hover { background: var(--wine); } }
+@media (hover: hover) { .cafe-roll__link:hover { color: var(--cacao); } }
 
 /* Profundidade pela rolagem: cada camada deriva conforme a sua --z (só onde há scroll-driven animations) */
 @supports (animation-timeline: view()) {

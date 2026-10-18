@@ -1,8 +1,9 @@
 // Cardápio do Âmbar Brunch — 13 CATEGORIAS da proposta Âmbar × Roll (PDF, págs. 5–6), confirmadas em 2026-10-17.
 // Itens e descrições: só os dos cardápios do próprio cliente (artes recebidas por WhatsApp: Âmbar Café, Cafés gelados e
 // Roll · cinnamon rolls; pág. 12 da proposta para os rolls salgados). Sem preço e sem disponibilidade do dia.
-// Cada categoria tem uma foto principal (real ou ilustrativa, ver lib/conteudo.ts → Origem). Categoria sem itens
-// confirmados mostra só a foto e uma nota neutra — nunca sabores inventados.
+// Cada categoria tem uma foto principal (real ou ilustrativa, ver lib/conteudo.ts → Origem); miniaturas só nos itens
+// principais. Categoria sem itens confirmados mostra só a foto e uma nota neutra — nunca sabores inventados.
+// Rodada final: cartões enxutos — nome e, quando acrescenta, uma descrição curta; nada de ficha de catálogo.
 import type { Origem } from '../lib/conteudo';
 import { bebidas } from './bebidas';
 
@@ -44,12 +45,12 @@ const real = (src: string, alt: string): FotoCardapio => ({ src, alt, origem: 'r
 const ilustrativa = (src: string, alt: string): FotoCardapio => ({ src, alt, origem: 'ilustrativa' });
 const VARIA = 'as opções variam · consulte a equipe';
 
-/** Sabores da Roll em destaque no cartão (cardápio “Roll · cinnamon rolls”, descrições encurtadas). */
+/** Sabores da Roll em destaque no cartão (cardápio “Roll · cinnamon rolls”): foto + uma linha curta. */
 const rollsDoces: Item[] = [
-  { nome: 'Tradicional', desc: 'fermentação lenta, manteiga, açúcar mascavo, canela e glacê' },
-  { nome: 'Mood cheesecake', desc: 'creme de cheesecake, geleia de morango e crumble', foto: real('roll/roll-mood-cheesecake.webp', 'Cinnamon roll Mood cheesecake com geleia de morango e crumble') },
-  { nome: 'S’mores', desc: 'chocolate, marshmallow tostado e biscoito', foto: real('roll/roll-smores.webp', 'Cinnamon roll S’mores com marshmallow tostado') },
-  { nome: 'Kinder Bueno', desc: 'creme de Kinder Bueno e Nutella', foto: real('roll/roll-kinder-bueno.webp', 'Cinnamon roll Kinder Bueno com fios de Nutella') },
+  { nome: 'Tradicional', desc: 'canela, açúcar mascavo e glacê', foto: ilustrativa('cardapio/roll-tradicional.webp', 'Cinnamon roll tradicional com glacê') },
+  { nome: 'Mood cheesecake', desc: 'cheesecake, morango e crumble', foto: real('roll/roll-mood-cheesecake.webp', 'Cinnamon roll Mood cheesecake com geleia de morango e crumble') },
+  { nome: 'S’mores', desc: 'chocolate e marshmallow tostado', foto: real('roll/roll-smores.webp', 'Cinnamon roll S’mores com marshmallow tostado') },
+  { nome: 'Kinder Bueno', desc: 'Kinder Bueno e Nutella', foto: real('roll/roll-kinder-bueno.webp', 'Cinnamon roll Kinder Bueno com fios de Nutella') },
 ];
 
 export const cardapio: { comer: Categoria[]; beber: Categoria[]; faixa: string[]; nota: string } = {
@@ -68,9 +69,9 @@ export const cardapio: { comer: Categoria[]; beber: Categoria[]; faixa: string[]
     } },
     { id: 'sanduiches', nome: 'Sanduíches', cor: 'cacao', detalhe: {
       linha: 'no pão rústico tostado',
-      foto: ilustrativa('cardapio/sanduiche-brie.webp', 'Sanduíche de brie com geleia de mirtilo no pão rústico'),
+      foto: ilustrativa('cardapio/sanduiches.webp', 'Sanduíche no pão rústico tostado com queijo derretido, tomate e folhas'),
       grupos: [{ itens: [
-        { nome: 'Brie & mirtilo', desc: 'mirtilo, brie e parmesão' },
+        { nome: 'Brie & mirtilo', desc: 'mirtilo, brie e parmesão', foto: ilustrativa('cardapio/sanduiche-brie.webp', 'Sanduíche de brie com geleia de mirtilo no pão rústico') },
         { nome: 'Ragu', desc: 'ragu, muçarela, tomate confitado e mel' },
         { nome: 'Atum & abacate', desc: 'atum, gergelim, creme de ricota, shoyu e abacate' },
         { nome: 'Mortadela ou parma', desc: 'rúcula, parmesão e tomate confitado' },
@@ -90,14 +91,13 @@ export const cardapio: { comer: Categoria[]; beber: Categoria[]; faixa: string[]
       foto: real('roll/roll-espiral.webp', 'Cinnamon roll em espiral entre rolls red velvet, na bandeja da Roll'),
       abas: true,
       grupos: [
-        { id: 'doces', titulo: 'doces', itens: rollsDoces,
-          mais: { rotulo: 'sabores que já passaram pela fornada', itens: ['Oreo', 'Biscoff', 'Red velvet', 'Pistache', 'Mirtilo', 'Nutella'] },
-          nota: 'os sabores mudam com a fornada' },
+        // os outros sabores já aparecem em “Direto da fornada” (pílulas): o cartão não repete a lista
+        { id: 'doces', titulo: 'doces', itens: rollsDoces, nota: 'os sabores mudam com a fornada' },
         { id: 'salgados', titulo: 'salgados', itens: [
           { nome: 'Pesto & ricota', foto: ilustrativa('cardapio/roll-salgado-pesto.webp', 'Roll salgado de pesto e ricota') },
-          { nome: 'Quatro queijos' },
+          { nome: 'Quatro queijos', foto: ilustrativa('cardapio/roll-salgado-quatro-queijos.webp', 'Roll salgado de quatro queijos') },
           { nome: 'Caprese', foto: ilustrativa('cardapio/roll-salgado-caprese.webp', 'Roll salgado caprese') },
-          { nome: 'Cogumelos & brie' },
+          { nome: 'Cogumelos & brie', foto: ilustrativa('cardapio/roll-salgado-cogumelos.webp', 'Roll salgado de cogumelos e brie') },
         ] },
       ],
       ancora: { href: '#roll', texto: 'direto da fornada' },
@@ -116,7 +116,8 @@ export const cardapio: { comer: Categoria[]; beber: Categoria[]; faixa: string[]
     { id: 'gelados', nome: 'Cafés gelados', cor: 'caramel', detalhe: {
       linha: 'gelados da casa',
       foto: ilustrativa('cardapio/cafes-gelados.webp', 'Latte gelado e matcha latte em copos com gelo'),
-      grupos: [{ itens: bebidas.gelados.map((b) => ({ nome: b.nome, desc: b.desc })), nota: `leite: ${bebidas.leites.join(' · ')}` }],
+      // só os nomes: “café, leite e gelo” não acrescenta nada a um iced latte
+      grupos: [{ itens: bebidas.gelados.map((b) => ({ nome: b.nome })), nota: `leites: ${bebidas.leites.join(' · ')}` }],
       ancora: { href: '#cafe-roll', texto: 'café + roll' },
     } },
     { id: 'cappuccino', nome: 'Cappuccino', cor: 'wine', detalhe: {
@@ -137,5 +138,5 @@ export const cardapio: { comer: Categoria[]; beber: Categoria[]; faixa: string[]
   ],
   /** Faixa em movimento abaixo do hero: as 13 categorias, alternando comer e beber. */
   faixa: ['Bruschettas', 'Cafés gelados', 'Cheesecakes', 'Cappuccino', 'Sanduíches', 'Frappé', 'Saladas', 'Cafés diversos', 'Cinnamon rolls doces & salgados', 'Chá', 'Bowls', 'Smoothies proteicos', 'Brownies diferentes'],
-  nota: 'Itens do cardápio de estreia · podem variar com a fornada e a estação · imagens ilustrativas sinalizadas',
+  nota: 'Cardápio de estreia · pode variar com a fornada e a estação',
 };

@@ -50,6 +50,9 @@
 .hero__collage .cut--tile     { width: calc(110.98 * var(--u)); left: calc(var(--ox) + 118.14 * var(--u)); top: calc(150 * var(--u)); z-index: var(--z-3); }
 .hero__collage .sticker--roll { position: absolute; z-index: var(--z-4); width: calc(104 * var(--u)); left: calc(var(--ox) + 239.68 * var(--u)); top: calc(238 * var(--u)); }
 .hero__collage .sparks        { position: absolute; z-index: var(--z-2); width: calc(86 * var(--u));  left: calc(var(--ox) + 143.2 * var(--u)); top: calc(40 * var(--u)); }
+/* 3ª foto: desce com a rolagem até o hero sair da tela (--desce de 0 a 1, lib/motion.js). Só transform: o “boiar” usa
+   translate e a inclinação usa rotate, então os três convivem. */
+.hero__collage .cut--tile { transform: translate3d(0, calc(var(--desce, 0) * var(--desce-amp)), 0) rotate(calc(var(--desce, 0) * 7deg)); --desce-amp: calc(120 * var(--u)); }
 
 /* anotação manuscrita apontando o roll (só quando o círculo é o roll) */
 .hero__anota {

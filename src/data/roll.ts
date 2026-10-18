@@ -1,7 +1,8 @@
 // A Roll é a assinatura gastronômica integrada ao Âmbar Brunch — não é uma loja (sem preço, sem compra, sem delivery).
 export const roll = {
   instagram: { handle: '@roll.ofc', url: 'https://www.instagram.com/roll.ofc/' },
-  lead: 'Os cinnamon rolls do Âmbar Brunch levam a assinatura da Roll: massa enrolada, glacê e sabores que mudam com o mês.',
+  /** copy editorial — só ingredientes do cardápio da Roll (fermentação lenta, manteiga, açúcar mascavo, canela e glacê) */
+  lead: 'Fermentação lenta, manteiga, açúcar mascavo e canela. Glacê por cima e direto pra sua mesa.',
   /** Sabores fixos citados nas legendas dos posts da Roll (ago/2026). Fotos: Instagram da Roll, autorizadas em 2026-10-17. */
   bandejas: [
     { sabor: 'Biscoff', foto: 'roll/bandeja-biscoff.webp', alt: 'Bandeja de cinnamon rolls de Biscoff', id: 'IG-OPT-06' },
@@ -32,8 +33,9 @@ export const roll = {
   },
   /** Fotos da Roll do kit complementar v2 (02_GASTRONOMIA_REAL_ROLL), autorizadas pelo responsável do projeto. */
   fotos: {
-    /** roll em espiral da bandeja de estreia (IG-02 = bandeja-espirais-coloridas do kit) */
-    hero: { foto: 'roll/roll-espiral.webp', alt: 'Cinnamon roll em espiral, recém-saído da fornada, entre rolls red velvet', id: 'IG-02', autorizado: true },
+    /** capa do hero: close do roll Kinder Bueno (roll-individual-kinder do kit, recorte sem as anotações da arte) —
+     *  substitui a espiral da bandeja de estreia, pálida demais na primeira tela */
+    hero: { foto: 'roll/roll-kinder-macro.webp', alt: 'Close de um cinnamon roll da Roll com glacê de Kinder Bueno, fios de Nutella e um pedaço de Kinder', id: 'KIT-ROLL-KINDER', autorizado: true },
     /** roll inteiro, finalizado (arte da Roll sem as anotações): o protagonista logo abaixo do vídeo */
     anatomia: { foto: 'roll/roll-nutella-inteiro.webp', alt: 'Cinnamon roll da Roll finalizado com Nutella cremosa e castanhas', id: 'KIT-ROLL-NUTELLA', autorizado: true },
   },

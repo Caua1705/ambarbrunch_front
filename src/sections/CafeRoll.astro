@@ -3,7 +3,8 @@
 // Peças: a caixa REAL da Roll (foto), o roll da dupla (fotos reais da Roll) e um copo DESENHADO (SVG: não é foto nem
 // mockup de embalagem, então não finge ser produto oficial). Trocar a dupla muda o roll, a cor do copo e as etiquetas
 // (lib/cafe-roll.js). Profundidade: as camadas derivam em velocidades diferentes com a rolagem (CSS, onde houver suporte)
-// e acompanham o ponteiro no desktop. As 6 categorias de bebida ficam num bloco compacto que abre o cardápio.
+// e acompanham o ponteiro no desktop. Rodada final: sem a lista repetida de bebidas — só as duplas sugeridas e um link
+// discreto que abre os gelados no cardápio. A embalagem (caixa real) e o copo ficam só aqui.
 // Movimento reduzido: colagem parada; a troca de dupla continua funcionando, sem animação.
 import Foto from '../components/Foto.astro';
 import MegaTitle from '../components/MegaTitle.astro';
@@ -16,15 +17,16 @@ import { imagem } from '../lib/media';
 const s = secoes.cafeRoll;
 const pares = cr.pares.filter((p) => imagem(p.foto.src));
 const [primeiro] = pares;
+const gelados = cardapio.beber.find((b) => b.id === 'gelados');
 ---
 {primeiro && (
   <section class="cafe-roll" id={s.id} aria-labelledby="cafe-roll-titulo" tabindex="-1" data-cafe-roll data-vivo>
     <div class="cafe-roll__texto">
-      <MegaTitle linhas={[...s.linhas]} id="cafe-roll-titulo" tom="wine" scribble={s.sub} />
+      <MegaTitle linhas={[...s.linhas]} direita={[...s.direita]} id="cafe-roll-titulo" tom="wine" scribble={s.sub} />
       <p class="cafe-roll__lead" data-reveal>{cr.lead}</p>
     </div>
 
-    <div class="dupla" data-dupla style={`--liq-a:${primeiro.liquido[0]};--liq-b:${primeiro.liquido[1]}`}>
+    <div class="dupla" data-dupla data-antecipar style={`--liq-a:${primeiro.liquido[0]};--liq-b:${primeiro.liquido[1]}`}>
       <figure class="dupla__caixa dupla__camada" style="--z:1">
         <i class="tape" aria-hidden="true"></i>
         <Foto src={cr.caixa.src} alt={cr.caixa.alt} sizes="(min-width: 960px) 330px, 58vw" widths={[220, 330, 480, 660]} qualidade={64} />
@@ -71,7 +73,7 @@ const [primeiro] = pares;
     </div>
 
     <div class="cafe-roll__escolha">
-      <p class="cafe-roll__rotulo" id="pares-rotulo">escolha a dupla</p>
+      <p class="cafe-roll__rotulo" id="pares-rotulo">duplas da casa</p>
       <div class="pares" role="radiogroup" aria-labelledby="pares-rotulo">
         {pares.map((p, i) => (
           <button type="button" role="radio" class="par" aria-checked={i === 0 ? 'true' : 'false'} tabindex={i === 0 ? 0 : -1}
@@ -80,14 +82,10 @@ const [primeiro] = pares;
           </button>
         ))}
       </div>
-      <p class="cafe-roll__nota">{cr.nota}</p>
-
-      <div class="cafe-roll__bebidas">
-        <p class="cafe-roll__rotulo">todas as bebidas</p>
-        <ul>
-          {cardapio.beber.map((b) => <li><a href="#gastronomia" data-abrir={b.id}>{b.nome}</a></li>)}
-        </ul>
-      </div>
+      <p class="cafe-roll__rodape">
+        <span class="cafe-roll__nota">{cr.nota}</span>
+        <a class="cafe-roll__link" href="#gastronomia" data-abrir={gelados?.id ?? 'gelados'}>ver bebidas no cardápio <span aria-hidden="true">↑</span></a>
+      </p>
     </div>
   </section>
 )}

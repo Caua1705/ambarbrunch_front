@@ -1,5 +1,6 @@
-/* QUEM PROVOU, CONTA · carrossel de vídeos de criadores (novo). Vinho entre os bastidores (cacau) e os climas (manteiga).
-   O card ativo fica no centro e maior; os vizinhos aparecem nas bordas, menores e apagados. Swipe = scroll-snap nativo. */
+/* PROVOU, CONTA · carrossel de vídeos de criadores. Vinho entre Saladas & bowls (creme) e os ambientes (manteiga).
+   Rodada final (referência Zuzy): três cards à vista — o central maior, aceso e tocando; os vizinhos menores, apagados e
+   cortados pela borda da tela, com respiro entre eles. Swipe = scroll-snap nativo. */
 
 .provou {
   padding: var(--rhythm-c) 0 calc(var(--rhythm-c) + var(--rhythm-tail));
@@ -12,19 +13,16 @@
   fill: none; stroke: var(--berry); stroke-width: 10; stroke-linecap: round; opacity: .55;
 }
 .provou__head { padding: 0 var(--gutter); }
-.provou__lead { margin-top: var(--s-22); max-width: 32ch; font-size: var(--fs-lead); color: var(--butter); }
-.provou__lead strong { font-weight: 700; }
+.provou__lead { margin-top: var(--s-18); max-width: 30ch; font-size: var(--fs-lead); font-weight: 700; color: var(--butter); }
 
-/* Trilho: o card ativo no centro, o anterior e o próximo aparecendo nas bordas (as pontas também centralizam: o padding
-   lateral é meia tela menos meio card). Swipe = scroll-snap nativo, alinhado ao centro. Respiro perceptível entre cards.
-   Destaque do ativo: tamanho cheio, anel manteiga e um leve levantar; os vizinhos ficam menores e mais apagados.
-   Só transform/opacity/box-shadow (nada de filtro sobre vídeo). */
+/* Trilho: as pontas também centralizam (o padding lateral é meia tela menos meio card). O card mede ~58% da tela: sobra
+   ~1/5 de cada lado para os vizinhos. Destaque do ativo só com transform/opacity/box-shadow (nada de filtro sobre vídeo). */
 .stories--provou {
-  --gap: var(--s-18);
-  --card: min(64vw, 300px);
+  --gap: var(--s-14);
+  --card: min(58vw, 280px);
   display: flex; align-items: center; gap: var(--gap);
   margin-top: var(--s-30);
-  padding: var(--s-22) calc((100% - var(--card)) / 2) var(--s-26);
+  padding: var(--s-26) calc((100% - var(--card)) / 2) var(--s-30);
   scroll-padding-inline: calc((100% - var(--card)) / 2); overscroll-behavior-x: contain;
 }
 .stories--provou[data-unico] { justify-content: center; }
@@ -32,30 +30,29 @@
   flex: none; width: var(--card); margin-top: 0;
   scroll-snap-align: center; scroll-snap-stop: always;
   border-radius: var(--radius-l);
-  transform: scale(.88); opacity: .62;
-  transition: transform var(--dur-m) var(--ease), opacity var(--dur-m) var(--ease), box-shadow var(--dur-m) var(--ease);
+  transform: scale(.84); opacity: .5;
+  box-shadow: var(--ring-media) color-mix(in srgb, var(--cream) 55%, transparent);
+  transition: transform var(--dur-l) var(--ease), opacity var(--dur-l) var(--ease), box-shadow var(--dur-l) var(--ease);
 }
-.stories--provou .story:nth-child(even) { margin-top: 0; box-shadow: var(--ring-media) var(--cream); }
-.stories--provou .story[data-ativo] { transform: translateY(-4px); opacity: 1; box-shadow: var(--ring-media) var(--butter), var(--shadow-lift); }
+.stories--provou .story:nth-child(even) { margin-top: 0; }
+.stories--provou .story[data-ativo] { transform: scale(1.04); opacity: 1; box-shadow: var(--ring-media) var(--butter), var(--shadow-lift); }
 /* o vídeo com som ligado ganha o brilho: dá para ver de onde vem a voz */
-.stories--provou .story[data-som-ligado] { opacity: 1; box-shadow: var(--ring-media) var(--butter), var(--glow-ativo); }
+.stories--provou .story[data-som-ligado] { box-shadow: var(--ring-media) var(--butter), var(--glow-ativo), var(--shadow-lift); }
+/* vizinhos: o botão de som some (o foco é o central); o toque traz o card para o centro */
+.stories--provou .story:not([data-ativo]) .story__som { opacity: 0; pointer-events: none; }
+.stories--provou .story:not([data-ativo]) .story__toggle svg { opacity: 0; }
 /* horizontal: mesmo tamanho dos verticais; o vídeo inteiro numa janela emoldurada sobre papel creme */
 .stories--provou .story--wide {
   height: calc(var(--card) * 16 / 9); aspect-ratio: auto;
   padding: var(--s-12) var(--s-10); gap: 0;
 }
 
-.provou__setas { display: flex; justify-content: center; align-items: center; gap: var(--s-14); margin-top: var(--s-10); }
-.provou__contador { min-width: 5ch; text-align: center; font: var(--t-chip); letter-spacing: var(--track-caps); color: var(--butter); }
-.provou__contador i { font-style: normal; color: var(--text-on-dark-faint); }
-.provou__seta {
-  display: grid; place-items: center; width: 44px; height: 44px;
-  border: 2px solid var(--butter); border-radius: var(--radius-round);
-  background: transparent; color: var(--butter); cursor: pointer;
-}
-.provou__seta svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-.provou__seta:disabled { opacity: .35; cursor: default; }
-
+/* Pontos: o ativo vira uma pílula manteiga. Alvo de toque de 32 px, desenho de 8 px. */
+.provou__pontos { display: flex; justify-content: center; gap: 2px; margin-top: var(--s-6); }
+.provou__ponto { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; background: transparent; cursor: pointer; }
+.provou__ponto i { display: block; width: 8px; height: 8px; border-radius: var(--radius-pill); background: color-mix(in srgb, var(--butter) 40%, transparent); transition: width var(--dur-m) var(--ease), background-color var(--dur-m) var(--ease); }
+.provou__ponto[aria-current="true"] i { width: 26px; background: var(--butter); }
+@media (hover: hover) { .provou__ponto:hover i { background: color-mix(in srgb, var(--butter) 75%, transparent); } }
 
 @media (min-width: 960px) {
   .stories--provou { --card: 300px; --gap: var(--s-30); }

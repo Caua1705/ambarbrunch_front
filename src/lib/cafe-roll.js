@@ -3,7 +3,7 @@
 // - escolher uma dupla (toque, clique ou setas no grupo de rádio) troca a foto do roll, a cor do copo e as etiquetas;
 //   a troca é uma animação curta (data-trocando, ~420 ms) e some com movimento reduzido;
 // - desktop (ponteiro fino): as camadas da colagem acompanham o ponteiro em profundidades diferentes (--px, --py, rAF);
-// - “todas as bebidas”: o link leva ao cardápio e abre a etiqueta da categoria.
+// - “ver bebidas no cardápio”: o link leva ao cardápio e abre a etiqueta dos gelados.
 import { motionAllowed } from './motion.js';
 
 /** @param {HTMLElement} root */
@@ -60,7 +60,7 @@ export function initCafeRoll(root) {
   });
   palco.addEventListener('pointerleave', () => { px = 0; py = 0; if (!raf) raf = requestAnimationFrame(aplicar); });
 
-  // “todas as bebidas” → cardápio com a etiqueta aberta
+  // “ver bebidas no cardápio” → cardápio com a etiqueta aberta
   root.querySelectorAll('[data-abrir]').forEach((a) => a.addEventListener('click', (ev) => {
     const id = /** @type {HTMLElement} */ (a).dataset.abrir;
     const tap = /** @type {HTMLButtonElement | null} */ (document.querySelector(`.bands__tap[data-categoria="${id}"]`));

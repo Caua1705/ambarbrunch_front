@@ -1,7 +1,7 @@
 ---
 // 10 · VISITE O ÂMBAR — onde fica e quando abre (dados oficiais, data/visita.ts). Sem mapa embutido (pesado e coleta
-// dados): um cartão de localização desenhado (SVG leve) com o botão “Abrir no Maps”, que abre o endereço real no app de
-// mapas. Contatos: WhatsApp e Instagram do Âmbar e da Roll.
+// dados): endereço em texto sobre um cartão desenhado (SVG leve) e o botão “Como chegar”, que abre o endereço real no app
+// de mapas. Contatos: WhatsApp e Instagram do Âmbar e da Roll. Sem botão de reserva aqui: a doca fixa já faz esse papel.
 import MegaTitle from '../components/MegaTitle.astro';
 import SeloFornada from '../components/SeloFornada.astro';
 import { visita as v } from '../data/visita';
@@ -32,7 +32,7 @@ const s = secoes.visite;
         <p class="placa__kicker">Endereço</p>
         <p class="placa__addr" id="mapa-endereco">{v.endereco}</p>
         <p class="placa__city">{v.cidade}</p>
-        <a class="btn btn--wine mapa__btn" href={v.mapaUrl} rel="noopener" target="_blank">Abrir no Maps <span aria-hidden="true">↗</span></a>
+        <a class="btn btn--wine mapa__btn" href={v.mapaUrl} rel="noopener" target="_blank">Como chegar <span aria-hidden="true">↗</span></a>
       </div>
     </article>
 
@@ -47,7 +47,6 @@ const s = secoes.visite;
   </div>
 
   <div class="visite__actions">
-    <a class="btn btn--butter" href="#reservar">Reservar mesa <span aria-hidden="true">→</span></a>
     <div class="visite__links">
       <a class="pill-link" href={v.whatsapp.url} rel="noopener" target="_blank">WhatsApp {v.whatsapp.numero}</a>
       <a class="pill-link" href={v.instagram.url} rel="noopener" target="_blank">{v.instagram.handle}</a>

@@ -1,7 +1,8 @@
 ---
 // 1 · HERO · Fornada Âmbar — markup do v1 (concept-b-aprovado-v1) + selo do menu.
 // O título é o maior texto da 1ª tela (LCP): visível desde o 1º quadro. A colagem encolhe pela altura em telas baixas.
-// As três peças contam o título: o roll da Roll em destaque (círculo), o lugar (salão principal) e o brunch (ladrilho).
+// As três peças contam o título: o roll da Roll em destaque (círculo, close do roll Kinder), o lugar (salão principal)
+// e o brunch com café (ladrilho), costurados pelo selo da Roll.
 // Entrada cinematográfica em motion.css §2 (etiqueta encaixa → palavras → recortes → carimbo da Roll → CTA).
 import Foto from '../components/Foto.astro';
 import MenuButton from '../components/MenuButton.astro';
@@ -39,10 +40,11 @@ const [l1, l2, l3] = secoes.hero.linhas;
       <Foto src={circulo.foto} alt={circulo.alt} sizes="(min-width: 960px) 26vw, 46vw" widths={[200, 300, 400, 450]} eager qualidade={60} />
     </figure>
     <figure class="cut cut--polaroid" data-float>
-      <Foto src={ambientes.salao.foto} alt={ambientes.salao.alt} sizes="(min-width: 960px) 20vw, 36vw" widths={[160, 240, 360, 480]} />
+      <Foto src={ambientes.salao.foto} alt={ambientes.salao.alt} sizes="(min-width: 960px) 20vw, 36vw" widths={[160, 240, 360, 480]} eager />
     </figure>
-    <figure class="cut cut--tile" data-float="b">
-      <Foto src="gastronomia/bruschetta-brunch.webp" alt="Torrada coberta vista de cima, com xícara de café ao lado" sizes="(min-width: 960px) 15vw, 27vw" widths={[120, 180, 270, 360]} />
+    <!-- a 3ª foto desce com a rolagem durante TODA a saída do hero (lib/motion.js → initHeroDescida) -->
+    <figure class="cut cut--tile" data-float="b" data-desce>
+      <Foto src="gastronomia/bruschetta-brunch.webp" alt="Torrada coberta vista de cima, com xícara de café ao lado" sizes="(min-width: 960px) 15vw, 27vw" widths={[120, 180, 270, 360]} eager />
     </figure>
     <StickerRoll />
     <Faiscas />

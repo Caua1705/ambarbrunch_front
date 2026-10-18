@@ -37,6 +37,7 @@
   --dur-espiral-fade: 900ms;       /* capa da espiral sumindo quando o vídeo começa (o vídeo entra por baixo, sem salto) */
   --reveal-delay-stamp: 260ms;
   --sheet-items-delay: 80ms;       /* itens do menu depois da folha */
+  --dur-sheet-out: 340ms;          /* saída do menu: folha desce, itens e fundo somem juntos (lib/nav-sheet.js) */
   --cascade: 35ms;                 /* pílulas do cardápio caindo uma a uma */
   --card-delay-photo: 60ms;        /* foto do cartão estala logo depois do papel */
   --card-delay-items: 80ms;        /* itens do cartão começam depois da foto… */
@@ -76,4 +77,6 @@
   --hero-t-cta-dur: 480ms;
   --hero-t-note: 1000ms;
   --hero-t-note-dur: 300ms;
+  --hero-t-write-dur: 620ms;   /* anotação manuscrita se escrevendo */
+  --hero-t-ticker: 980ms;     /* faixa de categorias subindo, fecha a cena */
 }

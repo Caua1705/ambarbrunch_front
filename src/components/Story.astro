@@ -3,12 +3,13 @@
 // próprio vídeo traz gravado (legenda, @ do criador ou da Roll) fica como está.
 // O vídeo começa mudo, preload="none"; o poster (data-poster) só baixa quando o carrossel se aproxima
 // da tela — o atributo poster baixaria a imagem já no carregamento da página — e o vídeo só quando o card vai tocar.
-// `carrossel` (Quem provou, conta — quem toca é lib/carrossel.js): card limpo — só o vídeo, o botão de som (o arquivo
-// mantém a voz original) e legendas opcionais (CC) sobre o vídeo, só quando o visitante pede.
+// `carrossel` (Provou, conta — quem toca é lib/carrossel.js): card limpo — só o vídeo e o botão de som (o arquivo mantém
+// a voz original). Sem legenda/transcrição nem CC (rodada final): o vídeo fala por si. Sem loop: ao terminar, o
+// carrossel passa ao próximo.
 // Sem barra de progresso: com dois vídeos tocando ela custava ~13% da thread principal num celular intermediário.
 // Formato horizontal: janela emoldurada dentro do card, sem zoom.
 import { getImage } from 'astro:assets';
-import { imagem, video, legendas } from '../lib/media';
+import { imagem, video } from '../lib/media';
 import { isPendente, type Pendente } from '../lib/conteudo';
 
 interface Props {
@@ -18,14 +19,14 @@ interface Props {
 }
 const { arquivo, poster, tag, descricao, autor, tipo, formato = 'vertical', audio = false, carrossel = false } = Astro.props;
 const src = video(arquivo);
-const vtt = audio ? legendas(arquivo) : undefined;
 const meta = imagem(poster);
 const posterUrl = meta ? (await getImage({ src: meta, width: formato === 'horizontal' ? 640 : 480, format: 'webp', quality: 64 })).src : undefined;
 // sem @ identificado (ou ainda pendente): o card não mostra nome — nunca um aviso no lugar
 const quem = !autor || isPendente(autor) ? undefined : autor;
 const [w, h] = formato === 'horizontal' ? [480, 268] : [540, 960];
 // nome do vídeo nos rótulos dos botões (a etiqueta visível saiu do carrossel)
-const deQuem = quem ? `de ${quem}` : `(${descricao})`;
+// no carrossel o rótulo descreve a cena (sem @ do criador, nem para leitor de tela)
+const deQuem = carrossel || !quem ? `(${descricao})` : `de ${quem}`;
 ---
 {src && carrossel && (
   <li class:list={['story', 'story--feed', formato === 'horizontal' && 'story--wide']} data-tipo={tipo} data-audio={audio ? '' : undefined}>
@@ -34,9 +35,8 @@ const deQuem = quem ? `de ${quem}` : `(${descricao})`;
            cada <video> custa caro no carregamento do WebKit, mesmo com preload="none" -->
       {posterUrl && <img class="story__poster" src={posterUrl} alt="" loading="lazy" decoding="async" width={w} height={h} />}
       <template data-video>
-        <video muted playsinline loop preload="none" data-carrossel poster={posterUrl} aria-label={`Vídeo: ${descricao}`} width={w} height={h}>
+        <video muted playsinline preload="none" data-carrossel poster={posterUrl} aria-label={`Vídeo: ${descricao}`} width={w} height={h}>
           <source src={src} type="video/mp4" />
-          {vtt && <track kind="captions" src={vtt} srclang="pt-BR" label="Português" />}
         </video>
       </template>
     </div>
@@ -47,12 +47,6 @@ const deQuem = quem ? `de ${quem}` : `(${descricao})`;
       <button class="story__som" type="button" aria-pressed="false" aria-label={`Ativar o som do vídeo ${deQuem}`} data-som data-nome={deQuem}>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path class="story__som-alto" d="M4 9h4l5-4v14l-5-4H4zM16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" /><path class="story__som-mudo" d="M4 9h4l5-4v14l-5-4H4zM16.5 9.5l5 5M21.5 9.5l-5 5" /></svg>
       </button>
-    )}
-    {vtt && (
-      <>
-        <button class="story__cc" type="button" aria-pressed="false" aria-label={`CC: legendas do vídeo ${deQuem}`} data-cc><span aria-hidden="true">CC</span></button>
-        <p class="story__legenda" data-legenda hidden></p>
-      </>
     )}
   </li>
 )}

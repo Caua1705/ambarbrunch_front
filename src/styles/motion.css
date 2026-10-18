@@ -89,7 +89,10 @@
   animation: stamp-ring var(--dur-m) var(--ease-out) var(--hero-t-ring) both;
 }
 .enter .hero__collage .sparks { animation: sparks-in var(--dur-m) var(--ease-paper) var(--hero-t-sparks) both; }
-.enter .hero__anota { animation: note-in var(--dur-m) var(--ease) var(--hero-t-sparks) both; }
+/* a anotação “quentinho da fornada” se escreve da esquerda para a direita, como caneta */
+.enter .hero__anota { animation: note-write var(--hero-t-write-dur) var(--ease) var(--hero-t-sparks) both; }
+/* a faixa de categorias sobe por último e costura o hero à página */
+.enter .ticker { animation: ticker-in var(--dur-l) var(--ease-paper) var(--hero-t-ticker) both; }
 .enter .menu-btn--hero { animation: sticker-in var(--dur-m) var(--ease-paper) var(--hero-t-menu) both; }
 .enter .hero__foot .btn { animation: cta-spring var(--hero-t-cta-dur) var(--ease) var(--hero-t-cta) both; }
 .enter .hero__note { animation: fade var(--hero-t-note-dur) linear var(--hero-t-note) both; }
@@ -98,22 +101,23 @@
   62% { transform: translateY(2px) rotate(1.2deg) scale(.985); }
   82% { transform: translateY(-1px) rotate(-.4deg); }
 }
-@keyframes line-rise { from { transform: translateY(.42em); } }
-@keyframes line-rise-l { from { transform: translate(-.3em, .42em) rotate(-3deg); } }
-@keyframes line-rise-r { from { transform: translate(.4em, .42em) rotate(2.5deg); } }
+/* rodada final: as palavras sobem de mais longe e com um leve cisalhamento — entrada de capa de revista, ainda só transform */
+@keyframes line-rise { from { transform: translateY(.62em) skewY(5deg); } }
+@keyframes line-rise-l { from { transform: translate(-.45em, .58em) rotate(-4deg) skewY(4deg); } }
+@keyframes line-rise-r { from { transform: translate(.55em, .58em) rotate(3deg) skewY(-4deg); } }
 @keyframes amp-pop { from { opacity: 0; transform: scale(.3) rotate(-35deg); } }
 @keyframes layer-back {
-  0% { opacity: 0; clip-path: inset(0 0 100% 0); transform: translate(14px, -10px) rotate(6deg) scale(.96); }
+  0% { opacity: 0; clip-path: inset(0 0 100% 0); transform: translate(26px, -18px) rotate(9deg) scale(.92); }
   30% { opacity: 1; }
   100% { clip-path: inset(0 0 0 0); }
 }
 @keyframes roll-in {
-  0% { opacity: 0; clip-path: circle(8% at 50% 50%); transform: rotate(-70deg) scale(.86); }
+  0% { opacity: 0; clip-path: circle(8% at 50% 50%); transform: rotate(-110deg) scale(.8); }
   25% { opacity: 1; }
   100% { clip-path: circle(72% at 50% 50%); }
 }
 @keyframes layer-front {
-  0% { opacity: 0; clip-path: inset(100% 0 0 0); transform: translateY(22px) rotate(-8deg) scale(.94); }
+  0% { opacity: 0; clip-path: inset(100% 0 0 0); transform: translateY(40px) rotate(-11deg) scale(.9); }
   30% { opacity: 1; }
   100% { clip-path: inset(0 0 0 0); }
 }
@@ -124,7 +128,8 @@
 }
 @keyframes stamp-ring { from { opacity: .9; transform: scale(1); } to { opacity: 0; transform: scale(1.55); } }
 @keyframes sparks-in { from { opacity: 0; transform: scale(.4) rotate(-20deg); } }
-@keyframes note-in { from { opacity: 0; transform: translateX(-10px); } }
+@keyframes note-write { from { clip-path: inset(-20% 100% -20% 0); } to { clip-path: inset(-20% -10% -20% 0); } }
+@keyframes ticker-in { from { transform: translateY(100%) rotate(0deg); } }
 @keyframes cta-spring {
   0% { opacity: 0; transform: translateY(22px) scale(.88); }
   55% { opacity: 1; transform: translateY(-4px) scale(1.03); box-shadow: var(--shadow-offset-l); }
@@ -144,7 +149,7 @@
 .cartao__grupo:not([hidden]) .cartao__itens li { animation: item-in var(--dur-s) var(--ease) both; animation-delay: calc(var(--card-delay-items) + var(--k, 0) * var(--card-stagger)); }
 @keyframes cat-in { from { opacity: 0; transform: translateY(4px); } }
 @keyframes prato-in { from { opacity: 0; transform: scale(.6) rotate(-30deg); } }
-.ficha[open] .ficha__barra i { animation: barra var(--dur-l) var(--ease-paper) both; animation-delay: calc(var(--i, 0) * var(--stagger)); }
+.js .prato__card.is-in .ficha__barra i { animation: barra var(--dur-l) var(--ease-paper) both; animation-delay: calc(var(--i, 0) * var(--stagger)); }
 @keyframes cartao-in { from { opacity: 0; clip-path: inset(-40px -20px 72% -20px); transform: translateY(-6px) rotate(-1.2deg); } to { clip-path: inset(-40px -20px -20px -20px); } }
 @keyframes cartao-out { to { opacity: 0; transform: translateY(-6px) scale(.98); } }
 @keyframes item-in { from { opacity: 0; transform: translateY(6px); } }
@@ -181,25 +186,21 @@
 [data-float="b"] { animation-duration: var(--float-period-b); animation-delay: calc(var(--float-period) * -.5); }
 /* o selo gira inteiro (elemento svg = camada própria); girar um <g> por dentro repintava a cada quadro */
 .selo { animation: spin var(--selo-period) linear infinite; }
-.bands__dedo { animation: cutuca var(--pulse-period) var(--ease) infinite; transform-origin: 50% 90%; }
 /* fora da tela, nada disso roda (lib/vivo.js marca data-visivel) */
 [data-vivo]:not([data-visivel]) [data-float],
 [data-vivo]:not([data-visivel]) .ticker__track,
 [data-vivo]:not([data-visivel]) .selo,
 [data-vivo]:not([data-visivel]) .sticker--roll svg,
-[data-vivo]:not([data-visivel]) .bands__dedo,
 /* esqueleto das datas da reserva: brilha desde o carregamento até a ilha hidratar; fora da tela custava ~80 ms/s de estilo */
 [data-vivo]:not([data-visivel]) .chip--skeleton { animation-play-state: paused; }
 @keyframes boia { to { translate: 0 calc(var(--float-amp) * -1); } }
-@keyframes cutuca { 0%, 60%, 100% { rotate: 0deg; } 70% { rotate: -14deg; } 80% { rotate: 8deg; } }
 
 /* 4 · Pausa global (botão “pausar animações”) — data-motion="paused" no <html>, salvo no navegador */
 [data-motion="paused"] .ticker__track,
 [data-motion="paused"] .sticker--roll svg,
 [data-motion="paused"] .chip--skeleton,
 [data-motion="paused"] [data-float],
-[data-motion="paused"] .selo,
-[data-motion="paused"] .bands__dedo { animation-play-state: paused; }
+[data-motion="paused"] .selo { animation-play-state: paused; }
 [data-motion="paused"] [data-parallax],
 [data-motion="paused"] .roll__spiral,
 [data-motion="paused"] .anatomia__espiral,
@@ -222,5 +223,6 @@
   .js .bands[data-reveal] .bands__list li, .js .trays[data-reveal] figure:nth-child(n) { opacity: 1; transform: none; }
   .dupla__camada { translate: none; }
   /* CTA, doca e folha: só opacidade (a transição é religada de propósito, curta) */
-  .sticky-cta, .menu-btn--dock { transform: none !important; transition: opacity var(--dur-reduced) linear !important; }
+  .sticky-cta, .menu-btn--fixo { transform: none !important; transition: opacity var(--dur-reduced) linear !important; }
+  .menu-btn--fixo { rotate: 8deg; }
 }

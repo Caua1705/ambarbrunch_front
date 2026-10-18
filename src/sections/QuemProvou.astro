@@ -1,8 +1,8 @@
 ---
-// 7 · QUEM PROVOU, CONTA — vídeos de criadores sobre a Roll, num carrossel com o card ativo no centro e os vizinhos
-// aparecendo nas bordas. Swipe = scroll-snap nativo; setas e contador seguem o card ativo (lib/carrossel.js).
-// No máximo dois vídeos tocam juntos, sempre mudos; o som é por card, um de cada vez, só depois do toque do visitante.
-// Cards limpos: sem @ ou descrição sobrepostos pelo site (o que o criador gravou no vídeo fica). Áudio original preservado.
+// 7 · PROVOU, CONTA — vídeos de criadores sobre a Roll num carrossel vivo: três à vista, o central em destaque (maior,
+// aceso, tocando) e os vizinhos aparecendo pela metade nas bordas. Swipe = scroll-snap nativo; pontos abaixo mostram e
+// escolhem o card; cada vídeo toca até o fim (máx. 40 s) e o próximo vira o central (lib/carrossel.js).
+// Cards limpos: sem @, sem descrição, sem legenda/transcrição. Áudio original preservado, liberado pelo botão de som.
 // No site publicado só entram vídeos com autorização do criador.
 import MegaTitle from '../components/MegaTitle.astro';
 import Story from '../components/Story.astro';
@@ -19,8 +19,8 @@ const videos = criadores.videos.filter((v) => podeMostrar(v.autorizado) && video
   <section class="provou" id={s.id} aria-labelledby="provou-titulo" tabindex="-1" data-provou>
     <Spiral class="provou__spiral" />
     <div class="provou__head">
-      <MegaTitle linhas={[...s.linhas]} direita={[...s.direita]} id="provou-titulo" tom="light" />
-      <p class="provou__lead" data-reveal><strong>{s.sub}</strong></p>
+      <MegaTitle linhas={[...s.linhas]} id="provou-titulo" tom="light" />
+      <p class="provou__lead" data-reveal>{s.sub}</p>
     </div>
 
     <div class="provou__palco">
@@ -28,10 +28,10 @@ const videos = criadores.videos.filter((v) => podeMostrar(v.autorizado) && video
         {videos.map((v) => <Story {...v} tipo="criador" carrossel />)}
       </ol>
       {videos.length > 1 && (
-        <div class="provou__setas">
-          <button class="provou__seta" type="button" data-prev aria-label="Vídeo anterior" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg></button>
-          <p class="provou__contador"><span data-contador>01</span><i aria-hidden="true"> / </i><span class="visually-hidden"> de </span>{String(videos.length).padStart(2, '0')}</p>
-          <button class="provou__seta" type="button" data-next aria-label="Próximo vídeo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" /></svg></button>
+        <div class="provou__pontos" data-pontos role="group" aria-label="Escolher vídeo">
+          {videos.map((_, i) => (
+            <button class="provou__ponto" type="button" data-ponto aria-current="false" aria-label={`Vídeo ${i + 1} de ${videos.length}`}><i aria-hidden="true"></i></button>
+          ))}
         </div>
       )}
     </div>
