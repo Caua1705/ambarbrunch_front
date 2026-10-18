@@ -16,7 +16,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const V1 = 'http://127.0.0.1:4173/experiments/concept-b-aprovado-v1/';
-const SITE = 'http://127.0.0.1:4321/';
+// o site pode vir de outra porta (ex.: um `astro dev` ocupando a 4321): FIDELIDADE_SITE=http://127.0.0.1:4400/
+const SITE = process.env.FIDELIDADE_SITE ?? 'http://127.0.0.1:4321/';
 const OCULTAR_SITE = '.menu-btn, .story__by, .story__progress, .story__toggle, .pending, .roll__sabores, .roll__cta, .roll__pending, .review-flag, .sticky-cta, .na-mesa--vazia, .skip-link { display: none !important; }';
 const OCULTAR_V1 = '.proto-ribbon, .sticky-cta { display: none !important; }';
 
