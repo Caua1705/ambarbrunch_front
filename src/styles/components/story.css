@@ -88,8 +88,8 @@
 .story--wide :is(video, .story__poster) { display: block; height: auto; aspect-ratio: 478 / 266; object-fit: contain; border-radius: 4px; background: var(--media-bg); }
 .story--wide .story__poster + video { inset: 6px; width: calc(100% - 12px); }
 
-/* novo · card de feed (Reações reais): sem etiqueta, sem @, sem legenda: só o vídeo e o som (ícone). Alvo de 44 px. */
-.story--feed .story__toggle svg { width: 44px; height: 44px; padding: var(--s-12); }
+/* novo · card de feed (Reações reais): sem etiqueta, sem @, sem legenda: só o vídeo e o som (ícone). Alvo de 44 px.
+   A superfície inteira (.story__toggle, sem ícone) liga/desliga o som: nada de play/pause no meio do vídeo. */
 .story--feed .story__som {
   right: 6px; top: 6px; transition: opacity var(--dur-m) var(--ease), scale var(--dur-s) var(--ease-paper); justify-content: center;
   width: 44px; min-height: 44px; padding: 0;
@@ -103,6 +103,9 @@
 .story--feed .story__som:active { scale: var(--press-scale); box-shadow: none; }
 .story--feed[data-som-ligado] .story__som { background: transparent; color: var(--wine); }
 .story--feed[data-som-ligado] .story__som svg { background: var(--butter); }
+/* o toque no vídeo responde no ícone do canto (lib/carrossel.js marca data-pulso a cada troca de som) */
+.story--feed .story__som[data-pulso] svg { animation: som-pulso var(--dur-m) var(--ease-paper); }
+@keyframes som-pulso { 40% { scale: 1.2; } }
 .story__by--min {
   right: auto; left: 6px; bottom: 6px; max-width: calc(100% - 12px);
   padding: var(--s-6) var(--s-8); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;

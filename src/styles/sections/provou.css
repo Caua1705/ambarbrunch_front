@@ -60,7 +60,6 @@
 .stories--provou .story[data-som-ligado] { box-shadow: var(--ring-media) var(--butter), var(--glow-ativo), var(--shadow-lift); }
 /* som nos três à vista, sempre no canto que aparece: o vizinho da direita leva o botão para a esquerda */
 .stories--provou .story[data-pos="1"] .story__som { right: auto; left: 6px; }
-.stories--provou .story:not([data-pos="0"]) .story__toggle svg { opacity: 0; }
 /* horizontal: mesmo tamanho dos verticais; o vídeo inteiro numa janela emoldurada sobre papel creme */
 .stories--provou .story--wide {
   height: calc(var(--card) * 16 / 9); aspect-ratio: auto;

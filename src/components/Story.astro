@@ -6,7 +6,8 @@
 // `carrossel` (Reações reais — quem toca é lib/carrossel.js): card limpo — só o vídeo e o botão de som (o arquivo mantém
 // a voz original). Sem legenda/transcrição nem CC (rodada final): o vídeo fala por si. `pos` = lugar do card no palco
 // (0 = central, ±1 = vizinhos à vista, ±2 = fora da tela); os três à vista tocam juntos, cada um repetindo o próprio
-// corte (o corte em si não tem emenda nem repetição montada).
+// corte (o corte em si não tem emenda nem repetição montada). Tocar no vídeo central liga/desliga o som (referência
+// Zuzzi): o vídeo não pausa e não aparece play/pause no meio.
 // Sem barra de progresso: com dois vídeos tocando ela custava ~13% da thread principal num celular intermediário.
 // Formato horizontal: janela emoldurada dentro do card, sem zoom.
 import { getImage } from 'astro:assets';
@@ -42,9 +43,9 @@ const deQuem = carrossel || !quem ? `(${descricao})` : `de ${quem}`;
         </video>
       </template>
     </div>
-    <button class="story__toggle" type="button" aria-pressed="false" aria-label={`Tocar ou pausar o vídeo ${deQuem}`}>
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
-    </button>
+    <!-- superfície de toque (só ponteiro): no central liga/desliga o SOM, nunca pausa; num vizinho, traz para o centro.
+         Teclado e leitor de tela usam o botão de som (abaixo), as setas e os pontos. -->
+    <div class="story__toggle" data-superficie aria-hidden="true"></div>
     {audio && (
       <button class="story__som" type="button" aria-pressed="false" aria-label={`Ativar o som do vídeo ${deQuem}`} data-som data-nome={deQuem}>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path class="story__som-alto" d="M4 9h4l5-4v14l-5-4H4zM16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" /><path class="story__som-mudo" d="M4 9h4l5-4v14l-5-4H4zM16.5 9.5l5 5M21.5 9.5l-5 5" /></svg>

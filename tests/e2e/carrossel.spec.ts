@@ -1,7 +1,7 @@
 // “Reações reais” (ajuste de 2026-10-18, referência Zuzzi): palco em laço — o central inteiro e maior, um vizinho cortado
 // em cada borda, sempre; OS TRÊS à vista tocam ao mesmo tempo, mudos; depois do 1º toque no som a voz acompanha o
 // card central a cada troca (só ele fala; desligar também vale); fora da tela ou com a aba escondida tudo pausa e cala;
-// pausa manual e movimento reduzido respeitados; cards limpos; vídeos criados só para os três à vista quando a seção chega perto.
+// tocar no vídeo central liga/desliga o som (nunca pausa; swipe e toque longo não contam); movimento reduzido respeitado; cards limpos; vídeos criados só para os três à vista quando a seção chega perto.
 import { test, expect, type Page, type Locator } from '@playwright/test';
 
 type Estado = { i: number; muted: boolean };
@@ -292,17 +292,81 @@ test.describe('com movimento', () => {
     expect(voz.length === 0 || (voz.length === 1 && voz[0] === 1)).toBe(true);
   });
 
-  test('pausa manual do central é respeitada (os vizinhos seguem), inclusive fora e de volta à tela', async ({ page }) => {
+  test('toque no vídeo central = SOM: liga e desliga a voz, o vídeo nunca pausa e nada aparece no meio', async ({ page }) => {
     await irAoCarrossel(page);
     await expect.poll(() => tocando(page), { timeout: 10000 }).toEqual(mudos(0, 1, 2));
-    await tocar(page, card(page, 1).locator('.story__toggle'));
-    await expect.poll(() => tocando(page)).toEqual(mudos(0, 2));
-    await page.evaluate(() => scrollTo({ top: 0, behavior: 'instant' }));
+    await vigiarAudio(page);
+    const superficie = card(page, 1).locator('[data-superficie]');
+    const som = card(page, 1).locator('[data-som]');
+    // nenhum ícone de play/pause sobre o vídeo, nem a superfície no Tab (o controle acessível é o botão de som)
+    await expect(page.locator('[data-trilho] .story__toggle svg')).toHaveCount(0);
+    expect(await superficie.evaluate((s) => s.tagName === 'DIV' && s.getAttribute('aria-hidden') === 'true')).toBe(true);
+    await tocar(page, superficie);
+    await expect(som).toHaveAttribute('aria-pressed', 'true');
+    await expect(som).toHaveAttribute('aria-label', /^Desativar o som/);
+    await expect.poll(() => tocando(page)).toEqual([{ i: 0, muted: true }, { i: 1, muted: false }, { i: 2, muted: true }]);
+    await tocar(page, superficie);
+    await expect(som).toHaveAttribute('aria-pressed', 'false');
+    await expect(som).toHaveAttribute('aria-label', /^Ativar o som/);
+    expect(await card(page, 1).locator('video').evaluate((v: HTMLVideoElement) => v.muted), 'cala na hora').toBe(true);
+    // continua andando: os três seguem tocando e o tempo do central avança
+    const t0 = await card(page, 1).locator('video').evaluate((v: HTMLVideoElement) => v.currentTime);
+    await page.waitForTimeout(800);
+    expect(await tocando(page)).toEqual(mudos(0, 1, 2));
+    expect(await card(page, 1).locator('video').evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThan(t0 + 0.4);
+    // ligado de novo pelo toque: a voz segue o novo central a cada troca, como com o botão
+    await tocar(page, superficie);
+    await expect.poll(() => comVoz(page)).toEqual([1]);
+    await arrastar(page, -170);
+    await expect.poll(() => comVoz(page), { timeout: 8000 }).toEqual([2]);
+    await expect(card(page, 2).locator('[data-som]')).toHaveAttribute('aria-pressed', 'true');
+    await tocar(page, card(page, 2).locator('[data-superficie]'));
+    await expect.poll(() => tocando(page)).toEqual(mudos(1, 2, 3));
+    expect(await maxAudiveis(page), 'nunca dois audíveis').toBe(1);
+  });
+
+  test('swipe × toque: arrastos (curto, longo, vários em laço, vertical) e toque longo não mexem no som', async ({ page }) => {
     await irAoCarrossel(page);
-    await page.waitForTimeout(1500);
-    expect(await tocando(page)).toEqual(mudos(0, 2));
-    await tocar(page, card(page, 1).locator('.story__toggle'));
-    await expect.poll(() => tocando(page)).toEqual(mudos(0, 1, 2));
+    await expect.poll(() => tocando(page), { timeout: 10000 }).toEqual(mudos(0, 1, 2));
+    const somDe = (i: number) => card(page, i).locator('[data-som]');
+    const nenhumaVoz = async () => { expect(await semMudo(page), 'nenhum vídeo com voz').toBe(0); };
+    // arraste curto e lento: volta ao lugar e não liga o som
+    await arrastar(page, -25, 25);
+    expect(await ativo(page)).toBe(1);
+    await expect(somDe(1)).toHaveAttribute('aria-pressed', 'false');
+    await nenhumaVoz();
+    // seis swipes seguidos para a frente (dá a volta inteira no laço de 5) e dois para trás: composição e três tocando
+    const ordem = [2, 3, 4, 0, 1, 2];
+    for (const esperado of ordem) {
+      await arrastar(page, -170);
+      expect(await ativo(page)).toBe(esperado);
+      await composicao(page, esperado);
+    }
+    for (const esperado of [1, 0]) { await arrastar(page, 170); expect(await ativo(page)).toBe(esperado); }
+    await composicao(page, 0);
+    await expect.poll(() => tocando(page), { timeout: 8000 }).toEqual(mudos(0, 1, 4));
+    await nenhumaVoz();
+    // gesto vertical sobre o card central
+    const b = await caixa(card(page, 0));
+    await page.mouse.move(b.x + b.width / 2, b.y + 80);
+    await page.mouse.down();
+    for (let k = 1; k <= 10; k++) await page.mouse.move(b.x + b.width / 2, b.y + 80 + k * 16);
+    await page.mouse.up();
+    await page.waitForTimeout(300);
+    await nenhumaVoz();
+    // toque longo (segurar ~0,8 s)
+    await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+    await page.mouse.down();
+    await page.waitForTimeout(800);
+    await page.mouse.up();
+    await page.waitForTimeout(300);
+    await expect(somDe(0)).toHaveAttribute('aria-pressed', 'false');
+    await nenhumaVoz();
+    // um toque curto liga; um swipe depois NÃO desliga (a voz passa ao novo central)
+    await tocar(page, card(page, 0).locator('[data-superficie]'));
+    await expect.poll(() => comVoz(page)).toEqual([0]);
+    await arrastar(page, -170);
+    await expect.poll(() => comVoz(page), { timeout: 8000 }).toEqual([1]);
   });
 
   test('toque num vizinho traz o card para o centro', async ({ page }) => {
@@ -316,10 +380,12 @@ test.describe('com movimento', () => {
   });
 });
 
-test('movimento reduzido: nada toca sozinho; o toque toca só o central (mudo) e o som só com o botão', async ({ page }) => {
+test('movimento reduzido: nada toca sozinho; o toque põe só o central para tocar, com a voz, e o 2º toque só cala', async ({ page }) => {
   await irAoCarrossel(page);
   await page.waitForTimeout(1500);
   expect(await tocando(page)).toEqual([]);
+  await tocar(page, card(page, 1).locator('.story__toggle'));
+  await expect.poll(() => tocando(page)).toEqual([{ i: 1, muted: false }]);
   await tocar(page, card(page, 1).locator('.story__toggle'));
   await expect.poll(() => tocando(page)).toEqual(mudos(1));
   await tocar(page, card(page, 1).locator('[data-som]'));

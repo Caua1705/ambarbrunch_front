@@ -112,7 +112,10 @@ para `src/assets/media/criadores/<arquivo>.webp`. IF-06a e IF-06b não tinham co
   repetindo o próprio corte); **um áudio por vez, sempre o do central** (os vizinhos ficam mudos). Tudo começa mudo; o 1º
   toque no som registra a preferência da visita (em memória, não entre sessões): a partir daí cada card que encaixa no
   centro assume a voz sozinho — ao soltar o arraste, no ponto ou na seta, inclusive na volta do laço — e o anterior se cala
-  no mesmo instante; desligar também é preferência (as trocas seguem mudas). Saída da seção (histerese: entra com 50% do
+  no mesmo instante; desligar também é preferência (as trocas seguem mudas). **Tocar no vídeo central = som** (ajuste
+  final de 2026-10-18): a superfície liga/desliga a voz como o botão do canto (que mostra o estado), o vídeo **nunca pausa**
+  e não aparece play/pause no meio; só vale como toque o gesto curto (≤ 10 px, ≤ 600 ms) — arraste, rolagem ou toque longo
+  não mexem no som. Teclado e leitor de tela: botão de som (`aria-pressed`), setas e pontos. Saída da seção (histerese: entra com 50% do
   palco na tela, sai abaixo de 30%) ou aba escondida: tudo pausa e a voz para; de volta, o central retoma a voz se o
   navegador deixar — se ele recusar som sem um toque, segue mudo com o botão pronto. No WebKit, um vídeo mudo que volta ao
   início do laço enquanto outro fala é pausado pelo navegador: o carrossel o retoma na hora (teste dedicado).
