@@ -65,15 +65,22 @@ Recriar: `npm run media:influenciadores` (`scripts/encode-influenciadores.mjs`).
 `creative/source/video/influenciadores/derivados/criadores/` (`*.web.mp4` + `*.poster.webp` + `derivados.json`).
 Página local para assistir com som: `creative/source/video/influenciadores/derivados/revisao.html`.
 
+**Rodada de 2026-10-17 (cortes de até 40 s):** os cortes do carrossel foram refeitos a partir dos originais para durar o
+máximo possível dentro das regras acima (limite de 40 s, sem repetir/loopar). Pontos de corte escolhidos pela transcrição
+com tempo por palavra (faster-whisper `medium` + conferência com o `small`) e confirmados pelo nível de áudio a cada 50 ms
+(pausa = queda até o ruído de fundo). Depois de gerar, os `*.web.mp4` foram copiados para `public/media/video/` e as capas
+para `src/assets/media/criadores/<arquivo>.webp`. IF-06a e IF-06b não tinham como crescer (motivos na tabela).
+
 | ID | Arquivo | Origem · trecho | Formato | Peso | Fala (transcrição automática) | Prior. |
 | --- | --- | --- | --- | ---: | --- | --- |
-| IF-06b | `criador-magall-viciado` | IF-06 · 0–3,98 s | 540×960 · 4 s | 468 KB | “Eu definitivamente estou viciado, e esse vício tem nome: Roll.” | **P1** |
+| IF-06b | `criador-magall-viciado` | IF-06 · 0–4,26 s (sem mudança) | 540×960 · 4,3 s | 509 KB | “Eu definitivamente estou viciado, e esse vício tem nome: Roll.” Não cresce: em 4,28 s começa a frase “Os novos cinnamon rolls de Fortaleza… de quinta a domingo”, que é uma frase só e leva ao horário antigo | **P1** |
 | IF-05a | `criadora-dailysocass-pistache` | IF-05 · 12,7–20,7 s · recorte da moldura | 398×708 · 8 s | 548 KB | “Meu Deus, tá muito bom. É que eu amo o doce com salgado, que é tipo pão. Essa massa é boa.” | **P1** |
-| IF-04a | `criadores-grupo-expectativa` | IF-04 · 0,5–14,3 s · recorte do vídeo horizontal | 478×266 · 14 s | 954 KB | “Gente, simplesmente hoje vamos provar isso aqui, que a gente tava muito ansioso. Num mundo onde todos os doces já estão saturados, achei o máximo começarem a vender cinnamon roll aqui em Fortaleza.” | **P1** |
-| IF-04a-story | `criadores-grupo-expectativa-story` | mesmo trecho, story inteiro sem recorte | 506×762 · 14 s | 1010 KB | idem; mantém a legenda “@roll.ofc a gente tava tão ansioso…” | alternativa |
-| IF-02a | `criador-elevador-abrindo` | IF-02 · 0,1–13,5 s | 510×782 · 13 s | 1529 KB | “…sempre a gente traz um doce pra provar, e o do dia não foi cookie, foi cinnamon roll. Olha esses.” | P1 |
-| IF-06a | `criador-magall-sabores` | IF-06 · 8,45–16,0 s | 540×960 · 8 s | 932 KB | “E olha a perfeição desses sabores. Isso aqui é absurdo: pistache, tradicional, Nutella com castanha.” | P2 (cita sabores que mudam por mês) |
+| IF-04a | `criadores-grupo-expectativa` | IF-04 · 0,45–24,7 s (antes 0,5–14,22 s) · recorte do vídeo horizontal | 478×266 · 24,3 s | 1670 KB | “Gente, simplesmente hoje vamos provar isso aqui, que a gente tava muito ansioso. Num mundo onde todos os doces já estão saturados, achei o máximo começarem a vender cinnamon roll aqui em Fortaleza… Ai, meu Deus… Bora provar. Tem de red velvet. — É melhor o tradicional. — Qual tradicional? — Esse.” Começa no 1º quadro do story A (o áudio entra em 0,48 s) e termina na pausa de 24,65–24,72 s (−43 dB). Não vai até o fim do story (28,4 s): a lista “tradicional, red velvet, Oreo, biscoff” acaba em ~28,0 s colada em outra fala (“Gente, olha…”) que o story corta, sem pausa | **P1** |
+| IF-04a-story | `criadores-grupo-expectativa-story` | IF-04 · 0,5–14,3 s (trecho antigo do IF-04a; não recriado, fora do site), story inteiro sem recorte | 506×762 · 14 s | 1010 KB | idem; mantém a legenda “@roll.ofc a gente tava tão ansioso…” | alternativa |
+| IF-02a | `criador-elevador-abrindo` | IF-02 · 0,1–13,85 s (antes 0,1–13,5 s) | 510×782 · 13,8 s | 1573 KB | “Gente, vocês sabem, amor: tem coisa com as minhas amigas, sempre a gente traz um doce pra provar, e o do dia não foi cookie, foi cinnamon roll. Olha esses.” Só ganhou o resto da pausa (até 13,9 s); logo depois vem o palavrão de ~15,8 s (ver abaixo). O trecho depois dele (16,7–32,6 s) daria ~16 s, começando colado na exclamação e sem a apresentação | P1 |
+| IF-06a | `criador-magall-sabores` | IF-06 · 8,45–16,1 s (sem mudança) | 540×960 · 7,7 s | 945 KB | “E olha a perfeição desses sabores. Isso aqui é absurdo: pistache, tradicional, Nutella com castanha.” Não cresce: antes é o horário antigo (até 8,2 s), depois o CTA de pedido (16,12–22,6 s); depois do CTA o reel só mostra a caixa com música | P2 (cita sabores que mudam por mês) |
 | IF-04b | `criadores-grupo-biscoff` | IF-04 · 49,6–59,9 s · recorte do vídeo horizontal | 490×274 · 10 s | 799 KB | várias vozes ao mesmo tempo; elogios ao Biscoff, coerentes com o texto “1- Biscoff 1000/10” | P2 |
+| IV-05 | `roll-criadora-larizgomes` (`scripts/encode-video.mjs`) | reel `Dc4TZTRtHO9` (111 s) · 46,95–72,15 s (antes 46,95–57,75 s) | 540×960 · 25,2 s | 2412 KB | “Gente, o de pistache me hipnotizou de um jeito que eu esqueci tudo que eu queria falar. Além do pistache e do chocolate branco, ele é finalizado com pedaços de pistache… Muito bom. O próximo que eu também fiquei apaixonada foi esse de Nutella com nuts… é castanha… Com certeza entrou para os meus favoritos, porque a castanha e a Nutella são perfeitas.” Termina na pausa de 72,0–72,35 s; depois vem fala que a transcrição não entende e, de ~75 s, o mirtilo (texto gravado na imagem em ~101 s; passaria dos 40 s). Antes de 46,95 s: “esses daqui são sabores novos” (datado) | P1 |
 | IF-07a | `criador-magall-apresentacao` | IF-07 · 1,2–11,6 s | 540×960 · 10 s | 1465 KB | “Rapaziada, hoje eu vou apresentar pra vocês a novidade aqui de Fortaleza, o nome é cinnamon roll, lá da Roll. Esse é o tradicional, eu nunca comi esse doce…” | P3 |
 
 ### O que ficou de fora, e por quê
@@ -82,7 +89,7 @@ Página local para assistir com som: `creative/source/video/influenciadores/deri
   **16–22 s:** convite para encomendar com a Roll; o site não vende.
 - **IF-07, depois de 12 s:** palavrões falados **e** gravados como legenda (“porra”, “caralho muito bom”, “puta que pariu”).
   Não há trecho de veredito limpo; o único trecho aproveitável é a apresentação (P3).
-- **IF-02, 13,7–17,7 s:** a transcrição indica uma possível palavra imprópria (~15,8 s). Ficou fora de todos os cortes.
+- **IF-02, 13,9–16,4 s:** palavrão. Na rodada de 2026-10-17 o modelo `small` (faster-whisper) ouviu “Ai, diabos, é levado, caralho” (“caralho” em 15,78–16,20 s, confiança ≥ 0,5); o `medium` tinha “engolido” o trecho num “é” de 1,9 s. Na dúvida, fora de todos os cortes.
 - **IF-04, 43,5 s e 67–69 s:** palavrões. **59,8–64 s:** comparação com outra marca (“Mr. Pretzel”).
 - **IF-05, 10–12 s:** fala incompreensível na transcrição; não usar sem ouvir.
 

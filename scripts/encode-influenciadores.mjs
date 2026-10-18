@@ -27,18 +27,30 @@ const MOLDURA = {
 };
 
 const CLIPES = [
-  // IF-02 · elevador: termina em “olha esses” abrindo a caixa, antes de um trecho com palavra possivelmente imprópria (~15,8 s)
-  { id: 'IF-02a', src: 'originais/stories/stories_02_elevador_completo.mp4', out: 'criador-elevador-abrindo', start: 0.1, end: 13.5, posterAt: 12.6 },
+  // IF-02 · elevador: termina em “olha esses” abrindo a caixa, no fim da pausa (ruído do elevador até 13,9 s; “Ai…” começa em 13,95 s).
+  // Não dá para crescer: logo depois vem um palavrão (“caralho”, ~15,8–16,2 s, ouvido pelo modelo small com confiança alta;
+  // o medium “engoliu” a palavra num “é” de 1,9 s). A alternativa depois do palavrão (16,7–32,6 s, “é enorme né… bom mesmo”)
+  // daria só ~16 s, começando colada na exclamação e sem a apresentação; a abertura (contexto do taste test) ficou melhor.
+  { id: 'IF-02a', src: 'originais/stories/stories_02_elevador_completo.mp4', out: 'criador-elevador-abrindo', start: 0.1, end: 13.85, posterAt: 12.6 },
   // IF-04 · grupo: expectativa (story A, horizontal) e veredito do Biscoff (story B, combina com a legenda “1- Biscoff 1000/10”)
-  { id: 'IF-04a', src: 'originais/stories/stories_04_grupo_completo.mp4', out: 'criadores-grupo-expectativa', start: 0.5, end: 14.22, vf: MOLDURA.grupoA, posterAt: 5.5 },
+  // IF-04a: story A quase inteiro (o story começa em 0,43 s; o áudio, em 0,48 s). Vai da abertura (“Gente, simplesmente hoje
+  // vamos provar…”) até “Qual tradicional? — Esse.”, na pausa de 24,65–24,72 s (−43 dB). Depois disso a lista “tradicional,
+  // red velvet, Oreo, biscoff” termina em ~28,0 s colada em outra fala (“Gente, olha…”) que o próprio story corta em 28,40 s:
+  // não há pausa para terminar ali sem cortar alguém no meio.
+  { id: 'IF-04a', src: 'originais/stories/stories_04_grupo_completo.mp4', out: 'criadores-grupo-expectativa', start: 0.45, end: 24.7, vf: MOLDURA.grupoA, posterAt: 5.5 },
   // alternativa do IF-04a sem recorte: o story inteiro (vertical), com a legenda “@roll.ofc a gente tava tão ansioso…” dos criadores
   { id: 'IF-04a-story', src: 'originais/stories/stories_04_grupo_completo.mp4', out: 'criadores-grupo-expectativa-story', start: 0.5, end: 14.3, posterAt: 5.5 },
   { id: 'IF-04b', src: 'originais/stories/stories_04_grupo_completo.mp4', out: 'criadores-grupo-biscoff', start: 49.6, end: 59.9, vf: MOLDURA.grupoB, posterAt: 3.5 },
   // IF-05 · @dailysocass, pistache: fala contínua 12,8–20,6 s; o trecho 10–12 s (fala incerta na transcrição) fica de fora
   { id: 'IF-05a', src: 'originais/stories/stories_05_pistache.mp4', out: 'criadora-dailysocass-pistache', start: 12.7, end: 20.7, vf: MOLDURA.pistache, posterAt: 1.2 },
   // IF-06 · @_magall (DdFJq86OyLo): abertura sem a frase “fornadas de quinta a domingo” (dia/horário antigo) e sem o CTA de pedido
+  // Não cresce: antes de 8,45 s é a frase do horário antigo (“…de quinta a domingo”, até 8,2 s) e logo depois de “castanha”
+  // (pausa 16,05–16,12 s) começa o CTA “não, encomenda o teu pedido… chama” (até 22,6 s). Depois disso o reel só tem a caixa
+  // em close com música; nada contínuo para juntar sem pular o CTA.
   { id: 'IF-06a', src: 'originais/magall/roll_influencer_DdFJq86OyLo_com_audio.mp4', out: 'criador-magall-sabores', start: 8.45, end: 16.1, fadeOut: 0.1, posterAt: 1.5 },
   // IF-06 · frase de abertura completa, curta (“eu definitivamente estou viciado e esse vício tem nome: Roll”)
+  // Não cresce: termina na pausa 4,15–4,27 s; em 4,28 s começa “Os novos cinnamon rolls de Fortaleza que estão sendo [feitos]
+  // de quinta a domingo”, uma frase só, que leva ao horário antigo — cortar antes do “de quinta a domingo” seria cortar a frase.
   { id: 'IF-06b', src: 'originais/magall/roll_influencer_DdFJq86OyLo_com_audio.mp4', out: 'criador-magall-viciado', start: 0, end: 4.26, fadeOut: 0.08, posterAt: 1.0 },
   // IF-07 · @_magall (Db_ajKouIuH): apresentação, antes do 1º palavrão (falado e legendado a partir de ~12 s)
   { id: 'IF-07a', src: 'originais/magall/roll_influencer_Db_ajKouIuH_com_audio.mp4', out: 'criador-magall-apresentacao', start: 1.2, end: 11.6, posterAt: 4.6 },

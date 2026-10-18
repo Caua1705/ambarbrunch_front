@@ -23,9 +23,12 @@ const VIDEOS = [
   // que tinha “Outubro 🤍” gravado no centro de todos os quadros (datado; recortar exigiria ampliar 1,65×).
   { id: 'IV-06b', file: '2026-09-17_DdZ5fRIA4f2_video.mp4', out: 'roll-sabores-do-mes', start: 14.5, dur: 5.5, poster: 'roll/poster-sabores-do-mes.webp', posterAt: 1.5 },
   { id: 'IV-08', file: '2026-10-01_Dd9V9KUz-nV_video.mp4', out: 'roll-bandeja', start: 0, dur: 4.6 },
-  // criadora (@larizgomes), com a voz dela: fala contínua sobre o roll de pistache (“Gente, o de pistache me hipnotizou…
-  // …Muito bom.”), entre duas pausas da fala; sem texto na imagem e depois da transição de papel rasgado (~37 s)
-  { id: 'IV-05', file: '2026-09-04_Dc4TZTRtHO9_video.mp4', out: 'roll-criadora-larizgomes', start: 46.95, dur: 10.8, audio: true, poster: 'roll/poster-criadora-larizgomes.webp', posterAt: 3.2 },
+  // criadora (@larizgomes), com a voz dela: pistache e Nutella com castanha, de “Gente, o de pistache me hipnotizou…” até
+  // “…a castanha e a Nutella são perfeitas.” (46,95–72,15 s, 25,2 s), começando e terminando em pausa (−50 dB e −45 dB).
+  // Sem texto na imagem e depois da transição de papel rasgado (~37 s). Fica de fora: antes, “esses daqui são sabores novos”
+  // (datado); depois, ~72,4–74,8 s de fala que a transcrição não entende (“não ficou muito…”, “meu Deus do céu”) e, a partir
+  // de ~75 s, o de mirtilo, que tem texto gravado na imagem (~101 s) e passaria dos 40 s.
+  { id: 'IV-05', file: '2026-09-04_Dc4TZTRtHO9_video.mp4', out: 'roll-criadora-larizgomes', start: 46.95, dur: 25.2, audio: true, poster: 'roll/poster-criadora-larizgomes.webp', posterAt: 3.2 },
 ];
 
 // Volume igual ao dos outros criadores (scripts/encode-influenciadores.mjs): loudnorm em 2 passadas, −16 LUFS.
