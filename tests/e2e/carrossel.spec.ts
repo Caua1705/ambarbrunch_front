@@ -73,12 +73,13 @@ test('cards limpos: sem @, descrição, legenda, CC ou aviso sobrepostos pelo si
   await expect(page.locator('#quem-provou h2')).toHaveText(/rea[çc][õo]es\s*reais/i);
 });
 
-test('ordem: um card por criador, nenhum vídeo de @_magall lado a lado — nem na volta do laço; um ponto por vídeo', async ({ page }) => {
+test('ordem: abre no pistache; elevador e pistache (mesmas meninas) nunca lado a lado — nem na volta do laço; um ponto por vídeo', async ({ page }) => {
   const arquivos = await page.$$eval('[data-trilho] .story template[data-video]', (ts) => ts.map((t) => (t as HTMLTemplateElement).content.querySelector('source')!.getAttribute('src')!.split('/').pop()!.replace('.web.mp4', '')));
-  // 2026-10-18: o card só com música (criador-magall-sabores) saiu e o pistache de @dailysocass voltou
-  expect(arquivos).toEqual(['criador-magall-viciado', 'roll-criadora-larizgomes', 'criador-elevador-abrindo', 'criadora-dailysocass-pistache', 'criadores-grupo-expectativa']);
+  // 2026-10-18: o card só com música (criador-magall-sabores) saiu; o pistache de @dailysocass voltou e é o 1º no centro
+  expect(arquivos).toEqual(['criador-magall-viciado', 'criadora-dailysocass-pistache', 'roll-criadora-larizgomes', 'criador-elevador-abrindo', 'criadores-grupo-expectativa']);
   const n = arquivos.length;
-  for (let i = 0; i < n; i++) expect(arquivos[i].includes('magall') && arquivos[(i + 1) % n].includes('magall'), `${i} e ${(i + 1) % n}`).toBe(false);
+  const mesmas = (a: string) => /elevador|dailysocass/.test(a);
+  for (let i = 0; i < n; i++) expect(mesmas(arquivos[i]) && mesmas(arquivos[(i + 1) % n]), `${i} e ${(i + 1) % n}`).toBe(false);
   await expect(page.locator('[data-ponto]')).toHaveCount(n);
   await expect(page.locator('[data-ponto]').nth(1)).toHaveAttribute('aria-current', 'true');
   // cada card toca o próprio arquivo (o mesmo do som): rótulo do botão de som × descrição do vídeo

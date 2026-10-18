@@ -1,9 +1,10 @@
 // “Reações reais” (antes “Provou, conta”) — vídeos de criadores sobre a Roll (NUNCA apresentados como avaliação do Âmbar Brunch).
 // Cortes contínuos, falas originais, sem palavrão e sem quadros de outro story (docs/content/INFLUENCIADORES.md).
 // Todos autorizados pelo responsável do projeto em 2026-10-17. O card não mostra @ nem nome (o que o criador gravou no
-// vídeo fica). Ordem pensada para o carrossel abrir no 2º card, com um vizinho de cada lado, e para os dois cards de
-// @_magall (mesmo homem, blusa branca) NUNCA ficarem lado a lado — nem na volta do laço (último → primeiro): eles ficam
-// nas posições 1 e 4 de 5, separados por outros criadores dos dois lados (tests/e2e/carrossel.spec.ts confere).
+// vídeo fica). Ordem (2026-10-18): o carrossel abre no 2º card, com um vizinho de cada lado — e o 2º é o pistache de
+// @dailysocass, o primeiro vídeo no centro de quem chega na seção. O do elevador é das mesmas meninas: os dois NUNCA ficam
+// lado a lado, nem na volta do laço (último → primeiro) — posições 2 e 4 de 5, com outro criador entre eles dos dois lados
+// (tests/e2e/carrossel.spec.ts confere).
 // Legendas: .vtt ao lado do vídeo (public/media/video), revisadas a partir de três transcrições automáticas.
 
 export interface VideoCriador {
@@ -24,12 +25,12 @@ export interface VideoCriador {
 export const criadores: { videos: VideoCriador[] } = {
   videos: [
     { id: 'IF-06b', arquivo: 'criador-magall-viciado', poster: 'criadores/criador-magall-viciado.webp', tag: 'viciado', descricao: 'criador falando para a câmera ao lado da caixa da Roll', autor: '@_magall', quando: 'set/2026', formato: 'vertical', audio: true, autorizado: true },
-    { id: 'IV-05', arquivo: 'roll-criadora-larizgomes', poster: 'roll/poster-criadora-larizgomes.webp', tag: 'provou a Roll', descricao: 'criadora provando um cinnamon roll de pistache da Roll', autor: '@larizgomes', quando: 'set/2026', formato: 'vertical', audio: true, autorizado: true },
-    { id: 'IF-02a', arquivo: 'criador-elevador-abrindo', poster: 'criadores/criador-elevador-abrindo.webp', tag: 'taste test', descricao: 'criadora abrindo a caixa de cinnamon rolls no elevador', formato: 'vertical', audio: true, autorizado: true },
     // IF-05a (@dailysocass, pistache) voltou em 2026-10-18 a pedido do responsável, com a legenda e o “@roll.ofc” que a
     // criadora gravou no story; um trecho da fala tem o áudio silenciado (scripts/encode-influenciadores.mjs).
     // IF-06a (@_magall, close da caixa só com música) saiu na mesma rodada.
-    { id: 'IF-05a', arquivo: 'criadora-dailysocass-pistache', poster: 'criadores/criadora-dailysocass-pistache.webp', tag: 'pistache', descricao: 'criadora provando um cinnamon roll de pistache da Roll', autor: '@dailysocass', formato: 'vertical', audio: true, autorizado: true },
+    { id: 'IF-05a', arquivo: 'criadora-dailysocass-pistache', poster: 'criadores/criadora-dailysocass-pistache.webp', tag: 'pistache', descricao: 'criadora em casa comendo um cinnamon roll de pistache da Roll', autor: '@dailysocass', formato: 'vertical', audio: true, autorizado: true },
+    { id: 'IV-05', arquivo: 'roll-criadora-larizgomes', poster: 'roll/poster-criadora-larizgomes.webp', tag: 'provou a Roll', descricao: 'criadora provando um cinnamon roll de pistache da Roll', autor: '@larizgomes', quando: 'set/2026', formato: 'vertical', audio: true, autorizado: true },
+    { id: 'IF-02a', arquivo: 'criador-elevador-abrindo', poster: 'criadores/criador-elevador-abrindo.webp', tag: 'taste test', descricao: 'criadora abrindo a caixa de cinnamon rolls no elevador', formato: 'vertical', audio: true, autorizado: true },
     // horizontal: o vídeo do grupo estava dentro de um story vertical; recortado só na janela do vídeo, sem zoom
     { id: 'IF-04a', arquivo: 'criadores-grupo-expectativa', poster: 'criadores/criadores-grupo-expectativa.webp', tag: 'primeira caixa', descricao: 'quatro amigos abrindo a caixa da Roll numa cozinha', formato: 'horizontal', audio: true, legendaOriginal: ['@roll.ofc', 'a gente tava tão ansioso', 'pra issoooooo 😍😍😍😍'], autorizado: true },
   ],
