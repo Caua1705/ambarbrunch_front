@@ -8,6 +8,7 @@ import MegaTitle from '../components/MegaTitle.astro';
 import Badge from '../components/Badge.astro';
 import Story from '../components/Story.astro';
 import Spiral from '../components/Spiral.astro';
+import Polvilho from '../components/Polvilho.astro';
 import SeloFornada from '../components/SeloFornada.astro';
 import { roll } from '../data/roll';
 import { secoes } from '../data/secoes';
@@ -27,6 +28,7 @@ const inicioUrl = inicioMeta ? (await getImage({ src: inicioMeta, width: 450, fo
 ---
 <section class="roll" id={s.id} aria-labelledby="roll-titulo" tabindex="-1">
   <Spiral class="roll__spiral" />
+  <Polvilho />
 
   <div class="roll__head">
     <MegaTitle linhas={[...s.linhas]} id="roll-titulo" tom="light" scribble={s.sub} />

@@ -101,3 +101,19 @@ O botão grava `localStorage['ambar:motion'] = 'paused'` (com `try/catch`) e apl
 - 60 fps num Android intermediário; nenhuma *long task* acima de 50 ms causada por animação; INP < 200 ms nos chips.
 - Chrome DevTools com CPU 4× mais lenta durante a entrada do hero e a montagem do quadro.
 - Os testes de paridade e de regressão rodam com movimento reduzido, para capturas estáveis.
+
+## 9. Acabamento (2026-10-18)
+
+Texturas e costuras em [`src/styles/acabamento.css`](../../../src/styles/acabamento.css) (camada `acabamento`, entre seções e movimento); movimento em `motion.css`.
+
+| Detalhe | Como | Movimento reduzido |
+| --- | --- | --- |
+| Papel nas superfícies claras | `--paper-fibers` (creme e manteiga) + `--paper-doodles` (folhas de creme: corpo, Saladas & bowls, rodapé) como `background-image` | estático |
+| Costura rasgada | `::after` de 14 px no topo de cada seção, na cor da anterior (`--costura`); só na home | estática |
+| Fio de leitura | `.progresso` fixo no topo, `scaleX` ligado a `scroll(root)` | oculto |
+| Polvilho | 12 grãos de açúcar caindo atrás do título da Fornada (`components/Polvilho.astro`), `data-vivo` | oculto |
+| Scribble se escrevendo | `clip-path` da esquerda para a direita junto com a revelação das linhas | estado final |
+| Faíscas do hero | se apagam e se redesenham a cada `--faisca-period`, depois da entrada | paradas |
+| Espiral do Novo capítulo | gira com a rolagem (`twist`, como a da Roll) | parada |
+| Ponteiro (desktop) | fotos do quadro sobem (`scale` + `--shadow-lift`); setas dos links andam | — |
+| Troca de página | `@view-transition` entre documentos (`src/styles/transicao.css`) | troca direta |

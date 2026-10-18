@@ -1,0 +1,14 @@
+/* Âmbar Brunch — troca de página entre documentos (home ↔ reserva ↔ privacidade), onde o navegador suporta.
+   A página que sai desce um pouco e esmaece; a que entra sobe assentando, como uma folha posta sobre a outra.
+   Movimento reduzido: troca direta. */
+
+@view-transition { navigation: auto; }
+
+::view-transition-old(root) { animation: pagina-sai var(--dur-s) var(--ease-in) both; }
+::view-transition-new(root) { animation: pagina-entra var(--dur-page) var(--ease-sheet) both; }
+@keyframes pagina-sai { to { opacity: 0; transform: translateY(12px) scale(.985); } }
+@keyframes pagina-entra { from { opacity: 0; transform: translateY(28px) rotate(.6deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  @view-transition { navigation: none; }
+}

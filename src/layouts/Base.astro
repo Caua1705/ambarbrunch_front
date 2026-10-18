@@ -59,6 +59,7 @@ const fontes = `
 </head>
 <body>
   <a class="skip-link" href={home ? '#reservar' : '/#reservar'}>Pular para a reserva</a>
+  <div class="progresso" aria-hidden="true"></div>
   <slot />
   <Dock href={home ? '#reservar' : '/#reservar'} />
   <NavSheet base={home ? '' : '/'} />

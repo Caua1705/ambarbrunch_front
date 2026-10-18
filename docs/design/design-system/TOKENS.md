@@ -156,3 +156,5 @@ Pressionar = a sombra deslocada **recolhe** (4 → 2 px): o botão “afunda” 
 | 2026-10-16 | `--wine-deep` | removido | sem uso no v1 |
 | 2026-10-16 | `--mask-scallop-top`, `--scrim`, `--shadow-offset-xs`, escala `--space-*`, `--rhythm-*` | novos | menu, estados de toque, componentes novos |
 | 2026-10-16 | `--wdth-*` → `--stretch-*` | largura variável saiu de `font-variation-settings` e foi para `font-stretch` (mesmo eixo `wdth`); `--wdth-mega` ficou só com `"opsz" 96` | o WebKit não recalcula o avanço dos glifos com `wdth` em `font-variation-settings` (letras encavaladas). Eixos efetivos idênticos ao v1 (teste de fidelidade) |
+| 2026-10-18 | `--paper-fibers`, `--paper-doodles`, `--mask-torn`, `--mask-fade-bottom` | novos | acabamento: papel nas superfícies claras (fibras + rabiscos de padaria), costura rasgada entre seções, esmaecimento do polvilho (`src/styles/acabamento.css`) |
+| 2026-10-18 | `--polvilho-period`, `--faisca-period`, `--faisca-delay`, `--dur-write`, `--dur-page`, `--sem-atraso`, `--z-progresso` | novos | açúcar caindo na Fornada, faíscas do hero redesenhando, scribble se escrevendo, troca de página, fio de leitura |

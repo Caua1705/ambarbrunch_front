@@ -60,6 +60,12 @@
   --destaque-delay: 650ms;   /* …depois que a rolagem até a reserva assenta */
   --stagger-out: 12ms;   /* itens do menu saindo, de baixo para cima */
   --ticker-period: 32s;  /* faixa de categorias */
+  --polvilho-period: 11s;  /* açúcar caindo devagar no topo da Fornada (cada grão multiplica por --k) */
+  --faisca-period: 5.2s;   /* faíscas do hero se redesenhando, depois da entrada */
+  --faisca-delay: 2.4s;
+  --dur-write: 900ms;      /* scribble de título se escrevendo, como caneta */
+  --dur-page: 460ms;       /* troca de página (view transition entre home, reserva e privacidade) */
+  --sem-atraso: 0ms;       /* posição numa lista de atrasos de transição que não espera */
 
   /* Coreografia da entrada do hero (atrasos a partir do primeiro quadro; termina em ~1,34 s).
      Etiqueta encaixa → palavras em sequência → fotos em camadas (fundo → frente) → selo da Roll carimba → CTA com mola. */

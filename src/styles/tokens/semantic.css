@@ -49,6 +49,15 @@
   /* Texturas e máscaras ----------------------------------------------------------------------- */
   --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
   --grain-opacity: .35;
+  /* papel das superfícies claras: fibras finas cor de cacau + manchas largas de tom (como papel de padaria). Opaco já no
+     desenho (sem opacity/blend): entra como background-image, por cima da cor do fundo. */
+  --paper-fibers: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .45 0 0 0 0 .27 0 0 0 0 .12 0 0 0 -1.1 .56'/%3E%3C/filter%3E%3Cfilter id='m'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.012' numOctaves='2' seed='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .79 0 0 0 0 .54 0 0 0 0 .27 0 0 0 .4 -.16'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23m)'/%3E%3Crect width='240' height='240' filter='url(%23f)'/%3E%3C/svg%3E");
+  /* rabiscos de padaria (espiral de roll, grão de café, faísca, croissant, xícara) em caramelo escuro, bem apagados */
+  --paper-doodles: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220' fill='none' stroke='%239A5F25' stroke-opacity='.16' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M42 46a3 3 0 0 1 6 0a6 6 0 0 1-12 0a9 9 0 0 1 18 0a12 12 0 0 1-24 0'/%3E%3Cg transform='translate(160 38) rotate(32)'%3E%3Cellipse rx='7' ry='10'/%3E%3Cpath d='M0-9c-4 6 4 12 0 18'/%3E%3C/g%3E%3Cpath d='M110 104v14M103 111h14M105 106l10 10M115 106l-10 10'/%3E%3Cpath d='M26 168c7-13 25-13 32 0M34 163l3 6M42 159v8M50 162l-3 6'/%3E%3Cpath d='M152 170h20v7a10 10 0 0 1-20 0zM172 172h3a3.5 3.5 0 0 1 0 7h-3M158 163c-2-3 2-5 0-8M166 163c-2-3 2-5 0-8'/%3E%3Cg fill='%239A5F25' fill-opacity='.18' stroke='none'%3E%3Ccircle cx='188' cy='112' r='1.8'/%3E%3Ccircle cx='86' cy='196' r='1.8'/%3E%3Ccircle cx='14' cy='100' r='1.8'/%3E%3Ccircle cx='96' cy='22' r='1.8'/%3E%3C/g%3E%3C/svg%3E");
+  /* esmaece para baixo (polvilho da Fornada) */
+  --mask-fade-bottom: linear-gradient(#000 55%, #0000);
+  /* costura de papel rasgado no topo de uma seção (a borda da folha de cima, na cor dela) */
+  --mask-torn: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='14'%3E%3Cpath d='M0 0H240V7L228 10L215 5L201 11L188 6L173 12L160 7L146 10L131 4L118 9L104 6L90 12L77 7L62 10L49 4L35 9L20 6L8 11L0 7Z'/%3E%3C/svg%3E") 0 0 / 240px 14px repeat-x;
   /* borda recortada (etiqueta do logo): ondas de 20 px na base */
   --mask-scallop:
     linear-gradient(#000 0 0) top / 100% calc(100% - 10px) no-repeat,

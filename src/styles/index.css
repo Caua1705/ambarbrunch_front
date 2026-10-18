@@ -2,7 +2,7 @@
    Camadas de cascata na mesma ordem dos imports: a ordem efetiva não muda, mas fica explícita e protegida contra
    regras fora de lugar. Estilos de páginas internas de documentação entram numa camada própria, depois de todas. */
 
-@layer tokens, base, components, sections, motion, docs;
+@layer tokens, base, components, sections, acabamento, motion, docs;
 
 @import url("tokens.css") layer(tokens);
 @import url("base.css") layer(base);
@@ -44,4 +44,9 @@
 @import url("sections/footer.css") layer(sections);
 @import url("sections/pagina.css") layer(sections);
 
+@import url("acabamento.css") layer(acabamento);
+
 @import url("motion.css") layer(motion);
+
+/* troca de página (view transitions entre documentos): fora das camadas, porque @view-transition é regra do documento */
+@import url("transicao.css");

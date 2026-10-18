@@ -32,6 +32,7 @@
   /* globais */
   --z-strip: 3;     /* faixa inclinada sobre o hero */
   --z-dock: 50;     /* doca (menu + CTA fixo) */
+  --z-progresso: 55; /* fio de leitura no topo: acima da doca, abaixo da folha */
   --z-sheet: 60;    /* folha do menu */
 
   /* Unidade do protótipo ----------------------------------------------------------------------
