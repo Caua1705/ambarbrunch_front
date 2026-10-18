@@ -1,4 +1,4 @@
-// “Quem provou, conta” — vídeos de criadores sobre a Roll (NUNCA apresentados como avaliação do Âmbar Brunch).
+// “Reações reais” (antes “Provou, conta”) — vídeos de criadores sobre a Roll (NUNCA apresentados como avaliação do Âmbar Brunch).
 // Cortes contínuos, falas originais, sem palavrão e sem quadros de outro story (docs/content/INFLUENCIADORES.md).
 // Todos autorizados pelo responsável do projeto em 2026-10-17. O card não mostra @ nem nome (o que o criador gravou no
 // vídeo fica). Ordem pensada para o carrossel abrir no 2º card, com um vizinho de cada lado.

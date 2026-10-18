@@ -27,7 +27,7 @@
    contorno tinta, escolhido = vinho com sombra deslocada, indisponível = riscado. Hoje ganha um ponto caramelo. */
 .cal { max-width: 360px; }
 .cal__head { display: flex; align-items: center; justify-content: space-between; gap: var(--s-8); margin-bottom: var(--s-10); }
-.cal__mes { font: var(--t-kicker); font-size: 20px; color: var(--wine); text-transform: lowercase; }
+.cal__mes { font: var(--t-kicker); font-size: var(--fs-cal-mes); color: var(--wine); text-transform: lowercase; }
 .cal__nav {
   display: grid; place-items: center; width: 40px; height: 40px; padding: 0;
   border: var(--border-control) solid var(--ink); border-radius: var(--radius-round);
@@ -53,7 +53,7 @@
 
 /* Ambiente escolhido em “Escolha seu lugar”: o chip dele pulsa uma vez quando a comanda chega à tela (a rolagem leva
    ~0,6 s; daí o atraso). Movimento reduzido: só a cor de escolhido, sem pulso. */
-[data-destaque] .chip[aria-checked="true"] { animation: chip-destaque 900ms var(--ease-paper) 650ms both; }
+[data-destaque] .chip[aria-checked="true"] { animation: chip-destaque var(--dur-destaque) var(--ease-paper) var(--destaque-delay) both; }
 @keyframes chip-destaque {
   0%, 100% { scale: 1; }
   35% { scale: 1.12; box-shadow: var(--shadow-offset-s), 0 0 0 8px color-mix(in srgb, var(--caramel) 45%, transparent); }

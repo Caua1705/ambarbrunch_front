@@ -1,7 +1,7 @@
-// “Provou, conta” (ajuste de 2026-10-18, referência Zuzzi): palco em laço — o central inteiro e maior, um vizinho cortado
-// em cada borda, sempre; OS TRÊS à vista tocam ao mesmo tempo, mudos; um áudio por vez, só a pedido (e trocar de card
-// nunca liga som); quem sai da vista pausa; fora da tela tudo pausa e o som desliga; pausa manual e movimento reduzido
-// respeitados; cards limpos; vídeos criados só para os três à vista quando a seção chega perto.
+// “Reações reais” (ajuste de 2026-10-18, referência Zuzzi): palco em laço — o central inteiro e maior, um vizinho cortado
+// em cada borda, sempre; OS TRÊS à vista tocam ao mesmo tempo, mudos; depois do 1º toque no som a voz acompanha o
+// card central a cada troca (só ele fala; desligar também vale); fora da tela ou com a aba escondida tudo pausa e cala;
+// pausa manual e movimento reduzido respeitados; cards limpos; vídeos criados só para os três à vista quando a seção chega perto.
 import { test, expect, type Page, type Locator } from '@playwright/test';
 
 type Estado = { i: number; muted: boolean };
@@ -70,7 +70,7 @@ test('cards limpos: sem @, descrição, legenda, CC ou aviso sobrepostos pelo si
   const html = await page.locator('#quem-provou').innerHTML();
   expect(html).not.toMatch(/@[a-z_]/i);
   await expect(page.locator('#quem-provou')).toContainText('Reviews reais de quem provou a Roll.');
-  await expect(page.locator('#quem-provou h2')).toHaveText(/provou,\s*conta/i);
+  await expect(page.locator('#quem-provou h2')).toHaveText(/rea[çc][õo]es\s*reais/i);
 });
 
 test('pontos mostram e escolhem o card central (pelo caminho mais curto do laço)', async ({ page }) => {
@@ -143,47 +143,153 @@ test.describe('com movimento', () => {
     await composicao(page, 1);
   });
 
-  test('áudio: um só por vez — ligar outro cala o anterior na hora; trocar de card não liga som sozinho', async ({ page }) => {
+  // áudio: índices dos vídeos tocando com voz (muted false)
+  const comVoz = async (page: Page) => (await tocando(page)).filter((v) => !v.muted).map((v) => v.i);
+  // amostra a cada quadro quantos vídeos estão audíveis (tocando e sem mudo), durante todo o teste
+  const vigiarAudio = (page: Page) => page.evaluate(() => {
+    const w = window as unknown as { maxAudiveis: number };
+    w.maxAudiveis = 0;
+    const amostra = () => { const k = [...document.querySelectorAll<HTMLVideoElement>('[data-trilho] video')].filter((v) => !v.paused && !v.muted).length; w.maxAudiveis = Math.max(w.maxAudiveis, k); requestAnimationFrame(amostra); };
+    amostra();
+  });
+  const maxAudiveis = (page: Page) => page.evaluate(() => (window as unknown as { maxAudiveis: number }).maxAudiveis);
+  const semMudo = (page: Page) => page.$$eval('[data-trilho] video', (vs) => vs.filter((v) => !(v as HTMLVideoElement).muted).length);
+
+  test('áudio: começa mudo; o 1º toque liga a voz e ela passa SOZINHA ao novo central a cada troca — inclusive na volta do laço', async ({ page }) => {
     await irAoCarrossel(page);
     await expect.poll(() => tocando(page), { timeout: 10000 }).toEqual(mudos(0, 1, 2));
-    // amostra a cada quadro quantos vídeos estão audíveis, durante todo o teste
-    await page.evaluate(() => {
-      const w = window as unknown as { maxAudiveis: number };
-      w.maxAudiveis = 0;
-      const amostra = () => { const k = [...document.querySelectorAll<HTMLVideoElement>('[data-trilho] video')].filter((v) => !v.paused && !v.muted).length; w.maxAudiveis = Math.max(w.maxAudiveis, k); requestAnimationFrame(amostra); };
-      amostra();
-    });
+    await vigiarAudio(page);
     await tocar(page, card(page, 1).locator('[data-som]'));
     await expect(card(page, 1).locator('[data-som]')).toHaveAttribute('aria-pressed', 'true');
     await expect.poll(() => tocando(page)).toEqual([{ i: 0, muted: true }, { i: 1, muted: false }, { i: 2, muted: true }]);
-    // som do vizinho da direita: ele vem para o centro com a voz, e o anterior se cala imediatamente
-    await tocar(page, card(page, 2).locator('[data-som]'));
-    expect(await card(page, 1).locator('video').evaluate((v: HTMLVideoElement) => v.muted), 'anterior calado no mesmo toque').toBe(true);
-    await expect.poll(() => ativo(page)).toBe(2);
-    await expect.poll(() => tocando(page), { timeout: 8000 }).toEqual([{ i: 1, muted: true }, { i: 2, muted: false }, { i: 3, muted: true }]);
-    await expect(card(page, 1).locator('[data-som]')).toHaveAttribute('aria-pressed', 'false');
-    // swipe: o novo central chega mudo, e a voz que estava ligada se cala
+    // swipe para o próximo: o anterior se cala e o novo central assume a voz, sem novo toque
     await arrastar(page, -170);
-    expect(await ativo(page)).toBe(3);
-    await expect.poll(() => tocando(page), { timeout: 8000 }).toEqual(mudos(2, 3, 4));
-    // ligar e desligar no central
-    await tocar(page, card(page, 3).locator('[data-som]'));
-    await expect.poll(() => tocando(page)).toEqual([{ i: 2, muted: true }, { i: 3, muted: false }, { i: 4, muted: true }]);
-    await tocar(page, card(page, 3).locator('[data-som]'));
-    await expect.poll(() => tocando(page)).toEqual(mudos(2, 3, 4));
-    expect(await page.evaluate(() => (window as unknown as { maxAudiveis: number }).maxAudiveis), 'nunca dois audíveis').toBe(1);
+    expect(await ativo(page)).toBe(2);
+    await expect.poll(() => tocando(page), { timeout: 8000 }).toEqual([{ i: 1, muted: true }, { i: 2, muted: false }, { i: 3, muted: true }]);
+    await expect(card(page, 2).locator('[data-som]')).toHaveAttribute('aria-pressed', 'true');
+    // de volta ao anterior
+    await arrastar(page, 170);
+    await expect.poll(() => comVoz(page), { timeout: 8000 }).toEqual([1]);
+    // laço: do primeiro para o último e do último para o primeiro, mesma regra
+    await arrastar(page, 170);
+    expect(await ativo(page)).toBe(0);
+    await expect.poll(() => comVoz(page), { timeout: 8000 }).toEqual([0]);
+    await arrastar(page, 170);
+    expect(await ativo(page)).toBe(4);
+    await expect.poll(() => tocando(page), { timeout: 8000 }).toEqual([{ i: 0, muted: true }, { i: 3, muted: true }, { i: 4, muted: false }]);
+    await arrastar(page, -170);
+    expect(await ativo(page)).toBe(0);
+    await expect.poll(() => comVoz(page), { timeout: 8000 }).toEqual([0]);
+    // pelos pontos também
+    await page.locator('[data-ponto]').nth(3).click();
+    await expect.poll(() => comVoz(page), { timeout: 8000 }).toEqual([3]);
+    expect(await maxAudiveis(page), 'nunca dois audíveis').toBe(1);
   });
 
-  test('fora da tela: tudo pausa e o som desliga; de volta, os três tocam mudos', async ({ page }) => {
+  test('com voz ligada, os três seguem em movimento — inclusive quando um vizinho volta ao início do laço', async ({ page }) => {
     await irAoCarrossel(page);
     await expect.poll(() => tocando(page), { timeout: 10000 }).toEqual(mudos(0, 1, 2));
     await tocar(page, card(page, 1).locator('[data-som]'));
-    await expect.poll(async () => (await tocando(page)).filter((v) => !v.muted).map((v) => v.i)).toEqual([1]);
-    await page.evaluate(() => scrollTo({ top: 0, behavior: 'instant' }));
-    await expect.poll(() => tocando(page)).toEqual([]);
-    await expect(card(page, 1).locator('[data-som]')).toHaveAttribute('aria-pressed', 'false');
+    await expect.poll(() => comVoz(page)).toEqual([1]);
+    // por 6 s (o vizinho da esquerda tem 4,3 s e dá a volta): maior trecho contínuo com algum vídeo à vista parado
+    const parado = await page.evaluate(() => new Promise<number>((ok) => {
+      const vs = [...document.querySelectorAll<HTMLVideoElement>('[data-trilho] video')];
+      let desde = 0; let pior = 0; const t0 = performance.now();
+      const f = (t: number) => {
+        const algum = vs.some((v) => v.paused);
+        if (algum && !desde) desde = t; else if (!algum && desde) { pior = Math.max(pior, t - desde); desde = 0; }
+        if (t - t0 < 6000) requestAnimationFrame(f); else ok(desde ? Math.max(pior, t - desde) : pior);
+      };
+      requestAnimationFrame(f);
+    }));
+    expect(parado, 'ms com um vídeo à vista parado').toBeLessThan(300);
+    expect(await comVoz(page)).toEqual([1]);
+  });
+
+  test('áudio: desligar também é preferência — as próximas trocas seguem mudas até ligar de novo', async ({ page }) => {
     await irAoCarrossel(page);
+    await expect.poll(() => tocando(page), { timeout: 10000 }).toEqual(mudos(0, 1, 2));
+    await vigiarAudio(page);
+    await tocar(page, card(page, 1).locator('[data-som]'));
+    await expect.poll(() => comVoz(page)).toEqual([1]);
+    await tocar(page, card(page, 1).locator('[data-som]'));
+    expect(await card(page, 1).locator('video').evaluate((v: HTMLVideoElement) => v.muted), 'cala na hora').toBe(true);
+    await expect(card(page, 1).locator('[data-som]')).toHaveAttribute('aria-pressed', 'false');
+    await arrastar(page, -170);
+    await expect.poll(() => tocando(page), { timeout: 8000 }).toEqual(mudos(1, 2, 3));
+    await arrastar(page, -170);
+    await expect.poll(() => tocando(page), { timeout: 8000 }).toEqual(mudos(2, 3, 4));
+    await tocar(page, card(page, 3).locator('[data-som]'));
+    await expect.poll(() => comVoz(page)).toEqual([3]);
+    expect(await maxAudiveis(page)).toBe(1);
+  });
+
+  test('áudio: som num vizinho traz o card para o centro já com a voz; o anterior se cala no mesmo toque', async ({ page }) => {
+    await irAoCarrossel(page);
+    await expect.poll(() => tocando(page), { timeout: 10000 }).toEqual(mudos(0, 1, 2));
+    await vigiarAudio(page);
+    await tocar(page, card(page, 1).locator('[data-som]'));
+    await expect.poll(() => comVoz(page)).toEqual([1]);
+    await tocar(page, card(page, 2).locator('[data-som]'));
+    expect(await card(page, 1).locator('video').evaluate((v: HTMLVideoElement) => v.muted)).toBe(true);
+    await expect.poll(() => ativo(page)).toBe(2);
+    await expect.poll(() => comVoz(page), { timeout: 8000 }).toEqual([2]);
+    expect(await maxAudiveis(page)).toBe(1);
+  });
+
+  test('saída da seção: a voz para na hora e tudo pausa (ambientes, reserva, rodapé); na volta, o central retoma a voz', async ({ page }) => {
+    await irAoCarrossel(page);
+    await expect.poll(() => tocando(page), { timeout: 10000 }).toEqual(mudos(0, 1, 2));
+    await tocar(page, card(page, 1).locator('[data-som]'));
+    await expect.poll(() => comVoz(page)).toEqual([1]);
+    for (const sel of ['#ambientes', '#reservar', 'footer.footer']) {
+      await page.locator(sel).evaluate((el) => scrollTo({ top: el.getBoundingClientRect().top + scrollY, behavior: 'instant' }));
+      await expect.poll(() => tocando(page), { message: sel }).toEqual([]);
+      expect(await semMudo(page), `${sel}: nenhum vídeo com voz`).toBe(0);
+    }
+    await irAoCarrossel(page);
+    await expect.poll(async () => (await tocando(page)).map((v) => v.i), { timeout: 8000 }).toEqual([0, 1, 2]);
+    // o navegador pode recusar voz sem um toque: aí o central segue mudo e o botão fica pronto para retomar
+    await page.waitForTimeout(400);
+    const voz = await comVoz(page);
+    if (voz.length) expect(voz).toEqual([1]);
+    else {
+      await expect(card(page, 1).locator('[data-som]')).toHaveAttribute('aria-pressed', 'false');
+      await tocar(page, card(page, 1).locator('[data-som]'));
+      await expect.poll(() => comVoz(page)).toEqual([1]);
+    }
+  });
+
+  test('borda da seção: pequenos movimentos não ligam e desligam (histerese)', async ({ page }) => {
+    const mostrar = (fracao: number) => page.locator('[data-trilho]').evaluate((el, f) => { const r = el.getBoundingClientRect(); scrollTo({ top: r.top + scrollY - innerHeight + r.height * f, behavior: 'instant' }); }, fracao);
+    await mostrar(1);
+    await expect.poll(() => tocando(page), { timeout: 10000 }).toEqual(mudos(0, 1, 2));
+    for (const f of [0.42, 0.36, 0.45, 0.38]) { await mostrar(f); await page.waitForTimeout(250); expect((await tocando(page)).length, `${f} visível: segue tocando`).toBe(3); }
+    await mostrar(0.15);
+    await expect.poll(() => tocando(page)).toEqual([]);
+    for (const f of [0.38, 0.42, 0.36]) { await mostrar(f); await page.waitForTimeout(250); expect(await tocando(page), `${f} visível: segue parado`).toEqual([]); }
+    await mostrar(0.7);
     await expect.poll(() => tocando(page), { timeout: 8000 }).toEqual(mudos(0, 1, 2));
+  });
+
+  test('aba escondida: tudo pausa e cala; de volta à aba, retoma', async ({ page }) => {
+    await irAoCarrossel(page);
+    await expect.poll(() => tocando(page), { timeout: 10000 }).toEqual(mudos(0, 1, 2));
+    await tocar(page, card(page, 1).locator('[data-som]'));
+    await expect.poll(() => comVoz(page)).toEqual([1]);
+    const aba = (oculta: boolean) => page.evaluate((h) => {
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => h });
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => (h ? 'hidden' : 'visible') });
+      document.dispatchEvent(new Event('visibilitychange'));
+    }, oculta);
+    await aba(true);
+    await expect.poll(() => tocando(page)).toEqual([]);
+    expect(await semMudo(page)).toBe(0);
+    await aba(false);
+    await expect.poll(async () => (await tocando(page)).map((v) => v.i), { timeout: 8000 }).toEqual([0, 1, 2]);
+    await page.waitForTimeout(400);
+    const voz = await comVoz(page);
+    expect(voz.length === 0 || (voz.length === 1 && voz[0] === 1)).toBe(true);
   });
 
   test('pausa manual do central é respeitada (os vizinhos seguem), inclusive fora e de volta à tela', async ({ page }) => {

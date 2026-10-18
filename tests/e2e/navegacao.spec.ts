@@ -88,6 +88,44 @@ test('menu: abre pelo selo do hero, prende o foco, fecha com Esc e devolve o foc
   expect(await page.evaluate(() => document.activeElement?.classList.contains('menu-btn--hero'))).toBe(true);
 });
 
+test.describe('entrada do menu sem salto', () => {
+  test.use({ reducedMotion: 'no-preference' });
+  for (const w of [360, 390, 430]) {
+    for (const onde of ['topo', 'rolado'] as const) {
+      test(`${w} px, ${onde}: a folha sobe direto ao lugar — sem passar do ponto, sem vão na base, página parada (3 aberturas)`, async ({ page }) => {
+        await page.setViewportSize({ width: w, height: 800 });
+        await page.goto('/');
+        await page.waitForTimeout(2600);
+        if (onde === 'rolado') { await rolarAte(page, '#saladas', 0); await expect.poll(() => visivel(page, '.menu-btn--fixo')).toBe(true); }
+        const botao = page.locator(onde === 'topo' ? '.menu-btn--hero' : '.menu-btn--fixo');
+        for (let vez = 0; vez < 3; vez++) {
+          await page.waitForTimeout(600);   // o selo fixo termina de voltar
+          // registra a folha a cada quadro da abertura
+          await page.evaluate(() => {
+            const s = document.querySelector<HTMLDialogElement>('dialog#menu')!; const y0 = scrollY; const t0 = performance.now();
+            const w = window as unknown as { quadros: { vao: number; top: number; dy: number }[]; pronto: boolean; aberto: number }; w.quadros = []; w.pronto = false; w.aberto = 0;
+            // amostra da 1ª pintura aberta até 700 ms depois (a entrada dura 420 ms)
+            const f = (t: number) => { if (s.open) { if (!w.aberto) w.aberto = t; const r = s.getBoundingClientRect(); w.quadros.push({ vao: innerHeight - r.bottom, top: r.top, dy: scrollY - y0 }); } if ((w.aberto && t - w.aberto > 700) || t - t0 > 6000) w.pronto = true; else requestAnimationFrame(f); };
+            requestAnimationFrame(f);
+          });
+          await botao.click();
+          await expect.poll(() => page.evaluate(() => (window as unknown as { pronto: boolean }).pronto), { timeout: 7000 }).toBe(true);
+          const q = await page.evaluate(() => (window as unknown as { quadros: { vao: number; top: number; dy: number }[] }).quadros);
+          expect(q.length, 'quadros da abertura').toBeGreaterThan(5);
+          const final = q.at(-1)!.top;
+          expect(Math.max(...q.map((x) => x.vao)), 'vão na base').toBeLessThanOrEqual(0.5);
+          expect(Math.min(...q.map((x) => x.top)), 'nunca acima do lugar final').toBeGreaterThanOrEqual(final - 0.5);
+          for (let k = 1; k < q.length; k++) expect(q[k].top, 'só sobe').toBeLessThanOrEqual(q[k - 1].top + 0.5);
+          expect(Math.max(...q.map((x) => Math.abs(x.dy))), 'página atrás parada').toBe(0);
+          await page.keyboard.press('Escape');
+          await expect(page.locator('dialog#menu')).toBeHidden();
+          if (onde === 'rolado') await expect.poll(() => visivel(page, '.menu-btn--fixo')).toBe(true);
+        }
+      });
+    }
+  }
+});
+
 test.describe('saída animada do menu', () => {
   test.use({ reducedMotion: 'no-preference' });
   for (const [modo, fechar] of [

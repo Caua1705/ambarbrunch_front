@@ -1,4 +1,4 @@
-// Capturas dos estados do carrossel “Quem provou, conta” e da anatomia do roll (movimento normal).
+// Capturas dos estados do carrossel “Reações reais” e da anatomia do roll (movimento normal).
 //   node scripts/shots-carrossel.mjs [--base http://127.0.0.1:4321] [--sizes 390x844] [--out reports/shots-carrossel]
 import fs from 'node:fs';
 import path from 'node:path';

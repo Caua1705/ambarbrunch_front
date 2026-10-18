@@ -9,7 +9,8 @@ export const secoes = {
   // a dupla parecia desalinhada)
   cafeRoll: { id: 'cafe-roll', linhas: ['Café', '+ Roll'], direita: [], sub: 'combinações que fazem sentido do primeiro gole à primeira mordida' },
   saladas: { id: 'saladas', linhas: ['Saladas', '& bowls'], sub: 'leve, fresco e cheio de cor' },
-  provou: { id: 'quem-provou', linhas: ['Provou,', 'conta'], sub: 'Reviews reais de quem provou a Roll.' },
+  // título definitivo (2026-10-18): REAÇÕES REAIS — o id da âncora continua #quem-provou (links e testes)
+  provou: { id: 'quem-provou', linhas: ['Reações', 'reais'], sub: 'Reviews reais de quem provou a Roll.' },
   lugar: { id: 'ambientes', linhas: ['Escolha', 'seu lugar'], sub: 'cada canto, um clima' },
   reserva: { id: 'reservar', linhas: ['Reserve', 'sua mesa'], sub: 'Seu próximo encontro começa aqui.' },
   visite: { id: 'visite', linhas: ['Visite', 'o Âmbar'], sub: 'a mesa tá posta' },

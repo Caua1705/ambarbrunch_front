@@ -1,21 +1,29 @@
 // @ts-check
-// Âmbar Brunch — carrossel “Provou, conta” (ajuste de 2026-10-18, referência Zuzzi): palco em laço, três vídeos à vista.
+// Âmbar Brunch — carrossel “Reações reais” (referência Zuzzi): palco em laço, três vídeos à vista.
 // - lugar de cada card em relação ao central: 0 central (inteiro, maior), ±1 vizinhos (cortados pelas bordas da tela),
 //   ±2 fora da tela (invisíveis e inert). Em laço: sempre há um vizinho de cada lado, sem ponta vazia. Os lugares de
 //   repouso são CSS (data-pos, já no HTML); o JS só move os cards durante o arraste (--x/--s/--o) e troca data-pos ao soltar;
 // - OS TRÊS À VISTA TOCAM AO MESMO TEMPO, mudos, cada um repetindo o próprio corte (máx. 40 s); quem sai da vista pausa;
-// - UM ÁUDIO POR VEZ: o botão de som liga a voz daquele vídeo e silencia na hora a que estava falando; num vizinho, o
-//   mesmo toque o traz para o centro. Trocar de card nunca liga som sozinho (e cala a voz que estava ligada);
+// - ÁUDIO (ajuste de 2026-10-18): a voz é sempre a do CENTRAL — os vizinhos ficam sempre mudos. Tudo começa mudo; o
+//   1º toque no som registra a preferência DA VISITA (`somLigado`, vale para o carrossel, não para um vídeo): a partir
+//   daí, cada card que encaixa no centro assume a voz sozinho (inclusive na volta do laço) e o anterior se cala na hora.
+//   A troca acontece quando o card vira o central (ao soltar o arraste, no ponto ou na seta), nunca no meio do arraste.
+//   Desligar o som também é preferência: as próximas trocas seguem mudas até o visitante ligar de novo;
+// - saída da seção (com histerese: entra com 50% do palco na tela, sai abaixo de 30% — sem liga/desliga na borda) ou aba
+//   escondida: tudo pausa e a voz para na hora; a preferência continua. De volta, os três tocam e o central retoma a voz
+//   se o navegador deixar; se ele recusar som sem um toque, o vídeo segue mudo e o botão fica pronto para retomar;
 // - toque no central: pausa/retoma (pausa respeitada até novo toque); toque num vizinho: ele vem para o centro;
-// - seção fora da tela (ou aba escondida): tudo pausa e o som desliga; de volta, os três tocam mudos de novo;
+//   botão de som num vizinho: ele vem para o centro já com a voz;
 // - movimento reduzido: nada toca sozinho; o toque no central toca/pausa só ele; a troca de card não anima;
 // - navegação: arraste (dedo ou mouse, com impulso), pontos abaixo do palco e setas do teclado;
 // - desempenho: cada card começa só com a capa (img lazy). Quando a seção chega perto (~1 tela antes), só os três à vista
-//   ganham o <video> (do <template>, preload=metadata); o MP4 baixa ao tocar. Os de fora da vista não criam vídeo.
+//   ganham o <video> (do <template>, preload=metadata); o MP4 baixa ao tocar. Cada card cria o seu <video> uma vez só e
+//   o reaproveita nas voltas do laço (no máximo um por card, nada recriado).
 import { motionAllowed } from './motion.js';
 
 const LIMITE_S = 40;     // corte máximo por vídeo (todos os cortes já cabem; guarda para um arquivo novo mais longo)
-const VISIVEL = 0.5;     // fração do palco na tela para os vídeos tocarem sozinhos
+const ENTRA = 0.5;       // fração do palco na tela para os vídeos tocarem…
+const SAI = 0.3;         // …e abaixo da qual tudo para (histerese)
 
 /** @param {HTMLElement} root */
 export function initCarrossel(root) {
@@ -29,7 +37,8 @@ export function initCarrossel(root) {
   const videos = cards.map(() => null);
 
   let atual = Math.min(n - 1, Number(trilho.dataset.inicial) || 0);
-  let som = -1;                 // card com a voz ligada (no máximo um)
+  let somLigado = false;        // preferência da visita: o visitante ligou o som (vale para todo card que vier ao centro)
+  let bloqueado = false;        // o navegador recusou som sem um toque: segue mudo até o próximo toque no botão
   let visivel = false;          // palco na tela
   let pausado = -1;             // card pausado pelo visitante
   let pedido = -1;              // card que o visitante mandou tocar (vale mesmo com movimento reduzido)
@@ -38,23 +47,35 @@ export function initCarrossel(root) {
   const lugar = (i, c = atual) => { const d = (((i - c) % n) + n) % n; return d > n / 2 ? d - n : d; };
   /** @param {number} i */
   const aVista = (i) => Math.abs(lugar(i)) <= 1;
+  const ativa = () => visivel && !document.hidden;
+  /** o único card que pode ter voz agora (ou −1) */
+  const audivel = () => (somLigado && !bloqueado && ativa() ? atual : -1);
 
   /** @param {number} i @param {boolean} tocando */
   const estado = (i, tocando) => {
     cards[i].dataset.state = tocando ? 'playing' : 'paused';
     cards[i].querySelector('.story__toggle')?.setAttribute('aria-pressed', String(tocando));
   };
-  // a voz: só o card `som` fica audível; todos os outros, mudos — na hora
+  // a voz: só o central, e só com a preferência ligada; todos os outros, mudos — na hora
   const aplicarSom = () => {
-    videos.forEach((v, i) => { if (v) v.muted = i !== som; });
+    const a = audivel();
+    videos.forEach((v, i) => { if (v) v.muted = i !== a; });
     cards.forEach((c, i) => {
-      const ligado = i === som;
+      const ligado = i === atual && somLigado && !bloqueado;
       c.toggleAttribute('data-som-ligado', ligado);
       const b = c.querySelector('[data-som]');
       if (!b) return;
       b.setAttribute('aria-pressed', String(ligado));
       b.setAttribute('aria-label', `${ligado ? 'Desativar' : 'Ativar'} o som do vídeo ${b.getAttribute('data-nome') ?? ''}`);
     });
+  };
+  // o navegador não deixou tocar com voz sem um toque (comum na volta à seção): segue mudo, botão pronto para retomar
+  /** @param {HTMLVideoElement} v @param {number} i */
+  const recusouSom = (v, i) => {
+    bloqueado = true;
+    aplicarSom();
+    v.muted = true;
+    if (deveTocar(i)) v.play().then(() => estado(i, true)).catch(() => estado(i, false));
   };
 
   /** Cria (uma vez) o <video> do card a partir do <template>, sobre a capa. @param {number} i */
@@ -64,41 +85,51 @@ export function initCarrossel(root) {
     const tpl = /** @type {HTMLTemplateElement | null} */ (cards[i].querySelector('template[data-video]'));
     const v = /** @type {HTMLVideoElement | null} */ (tpl?.content.firstElementChild?.cloneNode(true) ?? null);
     if (!tpl || !v) return null;
-    v.muted = i !== som;
+    v.muted = i !== audivel();
     tpl.replaceWith(v);
     videos[i] = v;
     v.addEventListener('timeupdate', () => { if (v.currentTime >= LIMITE_S) v.currentTime = 0; });
+    // Pausa que não veio daqui (nossas pausas acontecem só quando o card não deve tocar): o WebKit pausa um vídeo mudo
+    // que volta ao início do laço enquanto outro tem voz, e o Safari pausa um vídeo que ganha voz fora de um toque.
+    // Retoma na hora (no máximo uma vez a cada meio segundo, sem disputar com o navegador); se a voz for recusada,
+    // segue mudo e o botão fica pronto para retomar.
+    let retomada = 0;
+    v.addEventListener('pause', () => {
+      if (!deveTocar(i)) return;
+      const agora = performance.now();
+      if (agora - retomada < 500) { estado(i, false); return; }
+      retomada = agora;
+      v.play().then(() => estado(i, true)).catch(() => { if (!v.muted) recusouSom(v, i); else estado(i, false); });
+    });
     return v;
   };
 
-  const ativa = () => visivel && !document.hidden;
   /** @param {number} i */
   const deveTocar = (i) => ativa() && aVista(i) && pausado !== i && (motionAllowed() || pedido === i);
 
   /** @param {number} i */
-  const parar = (i) => { const v = videos[i]; if (v && !v.paused) v.pause(); estado(i, false); };
+  const parar = (i) => { const v = videos[i]; if (v) { v.muted = true; if (!v.paused) v.pause(); } estado(i, false); };
   /** @param {number} i */
   const tocar = (i) => {
     const v = video(i);
     if (!v) return;
-    v.muted = i !== som;
+    v.muted = i !== audivel();
     if (v.preload !== 'auto') v.preload = 'auto';
     v.play().then(() => estado(i, !v.paused)).catch((e) => {
       // play() interrompido por um pause() (o card saiu da vista ou a seção saiu da tela): não insiste
       if (e?.name === 'AbortError' || !deveTocar(i)) { estado(i, false); return; }
-      // som recusado fora de um gesto: toca mudo, e o botão volta ao estado mudo
-      if (!v.muted) { som = -1; aplicarSom(); v.play().then(() => estado(i, true)).catch(() => estado(i, false)); }
-      else estado(i, false);
+      if (!v.muted) recusouSom(v, i); else estado(i, false);
     });
   };
 
-  /** Os três à vista tocam (mudos, menos o do som); os de fora pausam; fora da tela, tudo pausa e a voz desliga. */
+  /** Os três à vista tocam (só o central com voz, se a preferência estiver ligada); os de fora pausam; fora da tela ou com
+   *  a aba escondida, tudo pausa e fica mudo. */
   const decidir = () => {
-    if (!ativa() && som >= 0) { som = -1; aplicarSom(); }
+    aplicarSom();
     cards.forEach((_, i) => {
       if (!deveTocar(i)) { parar(i); return; }
       const v = videos[i];
-      if (!v || v.paused) tocar(i); else v.muted = i !== som;
+      if (!v || v.paused) tocar(i);
     });
   };
 
@@ -113,7 +144,8 @@ export function initCarrossel(root) {
     });
     pontos.forEach((p, i) => p.setAttribute('aria-current', i === atual ? 'true' : 'false'));
   };
-  /** traz o card k para o centro (pelo caminho mais curto do laço) @param {number} k */
+  /** traz o card k para o centro (pelo caminho mais curto do laço); a voz passa junto, se a preferência estiver ligada
+   *  @param {number} k */
   const posicionar = (k) => {
     const novo = ((k % n) + n) % n;
     if (novo === atual) { limparArraste(); return; }
@@ -126,14 +158,12 @@ export function initCarrossel(root) {
     if (saltam.length) void trilho.offsetWidth;   // aplica o salto antes de liberar a transição
     saltam.forEach((c) => c.removeAttribute('data-salto'));
     atual = novo;
-    // trocar de card nunca carrega a voz: o novo central começa mudo e quem falava se cala
-    if (som >= 0 && som !== atual) som = -1;
+    bloqueado = false;            // o toque/arraste que trouxe o card é um gesto: tenta a voz de novo
     if (pausado !== atual) pausado = -1;
     if (pedido !== atual) pedido = -1;
     limparArraste();
     marcar();
-    aplicarSom();
-    decidir();
+    decidir();                    // cala o anterior e dá a voz ao novo central no mesmo quadro
   };
 
   // Arraste -----------------------------------------------------------------------------------------------------------
@@ -208,28 +238,36 @@ export function initCarrossel(root) {
   });
 
   cards.forEach((c, i) => {
-    // Toque no card: no central, toca/pausa; num vizinho, ele vem para o centro (e segue tocando mudo).
+    // Toque no card: no central, toca/pausa; num vizinho, ele vem para o centro.
     c.querySelector('.story__toggle')?.addEventListener('click', () => {
       if (i !== atual) { posicionar(i); return; }
       const v = videos[i];
       if (v && !v.paused) { pausado = i; pedido = -1; parar(i); return; }
       pausado = -1; pedido = i;
+      bloqueado = false;
       tocar(i);   // ainda dentro do gesto (Safari)
     });
-    // Som: liga a voz DESTE vídeo e cala a anterior na hora; tocar de novo desliga. Num vizinho, ele vem para o centro.
-    // O play()/unmute roda dentro do gesto do visitante (regra dos navegadores).
+    // Som: no central, liga/desliga a PREFERÊNCIA (vale para os próximos cards); num vizinho, ele vem para o centro já com
+    // a voz. O play()/unmute roda dentro do gesto do visitante (regra dos navegadores).
     c.querySelector('[data-som]')?.addEventListener('click', () => {
-      if (i !== atual) posicionar(i);
-      som = som === i ? -1 : i;
+      const vizinho = i !== atual;
+      somLigado = vizinho ? true : !(somLigado && !bloqueado);
+      bloqueado = false;
       pausado = -1; pedido = i;
-      aplicarSom();
+      if (vizinho) posicionar(i); else decidir();
       const v = video(i);
-      if (v && som === i && v.paused) tocar(i);
+      if (v && somLigado && v.paused) tocar(i);
     });
   });
 
   if ('IntersectionObserver' in window) {
-    new IntersectionObserver(([e]) => { visivel = e.isIntersecting && e.intersectionRatio >= VISIVEL; decidir(); }, { threshold: [0, VISIVEL, 1] }).observe(trilho);
+    new IntersectionObserver(([e]) => {
+      const r = e.isIntersecting ? e.intersectionRatio : 0;
+      const antes = visivel;
+      if (!visivel && r >= ENTRA) visivel = true;
+      else if (visivel && r < SAI) visivel = false;
+      if (visivel !== antes) { if (visivel) bloqueado = false; decidir(); }
+    }, { threshold: [0, 0.1, 0.2, SAI, 0.4, ENTRA, 0.75, 1] }).observe(trilho);
     // perto da tela (~1 tela antes): só os três à vista ganham o <video> (metadados), para o 1º quadro chegar logo
     const perto = new IntersectionObserver((es) => {
       if (!es.some((e) => e.isIntersecting)) return;
@@ -241,7 +279,8 @@ export function initCarrossel(root) {
   } else {
     visivel = true;
   }
-  document.addEventListener('visibilitychange', decidir);
+  // aba escondida: para tudo e cala na hora; de volta, retoma (a voz, se o navegador deixar)
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) bloqueado = false; decidir(); });
   window.addEventListener('ambar:motion', decidir);
   marcar();
 }

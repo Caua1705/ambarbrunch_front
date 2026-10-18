@@ -109,9 +109,14 @@ para `src/assets/media/criadores/<arquivo>.webp`. IF-06a e IF-06b não tinham co
 - Um arquivo por corte: o player começa **mudo** (`muted`) e o mesmo arquivo toca com som quando o visitante pede.
 - Comportamento no site (ajuste de 2026-10-18, referência Zuzzi; `lib/carrossel.js`, `tests/e2e/carrossel.spec.ts`): palco em laço
   com o central inteiro e um vizinho cortado em cada borda, sempre; **os três à vista tocam ao mesmo tempo, mudos** (cada um
-  repetindo o próprio corte); **um áudio por vez**: “ativar som” liga a voz daquele vídeo e cala a anterior na hora (num
-  vizinho, o mesmo toque o traz para o centro); trocar de card nunca liga som e cala a voz que estava ligada; quem sai da vista
-  pausa; fora da tela tudo pausa e fica mudo. Vídeos só são criados para os três à vista, quando a seção chega perto.
+  repetindo o próprio corte); **um áudio por vez, sempre o do central** (os vizinhos ficam mudos). Tudo começa mudo; o 1º
+  toque no som registra a preferência da visita (em memória, não entre sessões): a partir daí cada card que encaixa no
+  centro assume a voz sozinho — ao soltar o arraste, no ponto ou na seta, inclusive na volta do laço — e o anterior se cala
+  no mesmo instante; desligar também é preferência (as trocas seguem mudas). Saída da seção (histerese: entra com 50% do
+  palco na tela, sai abaixo de 30%) ou aba escondida: tudo pausa e a voz para; de volta, o central retoma a voz se o
+  navegador deixar — se ele recusar som sem um toque, segue mudo com o botão pronto. No WebKit, um vídeo mudo que volta ao
+  início do laço enquanto outro fala é pausado pelo navegador: o carrossel o retoma na hora (teste dedicado).
+  Vídeos só são criados para os três à vista, quando a seção chega perto; cada card reaproveita o seu nas voltas do laço.
   Medido (Chromium, CPU 4× mais lenta, 390 px, rolando sobre a seção): 57 fps com 3 vídeos × 59 com 1 × 60 sem vídeo; os três
   decodificam a 30 fps sem quadro perdido. Vídeos da Roll nunca ganham botão de som.
 - Diferente dos vídeos da Roll (música de biblioteca do Instagram, publicados sem faixa de áudio), aqui o áudio é **a voz do criador**

@@ -52,6 +52,7 @@
   --fs-fine: 12.5px;
   --fs-micro: 12px;       /* mínimo para texto informativo */
   --fs-pair: 14px;        /* nome da bebida nos botões de dupla (Café + Roll) */
+  --fs-cal-mes: 20px;     /* nome do mês no calendário da comanda */
   --fs-tagline-s: 22px;   /* tagline menor (polaroide da sala privativa) */
   --fs-menu-fluid: clamp(32px, 10.5vw, 44px);   /* itens da folha do menu: “Saladas & bowls” cabe em 360 px */
   --fs-frase: clamp(28px, 8vw, 44px);           /* frase manuscrita em destaque (“Os sabores mudam…”) */

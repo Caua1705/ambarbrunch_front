@@ -87,7 +87,18 @@
 
 /* abertura dos vídeos do processo: espiral da Roll + fio pontilhado + contagem (no lugar de um rótulo escrito) */
 .roll__fita { display: flex; align-items: center; gap: var(--s-12); margin: var(--s-44) var(--gutter) 0; color: var(--caramel-lt); }
-.roll__fita::after { content: ""; flex: 1; height: 0; border-top: var(--border-control) dashed currentColor; opacity: .55; }
+/* Trilha pontilhada (o traçado de sempre) + fio de caramelo por cima: o progresso horizontal do carrossel de vídeos
+   (lib/fita.js escreve --p de 0 a 1). Começa marcando o 1º de N vídeos e enche no último. Só transform (composto): o fio
+   inteiro desliza dentro da trilha, com a ponta arredondada intacta. Sem rolagem (desktop: os três lado a lado), some. */
+.roll__trilha { position: relative; flex: 1; height: 4px; overflow: hidden; border-radius: var(--radius-pill); }
+.roll__trilha::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; translate: 0 -50%; border-top: var(--border-control) dashed currentColor; opacity: .55; }
+.roll__fio {
+  position: absolute; inset: 0; border-radius: inherit;
+  background: linear-gradient(90deg, var(--caramel), var(--caramel-lt));
+  transform: translateX(calc((1 / var(--n, 3) + (1 - 1 / var(--n, 3)) * var(--p, 0) - 1) * 100%));
+  will-change: transform;
+}
+.roll__fita[data-sem-rolagem] .roll__fio { display: none; }
 .roll__fita svg { width: 34px; fill: none; stroke: currentColor; stroke-width: 16; stroke-linecap: round; }
 .roll__fita span { order: 2; font: var(--t-legend); letter-spacing: var(--track-legend); }
 .roll__fita + .stories { margin-top: var(--s-18); }

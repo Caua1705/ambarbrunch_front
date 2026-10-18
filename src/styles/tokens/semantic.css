@@ -20,7 +20,6 @@
   --track-light: rgba(255, 251, 244, .35);        /* trilho do progresso do vídeo */
   --sim-stripe: rgba(168, 32, 58, .08);           /* listras do aviso de simulação (só testes) */
   --media-bg: var(--black);                       /* vídeo antes do primeiro quadro */
-  --rule-cacao: rgba(58, 34, 24, .35);            /* pontilhado sobre caramelo (Café + Roll) */
   /* copo desenhado de Café + Roll: plástico transparente, gelo e brilho em tons de glacê */
   --glass-fill: rgba(255, 251, 244, .16);
   --glass-lid: rgba(255, 251, 244, .55);

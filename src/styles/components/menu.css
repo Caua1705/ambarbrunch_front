@@ -68,8 +68,9 @@ html:has(.sheet[open]) { overflow: hidden; }
 .sheet__nav li:nth-child(even) a { justify-content: flex-end; }
 .sheet__cta { margin-top: var(--s-24); }
 
-/* Entrada: sobe e assenta; os itens chegam em sequência. */
-.sheet[open] { animation: sheet-in var(--dur-m) var(--ease-paper); }
+/* Entrada: sobe e assenta; os itens chegam em sequência. Curva SEM overshoot: a folha está presa à base da tela, e a
+   --ease-paper (que passa de 1) a levava ~32 px acima do lugar, abrindo um vão embaixo antes de voltar (o “salto”). */
+.sheet[open] { animation: sheet-in var(--dur-m) var(--ease-sheet); }
 .sheet[open]::backdrop { animation: fade-in var(--dur-s) linear; }
 .sheet[open] .sheet__nav li { animation: rise var(--dur-m) var(--ease-out) both; animation-delay: calc(var(--sheet-items-delay) + var(--i, 0) * var(--stagger)); }
 .sheet[open] .sheet__cta { animation: rise var(--dur-m) var(--ease-out) both; animation-delay: calc(var(--sheet-items-delay) + 7 * var(--stagger)); }
@@ -78,7 +79,7 @@ html:has(.sheet[open]) { overflow: hidden; }
    O dialog continua aberto (foco preso, fundo travado) até a animação da folha terminar. */
 .sheet[open][data-fechando] { animation: sheet-out var(--dur-sheet-out) var(--ease-in) both; pointer-events: none; }
 .sheet[open][data-fechando]::backdrop { animation: fade-out var(--dur-sheet-out) linear both; }
-.sheet[open][data-fechando] :is(.sheet__nav li, .sheet__cta, .sheet__head) { animation: sink calc(var(--dur-sheet-out) * .6) var(--ease-in) both; animation-delay: calc((6 - var(--i, 0)) * 12ms); }
+.sheet[open][data-fechando] :is(.sheet__nav li, .sheet__cta, .sheet__head) { animation: sink calc(var(--dur-sheet-out) * .6) var(--ease-in) both; animation-delay: calc((6 - var(--i, 0)) * var(--stagger-out)); }
 @keyframes sheet-in { from { transform: translateY(100%); } }
 @keyframes sheet-out { to { transform: translateY(100%); } }
 @keyframes fade-in { from { opacity: 0; } }

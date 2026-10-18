@@ -57,7 +57,7 @@
 /* foco de teclado: anel vinho fora da etiqueta, sem perder o relevo */
 .bands__tap:focus-visible { outline: 3px solid var(--wine); outline-offset: 3px; }
 /* convite: depois que as etiquetas caem, o indicador da primeira “respira” duas vezes (some com o 1º toque) */
-.js .bands.is-in:not([data-tocado]) .bands__list li:first-child .bands__mais { animation: mais-convite 1.4s var(--ease) 1.4s 2; }
+.js .bands.is-in:not([data-tocado]) .bands__list li:first-child .bands__mais { animation: mais-convite var(--dur-convite) var(--ease) var(--dur-convite) 2; }
 @keyframes mais-convite { 0%, 100% { scale: 1; box-shadow: 0 0 0 2px color-mix(in srgb, var(--t, var(--ink)) 22%, transparent); } 45% { scale: 1.18; box-shadow: 0 0 0 7px color-mix(in srgb, var(--t, var(--ink)) 0%, transparent); } }
 
 

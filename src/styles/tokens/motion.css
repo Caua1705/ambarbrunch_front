@@ -7,6 +7,8 @@
   --ease-out: var(--ease);
   --ease-paper: cubic-bezier(.34, 1.4, .64, 1); /* assentar com leve overshoot */
   --ease-in: cubic-bezier(.4, 0, 1, 1);
+  --ease-sheet: cubic-bezier(.22, 1, .36, 1);  /* folha do menu: desacelera forte e assenta SEM passar do ponto (ancorada na base,
+                                                um overshoot abria um vão embaixo — ajuste de 2026-10-18) */
 
   /* Durações */
   --dur-press-in: 60ms;  /* afundar ao pressionar (etiquetas, duplas, abas): imediato */
@@ -51,7 +53,10 @@
   --float-period-b: 8.6s; /* segunda fase, para as peças não boiarem juntas */
   --float-amp: 6px;
   --selo-period: 36s;    /* selo “fornada” girando */
-  --pulse-period: 2.4s;  /* ponto “tem mais aqui” das etiquetas do cardápio */
+  --dur-convite: 1.4s;   /* “+” da 1ª etiqueta do cardápio pulsando (duas vezes, depois de uma pausa igual) */
+  --dur-destaque: 900ms; /* chip do ambiente escolhido pelos cards de “Escolha seu lugar” pulsando na comanda… */
+  --destaque-delay: 650ms;   /* …depois que a rolagem até a reserva assenta */
+  --stagger-out: 12ms;   /* itens do menu saindo, de baixo para cima */
   --ticker-period: 32s;  /* faixa de categorias */
 
   /* Coreografia da entrada do hero (atrasos a partir do primeiro quadro; termina em ~1,34 s).

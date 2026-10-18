@@ -24,7 +24,7 @@
 | Hero | oculto (o hero tem o próprio botão) | oculto (o selo do hero está na tela) |
 | Novo capítulo · Para sua mesa | oculto | visível |
 | Direto da fornada (o topo da seção passa de 60% da altura da tela) | **aparece** | visível |
-| Café + Roll · Saladas & bowls · Provou, conta · Escolha seu lugar · Visite | visível | visível |
+| Café + Roll · Saladas & bowls · Reações reais · Escolha seu lugar · Visite | visível | visível |
 | Reserva (≥ 30% da tela ou 240 px) | **oculto** (cobriria campos e o aceite) | visível |
 | Rodapé começando a aparecer | **oculto** (não cobre o rodapé) | visível |
 | Campo de texto com foco (teclado aberto) | oculto | visível |
@@ -40,10 +40,13 @@
 
 - `<dialog>` modal nativo: o navegador prende o foco e coloca o resto da página como inerte; o `html` não rola enquanto
   ela está aberta (`:has(.sheet[open])`).
-- Conteúdo: **logo · Cardápio · Fornada · Café + Roll · Saladas & bowls · Provou, conta · Ambientes · Visite · “Reservar
+- Conteúdo: **logo · Cardápio · Fornada · Café + Roll · Saladas & bowls · Reações reais · Ambientes · Visite · “Reservar
   mesa” · ✕**. Sem endereço, horário, WhatsApp ou Instagrams (endereço e horário na Visite; WhatsApp e Instagrams no rodapé —
   ajuste de 2026-10-18).
-- **Entrada:** a folha sobe e assenta; itens e botão chegam em sequência.
+- **Entrada:** a folha sobe e assenta; itens e botão chegam em sequência. Só `transform`, com curva **sem overshoot**
+  (`--ease-sheet`, ajuste de 2026-10-18): a folha é presa à base da tela, e a curva antiga (`--ease-paper`, que passa de 1)
+  a levava ~32 px acima do lugar, abrindo um vão embaixo antes de voltar — o “salto”. Teste: `entrada do menu sem salto`
+  (vão 0 em todos os quadros, 360/390/430 px, topo e rolado, Chromium e WebKit).
 - **Saída (rodada final):** espelho da entrada, 340 ms (`--dur-sheet-out`) — itens descem e somem, a folha desce, o fundo
   clareia. O `dialog` só fecha de verdade quando a animação termina (`data-fechando` → `close()`), então nada some de uma vez.
   Vale para ✕, **Esc** (o `cancel` é segurado), toque fora e escolha de um item. Movimento reduzido: fecha direto.

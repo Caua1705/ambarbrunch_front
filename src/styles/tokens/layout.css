@@ -20,7 +20,6 @@
   /* exceção documentada: o Novo capítulo abre com 132 px para o carimbo e fecha com 94 px sobre a borda recortada */
   --rhythm-novo-top: 132px;
   --rhythm-novo-bottom: calc(var(--rhythm-a) + 18px);
-  --footer-dock-space: 130px;   /* base do rodapé: espaço da doca fixa */
 
   /* Camadas ---------------------------------------------------------------------------------- */
   /* papel sobre papel, dentro de um palco (foto grande → pequena → selo → texto) */

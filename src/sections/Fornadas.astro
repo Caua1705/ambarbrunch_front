@@ -1,7 +1,7 @@
 ---
 // 4 · DIRETO DA FORNADA — a Roll como assinatura gastronômica do Âmbar: a espiral de creme e caramelo (vídeo decorativo),
 // um roll finalizado revelado em círculo, o processo em vídeo (da própria Roll, mudo), bandejas e os sabores que já
-// passaram por aqui. Vídeos de criadores ficam em “Quem provou, conta”. Não é vitrine: sem preço, sem compra, sem delivery.
+// passaram por aqui. Vídeos de criadores ficam em “Reações reais”. Não é vitrine: sem preço, sem compra, sem delivery.
 // Imagens sem autorização (roll.fotos.*.autorizado = false) só aparecem no modo de revisão.
 import Foto from '../components/Foto.astro';
 import MegaTitle from '../components/MegaTitle.astro';
@@ -72,11 +72,14 @@ const inicioUrl = inicioMeta ? (await getImage({ src: inicioMeta, width: 450, fo
 
   {videos.length > 0 && (
     <>
-      <div class="roll__fita" aria-hidden="true">
+      <!-- Divisor = progresso do carrossel: o pontilhado é a trilha e um fio de caramelo a preenche conforme os vídeos
+           deslizam (posição horizontal do carrossel, nunca o tempo do vídeo; lib/fita.js). Decorativo. -->
+      <div class="roll__fita" aria-hidden="true" data-fita style={`--n:${videos.length}`}>
         <svg viewBox="0 0 240 240"><path d="M121 219C56 218 19 164 28 103 40 31 127 2 182 51c34 30 31 82-9 105-37 21-80 2-83-30-4-30 26-46 47-33 13 7 15 27 2 35" /></svg>
+        <i class="roll__trilha"><b class="roll__fio"></b></i>
         <span>{String(videos.length).padStart(2, '0')}</span>
       </div>
-      <ol class="stories" aria-label="Vídeos da Roll">
+      <ol class="stories" aria-label="Vídeos da Roll" data-fita-trilho>
         {videos.map((v) => <Story {...v} />)}
       </ol>
     </>
@@ -104,6 +107,8 @@ const inicioUrl = inicioMeta ? (await getImage({ src: inicioMeta, width: 450, fo
 
 <script>
   import { initEspiral } from '../lib/espiral.js';
+  import { initFita } from '../lib/fita.js';
   const raiz = document.querySelector<HTMLElement>('[data-espiral]');
   if (raiz) initEspiral(raiz);
+  initFita(document.querySelector<HTMLElement>('[data-fita]'), document.querySelector<HTMLElement>('[data-fita-trilho]'));
 </script>

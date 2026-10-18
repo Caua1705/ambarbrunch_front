@@ -14,7 +14,7 @@ export const roll = {
    *  histórico, nunca como disponibilidade do dia: os sabores mudam todo mês. */
   sabores: ['Tradicional', 'Oreo', 'Biscoff', 'Red velvet', 'Pistache', 'Mirtilo', 'Nutella', 'Mood cheesecake', 'S’mores', 'Kinder Bueno'],
   /** Processo da própria Roll: vídeos reexportados sem áudio (npm run media:video), autorizados em 2026-10-17.
-   *  Vídeos de criadores ficam em data/criadores.ts (seção “Quem provou, conta”). */
+   *  Vídeos de criadores ficam em data/criadores.ts (seção “Reações reais”). */
   videos: [
     { id: 'IV-06', arquivo: 'roll-do-forno', poster: 'roll/poster-do-forno.webp', tag: 'do forno', descricao: 'carrinho de forno com fornadas de cinnamon rolls', autor: '@roll.ofc', tipo: 'roll', autorizado: true },
     // 2º trecho do IV-06 (sem texto na imagem): o IV-09 tinha “Outubro” gravado e ficaria datado

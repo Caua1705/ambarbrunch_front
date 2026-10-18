@@ -13,7 +13,7 @@ test('ordem final das seções e títulos aprovados', async ({ page }) => {
   const ids = await page.$$eval('main > section', (ss) => ss.map((x) => x.id));
   expect(ids).toEqual(['novo', 'gastronomia', 'roll', 'cafe-roll', 'saladas', 'quem-provou', 'ambientes', 'reservar', 'visite']);
   const titulos = await page.$$eval('main > section .mega', (ms) => ms.map((m) => [...m.querySelectorAll(':scope > span')].map((s) => s.textContent).join(' ').toUpperCase()));
-  expect(titulos).toEqual(['O ÂMBAR AGORA É BRUNCH.', 'PARA SUA MESA', 'DIRETO DA FORNADA', 'CAFÉ + ROLL', 'SALADAS & BOWLS', 'PROVOU, CONTA', 'ESCOLHA SEU LUGAR', 'RESERVE SUA MESA', 'VISITE O ÂMBAR']);
+  expect(titulos).toEqual(['O ÂMBAR AGORA É BRUNCH.', 'PARA SUA MESA', 'DIRETO DA FORNADA', 'CAFÉ + ROLL', 'SALADAS & BOWLS', 'REAÇÕES REAIS', 'ESCOLHA SEU LUGAR', 'RESERVE SUA MESA', 'VISITE O ÂMBAR']);
   await expect(page.locator('.hero .cut--polaroid figcaption')).toHaveCount(0);
   await expect(page.locator('#roll')).toContainText('Os sabores mudam. A vontade fica.');
   const lugares = (await page.locator('#ambientes').innerText()).toLowerCase();
