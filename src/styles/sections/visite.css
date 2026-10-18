@@ -43,8 +43,7 @@
 .horarios__row:last-child { border-bottom: 0; }
 .horarios__row span:last-child { font-variant-numeric: tabular-nums; color: var(--wine); }
 
-.visite__actions { display: grid; gap: var(--s-12); margin-top: var(--s-30); }
-.visite__links { display: flex; flex-wrap: wrap; gap: var(--s-10); margin-top: 4px; }
+/* link-pílula (contornada, na cor do texto): contatos do rodapé e Design System */
 .pill-link {
   display: inline-flex; align-items: center; gap: var(--s-6); min-height: 44px; padding: 0 var(--s-16);
   border: var(--border-control) solid currentColor; border-radius: var(--radius-pill);
@@ -53,11 +52,10 @@
 }
 .pill-link[aria-disabled="true"] { border-style: dashed; opacity: .6; pointer-events: none; }
 
-/* a partir do tablet: placa e horários lado a lado; ações em linha */
+/* a partir do tablet: placa e horários lado a lado */
 @media (min-width: 600px) {
   .visite > * { max-width: var(--container-m); margin-inline: auto; }
   .visite__grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-40); align-items: start; }
-  .visite__actions { grid-template-columns: auto auto; justify-content: start; }
 }
 
 /* selo girando no canto do ticket de horários + linha editorial (novos) */

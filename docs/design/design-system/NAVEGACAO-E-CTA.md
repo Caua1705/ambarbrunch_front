@@ -13,6 +13,8 @@
   Quando ele sai da tela, o mesmo selo (48 px) fica fixo no canto superior direito.
 - **A base da tela é só da reserva:** UM botão grande “Reservar mesa” — creme, texto vinho, borda vinho, sombra cacau,
   espiral e seta dentro do mesmo botão. Antes havia um quadrado de menu ao lado; ele saiu (rodada final).
+  A seta é um SVG (não o caractere “→”): quadrado de 40 px com 9 px de respiro em cima, embaixo e à direita; seta centrada
+  na vertical e meia unidade à esquerda no viewBox 24, compensando o peso da ponta (alinhamento óptico).
 - **Dentro do menu**, o único botão cheio é “Reservar mesa” (vinho).
 
 ## 2. Estados do CTA fixo — pela posição das seções, nunca por um valor fixo de rolagem
@@ -39,7 +41,8 @@
 - `<dialog>` modal nativo: o navegador prende o foco e coloca o resto da página como inerte; o `html` não rola enquanto
   ela está aberta (`:has(.sheet[open])`).
 - Conteúdo: **logo · Cardápio · Fornada · Café + Roll · Saladas & bowls · Provou, conta · Ambientes · Visite · “Reservar
-  mesa” · ✕**. Sem endereço, horário, WhatsApp ou Instagrams (ficam completos na seção Visite).
+  mesa” · ✕**. Sem endereço, horário, WhatsApp ou Instagrams (endereço e horário na Visite; WhatsApp e Instagrams no rodapé —
+  ajuste de 2026-10-18).
 - **Entrada:** a folha sobe e assenta; itens e botão chegam em sequência.
 - **Saída (rodada final):** espelho da entrada, 340 ms (`--dur-sheet-out`) — itens descem e somem, a folha desce, o fundo
   clareia. O `dialog` só fecha de verdade quando a animação termina (`data-fechando` → `close()`), então nada some de uma vez.

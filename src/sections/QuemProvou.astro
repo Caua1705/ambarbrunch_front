@@ -1,7 +1,7 @@
 ---
-// 7 · PROVOU, CONTA — vídeos de criadores sobre a Roll num carrossel vivo: três à vista, o central em destaque (maior,
-// aceso, tocando) e os vizinhos aparecendo pela metade nas bordas. Swipe = scroll-snap nativo; pontos abaixo mostram e
-// escolhem o card; cada vídeo toca até o fim (máx. 40 s) e o próximo vira o central (lib/carrossel.js).
+// 7 · PROVOU, CONTA — vídeos de criadores sobre a Roll num carrossel vivo (referência Zuzzi): três à vista — o central
+// inteiro e em destaque, os vizinhos cortados pelas bordas — e OS TRÊS em movimento ao mesmo tempo, mudos; um áudio por
+// vez, só a pedido. Em laço: sempre há um vizinho de cada lado, sem ponta vazia. Arraste e pontos (lib/carrossel.js).
 // Cards limpos: sem @, sem descrição, sem legenda/transcrição. Áudio original preservado, liberado pelo botão de som.
 // No site publicado só entram vídeos com autorização do criador.
 import MegaTitle from '../components/MegaTitle.astro';
@@ -14,6 +14,9 @@ import { video } from '../lib/media';
 
 const s = secoes.provou;
 const videos = criadores.videos.filter((v) => podeMostrar(v.autorizado) && video(v.arquivo));
+// abre no 2º card (com 3+ vídeos); lugar de cada card no laço: 0 = central, ±1 = vizinhos, ±2 = fora da tela
+const inicial = videos.length >= 3 ? 1 : 0;
+const lugar = (i: number) => { const n = videos.length; const d = (((i - inicial) % n) + n) % n; return d > n / 2 ? d - n : d; };
 ---
 {videos.length > 0 && (
   <section class="provou" id={s.id} aria-labelledby="provou-titulo" tabindex="-1" data-provou>
@@ -24,13 +27,13 @@ const videos = criadores.videos.filter((v) => podeMostrar(v.autorizado) && video
     </div>
 
     <div class="provou__palco">
-      <ol class="stories stories--provou" data-trilho aria-label="Vídeos de quem provou a Roll" data-unico={videos.length === 1 ? '' : undefined}>
-        {videos.map((v) => <Story {...v} tipo="criador" carrossel />)}
+      <ol class="stories stories--provou" data-trilho data-inicial={inicial} aria-label="Vídeos de quem provou a Roll" aria-roledescription="carrossel" data-unico={videos.length === 1 ? '' : undefined}>
+        {videos.map((v, i) => <Story {...v} tipo="criador" carrossel pos={lugar(i)} />)}
       </ol>
       {videos.length > 1 && (
         <div class="provou__pontos" data-pontos role="group" aria-label="Escolher vídeo">
           {videos.map((_, i) => (
-            <button class="provou__ponto" type="button" data-ponto aria-current="false" aria-label={`Vídeo ${i + 1} de ${videos.length}`}><i aria-hidden="true"></i></button>
+            <button class="provou__ponto" type="button" data-ponto aria-current={i === inicial ? 'true' : 'false'} aria-label={`Vídeo ${i + 1} de ${videos.length}`}><i aria-hidden="true"></i></button>
           ))}
         </div>
       )}

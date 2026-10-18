@@ -238,7 +238,7 @@ Não há carrossel de fotos. Nenhum carrossel usa biblioteca.
 | Fornadas | selo + mega + lead; stories; **leque de 3 bandejas** (−7°, +3°, −2°, sobrepostas −5%); espiral gigante girando com o scroll | `.story`, `.badge` | `roll.css` |
 | Escolha o clima | **dois painéis em diagonal** + 2 bolhas sobrepostas + aviso | `.panel`, `.bubble`, `.notice` | `climas.css` |
 | Reserva | mega + comanda | `.ticket` | `reserva.css` |
-| Visite | **placa** (−2°) + **comanda de horários** (+1,5°) + ações | `.label`, `.ticket`, `.pill-link` | `visite.css` |
+| Visite | **placa** (−2°) + **comanda de horários** (+1,5°); contatos no rodapé | `.label`, `.ticket` | `visite.css` |
 | Na mesa *(condicional)* | mural de polaroides em 2 colunas alternando −4°/+5° | `.cut--polaroid` | `na-mesa.css` |
 
 **Para uma seção nova:** mega título + **uma** composição + uma saída para a reserva; montar com as peças do §5, posições em `--u` se for colagem.

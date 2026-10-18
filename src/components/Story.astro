@@ -4,8 +4,9 @@
 // O vídeo começa mudo, preload="none"; o poster (data-poster) só baixa quando o carrossel se aproxima
 // da tela — o atributo poster baixaria a imagem já no carregamento da página — e o vídeo só quando o card vai tocar.
 // `carrossel` (Provou, conta — quem toca é lib/carrossel.js): card limpo — só o vídeo e o botão de som (o arquivo mantém
-// a voz original). Sem legenda/transcrição nem CC (rodada final): o vídeo fala por si. Sem loop: ao terminar, o
-// carrossel passa ao próximo.
+// a voz original). Sem legenda/transcrição nem CC (rodada final): o vídeo fala por si. `pos` = lugar do card no palco
+// (0 = central, ±1 = vizinhos à vista, ±2 = fora da tela); os três à vista tocam juntos, cada um repetindo o próprio
+// corte (o corte em si não tem emenda nem repetição montada).
 // Sem barra de progresso: com dois vídeos tocando ela custava ~13% da thread principal num celular intermediário.
 // Formato horizontal: janela emoldurada dentro do card, sem zoom.
 import { getImage } from 'astro:assets';
@@ -15,9 +16,9 @@ import { isPendente, type Pendente } from '../lib/conteudo';
 interface Props {
   arquivo: string; poster: string; tag: string; descricao: string;
   autor?: string | Pendente; tipo: 'roll' | 'criador'; quando?: string;
-  formato?: 'vertical' | 'horizontal'; audio?: boolean; carrossel?: boolean;
+  formato?: 'vertical' | 'horizontal'; audio?: boolean; carrossel?: boolean; pos?: number;
 }
-const { arquivo, poster, tag, descricao, autor, tipo, formato = 'vertical', audio = false, carrossel = false } = Astro.props;
+const { arquivo, poster, tag, descricao, autor, tipo, formato = 'vertical', audio = false, carrossel = false, pos = 0 } = Astro.props;
 const src = video(arquivo);
 const meta = imagem(poster);
 const posterUrl = meta ? (await getImage({ src: meta, width: formato === 'horizontal' ? 640 : 480, format: 'webp', quality: 64 })).src : undefined;
@@ -29,13 +30,14 @@ const [w, h] = formato === 'horizontal' ? [480, 268] : [540, 960];
 const deQuem = carrossel || !quem ? `(${descricao})` : `de ${quem}`;
 ---
 {src && carrossel && (
-  <li class:list={['story', 'story--feed', formato === 'horizontal' && 'story--wide']} data-tipo={tipo} data-audio={audio ? '' : undefined}>
+  <li class:list={['story', 'story--feed', formato === 'horizontal' && 'story--wide']} data-tipo={tipo} data-audio={audio ? '' : undefined}
+    data-pos={Math.max(-2, Math.min(2, pos))} data-ativo={pos === 0 ? '' : undefined} inert={Math.abs(pos) > 1}>
     <div class="story__janela">
       <!-- capa leve (img lazy) e o <video> num <template>, criado só quando o card vai tocar —
            cada <video> custa caro no carregamento do WebKit, mesmo com preload="none" -->
-      {posterUrl && <img class="story__poster" src={posterUrl} alt="" loading="lazy" decoding="async" width={w} height={h} />}
+      {posterUrl && <img class="story__poster" src={posterUrl} alt="" loading="lazy" decoding="async" draggable="false" width={w} height={h} />}
       <template data-video>
-        <video muted playsinline preload="none" data-carrossel poster={posterUrl} aria-label={`Vídeo: ${descricao}`} width={w} height={h}>
+        <video muted playsinline loop preload="none" data-carrossel poster={posterUrl} aria-label={`Vídeo: ${descricao}`} width={w} height={h}>
           <source src={src} type="video/mp4" />
         </video>
       </template>

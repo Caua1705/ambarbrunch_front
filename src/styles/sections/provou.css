@@ -1,6 +1,6 @@
 /* PROVOU, CONTA · carrossel de vídeos de criadores. Vinho entre Saladas & bowls (creme) e os ambientes (manteiga).
-   Rodada final (referência Zuzy): três cards à vista — o central maior, aceso e tocando; os vizinhos menores, apagados e
-   cortados pela borda da tela, com respiro entre eles. Swipe = scroll-snap nativo. */
+   Referência Zuzzi: três cards à vista — o central maior e inteiro, os vizinhos menores e cortados pela borda da tela —
+   os três em movimento. Laço com arraste próprio (lib/carrossel.js). */
 
 .provou {
   padding: var(--rhythm-c) 0 calc(var(--rhythm-c) + var(--rhythm-tail));
@@ -15,32 +15,52 @@
 .provou__head { padding: 0 var(--gutter); }
 .provou__lead { margin-top: var(--s-18); max-width: 30ch; font-size: var(--fs-lead); font-weight: 700; color: var(--butter); }
 
-/* Trilho: as pontas também centralizam (o padding lateral é meia tela menos meio card). O card mede ~58% da tela: sobra
-   ~1/5 de cada lado para os vizinhos. Destaque do ativo só com transform/opacity/box-shadow (nada de filtro sobre vídeo). */
+/* Palco em laço (ajuste de 2026-10-18, referência Zuzzi): o central inteiro e maior; um vizinho cortado pela borda de
+   cada lado, sempre — sem ponta vazia; respiro de 12 px entre eles. Cada card fica no meio do palco e vai para o seu lugar
+   só com transform (data-pos: 0 central, ±1 vizinhos, ±2 fora da tela e invisíveis). Esses são os estados de repouso,
+   prontos já no HTML; durante o arraste o JS escreve --x/--s/--o no card (sem transição) e, ao soltar, devolve à CSS.
+   Nada de filtro sobre vídeo: destaque só com scale, opacidade e sombra. touch-action: pan-y = a rolagem vertical da
+   página segue nativa; o gesto horizontal é do carrossel. */
 .stories--provou {
-  --gap: var(--s-14);
-  --card: min(58vw, 280px);
-  display: flex; align-items: center; gap: var(--gap);
-  margin-top: var(--s-30);
-  padding: var(--s-26) calc((100% - var(--card)) / 2) var(--s-30);
-  scroll-padding-inline: calc((100% - var(--card)) / 2); overscroll-behavior-x: contain;
+  --gap: 12px;
+  --card: min(60vw, 280px);
+  --s-centro: 1.04;                 /* lidos também pelo JS (arraste) */
+  --s-lado: .86;
+  --o-lado: .9;
+  --passo: calc(var(--card) * (var(--s-centro) + var(--s-lado)) / 2 + var(--gap));   /* centro → vizinho */
+  --passo2: calc(var(--passo) + var(--card) * var(--s-lado) + var(--gap));            /* centro → 2º da fila */
+  position: relative; display: block;
+  height: calc(var(--card) * 16 / 9 * var(--s-centro) + 2 * var(--s-22));
+  margin-top: var(--s-30); padding: 0;
+  overflow: visible; scroll-snap-type: none;
+  touch-action: pan-y; user-select: none; -webkit-user-select: none; cursor: grab;
 }
-.stories--provou[data-unico] { justify-content: center; }
+.stories--provou[data-arrastando] { cursor: grabbing; }
 .stories--provou .story {
-  flex: none; width: var(--card); margin-top: 0;
-  scroll-snap-align: center; scroll-snap-stop: always;
+  position: absolute; left: 50%; top: 50%;
+  flex: none; width: var(--card); margin: 0;
   border-radius: var(--radius-l);
-  transform: scale(.84); opacity: .5;
+  translate: -50% -50%;
+  transform: translateX(var(--x, 0px)) scale(var(--s, var(--s-lado)));
+  opacity: var(--o, 0);
   box-shadow: var(--ring-media) color-mix(in srgb, var(--cream) 55%, transparent);
-  transition: transform var(--dur-l) var(--ease), opacity var(--dur-l) var(--ease), box-shadow var(--dur-l) var(--ease);
+  transition: transform var(--dur-m) var(--ease), opacity var(--dur-m) var(--ease), box-shadow var(--dur-m) var(--ease);
+  -webkit-user-drag: none;
 }
 .stories--provou .story:nth-child(even) { margin-top: 0; }
-.stories--provou .story[data-ativo] { transform: scale(1.04); opacity: 1; box-shadow: var(--ring-media) var(--butter), var(--shadow-lift); }
+.stories--provou .story[data-pos="0"] { --x: 0px; --s: var(--s-centro); --o: 1; z-index: 3; box-shadow: var(--ring-media) var(--butter), var(--shadow-lift); }
+.stories--provou .story[data-pos="-1"] { --x: calc(-1 * var(--passo)); --o: var(--o-lado); z-index: 2; }
+.stories--provou .story[data-pos="1"] { --x: var(--passo); --o: var(--o-lado); z-index: 2; }
+.stories--provou .story[data-pos="-2"] { --x: calc(-1 * var(--passo2)); z-index: 1; }
+.stories--provou .story[data-pos="2"] { --x: var(--passo2); z-index: 1; }
+/* arrastando, ou num salto de uma ponta à outra do laço (card invisível): sem transição */
+.stories--provou[data-arrastando] .story, .stories--provou .story[data-salto] { transition: none; }
+.stories--provou[data-unico] .story { --x: 0px; --s: 1; --o: 1; }
 /* o vídeo com som ligado ganha o brilho: dá para ver de onde vem a voz */
 .stories--provou .story[data-som-ligado] { box-shadow: var(--ring-media) var(--butter), var(--glow-ativo), var(--shadow-lift); }
-/* vizinhos: o botão de som some (o foco é o central); o toque traz o card para o centro */
-.stories--provou .story:not([data-ativo]) .story__som { opacity: 0; pointer-events: none; }
-.stories--provou .story:not([data-ativo]) .story__toggle svg { opacity: 0; }
+/* som nos três à vista, sempre no canto que aparece: o vizinho da direita leva o botão para a esquerda */
+.stories--provou .story[data-pos="1"] .story__som { right: auto; left: 6px; }
+.stories--provou .story:not([data-pos="0"]) .story__toggle svg { opacity: 0; }
 /* horizontal: mesmo tamanho dos verticais; o vídeo inteiro numa janela emoldurada sobre papel creme */
 .stories--provou .story--wide {
   height: calc(var(--card) * 16 / 9); aspect-ratio: auto;
@@ -55,6 +75,6 @@
 @media (hover: hover) { .provou__ponto:hover i { background: color-mix(in srgb, var(--butter) 75%, transparent); } }
 
 @media (min-width: 960px) {
-  .stories--provou { --card: 300px; --gap: var(--s-30); }
+  .stories--provou { --card: 300px; --gap: var(--s-24); }
   .provou__head { max-width: var(--container-xl); margin: 0 auto; }
 }

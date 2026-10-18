@@ -29,6 +29,29 @@ test('barra inferior: um único botão, sem o botão de menu; o menu continua ac
   await expect.poll(() => visivel(page, '.menu-btn--fixo')).toBe(true);
 });
 
+test('seta do CTA fixo: quadrado com o mesmo respiro em cima, embaixo e à direita; seta centrada nele', async ({ page }) => {
+  await page.goto('/');
+  await rolarAte(page, '#roll');
+  await expect.poll(() => visivel(page, '[data-sticky-cta]')).toBe(true);
+  await page.waitForTimeout(700);   // fim da entrada do botão
+  const m = await page.locator('[data-sticky-cta]').evaluate((cta) => {
+    const r = cta.getBoundingClientRect(); const b = parseFloat(getComputedStyle(cta).borderTopWidth);
+    const q = cta.querySelector('.sticky-cta__seta')!.getBoundingClientRect();
+    const svg = cta.querySelector('.sticky-cta__seta svg') as SVGSVGElement; const s = svg.getBoundingClientRect();
+    const bb = (svg.querySelector('path') as SVGPathElement).getBBox();
+    return { cima: q.top - r.top - b, baixo: r.bottom - b - q.bottom, dir: r.right - b - q.right, w: q.width, h: q.height,
+      svgDx: s.left + s.width / 2 - (q.left + q.width / 2), svgDy: s.top + s.height / 2 - (q.top + q.height / 2),
+      setaX: bb.x + bb.width / 2, setaY: bb.y + bb.height / 2 };
+  });
+  expect(m.w).toBe(40); expect(m.h).toBe(40);
+  expect(Math.abs(m.cima - m.baixo), 'cima = baixo').toBeLessThanOrEqual(1);
+  expect(Math.abs(m.dir - m.cima), 'direita = cima').toBeLessThanOrEqual(1);
+  expect(Math.abs(m.svgDx)).toBeLessThan(0.5); expect(Math.abs(m.svgDy)).toBeLessThan(0.5);
+  // no viewBox 24: vertical no centro exato; horizontal meia unidade à esquerda (compensação óptica do peso da ponta)
+  expect(m.setaY).toBeCloseTo(12, 1);
+  expect(m.setaX).toBeCloseTo(11.5, 1);
+});
+
 test('CTA oculto não recebe toque nem foco', async ({ page }) => {
   await page.goto('/');
   const cta = page.locator('[data-sticky-cta]');
@@ -163,17 +186,36 @@ test('pular para a reserva: primeiro elemento focável', async ({ page, browserN
   expect((await link.boundingBox())!.width).toBeGreaterThan(100);
 });
 
-test('Visite: “Como chegar” aponta para o endereço real; contatos completos aqui e não repetidos no rodapé', async ({ page }) => {
+test('Visite: endereço, horário e “Como chegar”, sem os botões de contato — eles ficam só no rodapé', async ({ page }) => {
   await page.goto('/');
   const maps = page.locator('#visite a', { hasText: /como chegar/i });
   await expect(maps).toHaveAttribute('href', 'https://www.google.com/maps/search/?api=1&query=Rua%20Tavares%20Coutinho%2C%20180%2C%20Fortaleza%2C%20CE');
   await expect(maps).toHaveAttribute('target', '_blank');
-  await expect(page.locator('#visite a[href="https://wa.me/5585994452724"]')).toContainText('(85) 99445-2724');
-  await expect(page.locator('#visite a[href="https://www.instagram.com/ambarbrunch/"]')).toHaveText('@ambarbrunch');
-  await expect(page.locator('#visite a[href="https://www.instagram.com/roll.ofc/"]')).toContainText('@roll.ofc');
+  await expect(page.locator('#visite')).toContainText('Rua Tavares Coutinho, 180');
+  await expect(page.locator('#visite')).toContainText('07h às 19h');
   await expect(page.locator('#visite iframe')).toHaveCount(0);
+  await expect(page.locator('#visite a[href*="wa.me"], #visite a[href*="instagram.com"]')).toHaveCount(0);
+});
+
+test('rodapé: logo, assinatura da Roll e os três contatos funcionais (WhatsApp, Instagram do Âmbar e da Roll), uma vez só', async ({ page }) => {
+  await page.goto('/');
   const rodape = page.locator('footer.footer');
-  await expect(rodape).toContainText('Rua Tavares Coutinho, 180');
-  await expect(rodape).toContainText('07h–19h');
-  await expect(rodape.locator('a[href*="wa.me"], a[href*="instagram.com"]')).toHaveCount(0);
+  await expect(rodape.locator('img[alt="Âmbar Brunch"]')).toBeVisible();
+  await expect(rodape.locator('.footer__sig img[alt="Roll"]')).toBeVisible();
+  const contatos = rodape.locator('nav[aria-label="Contatos"] a');
+  await expect(contatos).toHaveCount(3);
+  await expect(rodape.locator('a[href="https://wa.me/5585994452724"]')).toContainText('(85) 99445-2724');
+  await expect(rodape.locator('a[href="https://www.instagram.com/ambarbrunch/"]')).toHaveText('@ambarbrunch');
+  await expect(rodape.locator('a[href="https://www.instagram.com/roll.ofc/"]')).toContainText('@roll.ofc');
+  for (const a of await contatos.all()) {
+    await expect(a).toHaveAttribute('target', '_blank');
+    expect((await a.boundingBox())!.height, 'alvo de toque').toBeGreaterThanOrEqual(44);
+  }
+  // em toda a página, cada contato aparece uma vez (o menu e a Visite não repetem)
+  for (const href of ['https://wa.me/5585994452724', 'https://www.instagram.com/ambarbrunch/', 'https://www.instagram.com/roll.ofc/']) {
+    await expect(page.locator(`a[href="${href}"]`)).toHaveCount(1);
+  }
+  // o botão fixo some antes de cobrir os contatos
+  await rodape.locator('nav[aria-label="Contatos"]').evaluate((el) => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  await expect.poll(() => visivel(page, '[data-sticky-cta]')).toBe(false);
 });

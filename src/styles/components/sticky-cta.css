@@ -7,7 +7,7 @@
   position: fixed; z-index: var(--z-dock);
   left: 12px; right: 12px; bottom: max(12px, env(safe-area-inset-bottom));
   display: flex; align-items: center; gap: var(--s-12);
-  min-height: 62px; padding: 0 var(--s-10) 0 var(--s-14);
+  min-height: 62px; padding: 0 9px 0 var(--s-14);   /* 9 px = (62 − 2×2 de borda − 40) / 2: o quadrado da seta com o mesmo respiro em cima, embaixo e à direita */
   border: 2px solid var(--wine); border-radius: var(--radius-l);
   background: var(--cream); color: var(--wine);
   font: var(--t-button-l); font-variation-settings: var(--fvs-text); font-stretch: var(--stretch-button);
@@ -17,12 +17,19 @@
   opacity: 0;
   transition: transform var(--dur-cta-in) var(--ease), opacity var(--dur-cta-fade), box-shadow var(--dur-xs) var(--ease);
 }
-.sticky-cta svg { flex: none; width: 30px; fill: none; stroke: var(--wine); stroke-width: 18; stroke-linecap: round; }
+.sticky-cta > svg { flex: none; width: 30px; fill: none; stroke: var(--wine); stroke-width: 18; stroke-linecap: round; }
 .sticky-cta span:first-of-type { flex: 1; }
+/* Seta: SVG em vez do caractere “→” (que dependia das métricas da fonte e sentava fora do centro do quadrado).
+   No viewBox 24: vertical exata (6,5→17,5 = centro 12); na horizontal a caixa vai de 5 a 18 (centro 11,5): meia unidade
+   para a esquerda compensa o peso da ponta, que puxa o olho para a direita — alinhamento óptico, não só geométrico. */
 .sticky-cta__seta {
-  display: grid; place-items: center; width: 40px; height: 40px; border-radius: var(--radius-m);
-  background: var(--wine); color: var(--butter); font-size: 20px;
+  flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: var(--radius-m);
+  background: var(--wine); color: var(--butter); line-height: 0;
   transition: translate var(--dur-s) var(--ease-paper);
+}
+.sticky-cta__seta svg {
+  display: block; width: 22px; height: 22px;
+  fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round;
 }
 .sticky-cta.is-visible { transform: none; opacity: 1; }
 .sticky-cta:active { transform: translate(2px, 2px); box-shadow: var(--shadow-offset-xs), var(--shadow-float); }

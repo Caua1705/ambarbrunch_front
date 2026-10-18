@@ -1,10 +1,15 @@
-/* RODAPÉ. Origem: .footer do v1. Rodada final: só identidade e o essencial (os contatos ficam na Visite); o botão fixo
-   de reserva some ao chegar aqui, então a base guarda só a área segura da tela. */
+/* RODAPÉ. Origem: .footer do v1. Fim da página: identidade, os três contatos (WhatsApp e os dois Instagrams — só aqui,
+   não na Visite) e o essencial. O botão fixo de reserva some ao chegar aqui, então a base guarda só a área segura. */
 
-.footer { padding: 64px var(--gutter) max(var(--s-34), env(safe-area-inset-bottom)); text-align: center; background: var(--cream); }
+.footer { --focus-ring: var(--wine); padding: 64px var(--gutter) max(var(--s-34), env(safe-area-inset-bottom)); text-align: center; background: var(--cream); }
 .footer__logo { width: 240px; margin: 0 auto; }
 .footer__sig { display: inline-flex; align-items: center; gap: var(--s-8); margin-top: var(--s-16); font: var(--t-sig); color: var(--cacao); }
 .footer__sig img { width: 56px; }
 .footer__inst { margin-top: var(--s-14); font: var(--t-caption); color: var(--caramel-dk); }
-.footer__info { margin-top: var(--s-10); font-size: var(--fs-small); font-style: normal; line-height: 1.6; color: var(--text-muted); }
+/* contatos: pílulas contornadas (.pill-link), em vinho sobre o creme; o WhatsApp (o canal de conversa) vai cheio */
+.footer__contatos { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--s-10); max-width: 420px; margin: var(--s-26) auto 0; }
+.footer__contatos .pill-link { color: var(--wine); }
+.footer__contatos .footer__whats { flex-basis: 100%; justify-content: center; border-color: var(--wine); background: var(--wine); color: var(--butter); box-shadow: var(--shadow-offset-xs); }
+.footer__contatos .pill-link:active { scale: var(--press-scale); }
+.footer__info { margin-top: var(--s-22); font-size: var(--fs-small); font-style: normal; line-height: 1.6; color: var(--text-muted); }
 .footer__fine { margin-top: var(--s-14); font-size: var(--fs-micro); color: var(--text-muted); }

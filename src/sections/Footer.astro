@@ -1,16 +1,23 @@
 ---
-// 10 · RODAPÉ — logo, assinatura da Roll, uma linha institucional e o essencial (endereço e horário).
-// Rodada final: sem WhatsApp e Instagrams aqui — eles ficam completos na seção Visite, logo acima (sem repetir os
-// mesmos botões em dois blocos seguidos). O botão fixo de reserva some ao chegar no rodapé.
+// 10 · RODAPÉ — logo, assinatura da Roll, uma linha institucional, os contatos (WhatsApp, Instagram do Âmbar e da Roll)
+// e o essencial (endereço e horário). Ajuste de 2026-10-18: os três contatos ficam aqui, no fim da página; a Visite,
+// logo acima, fica só com o “como encontrar” (endereço, horário e “Como chegar”) — sem repetir os mesmos botões.
+// O botão fixo de reserva some quando o rodapé começa a aparecer, então não cobre os contatos.
 // Sem política de privacidade linkada por enquanto (decisão de 2026-10-17) e sem botão de pausar animações.
 import Foto from '../components/Foto.astro';
 import { visita as v } from '../data/visita';
+import { roll } from '../data/roll';
 const ano = new Date().getFullYear();
 ---
 <footer class="footer">
   <Foto src="brand/logo-ambar.png" alt="Âmbar Brunch" class="footer__logo" sizes="240px" widths={[240, 480, 720]} qualidade={80} />
   <p class="footer__sig">com assinatura gastronômica <Foto src="brand/logo-roll.png" alt="Roll" sizes="56px" widths={[56, 112, 168]} qualidade={80} /></p>
   <p class="footer__inst">café, brunch e cinnamon rolls em Fortaleza</p>
+  <nav class="footer__contatos" aria-label="Contatos">
+    <a class="pill-link footer__whats" href={v.whatsapp.url} rel="noopener" target="_blank">WhatsApp {v.whatsapp.numero}</a>
+    <a class="pill-link" href={v.instagram.url} rel="noopener" target="_blank">{v.instagram.handle}</a>
+    <a class="pill-link" href={roll.instagram.url} rel="noopener" target="_blank">Roll {roll.instagram.handle}</a>
+  </nav>
   <address class="footer__info">
     {v.endereco} · {v.cidade}<br />
     {v.horarioCurto}

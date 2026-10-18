@@ -1,11 +1,11 @@
 ---
 // 10 · VISITE O ÂMBAR — onde fica e quando abre (dados oficiais, data/visita.ts). Sem mapa embutido (pesado e coleta
 // dados): endereço em texto sobre um cartão desenhado (SVG leve) e o botão “Como chegar”, que abre o endereço real no app
-// de mapas. Contatos: WhatsApp e Instagram do Âmbar e da Roll. Sem botão de reserva aqui: a doca fixa já faz esse papel.
+// de mapas. Só o “como encontrar”: os contatos (WhatsApp e os dois Instagrams) ficam no rodapé, logo abaixo, sem repetir
+// os mesmos botões (ajuste de 2026-10-18). Sem botão de reserva aqui: o botão fixo já faz esse papel.
 import MegaTitle from '../components/MegaTitle.astro';
 import SeloFornada from '../components/SeloFornada.astro';
 import { visita as v } from '../data/visita';
-import { roll } from '../data/roll';
 import { secoes } from '../data/secoes';
 const s = secoes.visite;
 ---
@@ -46,11 +46,4 @@ const s = secoes.visite;
     </div>
   </div>
 
-  <div class="visite__actions">
-    <div class="visite__links">
-      <a class="pill-link" href={v.whatsapp.url} rel="noopener" target="_blank">WhatsApp {v.whatsapp.numero}</a>
-      <a class="pill-link" href={v.instagram.url} rel="noopener" target="_blank">{v.instagram.handle}</a>
-      <a class="pill-link" href={roll.instagram.url} rel="noopener" target="_blank">Roll {roll.instagram.handle}</a>
-    </div>
-  </div>
 </section>

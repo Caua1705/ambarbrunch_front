@@ -24,12 +24,12 @@ try {
     // carrossel em feed: dois vídeos tocando lado a lado, mudos
     await page.locator('[data-trilho]').evaluate((el) => el.scrollIntoView({ block: 'center' }));
     const card = (i) => page.locator('[data-trilho] .story').nth(i);
-    await page.waitForTimeout(2600); await shot('c1-dois-tocando-mudos');
-    await card(0).locator('[data-som]').click(); await page.waitForTimeout(900); await shot('c2-som-no-1o');
-    await card(1).locator('[data-som]').click(); await page.waitForTimeout(900); await shot('c3-som-passa-ao-2o');
-    await card(1).locator('[data-cc]').click().catch(() => {}); await page.waitForTimeout(1500); await shot('c4-legenda-cc');
-    // swipe até o horizontal
-    await page.locator('[data-trilho] .story--wide').evaluate((c) => c.parentElement.scrollTo({ left: c.offsetLeft - 16 })).catch(() => {});
+    await page.waitForTimeout(2600); await shot('c1-tres-tocando-mudos');
+    await card(1).locator('[data-som]').click(); await page.waitForTimeout(900); await shot('c2-som-no-central');
+    await card(2).locator('[data-som]').click(); await page.waitForTimeout(900); await shot('c3-som-passa-ao-vizinho');
+    // o horizontal no centro, pelos pontos (o palco é um laço, sem rolagem nativa)
+    const largo = await page.locator('[data-trilho] .story--wide').evaluate((c) => [...c.parentElement.children].indexOf(c)).catch(() => -1);
+    if (largo >= 0) await page.locator('[data-ponto]').nth(largo).click();
     await page.waitForTimeout(2500); await shot('c5-horizontal');
     const r = await page.$$eval('[data-trilho] video', (vs) => vs.map((v) => `${v.paused ? 'P' : 'T'}${v.muted ? 'm' : 'S'}`).join(' '));
     console.log(`${w}×${h} estados finais dos vídeos: ${r}`);
