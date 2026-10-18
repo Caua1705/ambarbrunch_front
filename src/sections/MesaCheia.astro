@@ -2,9 +2,10 @@
 // 3 · PARA SUA MESA — quadro de cortiça + cardápio em faixas (markup do v1).
 // As fotos assentam como peças de colagem; as setas se desenham; parallax leve nas fotos.
 // Cardápio tátil: cada etiqueta é um botão (indicador “+” que vira “×”) e abre um cartão de papel logo abaixo, com a foto
-// principal da categoria (real ou ilustrativa, com selo), os itens do cardápio do cliente e, nos principais, miniaturas.
-// O cartão dos rolls separa doces e salgados em abas e guarda os outros sabores num “ver mais” (lib/cardapio-tatil.js).
-// Fotos dos cartões: lazy, só baixam quando o cartão abre.
+// principal da categoria, os itens do cardápio do cliente e, nos principais, miniaturas. Sem selo de “imagem
+// ilustrativa” (decisão da rodada final). O cartão dos rolls separa doces e salgados em abas (lib/cardapio-tatil.js).
+// Fotos dos cartões: lazy, mas antecipadas quando o cardápio chega perto da tela (data-antecipar, lib/site.js) — o
+// cartão nunca abre com a foto em branco.
 import Foto from '../components/Foto.astro';
 import MegaTitle from '../components/MegaTitle.astro';
 import Seta from '../components/Seta.astro';
@@ -45,8 +46,7 @@ const s = secoes.mesa;
     <Seta variante="c" i={2} />
   </div>
 
-  <div class="bands" data-reveal data-cardapio data-vivo>
-    <p class="bands__hint"><span class="bands__dedo" aria-hidden="true">☝</span> toque numa etiqueta para abrir</p>
+  <div class="bands" data-reveal data-cardapio data-vivo data-antecipar>
     {grupos.map((g) => (
       <>
         <p class="bands__label" id={`cardapio-${g.id}`}>{g.rotulo}</p>
@@ -69,7 +69,6 @@ const s = secoes.mesa;
                     {ok(d.foto) && (
                       <figure class="cartao__prato">
                         <Foto src={d.foto.src} alt={d.foto.alt} sizes="(min-width: 960px) 132px, 104px" widths={[104, 208, 312]} qualidade={70} />
-                        {d.foto.origem === 'ilustrativa' && <figcaption class="selo-ia">imagem ilustrativa</figcaption>}
                       </figure>
                     )}
                     <div class="cartao__titulo">
@@ -97,7 +96,6 @@ const s = secoes.mesa;
                             {ok(it.foto) && (
                               <span class="cartao__mini">
                                 <Foto src={it.foto.src} alt="" sizes="48px" widths={[48, 96, 144]} qualidade={70} />
-                                {it.foto.origem === 'ilustrativa' && <span class="visually-hidden"> (imagem ilustrativa)</span>}
                               </span>
                             )}
                             <strong>{it.nome}</strong>{it.desc && <span>{it.desc}</span>}

@@ -1,12 +1,12 @@
 ---
 // 6 · SALADAS & BOWLS — pratos do menu saudável, um de cada vez (abas com miniatura): foto num prato de papel com
-// marcadores de ingrediente, texto curto, ingredientes e “informações do prato” (<details>: alergênicos e ficha
-// nutricional). Sem JS, os pratos aparecem um embaixo do outro.
+// marcadores de ingrediente, texto curto, ingredientes e a ficha completa sempre à vista (tabela nutricional, ingredientes,
+// alergênicos). Sem JS, os pratos aparecem um embaixo do outro.
 // Site publicado: alergênicos e ficha só quando validados (data/prato.ts); até lá, o aviso de “em validação”.
 // Modo de revisão: a ficha de EXEMPLO aparece, marcada como tal. Nenhuma alegação de saúde ou de calorias.
 import Foto from '../components/Foto.astro';
 import MegaTitle from '../components/MegaTitle.astro';
-import { pratos, fichaEmValidacao, type Ficha } from '../data/prato';
+import { pratos, camposFicha, fichaEmValidacao, type Ficha } from '../data/prato';
 import { secoes } from '../data/secoes';
 import { REVISAO, isPendente, origemVisivel } from '../lib/conteudo';
 import { imagem } from '../lib/media';
@@ -17,7 +17,7 @@ const fichaDe = (p: (typeof pratos)[number]): { ficha: Ficha; demo: boolean } | 
   !isPendente(p.ficha) ? { ficha: p.ficha, demo: false } : REVISAO && p.fichaDemo ? { ficha: p.fichaDemo, demo: true } : undefined;
 ---
 {lista.length > 0 && (
-  <section class="prato" id={s.id} aria-labelledby="prato-titulo" tabindex="-1" data-pratos>
+  <section class="prato" id={s.id} aria-labelledby="prato-titulo" tabindex="-1" data-pratos data-antecipar>
     <MegaTitle linhas={[...s.linhas]} id="prato-titulo" tom="wine" scribble={s.sub} />
 
     {lista.length > 1 && (
@@ -41,7 +41,6 @@ const fichaDe = (p: (typeof pratos)[number]): { ficha: Ficha; demo: boolean } | 
             {p.marcadores.map((m, i) => (
               <span class="prato__pino" style={`--x:${m.x}%;--y:${m.y}%;--i:${i}`} aria-hidden="true"><i></i>{m.nome}</span>
             ))}
-            {p.foto.origem === 'ilustrativa' && <figcaption class="selo-ia prato__selo">imagem ilustrativa</figcaption>}
           </figure>
 
           <div class="prato__card" data-reveal>
@@ -50,35 +49,39 @@ const fichaDe = (p: (typeof pratos)[number]): { ficha: Ficha; demo: boolean } | 
             <p class="prato__texto">{p.texto}</p>
             <ul class="prato__ingredientes" aria-label="Ingredientes">{p.ingredientes.map((i) => <li>{i}</li>)}</ul>
 
-            <details class="ficha">
-              <summary>
-                <span>Informações do prato</span>
-                <i class="ficha__seta" aria-hidden="true"></i>
-              </summary>
-              <div class="ficha__corpo">
-                <p class="ficha__titulo">Alergênicos</p>
-                {isPendente(p.alergenicos)
-                  ? <p class="ficha__aviso">{fichaEmValidacao}</p>
-                  : <ul class="ficha__alergenicos">{p.alergenicos.map((a) => <li>{a}</li>)}</ul>}
-                <p class="ficha__titulo">Informação nutricional {f && <span class="ficha__porcao">porção {f.ficha.porcao}</span>}</p>
-                {f ? (
-                  <>
-                    <table class="ficha__tabela">
-                      <caption class="visually-hidden">Informação nutricional por porção de {f.ficha.porcao}{f.demo ? ' (valores de exemplo)' : ''}</caption>
-                      <tbody>
-                        {f.ficha.valores.map((n, i) => (
-                          <tr style={`--v:${Math.min(1, n.valor / n.max)};--i:${i}`}>
-                            <th scope="row">{n.rotulo}</th>
-                            <td><span class="ficha__barra" aria-hidden="true"><i></i></span><strong>{n.valor.toLocaleString('pt-BR')} {n.unidade}</strong></td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    {f.demo && <p class="ficha__nota">valores de exemplo (revisão interna) · trocar pela ficha técnica do prato</p>}
-                  </>
-                ) : <p class="ficha__aviso">em validação</p>}
+            <!-- ficha completa, sempre à vista (rodada final: o <details> escondia a informação). Sem ficha validada, as
+                 linhas aparecem com “em validação” no lugar do número; números de exemplo só na revisão, com selo. -->
+            <section class="ficha" class:list={[f?.demo && 'ficha--demo']} aria-labelledby={`ficha-${p.id}`}>
+              <div class="ficha__topo">
+                <h4 class="ficha__nome" id={`ficha-${p.id}`}>Informação nutricional</h4>
+                {f?.demo && <span class="ficha__selo">demonstrativo</span>}
               </div>
-            </details>
+              <p class="ficha__porcao">{f ? `porção de ${f.ficha.porcao}` : 'porção · em validação'}</p>
+              <table class="ficha__tabela">
+                <caption class="visually-hidden">Informação nutricional{f ? ` por porção de ${f.ficha.porcao}` : ''}{f?.demo ? ' (valores demonstrativos, não são do prato)' : f ? '' : ' (valores em validação)'}</caption>
+                <tbody>
+                  {(f ? f.ficha.valores : camposFicha).map((n, i) => {
+                    const valor = 'valor' in n ? n.valor : undefined;
+                    return (
+                      <tr style={`--v:${valor === undefined ? 0 : Math.min(1, valor / n.max)};--i:${i}`}>
+                        <th scope="row">{n.rotulo}</th>
+                        <td><span class="ficha__valor">
+                          <span class="ficha__barra" aria-hidden="true"><i></i></span>
+                          {valor === undefined ? <em>em validação</em> : <strong>{valor.toLocaleString('pt-BR')} {n.unidade}</strong>}
+                        </span></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+
+              <p class="ficha__titulo">Alergênicos</p>
+              {isPendente(p.alergenicos)
+                ? <p class="ficha__texto ficha__texto--aviso">{fichaEmValidacao}</p>
+                : <ul class="ficha__alergenicos">{p.alergenicos.map((a) => <li>{a}</li>)}</ul>}
+
+              {f?.demo && <p class="ficha__nota">valores fictícios, só para a revisão interna · trocar pela ficha técnica do prato</p>}
+            </section>
           </div>
         </article>
       );

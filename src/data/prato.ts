@@ -1,6 +1,6 @@
 // SALADAS & BOWLS — pratos do “menu saudável” do cardápio do cliente, um de cada vez: foto com marcadores, ingredientes,
 // alergênicos e ficha nutricional. Nome, descrição e ingredientes: cardápio do cliente. Fotos: ilustrativas (arte da
-// proposta e recorte de IA, ver lib/conteudo.ts → Origem), sempre com o selo.
+// proposta e recorte de IA, ver lib/conteudo.ts → Origem).
 //
 // ALERGÊNICOS E FICHA NUTRICIONAL: ainda sem a ficha técnica validada. Até lá, o site publicado só diz que estão em
 // validação (nunca números ou alergênicos deduzidos dos ingredientes). `fichaDemo` são números FICTÍCIOS do kit criativo,
@@ -25,16 +25,21 @@ export interface Prato {
   fichaDemo?: Ficha;
 }
 
+/** Campos da ficha, na ordem do rótulo nutricional brasileiro (`max` só escala a barra; não é %VD). O site publicado
+ *  mostra TODAS as linhas mesmo sem números validados: o valor aparece como “em validação”, nunca inventado. */
+export const camposFicha = [
+  { rotulo: 'Valor energético', unidade: 'kcal', max: 600 },
+  { rotulo: 'Carboidratos', unidade: 'g', max: 80 },
+  { rotulo: 'Proteínas', unidade: 'g', max: 40 },
+  { rotulo: 'Gorduras totais', unidade: 'g', max: 40 },
+  { rotulo: 'Fibra alimentar', unidade: 'g', max: 15 },
+  { rotulo: 'Sódio', unidade: 'mg', max: 1200 },
+] as const;
+
+/** valores na ordem de `camposFicha`: energia, carboidratos, proteínas, gorduras, fibra, sódio */
 const demo = (porcao: string, v: [number, number, number, number, number, number]): Ficha => ({
   porcao,
-  valores: [
-    { rotulo: 'Energia', valor: v[0], unidade: 'kcal', max: 600 },
-    { rotulo: 'Proteínas', valor: v[1], unidade: 'g', max: 40 },
-    { rotulo: 'Carboidratos', valor: v[2], unidade: 'g', max: 80 },
-    { rotulo: 'Gorduras totais', valor: v[3], unidade: 'g', max: 40 },
-    { rotulo: 'Fibra alimentar', valor: v[4], unidade: 'g', max: 15 },
-    { rotulo: 'Sódio', valor: v[5], unidade: 'mg', max: 1200 },
-  ],
+  valores: camposFicha.map((c, i) => ({ ...c, valor: v[i] })),
 });
 
 export const pratos: Prato[] = [
@@ -53,7 +58,7 @@ export const pratos: Prato[] = [
     foto: { src: 'cardapio/salada-atum.webp', alt: 'Salada de atum com abacate, pepino, tomate e folhas numa tigela clara', origem: 'ilustrativa' },
     alergenicos: pendente('Alergênicos da salada de atum (ficha técnica)'),
     ficha: pendente('Ficha nutricional da salada de atum (ficha técnica validada)'),
-    fichaDemo: demo('300 g', [320, 14, 24, 18, 5, 410]),
+    fichaDemo: demo('300 g', [320, 24, 14, 18, 5, 410]),
   },
   {
     id: 'poke',
@@ -70,7 +75,7 @@ export const pratos: Prato[] = [
     foto: { src: 'cardapio/poke-prato.webp', alt: 'Poke com arroz, cubos de salmão, milho, abacate e gergelim numa tigela de cerâmica', origem: 'ilustrativa' },
     alergenicos: pendente('Alergênicos do poke (ficha técnica)'),
     ficha: pendente('Ficha nutricional do poke (ficha técnica validada)'),
-    fichaDemo: demo('350 g', [480, 26, 58, 16, 6, 520]),
+    fichaDemo: demo('350 g', [480, 58, 26, 16, 6, 520]),
   },
 ];
 

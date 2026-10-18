@@ -28,3 +28,25 @@ export function video(nome: string): string | undefined {
 export function legendas(nome: string): string | undefined {
   return publico(nome.includes('/') ? `${nome}.vtt` : `video/${nome}.vtt`);
 }
+
+const cores = new Map<string, Promise<string | undefined>>();
+/**
+ * Cor dominante de uma imagem opaca de src/assets/media (fundo do <img> enquanto a foto baixa). Imagem com
+ * transparência devolve `undefined` (um logo não pode ganhar um retângulo de cor). Calculada uma vez por arquivo no build.
+ */
+export function corDominante(caminho: string): Promise<string | undefined> {
+  let p = cores.get(caminho);
+  if (!p) {
+    p = (async () => {
+      try {
+        const sharp = (await import('sharp')).default;
+        const st = await sharp(path.join(process.cwd(), 'src/assets/media', caminho)).stats();
+        if (!st.isOpaque) return undefined;
+        const { r, g, b } = st.dominant;
+        return `rgb(${r} ${g} ${b})`;
+      } catch { return undefined; }
+    })();
+    cores.set(caminho, p);
+  }
+  return p;
+}

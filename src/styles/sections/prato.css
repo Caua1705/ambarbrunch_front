@@ -1,6 +1,6 @@
 /* SALADAS & BOWLS (seção 6) · creme, com o verde da folha nos detalhes.
    Abas com miniatura (um prato por vez); foto num prato de papel; pinos de ingrediente entram um a um;
-   “informações do prato” em <details> (alergênicos e ficha nutricional — validados ou “em validação”). */
+   ficha nutricional completa sempre à vista (validada, ou “em validação” linha a linha). */
 
 .prato { padding: var(--rhythm-b) var(--gutter) calc(var(--rhythm-b) + var(--rhythm-tail)); background: var(--cream); overflow: hidden; }
 .prato__grid { display: grid; gap: var(--s-34); margin-top: var(--s-30); }
@@ -37,7 +37,6 @@
   font: var(--t-chip-small); white-space: nowrap;
 }
 .prato__pino i { width: 10px; height: 10px; border-radius: var(--radius-round); background: var(--leaf); box-shadow: 0 0 0 3px var(--butter); }
-.prato__selo { bottom: 0; }
 
 .prato__card {
   padding: var(--s-22) var(--s-18); background: var(--glaze); color: var(--ink);
@@ -49,30 +48,30 @@
 .prato__ingredientes { display: flex; flex-wrap: wrap; gap: var(--s-6); margin-top: var(--s-14); }
 .prato__ingredientes li { padding: 6px var(--s-10); border-radius: var(--radius-pill); background: var(--leaf); color: var(--cream); font: var(--t-pill); text-transform: uppercase; letter-spacing: var(--track-tight-caps); }
 
-.ficha { margin-top: var(--s-18); border-top: 2px solid var(--wine); }
-.ficha summary {
-  display: grid; grid-template-columns: 1fr 20px; align-items: center; gap: var(--s-10);
-  min-height: 52px; cursor: pointer; list-style: none;
-  font: var(--t-chip); text-transform: uppercase; letter-spacing: var(--track-tight-caps); color: var(--wine);
-}
-.ficha summary::-webkit-details-marker { display: none; }
-.ficha__seta { width: 12px; height: 12px; border-right: 2.5px solid currentColor; border-bottom: 2.5px solid currentColor; rotate: 45deg; translate: 0 -3px; transition: rotate var(--dur-s) var(--ease), translate var(--dur-s) var(--ease); }
-.ficha[open] .ficha__seta { rotate: 225deg; translate: 0 3px; }
-.ficha__corpo { padding-bottom: var(--s-6); }
-.ficha__titulo { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s-10); margin-top: var(--s-12); font: var(--t-caption); color: var(--caramel-dk); }
-.ficha__titulo:first-child { margin-top: 0; }
-.ficha__porcao { font: var(--t-chip-small); color: var(--text-muted); }
-.ficha__aviso { margin-top: var(--s-6); font: var(--t-body-s); color: var(--ink); }
+/* Ficha nutricional (rodada final): sempre à vista, no formato de rótulo — moldura tinta, título em caixa alta, porção,
+   tabela com barra por nutriente. Sem números validados, cada linha diz “em validação” (nada inventado). Na revisão, os
+   números de exemplo ganham o selo “demonstrativo”. */
+.ficha { margin-top: var(--s-22); padding: var(--s-14) var(--s-14) var(--s-12); border: 2px solid var(--ink); border-radius: var(--radius-control); background: var(--cream); }
+.ficha__topo { display: flex; align-items: center; justify-content: space-between; gap: var(--s-10); padding-bottom: var(--s-6); border-bottom: 6px solid var(--ink); }
+.ficha__nome { margin: 0; font: var(--t-chip); font-size: var(--fs-lead); line-height: 1.05; text-transform: uppercase; letter-spacing: var(--track-tight-caps); color: var(--ink); }
+.ficha__selo { flex: none; padding: 3px var(--s-8) 4px; border-radius: var(--radius-pill); background: var(--wine); color: var(--butter); font: var(--t-chip-small); text-transform: uppercase; letter-spacing: var(--track-caps); rotate: 3deg; }
+.ficha__porcao { margin-top: var(--s-6); padding-bottom: var(--s-6); border-bottom: 2px solid var(--ink); font: var(--t-chip-small); color: var(--text-muted); }
+.ficha__titulo { margin-top: var(--s-14); font: var(--t-caption); color: var(--caramel-dk); }
+.ficha__texto { margin-top: 4px; font: var(--t-body-s); color: var(--ink); }
+.ficha__texto--aviso { color: var(--text-soft, var(--ink)); }
 .ficha__alergenicos { display: flex; flex-wrap: wrap; gap: var(--s-6); margin-top: var(--s-8); }
 .ficha__alergenicos li { padding: 5px var(--s-10); border: 1.5px solid var(--wine); border-radius: var(--radius-pill); font: var(--t-pill); color: var(--wine); }
-.ficha__tabela { width: 100%; margin-top: var(--s-6); border-collapse: collapse; }
-.ficha__tabela th, .ficha__tabela td { padding: var(--s-8) 0; border-bottom: 1px dashed var(--caramel-lt); text-align: left; vertical-align: middle; }
-.ficha__tabela th { width: 42%; font: var(--t-body-s); color: var(--ink); }
-.ficha__tabela td { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--s-10); }
+.ficha__tabela { width: 100%; border-collapse: collapse; }
+.ficha__tabela th, .ficha__tabela td { padding: var(--s-8) 0; border-bottom: 1px solid color-mix(in srgb, var(--ink) 30%, transparent); text-align: left; vertical-align: middle; }
+.ficha__tabela tr:last-child :is(th, td) { border-bottom: 4px solid var(--ink); }
+.ficha__tabela th { width: 50%; font: var(--t-body-s); font-weight: 600; color: var(--ink); }
+.ficha__tabela td { padding-left: var(--s-10); }
+.ficha__valor { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--s-10); }
 .ficha__tabela strong { font: var(--t-chip); color: var(--ink); white-space: nowrap; }
+.ficha__tabela em { font: var(--t-chip-small); font-style: italic; color: var(--text-muted); white-space: nowrap; }
 .ficha__barra { display: block; height: 8px; border-radius: var(--radius-track); background: var(--butter); overflow: hidden; }
 .ficha__barra i { display: block; height: 100%; width: calc(var(--v) * 100%); border-radius: inherit; background: var(--leaf); transform-origin: left; }
-.ficha__nota { margin-top: var(--s-10); font: var(--t-chip-small); color: var(--text-muted); }
+.ficha__nota { margin-top: var(--s-12); font: var(--t-chip-small); color: var(--wine); }
 
 @media (min-width: 600px) {
   .pratos__abas { max-width: 520px; }

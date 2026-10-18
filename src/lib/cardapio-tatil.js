@@ -35,7 +35,7 @@ export function initCardapioTatil(root) {
     if (botao) {
       const painel = /** @type {HTMLElement} */ (document.getElementById(botao.getAttribute('aria-controls') ?? ''));
       mostrar(painel, botao.getAttribute('aria-expanded') === 'true' ? null : botao);
-      root.setAttribute('data-tocado', '');   // some a dica “toque numa etiqueta”
+      root.setAttribute('data-tocado', '');   // o convite do 1º indicador “+” para de pulsar
       return;
     }
     const aba = /** @type {HTMLButtonElement | null} */ (alvo.closest('[role="tab"]'));
