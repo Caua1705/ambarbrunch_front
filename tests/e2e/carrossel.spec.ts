@@ -73,6 +73,22 @@ test('cards limpos: sem @, descrição, legenda, CC ou aviso sobrepostos pelo si
   await expect(page.locator('#quem-provou h2')).toHaveText(/rea[çc][õo]es\s*reais/i);
 });
 
+test('ordem: os dois vídeos de @_magall nunca ficam lado a lado — nem na volta do laço; um ponto por vídeo', async ({ page }) => {
+  const arquivos = await page.$$eval('[data-trilho] .story template[data-video]', (ts) => ts.map((t) => (t as HTMLTemplateElement).content.querySelector('source')!.getAttribute('src')!.split('/').pop()!.replace('.web.mp4', '')));
+  expect(arquivos).toEqual(['criador-magall-viciado', 'roll-criadora-larizgomes', 'criador-elevador-abrindo', 'criador-magall-sabores', 'criadores-grupo-expectativa']);
+  const n = arquivos.length;
+  const dele = arquivos.flatMap((a, i) => (a.includes('magall') ? [i] : []));
+  expect(dele).toHaveLength(2);
+  const distancia = Math.min(Math.abs(dele[0] - dele[1]), n - Math.abs(dele[0] - dele[1]));
+  expect(distancia, 'separados por outros criadores dos dois lados do laço').toBeGreaterThanOrEqual(2);
+  for (let i = 0; i < n; i++) expect(arquivos[i].includes('magall') && arquivos[(i + 1) % n].includes('magall'), `${i} e ${(i + 1) % n}`).toBe(false);
+  await expect(page.locator('[data-ponto]')).toHaveCount(n);
+  await expect(page.locator('[data-ponto]').nth(1)).toHaveAttribute('aria-current', 'true');
+  // cada card toca o próprio arquivo (o mesmo do som): rótulo do botão de som × descrição do vídeo
+  const pares = await page.$$eval('[data-trilho] .story', (cs) => cs.map((c) => [c.querySelector('[data-som]')?.getAttribute('data-nome'), (c.querySelector('template') as HTMLTemplateElement).content.querySelector('video')!.getAttribute('aria-label')]));
+  for (const [nome, rotulo] of pares) expect(rotulo).toBe(`Vídeo: ${nome!.slice(1, -1)}`);
+});
+
 test('pontos mostram e escolhem o card central (pelo caminho mais curto do laço)', async ({ page }) => {
   await irAoCarrossel(page);
   const pontos = page.locator('[data-ponto]');
@@ -191,7 +207,14 @@ test.describe('com movimento', () => {
     await expect.poll(() => tocando(page), { timeout: 10000 }).toEqual(mudos(0, 1, 2));
     await tocar(page, card(page, 1).locator('[data-som]'));
     await expect.poll(() => comVoz(page)).toEqual([1]);
-    // por 6 s (o vizinho da esquerda tem 4,3 s e dá a volta): maior trecho contínuo com algum vídeo à vista parado
+    // os dois vizinhos vão para perto do fim, para darem a volta do laço dentro da janela medida (os cortes têm de ~10 a 40 s)
+    for (const i of [0, 2]) {
+      await card(page, i).locator('video').evaluate(async (v: HTMLVideoElement) => {
+        if (!Number.isFinite(v.duration)) await new Promise((ok) => v.addEventListener('loadedmetadata', ok, { once: true }));
+        v.currentTime = Math.max(0, v.duration - 1.5);
+      });
+    }
+    // por 6 s (os vizinhos dão a volta em ~1,5 s): maior trecho contínuo com algum vídeo à vista parado
     const parado = await page.evaluate(() => new Promise<number>((ok) => {
       const vs = [...document.querySelectorAll<HTMLVideoElement>('[data-trilho] video')];
       let desde = 0; let pior = 0; const t0 = performance.now();
