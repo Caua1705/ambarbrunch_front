@@ -29,7 +29,8 @@ const MOLDURA = {
 // Regra de duração (2026-10-18, definitiva): no máximo 40 s por vídeo; original com até 40 s entra inteiro, até o último
 // quadro (sem acelerar). Campos opcionais: `trechos` = vários pedaços do MESMO original unidos por corte seco na imagem e
 // micro-esmaecimento de 30 ms no áudio (tempos no quadro de 30 fps, a sincronia não escorrega); `silencio` = intervalo do
-// ORIGINAL em que só o áudio é zerado, com rampas de 30 ms (a imagem segue contínua).
+// ORIGINAL em que só o áudio é zerado, com rampas de 30 ms (a imagem segue contínua). Um trecho pode ter recorte próprio
+// ([início, fim, recorte]) quando o original troca de janela no meio; aí `tamanho` fixa a saída para os pedaços casarem.
 const CLIPES = [
   // IF-02 · elevador: o story inteiro, do 1º quadro (0,1 s) ao último antes do story seguinte (troca de cena em 32,733 s).
   // Palavrão “caralho” em 15,75–16,36 s (nível de áudio a cada 10 ms; o modelo small o ouviu em 15,78–16,20 s): cortar a
@@ -37,23 +38,23 @@ const CLIPES = [
   // imagem segue contínua e só o áudio é silenciado nesse trecho (decisão do responsável, 2026-10-18).
   { id: 'IF-02a', src: 'originais/stories/stories_02_elevador_completo.mp4', out: 'criador-elevador-abrindo', start: 0.1, end: 32.7333, silencio: [15.74, 16.35], posterAt: 12.6 },
   // IF-04 · grupo: expectativa (story A, horizontal) e veredito do Biscoff (story B, combina com a legenda “1- Biscoff 1000/10”)
-  // IF-04a: story A inteiro, recortado só na janela do vídeo horizontal (sem esticar): do 1º quadro (0,43 s) ao último antes
-  // do story B (troca de cena em 28,533 s). Termina como o próprio story termina, no começo de uma fala (“Eu tô…”).
-  { id: 'IF-04a', src: 'originais/stories/stories_04_grupo_completo.mp4', out: 'criadores-grupo-expectativa', start: 0.45, end: 28.5333, vf: MOLDURA.grupoA, posterAt: 5.5 },
+  // IF-04a (2026-10-18, pedido do responsável: “até 40 s”): story A inteiro (0,45–28,533 s, janela A) e, emendado na troca
+  // de cena, o começo do story B (janela B, um pouco maior, reduzida ao tamanho da A) até a pausa de 39,65–39,8 s — antes de “Esse
+  // é perfeição” (39,9–41,7 s), que passaria dos 40 s, e bem antes do palavrão de 43,5 s. Total 39,35 s.
+  { id: 'IF-04a', src: 'originais/stories/stories_04_grupo_completo.mp4', out: 'criadores-grupo-expectativa', trechos: [[0.45, 28.5333, MOLDURA.grupoA], [28.5333, 39.8, MOLDURA.grupoB]], tamanho: '478:266', posterAt: 5.5 },
   // alternativa do IF-04a sem recorte: o story inteiro (vertical), com a legenda “@roll.ofc a gente tava tão ansioso…” dos criadores
   { id: 'IF-04a-story', src: 'originais/stories/stories_04_grupo_completo.mp4', out: 'criadores-grupo-expectativa-story', start: 0.5, end: 14.3, posterAt: 5.5 },
   { id: 'IF-04b', src: 'originais/stories/stories_04_grupo_completo.mp4', out: 'criadores-grupo-biscoff', start: 49.6, end: 59.9, vf: MOLDURA.grupoB, posterAt: 3.5 },
-  // IF-05 · @dailysocass, pistache: fala contínua 12,8–20,6 s; o trecho 10–12 s (fala incerta na transcrição) fica de fora
-  { id: 'IF-05a', src: 'originais/stories/stories_05_pistache.mp4', out: 'criadora-dailysocass-pistache', start: 12.7, end: 20.7, vf: MOLDURA.pistache, posterAt: 1.2 },
-  // IF-06 · @_magall (DdFJq86OyLo, 33,1 s): os dois cards saem do MESMO reel, sem repetir conteúdo e sem o que está
-  // desatualizado (divisão do responsável, 2026-10-18). Fora: 4,27–8,4 s (“os novos cinnamon rolls… de quinta a domingo”,
-  // dia antigo da Roll) e 16,1–22,77 s (convite para encomendar com a Roll, até “chama”; o site não vende).
-  // IF-06b: apresentação (“estou viciado… esse vício tem nome: Roll”, até a pausa de 4,15–4,27 s) + sabores (de “e olha a
-  // perfeição” até “Nutella com castanha”, pausa de 16,05–16,12 s). A imagem já está em close da caixa em 8,47 s: a união é
-  // uma troca de plano, não um salto no mesmo enquadramento.
-  { id: 'IF-06b', src: 'originais/magall/roll_influencer_DdFJq86OyLo_com_audio.mp4', out: 'criador-magall-viciado', trechos: [[0, 4.2667], [8.4667, 16.1]], fadeOut: 0.1, posterAt: 1.0 },
-  // IF-06a: o close dos produtos e da caixa, só com a música do reel, da troca de cena em 22,767 s ao fim (33,1 s).
-  { id: 'IF-06a', src: 'originais/magall/roll_influencer_DdFJq86OyLo_com_audio.mp4', out: 'criador-magall-sabores', start: 22.7667, end: 33.1, posterAt: 1.0 },
+  // IF-05 · @dailysocass, pistache (de volta ao carrossel em 2026-10-18, pedido do responsável; a gravação de tela enviada,
+  // “Gravação de Tela 2026-10-17 101705.mp4”, é byte a byte este original). Saem os 5,8 s iniciais (fim do story anterior e
+  // a criadora mastigando calada): começa em 5,85 s, logo antes da 1ª fala (“É o de pistache da Roll”, 5,9 s), e vai até o
+  // último quadro. “…a Adriana, sua safada” (9,75–12,3 s nas transcrições medium e small) tem o ÁUDIO zerado de 9,70 s até a
+  // queda de nível em 12,88 s, logo antes de “Meu Deus” (≥ 12,9 s, confirmado transcrevendo só essa janela).
+  { id: 'IF-05a', src: 'originais/stories/stories_05_pistache.mp4', out: 'criadora-dailysocass-pistache', start: 5.85, end: 22.3333, silencio: [9.70, 12.88], vf: MOLDURA.pistache, posterAt: 1.2 },
+  // IF-06 · @_magall (DdFJq86OyLo, 33,18 s). 2026-10-18 (pedido do responsável): o card só com música (IF-06a, close da
+  // caixa) saiu do carrossel e o IF-06b passou a ser o reel inteiro, contínuo — o mais perto possível dos 40 s pedidos.
+  // Voltam a fala “…de quinta a domingo” (4,0–8,56 s) e o convite para encomendar (16,12–22,64 s), antes cortados.
+  { id: 'IF-06b', src: 'originais/magall/roll_influencer_DdFJq86OyLo_com_audio.mp4', out: 'criador-magall-viciado', start: 0, end: 33.1667, posterAt: 1.0 },
   // IF-07 · @_magall (Db_ajKouIuH): apresentação, antes do 1º palavrão (falado e legendado a partir de ~12 s)
   { id: 'IF-07a', src: 'originais/magall/roll_influencer_Db_ajKouIuH_com_audio.mp4', out: 'criador-magall-apresentacao', start: 1.2, end: 11.6, posterAt: 4.6 },
 ];
@@ -92,8 +93,9 @@ for (const c of CLIPES) {
   if (trechos.some(([a, b]) => b <= a)) { console.error(`✗ ${c.id}: trecho inválido`); process.exitCode = 1; continue; }
   const dur = +trechos.reduce((s, [a, b]) => s + (b - a), 0).toFixed(3);
   if (dur > 40) { console.error(`✗ ${c.id}: ${dur}s passa do limite de 40 s`); process.exitCode = 1; continue; }
-  const vf = [c.vf, "scale='min(540,iw)':-2:flags=lanczos", 'fps=30', 'setsar=1'].filter(Boolean).join(',');
-  const partes = trechos.map(([a, b], i) => {
+  const vfDe = (recorte) => [recorte ?? c.vf, c.tamanho ? `scale=${c.tamanho}:flags=lanczos` : "scale='min(540,iw)':-2:flags=lanczos", 'fps=30', 'setsar=1'].filter(Boolean).join(',');
+  const partes = trechos.map(([a, b, recorte], i) => {
+    const vf = vfDe(recorte);
     const emenda = [i > 0 && 'afade=t=in:d=0.03', i < trechos.length - 1 && `afade=t=out:st=${(b - a - 0.03).toFixed(3)}:d=0.03`].filter(Boolean);
     return `[0:v]trim=start=${a}:end=${b},setpts=PTS-STARTPTS,${vf}[v${i}];[0:a]atrim=start=${a}:end=${b},asetpts=PTS-STARTPTS,aresample=48000${emenda.map((f) => ',' + f).join('')}[a${i}]`;
   });
@@ -126,7 +128,7 @@ for (const c of CLIPES) {
   const p = probe(output);
   const v = p.streams.find((s) => s.codec_type === 'video');
   const item = {
-    id: c.id, origem: c.src, trechos, silencio: c.silencio ?? null, recorte: c.vf ?? null, arquivo: path.relative(ROOT, output).replaceAll('\\', '/'),
+    id: c.id, origem: c.src, trechos: trechos.map(([a, b]) => [a, b]), silencio: c.silencio ?? null, recorte: c.vf ?? (trechos.some((t) => t[2]) ? trechos.map((t) => t[2]) : null), arquivo: path.relative(ROOT, output).replaceAll('\\', '/'),
     poster: path.relative(ROOT, poster).replaceAll('\\', '/'), largura: v.width, altura: v.height, duracao: +(+p.format.duration).toFixed(2),
     kb: Math.round(p.format.size / 1024), posterKb: Math.round(fs.statSync(poster).size / 1024), loudnessOrigemLUFS: +m.input_i,
   };

@@ -73,14 +73,11 @@ test('cards limpos: sem @, descrição, legenda, CC ou aviso sobrepostos pelo si
   await expect(page.locator('#quem-provou h2')).toHaveText(/rea[çc][õo]es\s*reais/i);
 });
 
-test('ordem: os dois vídeos de @_magall nunca ficam lado a lado — nem na volta do laço; um ponto por vídeo', async ({ page }) => {
+test('ordem: um card por criador, nenhum vídeo de @_magall lado a lado — nem na volta do laço; um ponto por vídeo', async ({ page }) => {
   const arquivos = await page.$$eval('[data-trilho] .story template[data-video]', (ts) => ts.map((t) => (t as HTMLTemplateElement).content.querySelector('source')!.getAttribute('src')!.split('/').pop()!.replace('.web.mp4', '')));
-  expect(arquivos).toEqual(['criador-magall-viciado', 'roll-criadora-larizgomes', 'criador-elevador-abrindo', 'criador-magall-sabores', 'criadores-grupo-expectativa']);
+  // 2026-10-18: o card só com música (criador-magall-sabores) saiu e o pistache de @dailysocass voltou
+  expect(arquivos).toEqual(['criador-magall-viciado', 'roll-criadora-larizgomes', 'criador-elevador-abrindo', 'criadora-dailysocass-pistache', 'criadores-grupo-expectativa']);
   const n = arquivos.length;
-  const dele = arquivos.flatMap((a, i) => (a.includes('magall') ? [i] : []));
-  expect(dele).toHaveLength(2);
-  const distancia = Math.min(Math.abs(dele[0] - dele[1]), n - Math.abs(dele[0] - dele[1]));
-  expect(distancia, 'separados por outros criadores dos dois lados do laço').toBeGreaterThanOrEqual(2);
   for (let i = 0; i < n; i++) expect(arquivos[i].includes('magall') && arquivos[(i + 1) % n].includes('magall'), `${i} e ${(i + 1) % n}`).toBe(false);
   await expect(page.locator('[data-ponto]')).toHaveCount(n);
   await expect(page.locator('[data-ponto]').nth(1)).toHaveAttribute('aria-current', 'true');

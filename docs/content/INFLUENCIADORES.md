@@ -78,6 +78,15 @@ encomendar). O script ganhou `trechos` (pedaços unidos) e `silencio` (zera só 
 Ordem no carrossel: viciado · larizgomes · elevador · sabores · horizontal — os dois de @_magall nunca lado a lado, nem
 na volta do laço.
 
+**Ajuste de 2026-10-18 (pedido do responsável):** o card só com música (**IF-06a**, close da caixa) **saiu** do carrossel e
+do site. **IF-06b** passou a ser o reel inteiro, contínuo (0–33,17 s; o reel não chega a 40 s), e com isso voltam “…de
+quinta a domingo” e o convite para encomendar. **IF-04a** ganhou o começo do story B (janela B reduzida ao tamanho da A),
+até a pausa de 39,8 s: 39,4 s, antes de “Esse é perfeição” e do palavrão de 43,5 s. **IF-05a** (@dailysocass) **voltou**
+com a legenda gravada pela criadora: 5,85 s até o fim (16,5 s), sem o fim do story anterior nem a mastigação calada do
+início, e com o áudio zerado em 9,70–12,88 s (“…a Adriana, sua safada”), confirmado por transcrição do corte final. A
+gravação enviada (“Gravação de Tela 2026-10-17 101705.mp4”) é idêntica a `stories_05_pistache.mp4`. Nova ordem: viciado ·
+larizgomes · elevador · pistache · horizontal.
+
 | ID | Arquivo | Origem · trecho | Formato | Peso | Fala (transcrição automática) | Prior. |
 | --- | --- | --- | --- | ---: | --- | --- |
 | IF-06b | `criador-magall-viciado` | IF-06 · 0–4,267 s **+** 8,467–16,1 s (2026-10-18; antes só 0–4,26 s) | 540×960 · 11,9 s | 1454 KB | “Eu definitivamente estou viciado, e esse vício tem nome: Roll.” + “E olha a perfeição desses sabores. Isso aqui é absurdo: pistache, tradicional, Nutella com castanha.” Dois trechos do mesmo reel unidos (divisão do responsável): fica fora a frase do dia antigo (“…de quinta a domingo”, 4,27–8,4 s). Emenda numa pausa da fala (4,15–4,27 s → antes de “e olha”, 8,56 s), cortes no quadro de 30 fps (sem escorregar a sincronia), áudio com rampas de 30 ms; na imagem é uma troca de plano (ele na câmera → close da caixa) | **P1** |
