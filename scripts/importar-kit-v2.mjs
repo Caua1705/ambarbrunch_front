@@ -45,6 +45,8 @@ const MEDIA = [
   { from: '02_GASTRONOMIA_REAL_ROLL/roll-individual-frutas-vermelhas.webp', to: 'roll/roll-mood-cheesecake.webp', crop: [230, 480, 620, 620], origem: 'real' },
   { from: '02_GASTRONOMIA_REAL_ROLL/roll-individual-kinder.webp', to: 'roll/roll-kinder-bueno.webp', crop: [230, 480, 620, 620], origem: 'real' },
   { from: '02_GASTRONOMIA_REAL_ROLL/roll-individual-smores.webp', to: 'roll/roll-smores.webp', crop: [230, 480, 620, 620], origem: 'real' },
+  // capa do hero (rodada final): close do topo do roll Kinder Bueno; as setas da arte ficam fora do círculo
+  { from: '02_GASTRONOMIA_REAL_ROLL/roll-individual-kinder.webp', to: 'roll/roll-kinder-macro.webp', crop: [200, 431, 585, 585], origem: 'real' },
   // categorias do cardápio (IA, ilustrativas): quadrado sem o rótulo gravado
   { from: '03_IMAGENS_IA_CATEGORIAS/bowls-poke-principal.webp', to: 'cardapio/bowls-poke.webp', crop: [56, 6, 200, 200], origem: 'ilustrativa' },
   { from: '03_IMAGENS_IA_CATEGORIAS/brownies-principal.webp', to: 'cardapio/brownies.webp', crop: [62, 8, 190, 190], origem: 'ilustrativa' },
@@ -62,6 +64,11 @@ const MEDIA = [
   { rev: 'salada-atum.webp', to: 'cardapio/salada-atum.webp', escala: 2, origem: 'ilustrativa' },
   { rev: 'roll-salgado-pesto.webp', to: 'cardapio/roll-salgado-pesto.webp', origem: 'ilustrativa' },
   { rev: 'roll-salgado-caprese.webp', to: 'cardapio/roll-salgado-caprese.webp', origem: 'ilustrativa' },
+  // rodada final: os quatro rolls salgados com foto (mesma prancha da proposta) e as fotos que faltavam no cardápio
+  { rev: 'roll-salgado-quatro-queijos.webp', to: 'cardapio/roll-salgado-quatro-queijos.webp', origem: 'ilustrativa' },
+  { rev: 'roll-salgado-cogumelos.webp', to: 'cardapio/roll-salgado-cogumelos.webp', origem: 'ilustrativa' },
+  { from: '03_IMAGENS_IA_CATEGORIAS/cinnamon-roll-doce-principal.webp', to: 'cardapio/roll-tradicional.webp', crop: [100, 54, 130, 130], escala: 2, origem: 'ilustrativa' },
+  { from: '03_IMAGENS_IA_CATEGORIAS/sanduiches-principal.webp', to: 'cardapio/sanduiches.webp', crop: [130, 24, 160, 160], escala: 2, origem: 'ilustrativa' },
 ];
 
 const preview = process.argv.includes('--preview');
