@@ -13,5 +13,5 @@ export const secoes = {
   provou: { id: 'quem-provou', linhas: ['Reações', 'reais'], sub: 'Reviews reais de quem provou a Roll.' },
   lugar: { id: 'ambientes', linhas: ['Escolha', 'seu lugar'], sub: 'cada canto, um clima' },
   reserva: { id: 'reservar', linhas: ['Reserve', 'sua mesa'], sub: 'Seu próximo encontro começa aqui.' },
-  visite: { id: 'visite', linhas: ['Visite', 'o Âmbar'], sub: 'a mesa tá posta' },
+  visite: { id: 'visite', linhas: ['Visite', 'o Âmbar'], sub: 'a gente te espera por aqui' },
 } as const;
