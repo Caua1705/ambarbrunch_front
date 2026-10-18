@@ -1,6 +1,6 @@
 /* SALADAS & BOWLS (seção 6) · creme, com o verde da folha nos detalhes.
    Abas com miniatura (um prato por vez); foto num prato de papel; pinos de ingrediente entram um a um;
-   ficha nutricional completa sempre à vista (validada, ou “em validação” linha a linha). */
+   ficha nutricional em rótulo, recolhida (abre e fecha ao tocar no título; validada, ou “em validação” linha a linha). */
 
 .prato { padding: var(--rhythm-b) var(--gutter) calc(var(--rhythm-b) + var(--rhythm-tail)); background: var(--cream); overflow: hidden; }
 .prato__grid { display: grid; gap: var(--s-34); margin-top: var(--s-30); }
@@ -48,13 +48,29 @@
 .prato__ingredientes { display: flex; flex-wrap: wrap; gap: var(--s-6); margin-top: var(--s-14); }
 .prato__ingredientes li { padding: 6px var(--s-10); border-radius: var(--radius-pill); background: var(--leaf); color: var(--cream); font: var(--t-pill); text-transform: uppercase; letter-spacing: var(--track-tight-caps); }
 
-/* Ficha nutricional (rodada final): sempre à vista, no formato de rótulo — moldura tinta, título em caixa alta, porção,
-   tabela com barra por nutriente. Sem números validados, cada linha diz “em validação” (nada inventado). Na revisão, os
-   números de exemplo ganham o selo “demonstrativo”. */
-.ficha { margin-top: var(--s-22); padding: var(--s-14) var(--s-14) var(--s-12); border: 2px solid var(--ink); border-radius: var(--radius-control); background: var(--cream); }
-.ficha__topo { display: flex; align-items: center; justify-content: space-between; gap: var(--s-10); padding-bottom: var(--s-6); border-bottom: 6px solid var(--ink); }
+/* Ficha nutricional (ajuste final de 2026-10-18): rótulo editorial — moldura tinta, título em caixa alta, porção, tabela
+   com barra por nutriente — RECOLHIDO. O título é o botão: abre e fecha com a altura deslizando (grid 0fr ↔ 1fr), o
+   conteúdo esmaecendo e, ao abrir, as linhas descem em cascata e as barras crescem (motion.css). Fechado, o conteúdo sai
+   da leitura e do Tab (visibility, só depois que a altura fecha). Sem JS, aberto. Sem números validados, cada linha diz
+   “em validação” (nada inventado); nenhum selo de rascunho na tela. */
+.ficha { margin-top: var(--s-22); padding: var(--s-12) var(--s-14); border: 2px solid var(--ink); border-radius: var(--radius-control); background: var(--cream); }
 .ficha__nome { margin: 0; font: var(--t-chip); font-size: var(--fs-lead); line-height: 1.05; text-transform: uppercase; letter-spacing: var(--track-tight-caps); color: var(--ink); }
-.ficha__selo { flex: none; padding: 3px var(--s-8) 4px; border-radius: var(--radius-pill); background: var(--wine); color: var(--butter); font: var(--t-chip-small); text-transform: uppercase; letter-spacing: var(--track-caps); rotate: 3deg; }
+.ficha__topo {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s-10); width: 100%; min-height: 44px;
+  padding: 0 0 var(--s-6); border: 0; border-bottom: 6px solid var(--ink); background: none;
+  font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.ficha__topo:focus-visible { outline: 3px solid var(--wine); outline-offset: 3px; }
+/* indicador: disco tinta com “+”, que gira e vira “×” com a ficha aberta (o mesmo gesto das etiquetas do cardápio) */
+.ficha__mais { position: relative; flex: none; width: 26px; height: 26px; border-radius: var(--radius-round); background: var(--ink); color: var(--cream); transition: rotate var(--dur-s) var(--ease-paper), background-color var(--dur-s) var(--ease); }
+.ficha__mais::before, .ficha__mais::after { content: ""; position: absolute; left: 50%; top: 50%; width: 11px; height: 2.5px; border-radius: 2px; background: currentColor; translate: -50% -50%; }
+.ficha__mais::after { rotate: 90deg; }
+.ficha[data-aberta] .ficha__mais { rotate: 135deg; background: var(--wine); }
+.ficha__topo:active .ficha__mais { scale: var(--press-scale); }
+.ficha__corpo { display: grid; grid-template-rows: 1fr; transition: grid-template-rows var(--dur-m) var(--ease); }
+.ficha__dentro { min-height: 0; overflow: hidden; transition: opacity var(--dur-m) var(--ease), visibility var(--dur-m); }
+.js .ficha:not([data-aberta]) .ficha__corpo { grid-template-rows: 0fr; transition-timing-function: var(--ease-fold); }
+.js .ficha:not([data-aberta]) .ficha__dentro { opacity: 0; visibility: hidden; transition-timing-function: var(--ease-fold); }
 .ficha__porcao { margin-top: var(--s-6); padding-bottom: var(--s-6); border-bottom: 2px solid var(--ink); font: var(--t-chip-small); color: var(--text-muted); }
 .ficha__titulo { margin-top: var(--s-14); font: var(--t-caption); color: var(--caramel-dk); }
 .ficha__texto { margin-top: 4px; font: var(--t-body-s); color: var(--ink); }
@@ -71,7 +87,6 @@
 .ficha__tabela em { font: var(--t-chip-small); font-style: italic; color: var(--text-muted); white-space: nowrap; }
 .ficha__barra { display: block; height: 8px; border-radius: var(--radius-track); background: var(--butter); overflow: hidden; }
 .ficha__barra i { display: block; height: 100%; width: calc(var(--v) * 100%); border-radius: inherit; background: var(--leaf); transform-origin: left; }
-.ficha__nota { margin-top: var(--s-12); font: var(--t-chip-small); color: var(--wine); }
 
 @media (min-width: 600px) {
   .pratos__abas { max-width: 520px; }

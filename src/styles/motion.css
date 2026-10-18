@@ -143,15 +143,18 @@
    a foto principal estala, os itens descem em cascata, as barras crescem. @keyframes recomeçam sozinhas quando o conteúdo
    aparece (hidden → visível): trocar de etiqueta com o cartão aberto troca o conteúdo com um esmaecimento curto. */
 .cartao:not([hidden]) .cartao__dentro { animation: cartao-in var(--dur-card-in) var(--ease) backwards; }
-.cartao[data-fechando] .cartao__dentro { animation: cartao-out var(--dur-card-out) var(--ease-in) both; }
+/* a saída é o espelho da entrada, com a altura encolhendo junto (Web Animations em lib/cardapio-tatil.js, com estes tokens) */
+.cartao { --fechar-dur: var(--dur-card-out); --fechar-curva: var(--ease-fold); }
+.cartao[data-fechando] { pointer-events: none; }
 .cartao[data-trocando] .cartao__cat:not([hidden]) { animation: cat-in var(--dur-s) var(--ease) both; }
 .cartao__cat:not([hidden]) .cartao__prato { animation: prato-in var(--dur-m) var(--ease-paper) var(--card-delay-photo) both; }
 .cartao__grupo:not([hidden]) .cartao__itens li { animation: item-in var(--dur-s) var(--ease) both; animation-delay: calc(var(--card-delay-items) + var(--k, 0) * var(--card-stagger)); }
 @keyframes cat-in { from { opacity: 0; transform: translateY(4px); } }
 @keyframes prato-in { from { opacity: 0; transform: scale(.6) rotate(-30deg); } }
-.js .prato__card.is-in .ficha__barra i { animation: barra var(--dur-l) var(--ease-paper) both; animation-delay: calc(var(--i, 0) * var(--stagger)); }
+/* ficha nutricional abrindo: as linhas descem em cascata e as barras crescem (recomeça a cada abertura) */
+.ficha[data-aberta] .ficha__tabela tr { animation: item-in var(--dur-s) var(--ease) both; animation-delay: calc(var(--card-delay-items) + var(--i, 0) * var(--card-stagger)); }
+.ficha[data-aberta] .ficha__barra i { animation: barra var(--dur-l) var(--ease-paper) both; animation-delay: calc(var(--card-delay-items) + var(--i, 0) * var(--stagger)); }
 @keyframes cartao-in { from { opacity: 0; clip-path: inset(-40px -20px 72% -20px); transform: translateY(-6px) rotate(-1.2deg); } to { clip-path: inset(-40px -20px -20px -20px); } }
-@keyframes cartao-out { to { opacity: 0; transform: translateY(-6px) scale(.98); } }
 @keyframes item-in { from { opacity: 0; transform: translateY(6px); } }
 @keyframes barra { from { transform: scaleX(0); } }
 

@@ -1,9 +1,9 @@
 ---
 // 6 · SALADAS & BOWLS — pratos do menu saudável, um de cada vez (abas com miniatura): foto num prato de papel com
-// marcadores de ingrediente, texto curto, ingredientes e a ficha completa sempre à vista (tabela nutricional, ingredientes,
-// alergênicos). Sem JS, os pratos aparecem um embaixo do outro.
-// Site publicado: alergênicos e ficha só quando validados (data/prato.ts); até lá, o aviso de “em validação”.
-// Modo de revisão: a ficha de EXEMPLO aparece, marcada como tal. Nenhuma alegação de saúde ou de calorias.
+// marcadores de ingrediente, texto curto, ingredientes e a ficha nutricional em rótulo (tabela com barras, porção,
+// alergênicos), recolhida: abre e fecha com animação ao tocar no título. Sem JS, pratos e ficha ficam abertos, um embaixo
+// do outro. Site publicado: alergênicos e ficha só quando validados (data/prato.ts); até lá, “em validação”.
+// Modo de revisão: os números de EXEMPLO aparecem sem selo visual (data-provisoria). Nenhuma alegação de saúde ou de calorias.
 import Foto from '../components/Foto.astro';
 import MegaTitle from '../components/MegaTitle.astro';
 import { pratos, camposFicha, fichaEmValidacao, type Ficha } from '../data/prato';
@@ -49,38 +49,44 @@ const fichaDe = (p: (typeof pratos)[number]): { ficha: Ficha; demo: boolean } | 
             <p class="prato__texto">{p.texto}</p>
             <ul class="prato__ingredientes" aria-label="Ingredientes">{p.ingredientes.map((i) => <li>{i}</li>)}</ul>
 
-            <!-- ficha completa, sempre à vista (rodada final: o <details> escondia a informação). Sem ficha validada, as
-                 linhas aparecem com “em validação” no lugar do número; números de exemplo só na revisão, com selo. -->
-            <section class="ficha" class:list={[f?.demo && 'ficha--demo']} aria-labelledby={`ficha-${p.id}`}>
-              <div class="ficha__topo">
-                <h4 class="ficha__nome" id={`ficha-${p.id}`}>Informação nutricional</h4>
-                {f?.demo && <span class="ficha__selo">demonstrativo</span>}
+            {/* ficha no formato de rótulo, recolhida: o título é o botão que abre e fecha (suave, nos dois sentidos).
+                Sem ficha validada, as linhas dizem “em validação” no lugar do número. Na revisão, os números provisórios
+                aparecem sem selo na tela (marcados só em data-provisoria e no texto para leitor de tela); no site
+                publicado nunca entram. Comentário de template: não vai para o HTML. */}
+            <section class="ficha" aria-labelledby={`ficha-${p.id}`} data-ficha data-provisoria={f?.demo ? '' : undefined}>
+              <h4 class="ficha__nome" id={`ficha-${p.id}`}>
+                <button type="button" class="ficha__topo" aria-expanded="false" aria-controls={`ficha-corpo-${p.id}`} data-ficha-botao>
+                  <span>Informação nutricional</span>
+                  <i class="ficha__mais" aria-hidden="true"></i>
+                </button>
+              </h4>
+              <div class="ficha__corpo" id={`ficha-corpo-${p.id}`}>
+                <div class="ficha__dentro">
+                  <p class="ficha__porcao">{f ? `porção de ${f.ficha.porcao}` : 'porção · em validação'}</p>
+                  <table class="ficha__tabela">
+                    <caption class="visually-hidden">Informação nutricional{f ? ` por porção de ${f.ficha.porcao}` : ''}{f?.demo ? ' (valores provisórios, ainda não validados)' : f ? '' : ' (valores em validação)'}</caption>
+                    <tbody>
+                      {(f ? f.ficha.valores : camposFicha).map((n, i) => {
+                        const valor = 'valor' in n ? n.valor : undefined;
+                        return (
+                          <tr style={`--v:${valor === undefined ? 0 : Math.min(1, valor / n.max)};--i:${i}`}>
+                            <th scope="row">{n.rotulo}</th>
+                            <td><span class="ficha__valor">
+                              <span class="ficha__barra" aria-hidden="true"><i></i></span>
+                              {valor === undefined ? <em>em validação</em> : <strong>{valor.toLocaleString('pt-BR')} {n.unidade}</strong>}
+                            </span></td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+
+                  <p class="ficha__titulo">Alergênicos</p>
+                  {isPendente(p.alergenicos)
+                    ? <p class="ficha__texto ficha__texto--aviso">{fichaEmValidacao}</p>
+                    : <ul class="ficha__alergenicos">{p.alergenicos.map((a) => <li>{a}</li>)}</ul>}
+                </div>
               </div>
-              <p class="ficha__porcao">{f ? `porção de ${f.ficha.porcao}` : 'porção · em validação'}</p>
-              <table class="ficha__tabela">
-                <caption class="visually-hidden">Informação nutricional{f ? ` por porção de ${f.ficha.porcao}` : ''}{f?.demo ? ' (valores demonstrativos, não são do prato)' : f ? '' : ' (valores em validação)'}</caption>
-                <tbody>
-                  {(f ? f.ficha.valores : camposFicha).map((n, i) => {
-                    const valor = 'valor' in n ? n.valor : undefined;
-                    return (
-                      <tr style={`--v:${valor === undefined ? 0 : Math.min(1, valor / n.max)};--i:${i}`}>
-                        <th scope="row">{n.rotulo}</th>
-                        <td><span class="ficha__valor">
-                          <span class="ficha__barra" aria-hidden="true"><i></i></span>
-                          {valor === undefined ? <em>em validação</em> : <strong>{valor.toLocaleString('pt-BR')} {n.unidade}</strong>}
-                        </span></td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-
-              <p class="ficha__titulo">Alergênicos</p>
-              {isPendente(p.alergenicos)
-                ? <p class="ficha__texto ficha__texto--aviso">{fichaEmValidacao}</p>
-                : <ul class="ficha__alergenicos">{p.alergenicos.map((a) => <li>{a}</li>)}</ul>}
-
-              {f?.demo && <p class="ficha__nota">valores fictícios, só para a revisão interna · trocar pela ficha técnica do prato</p>}
             </section>
           </div>
         </article>
@@ -92,6 +98,15 @@ const fichaDe = (p: (typeof pratos)[number]): { ficha: Ficha; demo: boolean } | 
 <script>
   // abas dos pratos (padrão WAI-ARIA): sem JS, os pratos ficam um embaixo do outro
   const raiz = document.querySelector<HTMLElement>('[data-pratos]');
+  // ficha nutricional: o título abre e fecha (a animação é CSS, em prato.css e motion.css)
+  raiz?.querySelectorAll<HTMLButtonElement>('[data-ficha-botao]').forEach((b) => {
+    const ficha = b.closest<HTMLElement>('[data-ficha]');
+    b.addEventListener('click', () => {
+      const abrir = b.getAttribute('aria-expanded') !== 'true';
+      b.setAttribute('aria-expanded', String(abrir));
+      ficha?.toggleAttribute('data-aberta', abrir);
+    });
+  });
   const lista = raiz?.querySelector<HTMLElement>('[data-abas]');
   if (raiz && lista) {
     const abas = [...lista.querySelectorAll<HTMLButtonElement>('[role="tab"]')];

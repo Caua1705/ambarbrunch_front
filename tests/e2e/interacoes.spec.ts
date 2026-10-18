@@ -85,7 +85,7 @@ test('Café + Roll: escolher a dupla troca roll, bebida e cor do copo; atalho ab
   await expect(page.locator('[data-cat="gelados"]')).toBeVisible();
 });
 
-test('Saladas & bowls: abas trocam o prato; ficha nutricional completa, sem números fictícios fora da revisão', async ({ page }) => {
+test('Saladas & bowls: abas trocam o prato; ficha nutricional recolhida, abre e fecha, sem selo de rascunho', async ({ page }) => {
   await page.goto('/');
   const sec = page.locator('#saladas');
   await sec.scrollIntoViewIfNeeded();
@@ -93,18 +93,31 @@ test('Saladas & bowls: abas trocam o prato; ficha nutricional completa, sem núm
   await expect(sec.locator('#prato-poke')).toBeHidden();
   await sec.getByRole('tab', { name: /poke/i }).click();
   await expect(sec.locator('#prato-poke')).toBeVisible();
-  // a ficha fica sempre à vista, com todos os campos do rótulo
+  // a ficha começa recolhida: só o título (botão) à vista; o conteúdo fora da leitura e do Tab
   const ficha = sec.locator('#prato-poke .ficha');
-  await expect(ficha).toBeVisible();
+  const botao = ficha.getByRole('button', { name: 'Informação nutricional' });
+  await expect(botao).toHaveAttribute('aria-expanded', 'false');
+  await expect(ficha.locator('.ficha__tabela')).toBeHidden();
+  await botao.click();
+  await expect(botao).toHaveAttribute('aria-expanded', 'true');
+  await expect(ficha.locator('.ficha__tabela')).toBeVisible();
   await expect(ficha).toContainText('Alergênicos');
   for (const campo of ['Valor energético', 'Carboidratos', 'Proteínas', 'Gorduras totais', 'Fibra alimentar', 'Sódio']) await expect(ficha).toContainText(campo);
   await expect(ficha.locator('tbody tr')).toHaveCount(6);
-  // revisão: números de exemplo com o selo “demonstrativo”; site publicado: cada linha “em validação”, nenhum número
-  if (await ficha.locator('.ficha__selo').count()) await expect(ficha).toContainText('valores fictícios');
+  await expect(ficha.locator('.ficha__barra')).toHaveCount(6);
+  // nenhum selo ou aviso de rascunho na tela, em nenhum build
+  await expect(ficha.locator('.ficha__selo, .ficha__nota')).toHaveCount(0);
+  const visivel = (await ficha.innerText()).toLowerCase();
+  for (const t of ['demonstrativ', 'fictíci', 'revisão interna']) expect(visivel, t).not.toContain(t);
+  // revisão: números provisórios (marcados só em data-provisoria); site publicado: cada linha “em validação”, nenhum número
+  if (await ficha.getAttribute('data-provisoria') !== null) await expect(ficha.locator('tbody strong')).toHaveCount(6);
   else {
     await expect(ficha.locator('tbody em', { hasText: 'em validação' })).toHaveCount(6);
     await expect(ficha.locator('tbody strong')).toHaveCount(0);
   }
+  await botao.click();
+  await expect(botao).toHaveAttribute('aria-expanded', 'false');
+  await expect(ficha.locator('.ficha__tabela')).toBeHidden();
   const texto = (await sec.innerText()).toLowerCase();
   for (const t of ['baixo em calorias', 'rico em proteína']) expect(texto).not.toContain(t);
 });

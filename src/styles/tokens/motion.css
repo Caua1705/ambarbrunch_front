@@ -7,6 +7,8 @@
   --ease-out: var(--ease);
   --ease-paper: cubic-bezier(.34, 1.4, .64, 1); /* assentar com leve overshoot */
   --ease-in: cubic-bezier(.4, 0, 1, 1);
+  --ease-fold: cubic-bezier(.45, 0, .25, 1);   /* dobrar/recolher (cartão do cardápio, ficha): começa e termina macio — a
+                                                saída com --ease perdia ~40% da altura no 1º quadro e parecia sumir de uma vez */
   --ease-sheet: cubic-bezier(.22, 1, .36, 1);  /* folha do menu: desacelera forte e assenta SEM passar do ponto (ancorada na base,
                                                 um overshoot abria um vão embaixo — ajuste de 2026-10-18) */
 
@@ -21,7 +23,7 @@
   --dur-m: 420ms;
   --dur-cta-in: 500ms;   /* CTA fixo subindo (v1) */
   --dur-card-in: 320ms;  /* cartão do cardápio se desdobrando */
-  --dur-card-out: 180ms;
+  --dur-card-out: 340ms; /* cartão se dobrando de volta, com a altura encolhendo junto (sem salto do que vem abaixo) */
   --dur-l: 640ms;
   --dur-reveal: 700ms;   /* revelação do v1 */
   --dur-loop-busy: 1.6s; /* esqueleto de horários e carimbo girando durante o envio */

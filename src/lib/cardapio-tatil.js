@@ -1,24 +1,60 @@
 // @ts-check
 // Âmbar Brunch — cardápio tátil: a etiqueta abre o cartão do seu grupo; tocar de novo (ou ×, ou Esc) fecha.
 // Um cartão aberto por grupo; trocar de etiqueta troca o conteúdo sem fechar (o conteúdo novo entra com um esmaecimento
-// curto). A entrada é CSS (@keyframes, que recomeçam sozinhas quando o conteúdo aparece); a saída marca data-fechando
-// por um instante. Abas (doces | salgados) dentro do cartão: sem JS, os dois grupos aparecem um embaixo do outro.
-// Movimento reduzido: tudo direto.
+// curto). A entrada é CSS (@keyframes, que recomeçam sozinhas quando o conteúdo aparece).
+// A SAÍDA (ajuste final de 2026-10-18) é o espelho da entrada: o papel se dobra de volta para cima (o recorte sobe, a
+// opacidade some no fim) enquanto a altura do cartão encolhe junto — o que vem abaixo sobe deslizando, sem salto —,
+// e só no fim o cartão vira hidden. Duração e curva vêm dos tokens (--fechar-dur/--fechar-curva em bands.css).
+// Reabrir no meio da saída cancela a saída e desdobra de novo. Abas (doces | salgados) dentro do cartão: sem JS, os dois
+// grupos aparecem um embaixo do outro. Movimento reduzido: tudo direto.
 import { motionAllowed } from './motion.js';
+
+/** @param {string} v duração CSS (“320ms” ou “.32s”) */
+const ms = (v) => (v.trim().endsWith('ms') ? parseFloat(v) : parseFloat(v) * 1000) || 0;
 
 /** @param {HTMLElement} root */
 export function initCardapioTatil(root) {
+  /** @type {WeakMap<HTMLElement, Animation[]>} */
+  const saidas = new WeakMap();
+  /** interrompe a saída em andamento (se houver) e devolve o cartão ao estado de repouso @param {HTMLElement} painel */
+  const interromper = (painel) => {
+    saidas.get(painel)?.forEach((a) => a.cancel());
+    saidas.delete(painel);
+    painel.removeAttribute('data-fechando');
+  };
+  /** @param {HTMLElement} painel */
+  const fechar = (painel) => {
+    if (painel.hasAttribute('data-fechando')) return;   // já está se dobrando (ex.: Esc duas vezes)
+    const dentro = /** @type {HTMLElement | null} */ (painel.querySelector('.cartao__dentro'));
+    const cs = getComputedStyle(painel);
+    const dur = ms(cs.getPropertyValue('--fechar-dur'));
+    if (!motionAllowed() || painel.hidden || !dentro || !dur || !painel.animate) { interromper(painel); painel.hidden = true; return; }
+    interromper(painel);
+    painel.setAttribute('data-fechando', '');
+    const opcoes = { duration: dur, easing: cs.getPropertyValue('--fechar-curva').trim() || 'ease', fill: /** @type {const} */ ('forwards') };
+    const anims = [
+      painel.animate([{ height: `${painel.offsetHeight}px`, marginTop: cs.marginTop }, { height: '0px', marginTop: '0px' }], opcoes),
+      dentro.animate([
+        { opacity: 1, clipPath: 'inset(-40px -20px -20px -20px)', transform: 'none' },
+        { opacity: 1, offset: 0.55 },
+        { opacity: 0, clipPath: 'inset(-40px -20px 100% -20px)', transform: 'translateY(-6px) rotate(-1.2deg)' },
+      ], opcoes),
+    ];
+    saidas.set(painel, anims);
+    Promise.all(anims.map((a) => a.finished)).then(() => {
+      if (saidas.get(painel) !== anims) return;
+      painel.hidden = true;
+      interromper(painel);
+    }, () => { /* cancelada: o cartão foi reaberto */ });
+  };
+
   /** @param {HTMLElement} painel @param {HTMLButtonElement | null} ativo */
   const mostrar = (painel, ativo) => {
     const grupo = root.querySelectorAll(`[aria-controls="${painel.id}"]`);
     grupo.forEach((b) => b.setAttribute('aria-expanded', String(b === ativo)));
-    if (!ativo) {
-      if (!motionAllowed()) { painel.hidden = true; return; }
-      painel.setAttribute('data-fechando', '');
-      window.setTimeout(() => { if (painel.hasAttribute('data-fechando')) { painel.hidden = true; painel.removeAttribute('data-fechando'); } }, 200);
-      return;
-    }
-    painel.removeAttribute('data-fechando');
+    if (!ativo) { fechar(painel); return; }
+    // reaberto no meio da saída: cancela a saída e o papel se desdobra de novo (a entrada CSS recomeça)
+    if (painel.hasAttribute('data-fechando')) { interromper(painel); painel.hidden = true; void painel.offsetWidth; }
     const trocando = !painel.hidden;
     const cat = ativo.dataset.categoria;
     painel.toggleAttribute('data-trocando', trocando);
