@@ -1,37 +1,40 @@
-/* CTA fixo “Reservar mesa”. Origem: .sticky-cta do v1 (visual idêntico).
-   Regra de visibilidade nova (NAVEGACAO-E-CTA.md): aparece quando o BOTÃO de reserva do hero sai da tela. */
+/* CTA fixo “Reservar mesa”. Origem: .sticky-cta do v1.
+   Rodada final: UM botão grande, sozinho na base da tela (o menu saiu da barra e foi para o alto) — creme, texto vinho,
+   sombra cacau, espiral e seta dentro do mesmo botão. Aparece a partir de “Direto da fornada” e some na reserva e no
+   rodapé (regra em src/lib/sticky-cta.js, pela posição das seções). */
 
 .sticky-cta {
   position: fixed; z-index: var(--z-dock);
   left: 12px; right: 12px; bottom: max(12px, env(safe-area-inset-bottom));
   display: flex; align-items: center; gap: var(--s-12);
-  min-height: 58px; padding: 0 var(--s-12) 0 var(--s-16);
-  border-radius: var(--radius-l);
-  background: var(--butter); color: var(--wine);
+  min-height: 62px; padding: 0 var(--s-10) 0 var(--s-14);
+  border: 2px solid var(--wine); border-radius: var(--radius-l);
+  background: var(--cream); color: var(--wine);
   font: var(--t-button-l); font-variation-settings: var(--fvs-text); font-stretch: var(--stretch-button);
   text-transform: uppercase; letter-spacing: var(--track-caps); text-decoration: none;
   box-shadow: var(--shadow-offset), var(--shadow-float);
   transform: translateY(150%) rotate(-2deg);
   opacity: 0;
-  transition: transform var(--dur-cta-in) var(--ease), opacity var(--dur-cta-fade);
+  transition: transform var(--dur-cta-in) var(--ease), opacity var(--dur-cta-fade), box-shadow var(--dur-xs) var(--ease);
 }
-.sticky-cta svg { width: 28px; fill: none; stroke: var(--wine); stroke-width: 18; stroke-linecap: round; }
+.sticky-cta svg { flex: none; width: 30px; fill: none; stroke: var(--wine); stroke-width: 18; stroke-linecap: round; }
 .sticky-cta span:first-of-type { flex: 1; }
-.sticky-cta span:last-child { display: grid; place-items: center; width: 36px; height: 36px; border-radius: var(--radius-m); background: var(--wine); color: var(--butter); }
+.sticky-cta__seta {
+  display: grid; place-items: center; width: 40px; height: 40px; border-radius: var(--radius-m);
+  background: var(--wine); color: var(--butter); font-size: 20px;
+  transition: translate var(--dur-s) var(--ease-paper);
+}
 .sticky-cta.is-visible { transform: none; opacity: 1; }
-.sticky-cta:active { box-shadow: var(--shadow-offset-xs), var(--shadow-float); }
-
-/* Com o menu na doca, o CTA abre espaço à esquerda para o botão quadrado (58 + 10 px). */
-.has-dock .sticky-cta { left: 80px; }
+.sticky-cta:active { transform: translate(2px, 2px); box-shadow: var(--shadow-offset-xs), var(--shadow-float); }
+@media (hover: hover) { .sticky-cta:hover .sticky-cta__seta { translate: 3px 0; } }
 /* Saída mais rápida que a entrada (MOTION.md). */
 .sticky-cta:not(.is-visible) { pointer-events: none; transition-duration: var(--dur-s), var(--dur-s); transition-timing-function: var(--ease-in), linear; }
 
-/* Tablet: menu à esquerda, CTA de 340 px à direita (antes, uma barra de 676 px) */
+/* Tablet: botão de 360 px à direita (antes, uma barra de 676 px) */
 @media (min-width: 600px) and (max-width: 959px) {
-  .sticky-cta, .has-dock .sticky-cta { left: auto; right: 12px; width: 340px; }
+  .sticky-cta { left: auto; right: 16px; width: 360px; }
 }
 
 @media (min-width: 960px) {
-  .sticky-cta { left: auto; right: 32px; bottom: 28px; width: 320px; }
-  .has-dock .sticky-cta { left: auto; }
+  .sticky-cta { left: auto; right: 32px; bottom: 28px; width: 340px; }
 }

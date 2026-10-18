@@ -17,7 +17,7 @@ try {
     const erros = []; page.on('pageerror', (e) => erros.push(String(e)));
     const dir = path.join(OUT, `${w}x${h}`); fs.mkdirSync(dir, { recursive: true });
     await page.goto(BASE + '/', { waitUntil: 'networkidle' });
-    await page.addStyleTag({ content: '.sticky-cta,.menu-btn--dock{display:none!important}' });
+    await page.addStyleTag({ content: '.sticky-cta,.menu-btn--fixo{display:none!important}' });
     const shot = (nome) => page.screenshot({ path: path.join(dir, `${nome}.png`) });
     const centro = (sel) => page.locator(sel).first().evaluate((el) => el.scrollIntoView({ block: 'center' }));
     // cardápio tátil

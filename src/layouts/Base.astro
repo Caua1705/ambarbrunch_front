@@ -52,7 +52,10 @@ const fontes = `
   <!-- a Fraunces também é pré-carregada: o “&” do título usa essa fonte, e a troca tardia empurrava a colagem (CLS) -->
   <link rel="preload" href={fraunces} as="font" type="font/woff2" crossorigin />
   <style set:html={fontes}></style>
-  <script is:inline>document.documentElement.classList.add('js'); if (!location.hash && !scrollY && !matchMedia('(prefers-reduced-motion: reduce)').matches) document.documentElement.classList.add('enter');</script>
+  <!-- Entrada do hero em TODO carregamento (F5 incluso): o recarregamento volta ao topo e tira a âncora que um clique
+       anterior deixou na URL (antes, “#reservar” ou a rolagem restaurada desligavam a cena). Link direto para uma seção
+       continua indo até ela. A classe sai sozinha ao fim da cena (lib/motion.js), então rolar de volta não repete. -->
+  <script is:inline>(function(d){d.classList.add('js');try{history.scrollRestoration='manual';var n=performance.getEntriesByType('navigation')[0];if(n&&n.type==='reload'&&location.hash)history.replaceState(history.state,'',location.pathname+location.search);}catch(e){}if(!matchMedia('(prefers-reduced-motion: reduce)').matches)d.classList.add('enter');})(document.documentElement);</script>
 </head>
 <body>
   <a class="skip-link" href={home ? '#reservar' : '/#reservar'}>Pular para a reserva</a>

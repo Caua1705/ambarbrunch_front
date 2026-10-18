@@ -22,3 +22,40 @@
 .stepper button { width: 46px; height: 46px; border: var(--border-control) solid var(--ink); border-radius: var(--radius-control); background: var(--glaze); color: var(--wine); font: var(--t-step-key); cursor: pointer; }
 .stepper button:disabled { border-style: dashed; color: var(--text-muted); cursor: not-allowed; }
 .stepper output { min-width: 52px; text-align: center; font: var(--t-numeral); font-variation-settings: var(--fvs-text); font-stretch: var(--stretch-tag); color: var(--wine); }
+
+/* Calendário mensal da comanda (rodada final: substitui a fileira de datas). Mesma linguagem dos chips: papel claro,
+   contorno tinta, escolhido = vinho com sombra deslocada, indisponível = riscado. Hoje ganha um ponto caramelo. */
+.cal { max-width: 360px; }
+.cal__head { display: flex; align-items: center; justify-content: space-between; gap: var(--s-8); margin-bottom: var(--s-10); }
+.cal__mes { font: var(--t-kicker); font-size: 20px; color: var(--wine); text-transform: lowercase; }
+.cal__nav {
+  display: grid; place-items: center; width: 40px; height: 40px; padding: 0;
+  border: var(--border-control) solid var(--ink); border-radius: var(--radius-round);
+  background: var(--glaze); color: var(--wine); font: var(--t-step-key); line-height: 1; cursor: pointer;
+}
+.cal__nav:disabled { border-style: dashed; border-color: var(--rule); color: var(--text-muted); cursor: not-allowed; }
+.cal__semana, .cal__grade { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.cal__semana { margin-bottom: 4px; }
+.cal__semana span { text-align: center; font: var(--t-chip-small); color: var(--caramel-dk); }
+.cal__dia {
+  position: relative; display: grid; place-items: center; aspect-ratio: 1; min-height: 40px; padding: 0;
+  border: 1.5px solid color-mix(in srgb, var(--ink) 55%, transparent); border-radius: var(--radius-control);
+  background: var(--glaze); color: var(--ink); font: var(--t-chip); font-variant-numeric: tabular-nums; cursor: pointer;
+  transition: background var(--dur-chip), color var(--dur-chip), translate var(--dur-chip), scale var(--dur-xs), border-color var(--dur-chip);
+}
+.cal__dia[data-hoje]::after { content: ""; position: absolute; bottom: 5px; left: 50%; translate: -50% 0; width: 4px; height: 4px; border-radius: 50%; background: var(--caramel); }
+.cal__dia[aria-checked="true"] { background: var(--wine); border-color: var(--wine); color: var(--butter); box-shadow: var(--shadow-offset-xs); translate: -1px -1px; }
+.cal__dia[aria-checked="true"]::after { background: var(--butter); }
+.cal__dia:active:not(:disabled) { scale: .94; }
+.cal__dia:disabled { border-color: transparent; background: transparent; color: color-mix(in srgb, var(--text-muted) 55%, transparent); font-weight: 500; cursor: default; }
+@media (hover: hover) { .cal__dia:not(:disabled, [aria-checked="true"]):hover { border-color: var(--wine); color: var(--wine); } }
+.cal--esqueleto .cal__dia { border-color: var(--rule); }
+
+/* Ambiente escolhido em “Escolha seu lugar”: o chip dele pulsa uma vez quando a comanda chega à tela (a rolagem leva
+   ~0,6 s; daí o atraso). Movimento reduzido: só a cor de escolhido, sem pulso. */
+[data-destaque] .chip[aria-checked="true"] { animation: chip-destaque 900ms var(--ease-paper) 650ms both; }
+@keyframes chip-destaque {
+  0%, 100% { scale: 1; }
+  35% { scale: 1.12; box-shadow: var(--shadow-offset-s), 0 0 0 8px color-mix(in srgb, var(--caramel) 45%, transparent); }
+  70% { scale: .98; }
+}

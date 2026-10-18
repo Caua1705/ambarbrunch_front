@@ -19,7 +19,7 @@ const BASE = arg('base', 'http://127.0.0.1:4321');
 const RAIZ = path.resolve('reports/regressao');
 const TAMANHOS = [[360, 740], [375, 667], [390, 844], [430, 932], [768, 1024], [1440, 900]];
 const PAGINAS = { home: '/', reservar: '/reservar/', privacidade: '/privacidade/' };
-const OCULTAR = '.sticky-cta,.menu-btn--dock,.review-flag{display:none!important} video{visibility:hidden!important} *{caret-color:transparent!important}';
+const OCULTAR = '.sticky-cta,.menu-btn--fixo,.review-flag{display:none!important} video{visibility:hidden!important} *{caret-color:transparent!important}';
 const PROPS = ['display', 'position', 'color', 'background-color', 'background-image', 'font-family', 'font-size', 'font-weight', 'font-style', 'font-stretch',
   'font-variation-settings', 'letter-spacing', 'line-height', 'text-transform', 'text-align', 'text-decoration-line', 'text-decoration-thickness', 'text-underline-offset',
   'padding-top', 'padding-right', 'padding-bottom', 'padding-left', 'margin-top', 'margin-right', 'margin-bottom', 'margin-left', 'gap', 'row-gap', 'column-gap',

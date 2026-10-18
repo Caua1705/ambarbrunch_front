@@ -14,7 +14,7 @@ try {
   await p.locator('#gastronomia .board').evaluate((el) => el.scrollIntoView({ block: 'start' }));
   await p.waitForTimeout(500);
   await p.screenshot({ path: `${OUT}/1-rolando-doca.png` });
-  await p.locator('.menu-btn--dock').click();
+  await p.locator('.menu-btn--fixo').click();
   await p.waitForTimeout(500);
   await p.screenshot({ path: `${OUT}/2-menu-aberto.png` });
   await p.keyboard.press('Escape');

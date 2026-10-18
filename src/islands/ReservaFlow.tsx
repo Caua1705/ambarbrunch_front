@@ -43,10 +43,13 @@ function horariosDemo(estado: DemoComanda['horarios']): Horarios {
   return { estado: estado ?? 'ocioso', lista: [] };
 }
 
-const DIAS_PADRAO = 10;
+/** Janela de datas sem API: dois meses à frente (calendário mensal; a API define a dela em config()). */
+const DIAS_PADRAO = 60;
 const pad = (n: number) => String(n).padStart(2, '0');
 const iso = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const diaSemana = new Intl.DateTimeFormat('pt-BR', { weekday: 'short' });
+const mesAno = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' });
+const SEMANA = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
+const SEMANA_LONGA = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
 const dataLonga = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
 const soDigitos = (s: string) => s.replace(/\D/g, '');
 const mascaraTel = (s: string) => {
@@ -95,6 +98,59 @@ function Escolha<T extends string>(p: { rotulo: string; id: string; opcoes: { va
   );
 }
 
+/**
+ * Calendário mensal da comanda (rodada final: substitui a fileira de 10 dias). Dias fora da janela [hoje, hoje + diasMax)
+ * ficam riscados; setas trocam o mês; no teclado, ←/→ andam um dia e ↑/↓ uma semana (radiogroup, um dia focável).
+ */
+function Calendario(p: { id: string; hoje: Date; diasMax: number; valor: string | null; aoEscolher: (v: string) => void }) {
+  const inicio = new Date(p.hoje.getFullYear(), p.hoje.getMonth(), p.hoje.getDate());
+  const fim = new Date(inicio); fim.setDate(inicio.getDate() + p.diasMax - 1);
+  const [mes, setMes] = useState(() => { const v = p.valor ? new Date(`${p.valor}T12:00:00`) : inicio; return new Date(v.getFullYear(), v.getMonth(), 1); });
+  const grade = useRef<HTMLDivElement>(null);
+  const primeiroMes = new Date(inicio.getFullYear(), inicio.getMonth(), 1);
+  const ultimoMes = new Date(fim.getFullYear(), fim.getMonth(), 1);
+  const valido = (d: Date) => d >= inicio && d <= fim;
+  const diasNoMes = new Date(mes.getFullYear(), mes.getMonth() + 1, 0).getDate();
+  const dias = Array.from({ length: diasNoMes }, (_, i) => new Date(mes.getFullYear(), mes.getMonth(), i + 1));
+  const selecionado = p.valor && dias.some((d) => iso(d) === p.valor) ? p.valor : null;
+  const focavel = selecionado ?? iso(dias.find(valido) ?? dias[0]);
+  const mudarMes = (passo: number) => setMes((m) => new Date(m.getFullYear(), m.getMonth() + passo, 1));
+  const aoTeclar = (ev: KeyboardEvent) => {
+    const passo = ({ ArrowRight: 1, ArrowLeft: -1, ArrowDown: 7, ArrowUp: -7 } as Record<string, number>)[ev.key];
+    if (!passo) return;
+    ev.preventDefault();
+    const atual = new Date(`${(ev.target as HTMLElement).dataset.valor ?? focavel}T12:00:00`);
+    const prox = new Date(atual.getFullYear(), atual.getMonth(), atual.getDate() + passo);
+    if (!valido(prox)) return;
+    p.aoEscolher(iso(prox));
+    if (prox.getMonth() !== mes.getMonth()) setMes(new Date(prox.getFullYear(), prox.getMonth(), 1));
+    requestAnimationFrame(() => grade.current?.querySelector<HTMLElement>(`[data-valor="${iso(prox)}"]`)?.focus());
+  };
+  return (
+    <div class="cal">
+      <div class="cal__head">
+        <button type="button" class="cal__nav" aria-label="Mês anterior" disabled={mes <= primeiroMes} onClick={() => mudarMes(-1)}><span aria-hidden="true">‹</span></button>
+        <p class="cal__mes" aria-live="polite">{mesAno.format(mes)}</p>
+        <button type="button" class="cal__nav" aria-label="Próximo mês" disabled={mes >= ultimoMes} onClick={() => mudarMes(1)}><span aria-hidden="true">›</span></button>
+      </div>
+      <div class="cal__semana" aria-hidden="true">{SEMANA.map((d) => <span>{d}</span>)}</div>
+      <div class="cal__grade" role="radiogroup" aria-labelledby={p.id} ref={grade} onKeyDown={aoTeclar}>
+        {Array.from({ length: mes.getDay() }, () => <span class="cal__vazio" aria-hidden="true" />)}
+        {dias.map((d) => {
+          const v = iso(d);
+          const ok = valido(d);
+          return (
+            <button type="button" role="radio" class="cal__dia" data-valor={v} aria-checked={v === p.valor} tabIndex={v === focavel && ok ? 0 : -1}
+              disabled={!ok} data-hoje={v === iso(inicio) ? '' : undefined}
+              aria-label={`${v === iso(inicio) ? 'hoje, ' : ''}${SEMANA_LONGA[d.getDay()]}, ${d.getDate()}`}
+              onClick={() => p.aoEscolher(v)}>{d.getDate()}</button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, privacidadeUrl, ids: px = 'rf', demo }: Props) {
   const nota = px === 'rf' ? 'ticket-note' : `${px}-note`;
   const api: ReservasApi | null = useMemo(() => {
@@ -107,6 +163,8 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
   const [cfg, setCfg] = useState<ReservaConfig>({ ambientes, pessoas: { min: 1, max: 20 }, antecedencia: { diasMax: DIAS_PADRAO }, exigeEmail: false });
   const [hoje, setHoje] = useState<Date | null>(null);
   const [ambiente, setAmbiente] = useState<string>(ambientes[0]?.id ?? '');
+  /** ambiente que veio da seção “Escolha seu lugar”: o chip dele acende por um instante quando a comanda aparece */
+  const [destaque, setDestaque] = useState(0);
   const [pessoas, setPessoas] = useState(2);
   const [data, setData] = useState<string | null>(null);
   const [hora, setHora] = useState<string | null>(demo?.hora ?? null);
@@ -127,8 +185,8 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
   // Ambiente pedido por um “reservar aqui” (mesmo antes de a ilha carregar).
   useEffect(() => {
     const w = window as unknown as { __ambarAmbiente?: string };
-    if (w.__ambarAmbiente) setAmbiente(w.__ambarAmbiente);
-    const ouvir = (ev: Event) => { setAmbiente((ev as CustomEvent<string>).detail); setHora(null); };
+    if (w.__ambarAmbiente) { setAmbiente(w.__ambarAmbiente); setDestaque((n) => n + 1); }
+    const ouvir = (ev: Event) => { setAmbiente((ev as CustomEvent<string>).detail); setHora(null); setDestaque((n) => n + 1); };
     window.addEventListener('ambar:ambiente', ouvir);
     return () => window.removeEventListener('ambar:ambiente', ouvir);
   }, []);
@@ -155,11 +213,6 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
   // Foco no topo da comanda a cada TROCA de etapa (leitor de tela e teclado); não na montagem.
   const montou = useRef(false);
   useEffect(() => { if (!montou.current) { montou.current = true; return; } if (etapa !== 'escolha') topo.current?.focus(); }, [etapa]);
-
-  const datas = useMemo(() => {
-    if (!hoje) return [];
-    return Array.from({ length: cfg.antecedencia.diasMax }, (_, i) => { const d = new Date(hoje); d.setDate(hoje.getDate() + i); return d; });
-  }, [hoje, cfg.antecedencia.diasMax]);
 
   const nomeAmbiente = cfg.ambientes.find((a) => a.id === ambiente)?.nome ?? ambiente;
   const dataTexto = data ? dataLonga.format(new Date(`${data}T12:00:00`)) : '';
@@ -247,7 +300,7 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
       {etapa === 'escolha' && (
         <>
           {falha && <p class="ticket__status" data-tone="error" role="alert">{falha}</p>}
-          <fieldset>
+          <fieldset key={`amb-${destaque}`} data-destaque={destaque ? '' : undefined}>
             <legend id={`${px}-l1`} data-done={api && ambiente ? '' : undefined}>01 · ambiente</legend>
             <Escolha id={`${px}-l1`} rotulo="Ambiente" valor={ambiente}
               opcoes={cfg.ambientes.map((a) => ({ valor: a.id, texto: a.nome }))}
@@ -264,11 +317,10 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
           </fieldset>
           <fieldset>
             <legend id={`${px}-l3`} data-done={api && data ? '' : undefined}>03 · data</legend>
-            {datas.length
-              ? <Escolha id={`${px}-l3`} rotulo="Data" datas valor={data}
-                  opcoes={datas.map((d, i) => ({ valor: iso(d), texto: <><small>{i === 0 ? 'hoje' : diaSemana.format(d).replace('.', '')}</small>{d.getDate()}</> }))}
+            {hoje
+              ? <Calendario id={`${px}-l3`} hoje={hoje} diasMax={cfg.antecedencia.diasMax} valor={data}
                   aoEscolher={(v) => { setData(v); setFalha(''); }} />
-              : <div class="chips chips--dates" aria-hidden="true">{Array.from({ length: 6 }, () => <span class="chip chip--skeleton" />)}</div>}
+              : <div class="cal cal--esqueleto" aria-hidden="true"><div class="cal__grade">{Array.from({ length: 35 }, () => <span class="cal__dia chip--skeleton" />)}</div></div>}
           </fieldset>
           <fieldset>
             <legend id={`${px}-l4`} ref={passo4} data-done={hora ? '' : undefined}>04 · horário</legend>

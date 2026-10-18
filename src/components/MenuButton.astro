@@ -1,6 +1,6 @@
 ---
-// Botões do menu: selo no hero, quadrado na doca, fechar na folha.
-interface Props { variante: 'hero' | 'dock' | 'close' }
+// Botões do menu: selo no hero, selo fixo no alto da tela (depois que o do hero sai) e fechar na folha.
+interface Props { variante: 'hero' | 'fixo' | 'close' }
 const { variante } = Astro.props;
 const icone = variante === 'close'
   ? 'M7.5 7c4 4.5 9 9.5 13.5 14M21 7.5C16.5 11.5 11.5 16 7 20.5'
@@ -17,8 +17,8 @@ const icone = variante === 'close'
     data-menu-open="menu"
     aria-label="Abrir menu"
     aria-expanded="false"
-    aria-hidden={variante === 'dock' ? 'true' : undefined}
-    tabindex={variante === 'dock' ? -1 : undefined}
+    aria-hidden={variante === 'fixo' ? 'true' : undefined}
+    tabindex={variante === 'fixo' ? -1 : undefined}
   >
     <svg viewBox="0 0 28 28" aria-hidden="true"><path d={icone} /></svg>
   </button>

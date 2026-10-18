@@ -17,7 +17,9 @@ initDock({
   cta: document.querySelector('[data-sticky-cta]'),
   trigger: document.querySelector('[data-cta-trigger]') ?? document.querySelector('[data-hero]'),
   reserva: document.querySelector('[data-reserva]'),
-  dockMenu: document.querySelector('.menu-btn--dock'),
+  inicio: document.getElementById('roll'),
+  rodape: document.querySelector('footer.footer'),
+  menuFixo: document.querySelector('.menu-btn--fixo'),
   heroMenu: document.querySelector('.menu-btn--hero'),
   sheet,
 });

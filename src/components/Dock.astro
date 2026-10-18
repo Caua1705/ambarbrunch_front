@@ -1,11 +1,13 @@
 ---
-// Doca inferior: botão de menu + CTA fixo “Reservar mesa” (visual do v1). A visibilidade é controlada por src/lib/sticky-cta.js.
+// Controles fixos: UM botão grande “Reservar mesa” na base da tela (creme, texto vinho, sombra cacau, espiral e seta no
+// mesmo botão) e o selo do menu no alto, que substitui o do hero quando ele sai da tela. Rodada final: a barra inferior
+// não tem mais o botão de menu. Visibilidade: src/lib/sticky-cta.js.
 import MenuButton from './MenuButton.astro';
 import Spiral from './Spiral.astro';
 interface Props { href?: string; menu?: boolean }
 const { href = '/#reservar', menu = true } = Astro.props;
 ---
-{menu && <MenuButton variante="dock" />}
+{menu && <MenuButton variante="fixo" />}
 <a class="sticky-cta" href={href} data-sticky-cta aria-hidden="true" tabindex="-1">
-  <Spiral /><span>Reservar mesa</span><span aria-hidden="true">→</span>
+  <Spiral /><span>Reservar mesa</span><span class="sticky-cta__seta" aria-hidden="true">→</span>
 </a>

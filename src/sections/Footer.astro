@@ -1,22 +1,19 @@
 ---
-// 10 · RODAPÉ — logo, assinatura da Roll, endereço, horário e contatos. O padding inferior reserva o espaço da doca.
+// 10 · RODAPÉ — logo, assinatura da Roll, uma linha institucional e o essencial (endereço e horário).
+// Rodada final: sem WhatsApp e Instagrams aqui — eles ficam completos na seção Visite, logo acima (sem repetir os
+// mesmos botões em dois blocos seguidos). O botão fixo de reserva some ao chegar no rodapé.
 // Sem política de privacidade linkada por enquanto (decisão de 2026-10-17) e sem botão de pausar animações.
 import Foto from '../components/Foto.astro';
-import { roll } from '../data/roll';
 import { visita as v } from '../data/visita';
 const ano = new Date().getFullYear();
 ---
 <footer class="footer">
   <Foto src="brand/logo-ambar.png" alt="Âmbar Brunch" class="footer__logo" sizes="240px" widths={[240, 480, 720]} qualidade={80} />
   <p class="footer__sig">com assinatura gastronômica <Foto src="brand/logo-roll.png" alt="Roll" sizes="56px" widths={[56, 112, 168]} qualidade={80} /></p>
+  <p class="footer__inst">café, brunch e cinnamon rolls em Fortaleza</p>
   <address class="footer__info">
-    <a href={v.mapaUrl} rel="noopener" target="_blank">{v.endereco} · {v.cidade}</a><br />
+    {v.endereco} · {v.cidade}<br />
     {v.horarioCurto}
   </address>
-  <p class="footer__links">
-    <a href={v.whatsapp.url} rel="noopener" target="_blank">WhatsApp</a>
-    <a href={v.instagram.url} rel="noopener">{v.instagram.handle}</a>
-    <a href={roll.instagram.url} rel="noopener">Roll {roll.instagram.handle}</a>
-  </p>
   <p class="footer__fine">Âmbar Brunch · {v.dominio} · {ano}</p>
 </footer>

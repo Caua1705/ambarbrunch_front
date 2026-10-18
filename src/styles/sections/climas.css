@@ -2,12 +2,9 @@
    a sala privativa entra como polaroide colada sobre o canto do salão. */
 
 .climas { padding: var(--rhythm-b) var(--gutter) calc(var(--rhythm-b) + var(--rhythm-tail)); background: var(--butter); overflow: hidden; }
-.climas__stack { position: relative; margin-top: 28px; padding-bottom: 44%; }
-.bubble--a { right: -4%; top: 30%; }
-
-/* linha do que se vê na foto, sob o nome */
-.clima { padding: 5px var(--s-10) 6px; border-radius: var(--radius-pill); background: var(--glaze); color: var(--ink); font: var(--t-tag); }
-.panel figcaption .clima { rotate: 1deg; }
+.climas__stack { position: relative; margin-top: 28px; padding-bottom: 38%; }
+/* lounge: bolha no canto superior direito do jardim — longe dos nomes dos outros ambientes */
+.bubble--a { right: -3%; top: -4%; width: 34%; z-index: var(--z-3); rotate: 4deg; }
 .panel img, .climas__privativa img, .bubble img { transition: scale var(--dur-l) var(--ease); }
 @media (hover: hover) {
   .panel:hover img, .climas__privativa:hover img, .bubble:hover img { scale: 1.03; }
@@ -19,17 +16,33 @@
   padding: 8px 8px 0; background: var(--glaze); box-shadow: var(--shadow-photo-deep); rotate: -5deg;
 }
 .climas__privativa img { width: 100%; aspect-ratio: 4 / 4.6; object-fit: cover; }
-.climas__privativa figcaption { display: grid; justify-items: start; gap: var(--s-6); padding: var(--s-10) 2px var(--s-12); }
+.climas__privativa figcaption { display: grid; justify-items: start; padding: var(--s-10) 2px var(--s-14); }
 .tagline--s { font-size: var(--fs-tagline-s); }
 
 /* a partir do tablet: os dois painéis lado a lado; bolha e polaroide nas costuras */
 @media (min-width: 600px) {
   .climas__stack { display: grid; grid-template-columns: 1fr 1fr; gap: 0 var(--s-24); max-width: var(--container-l); margin-left: auto; margin-right: auto; padding-bottom: 22%; }
   .panel--amber { margin-top: 80px; }
-  .bubble--a { right: auto; left: 41%; top: -4%; width: 20%; }
+  .bubble--a { right: auto; left: 41%; top: -4%; width: 20%; rotate: none; }
   .climas__privativa { left: 30%; width: 30%; bottom: 0; }
   .climas > .mega { max-width: var(--container-l); margin-left: auto; margin-right: auto; }
 }
 /* a polaroide cobre o canto inferior esquerdo do salão: o nome dele vai para a direita */
 .panel--amber figcaption { left: auto; right: 16px; top: 8%; bottom: auto; justify-items: end; }
 @media (min-width: 600px) { .panel--amber figcaption { top: auto; bottom: 18px; } }
+
+/* Ambiente clicável (rodada final): o link cobre a figura inteira — foto, nome e moldura — e leva à comanda com o
+   ambiente já escolhido. A seta no nome diz “dá para tocar” sem texto de instrução. */
+/* isolation: o z-index do link fica dentro do card (sem isso, o do jardim cobria a bolha do lounge) */
+.climas__amb { cursor: pointer; isolation: isolate; }
+.climas__amb .climas__alvo {
+  position: absolute; inset: 0; z-index: var(--z-5); padding: 0;
+  border-radius: inherit; background: transparent; box-shadow: none;
+}
+.climas__alvo:focus-visible { outline: 3px solid var(--wine); outline-offset: 4px; }
+.climas__amb .tagline { white-space: nowrap; }
+.climas__seta { display: inline-block; margin-left: 2px; font-style: normal; transition: translate var(--dur-s) var(--ease-paper); }
+.climas__amb:active img { scale: .98; }
+@media (hover: hover) {
+  .climas__amb:hover .climas__seta { translate: 4px 0; }
+}

@@ -15,7 +15,7 @@ try {
     const page = await ctx.newPage();
     const dir = path.join(OUT, `${w}x${h}`); fs.mkdirSync(dir, { recursive: true });
     await page.goto(BASE + '/', { waitUntil: 'networkidle' });
-    await page.addStyleTag({ content: '.sticky-cta,.menu-btn--dock,.review-flag{display:none!important}' });
+    await page.addStyleTag({ content: '.sticky-cta,.menu-btn--fixo,.review-flag{display:none!important}' });
     const shot = (nome) => page.screenshot({ path: path.join(dir, `${nome}.png`) });
     // anatomia: entrando e montada
     await page.locator('.anatomia').evaluate((el) => el.scrollIntoView({ block: 'center' }));

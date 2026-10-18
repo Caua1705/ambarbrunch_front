@@ -1,31 +1,39 @@
 ---
 // 8 · ESCOLHA SEU LUGAR — os quatro ambientes numa colagem (painéis em diagonal do v1 + bolha + polaroide), para dar
-// vontade de conhecer, não uma lista operacional: nome, uma linha do que se vê na foto, nada de capacidade ou regra.
+// vontade de conhecer, não uma lista operacional. Rodada final: só o nome de cada ambiente (as linhas descritivas
+// poluíam as fotos); a bolha do lounge sobe para o canto do jardim e não cobre mais o nome do salão.
+// Cada ambiente é clicável no card inteiro (link esticado sobre a figura, 1º filho para a figcaption seguir no fim):
+// escolhe o ambiente na comanda e rola até a reserva (lib/site.js → ambar:ambiente). Só pré-seleciona, nada é reservado.
 import Foto from '../components/Foto.astro';
 import MegaTitle from '../components/MegaTitle.astro';
 import { ambientes as a } from '../data/ambientes';
 import { secoes } from '../data/secoes';
 const s = secoes.lugar;
+const alvo = (amb: { id: string; nome: string }) => ({ href: '#reservar', 'data-ambiente': amb.id, 'aria-label': `${amb.nome}: escolher este ambiente na comanda de reserva` });
 ---
 <section class="climas" id={s.id} aria-labelledby="climas-titulo" tabindex="-1">
   <MegaTitle linhas={[...s.linhas]} id="climas-titulo" tom="wine" scribble={s.sub} />
 
   <div class="climas__stack">
-    <figure class="panel panel--day" data-reveal="slide-l">
+    <figure class="panel panel--day climas__amb" data-reveal="slide-l">
+      <a class="climas__alvo" {...alvo(a.jardim)}></a>
       <Foto src={a.jardim.foto} alt={a.jardim.alt} sizes="(min-width: 960px) 538px, 92vw" />
-      <figcaption><span class="tagline">{a.jardim.tagline}</span><span class="clima">{a.jardim.clima}</span></figcaption>
+      <figcaption><span class="tagline">{a.jardim.tagline} <i class="climas__seta" aria-hidden="true">→</i></span></figcaption>
     </figure>
-    <figure class="panel panel--amber" data-reveal="slide-r">
+    <figure class="panel panel--amber climas__amb" data-reveal="slide-r">
+      <a class="climas__alvo" {...alvo(a.salao)}></a>
       <Foto src={a.salao.foto} alt={a.salao.alt} sizes="(min-width: 960px) 538px, 92vw" />
-      <figcaption><span class="tagline">{a.salao.tagline}</span><span class="clima">{a.salao.clima}</span></figcaption>
+      <figcaption><span class="tagline">{a.salao.tagline} <i class="climas__seta" aria-hidden="true">→</i></span></figcaption>
     </figure>
-    <figure class="bubble bubble--a" data-reveal="fade" data-parallax="up">
+    <figure class="bubble bubble--a climas__amb" data-reveal="fade" data-parallax="up">
+      <a class="climas__alvo" {...alvo(a.lounge)}></a>
       <Foto src={a.lounge.foto} alt={a.lounge.alt} sizes="(min-width: 960px) 220px, 38vw" />
-      <figcaption>{a.lounge.tagline}</figcaption>
+      <figcaption>{a.lounge.tagline} <i class="climas__seta" aria-hidden="true">→</i></figcaption>
     </figure>
-    <figure class="climas__privativa" data-reveal="piece" style="--i:2">
+    <figure class="climas__privativa climas__amb" data-reveal="piece" style="--i:2">
+      <a class="climas__alvo" {...alvo(a.privativa)}></a>
       <Foto src={a.privativa.foto} alt={a.privativa.alt} sizes="(min-width: 960px) 300px, 50vw" widths={[200, 300, 450, 600]} />
-      <figcaption><span class="tagline tagline--s">{a.privativa.tagline}</span><span class="clima">{a.privativa.clima}</span></figcaption>
+      <figcaption><span class="tagline tagline--s">{a.privativa.tagline} <i class="climas__seta" aria-hidden="true">→</i></span></figcaption>
     </figure>
   </div>
 </section>

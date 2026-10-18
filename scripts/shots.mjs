@@ -37,7 +37,7 @@ try {
     await page.evaluate(() => scrollTo(0, 0));
     await page.waitForLoadState('networkidle');
     const ox = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
-    await page.addStyleTag({ content: '.sticky-cta,.menu-btn--dock,.review-flag{display:none!important}' });
+    await page.addStyleTag({ content: '.sticky-cta,.menu-btn--fixo,.review-flag{display:none!important}' });
     let i = 1;
     for (const [nome, sel] of Object.entries(SECOES)) {
       const el = page.locator(sel).first();

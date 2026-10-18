@@ -26,7 +26,7 @@ try {
     await p.evaluate(() => scrollTo(0, 0));
     await p.waitForLoadState('networkidle');
     await p.waitForTimeout(800);
-    await p.addStyleTag({ content: '.sticky-cta,.menu-btn--dock,.review-flag,.ds-nav{visibility:hidden!important}' });
+    await p.addStyleTag({ content: '.sticky-cta,.menu-btn--fixo,.review-flag,.ds-nav{visibility:hidden!important}' });
     const dir = path.join(OUT, `${w}`);
     fs.mkdirSync(dir, { recursive: true });
     let i = 0;

@@ -1,7 +1,9 @@
-/* Menu mobile — NOVO. Dois gatilhos e uma folha inferior:
+/* Menu mobile. Dois gatilhos e uma folha inferior:
    1. .menu-btn--hero: selo redondo no canto do hero, colado sobre a ponta da etiqueta (rola junto com a página);
-   2. .menu-btn--dock: quadrado na doca inferior, ao lado do CTA fixo, que aparece quando o gatilho do hero sai da tela;
-   3. .sheet: <dialog> modal que sobe da base, com borda recortada no topo. “Reservar” continua sendo o botão principal. */
+   2. .menu-btn--fixo: o mesmo selo, fixo no alto da tela, que aparece quando o do hero sai (rodada final: saiu da barra
+      inferior, que agora é só o botão “Reservar mesa”);
+   3. .sheet: <dialog> modal que sobe da base, com borda recortada no topo. “Reservar” continua sendo o botão principal.
+      Entrada e SAÍDA animadas (a saída marca data-fechando; lib/nav-sheet.js só fecha o dialog quando ela termina). */
 
 .menu-btn {
   display: grid; place-items: center;
@@ -20,18 +22,18 @@
   rotate: 8deg;
 }
 
-.menu-btn--dock {
+.menu-btn--fixo {
   position: fixed; z-index: var(--z-dock);
-  left: 12px; bottom: max(12px, env(safe-area-inset-bottom));
-  width: 58px; height: 58px; border-radius: var(--radius-l);
-  background: var(--cream);
-  box-shadow: var(--shadow-offset), var(--shadow-float);
-  transform: translateY(150%) rotate(2deg); opacity: 0;
+  top: max(12px, env(safe-area-inset-top)); right: 10px;
+  width: 48px; height: 48px; border-radius: var(--radius-round);
+  background: var(--butter);
+  box-shadow: var(--shadow-offset-s), var(--shadow-float);
+  transform: translateY(-160%) rotate(8deg); opacity: 0;
   transition: transform var(--dur-m) var(--ease-paper), opacity var(--dur-s);
 }
-.menu-btn--dock.is-visible { transform: none; opacity: 1; }
-.menu-btn--dock:not(.is-visible) { pointer-events: none; transition-duration: var(--dur-s), var(--dur-s); transition-timing-function: var(--ease-in), linear; }
-.menu-btn--dock:active { box-shadow: var(--shadow-offset-xs), var(--shadow-float); }
+.menu-btn--fixo.is-visible { transform: rotate(8deg); opacity: 1; }
+.menu-btn--fixo:not(.is-visible) { pointer-events: none; transition-duration: var(--dur-s), var(--dur-s); transition-timing-function: var(--ease-in), linear; }
+.menu-btn--fixo:active { transform: rotate(8deg) scale(.94); box-shadow: var(--shadow-offset-xs), var(--shadow-float); }
 
 /* Folha ---------------------------------------------------------------------------------- */
 html:has(.sheet[open]) { overflow: hidden; }
@@ -65,22 +67,28 @@ html:has(.sheet[open]) { overflow: hidden; }
 }
 .sheet__nav li:nth-child(even) a { justify-content: flex-end; }
 .sheet__cta { margin-top: var(--s-24); }
-.sheet__foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-12); margin-top: var(--s-22); font-size: var(--fs-small); color: var(--text-muted); }
-.sheet__foot a { font: var(--t-pill); letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--wine); }
 
-/* Entrada: sobe e assenta; os itens chegam em sequência. Saída é instantânea (o dialog fecha). */
+/* Entrada: sobe e assenta; os itens chegam em sequência. */
 .sheet[open] { animation: sheet-in var(--dur-m) var(--ease-paper); }
 .sheet[open]::backdrop { animation: fade-in var(--dur-s) linear; }
 .sheet[open] .sheet__nav li { animation: rise var(--dur-m) var(--ease-out) both; animation-delay: calc(var(--sheet-items-delay) + var(--i, 0) * var(--stagger)); }
+.sheet[open] .sheet__cta { animation: rise var(--dur-m) var(--ease-out) both; animation-delay: calc(var(--sheet-items-delay) + 7 * var(--stagger)); }
 .sheet__nav li:nth-child(2) { --i: 1; } .sheet__nav li:nth-child(3) { --i: 2; } .sheet__nav li:nth-child(4) { --i: 3; } .sheet__nav li:nth-child(5) { --i: 4; } .sheet__nav li:nth-child(6) { --i: 5; } .sheet__nav li:nth-child(7) { --i: 6; }
+/* Saída (espelho da entrada, mais curta): itens descem e somem de baixo para cima, a folha desce e o fundo clareia.
+   O dialog continua aberto (foco preso, fundo travado) até a animação da folha terminar. */
+.sheet[open][data-fechando] { animation: sheet-out var(--dur-sheet-out) var(--ease-in) both; pointer-events: none; }
+.sheet[open][data-fechando]::backdrop { animation: fade-out var(--dur-sheet-out) linear both; }
+.sheet[open][data-fechando] :is(.sheet__nav li, .sheet__cta, .sheet__head) { animation: sink calc(var(--dur-sheet-out) * .6) var(--ease-in) both; animation-delay: calc((6 - var(--i, 0)) * 12ms); }
 @keyframes sheet-in { from { transform: translateY(100%); } }
+@keyframes sheet-out { to { transform: translateY(100%); } }
 @keyframes fade-in { from { opacity: 0; } }
+@keyframes fade-out { to { opacity: 0; } }
 @keyframes rise { from { opacity: 0; transform: translateY(14px); } }
+@keyframes sink { to { opacity: 0; transform: translateY(18px); } }
 
 @media (min-width: 960px) {
-  .menu-btn--dock { display: none; }
   .sheet { inset: 0 0 0 auto; width: 420px; max-height: none; height: 100%; -webkit-mask: none; mask: none; }
   @keyframes sheet-in { from { transform: translateX(100%); } }
+  @keyframes sheet-out { to { transform: translateX(100%); } }
 }
-.sheet__hours { flex-basis: 100%; margin: 0; font: var(--t-caption); color: var(--text-muted); }
 .sheet__nav a { font-size: var(--fs-menu-fluid); }
