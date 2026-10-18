@@ -84,8 +84,14 @@ quinta a domingo” e o convite para encomendar. **IF-04a** ganhou o começo do 
 até a pausa de 39,8 s: 39,4 s, antes de “Esse é perfeição” e do palavrão de 43,5 s. **IF-05a** (@dailysocass) **voltou**
 com a legenda gravada pela criadora: 5,85 s até o fim (16,5 s), sem o fim do story anterior nem a mastigação calada do
 início, e com o áudio zerado em 9,70–12,88 s (“…a Adriana, sua safada”), confirmado por transcrição do corte final. A
-gravação enviada (“Gravação de Tela 2026-10-17 101705.mp4”) é idêntica a `stories_05_pistache.mp4`. Nova ordem: viciado ·
-larizgomes · elevador · pistache · horizontal.
+gravação enviada (“Gravação de Tela 2026-10-17 101705.mp4”) é idêntica a `stories_05_pistache.mp4`. Ordem final: viciado ·
+**pistache (1º no centro)** · larizgomes · elevador · horizontal — elevador e pistache são das mesmas meninas e nunca ficam
+lado a lado, nem na volta do laço.
+
+**IF-04a até o final (2026-10-18, exceção ao limite de 40 s pedida pelo responsável):** story A + story B inteiros, até a
+troca para o story seguinte (72,533 s): **72,1 s**, 4,7 MB. Áudio zerado, imagem contínua, em 42,66–44,45 s (“caralho”) e de
+66,45 s ao fim (coro “do caralho” repetido, sem pausa limpa até a fala acabar em 72,45 s). Conferido no arquivo final:
+nível de áudio mudo nos dois trechos. Volta a comparação “igual ao pretzel do Mr. Pretzel” (59,8–64,3 s).
 
 | ID | Arquivo | Origem · trecho | Formato | Peso | Fala (transcrição automática) | Prior. |
 | --- | --- | --- | --- | ---: | --- | --- |

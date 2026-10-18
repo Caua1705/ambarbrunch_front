@@ -29,8 +29,9 @@ const MOLDURA = {
 // Regra de duração (2026-10-18, definitiva): no máximo 40 s por vídeo; original com até 40 s entra inteiro, até o último
 // quadro (sem acelerar). Campos opcionais: `trechos` = vários pedaços do MESMO original unidos por corte seco na imagem e
 // micro-esmaecimento de 30 ms no áudio (tempos no quadro de 30 fps, a sincronia não escorrega); `silencio` = intervalo do
-// ORIGINAL em que só o áudio é zerado, com rampas de 30 ms (a imagem segue contínua). Um trecho pode ter recorte próprio
-// ([início, fim, recorte]) quando o original troca de janela no meio; aí `tamanho` fixa a saída para os pedaços casarem.
+// ORIGINAL (ou lista de intervalos) em que só o áudio é zerado, com rampas de 30 ms (a imagem segue contínua). Um trecho pode
+// ter recorte próprio ([início, fim, recorte]) quando o original troca de janela no meio; aí `tamanho` fixa a saída para os
+// pedaços casarem. `limite` = exceção aos 40 s, só com pedido explícito do responsável.
 const CLIPES = [
   // IF-02 · elevador: o story inteiro, do 1º quadro (0,1 s) ao último antes do story seguinte (troca de cena em 32,733 s).
   // Palavrão “caralho” em 15,75–16,36 s (nível de áudio a cada 10 ms; o modelo small o ouviu em 15,78–16,20 s): cortar a
@@ -38,10 +39,14 @@ const CLIPES = [
   // imagem segue contínua e só o áudio é silenciado nesse trecho (decisão do responsável, 2026-10-18).
   { id: 'IF-02a', src: 'originais/stories/stories_02_elevador_completo.mp4', out: 'criador-elevador-abrindo', start: 0.1, end: 32.7333, silencio: [15.74, 16.35], posterAt: 12.6 },
   // IF-04 · grupo: expectativa (story A, horizontal) e veredito do Biscoff (story B, combina com a legenda “1- Biscoff 1000/10”)
-  // IF-04a (2026-10-18, pedido do responsável: “até 40 s”): story A inteiro (0,45–28,533 s, janela A) e, emendado na troca
-  // de cena, o começo do story B (janela B, um pouco maior, reduzida ao tamanho da A) até a pausa de 39,65–39,8 s — antes de “Esse
-  // é perfeição” (39,9–41,7 s), que passaria dos 40 s, e bem antes do palavrão de 43,5 s. Total 39,35 s.
-  { id: 'IF-04a', src: 'originais/stories/stories_04_grupo_completo.mp4', out: 'criadores-grupo-expectativa', trechos: [[0.45, 28.5333, MOLDURA.grupoA], [28.5333, 39.8, MOLDURA.grupoB]], tamanho: '478:266', posterAt: 5.5 },
+  // IF-04a (2026-10-18, pedido do responsável: “até o final”, EXCEÇÃO ao limite de 40 s): story A inteiro (0,45–28,533 s,
+  // janela A) e, emendado na troca de cena, o story B inteiro (janela B, um pouco maior, reduzida ao tamanho da A) até o
+  // último quadro antes do story seguinte (troca de cena em 72,533 s). Total 72,08 s. Áudio zerado, imagem contínua:
+  //   42,66–44,45 s  “caralho” (som entre a pausa depois de “Sério?” e a queda de nível; só aparece na janela 42,6–44,0 s)
+  //   66,45 s → fim  coro “do caralho” repetido (três vezes na transcrição da janela 66,4–72,4 s), sem pausa limpa até o fim
+  //                  da fala (72,45 s); começa na pausa de 66,45–66,85 s, depois de “Malu”.
+  // Fica a comparação “igual ao pretzel do Mr. Pretzel” (59,8–64,3 s), antes deixada de fora.
+  { id: 'IF-04a', src: 'originais/stories/stories_04_grupo_completo.mp4', out: 'criadores-grupo-expectativa', trechos: [[0.45, 28.5333, MOLDURA.grupoA], [28.5333, 72.5333, MOLDURA.grupoB]], tamanho: '478:266', silencio: [[42.66, 44.45], [66.45, 72.5333]], limite: 75, posterAt: 5.5 },
   // alternativa do IF-04a sem recorte: o story inteiro (vertical), com a legenda “@roll.ofc a gente tava tão ansioso…” dos criadores
   { id: 'IF-04a-story', src: 'originais/stories/stories_04_grupo_completo.mp4', out: 'criadores-grupo-expectativa-story', start: 0.5, end: 14.3, posterAt: 5.5 },
   { id: 'IF-04b', src: 'originais/stories/stories_04_grupo_completo.mp4', out: 'criadores-grupo-biscoff', start: 49.6, end: 59.9, vf: MOLDURA.grupoB, posterAt: 3.5 },
@@ -92,7 +97,8 @@ for (const c of CLIPES) {
   const trechos = c.trechos ?? [[c.start, c.end]];
   if (trechos.some(([a, b]) => b <= a)) { console.error(`✗ ${c.id}: trecho inválido`); process.exitCode = 1; continue; }
   const dur = +trechos.reduce((s, [a, b]) => s + (b - a), 0).toFixed(3);
-  if (dur > 40) { console.error(`✗ ${c.id}: ${dur}s passa do limite de 40 s`); process.exitCode = 1; continue; }
+  const limite = c.limite ?? 40;
+  if (dur > limite) { console.error(`✗ ${c.id}: ${dur}s passa do limite de ${limite} s`); process.exitCode = 1; continue; }
   const vfDe = (recorte) => [recorte ?? c.vf, c.tamanho ? `scale=${c.tamanho}:flags=lanczos` : "scale='min(540,iw)':-2:flags=lanczos", 'fps=30', 'setsar=1'].filter(Boolean).join(',');
   const partes = trechos.map(([a, b, recorte], i) => {
     const vf = vfDe(recorte);
@@ -101,8 +107,11 @@ for (const c of CLIPES) {
   });
   const juntar = `${trechos.map((_, i) => `[v${i}][a${i}]`).join('')}concat=n=${trechos.length}:v=1:a=1[vc][ac]`;
   // silêncio só no áudio (tempo do original → tempo do corte), com rampas de 30 ms; a imagem não muda
-  const mudo = c.silencio
-    ? (() => { const a = c.silencio[0] - trechos[0][0]; const b = c.silencio[1] - trechos[0][0]; return `,asetnsamples=n=240,volume=eval=frame:volume='max(0,min(1,max((${a.toFixed(3)}-t)/0.03,(t-${b.toFixed(3)})/0.03)))'`; })()
+  // tempo do original → tempo do corte (soma dos pedaços anteriores + deslocamento dentro do pedaço)
+  const noCorte = (t) => { let antes = 0; for (const [a, b] of trechos) { if (t <= b) return antes + Math.max(0, t - a); antes += b - a; } return antes; };
+  const silencios = c.silencio ? (Array.isArray(c.silencio[0]) ? c.silencio : [c.silencio]) : [];
+  const mudo = silencios.length
+    ? `,asetnsamples=n=240,volume=eval=frame:volume='${silencios.map(([sa, sb]) => { const a = noCorte(sa); const b = noCorte(sb); return `max(0,min(1,max((${a.toFixed(3)}-t)/0.03,(t-${b.toFixed(3)})/0.03)))`; }).join('*')}'`
     : '';
   const fades = `afade=t=in:d=0.12,afade=t=out:st=${(dur - (c.fadeOut ?? 0.2)).toFixed(3)}:d=${c.fadeOut ?? 0.2}`;
   const grafo = (audioFim) => `${partes.join(';')};${juntar};[ac]${fades}${mudo}${audioFim}[aout]`;

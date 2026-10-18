@@ -451,13 +451,15 @@ test.describe('desempenho', () => {
   });
 });
 
-test('cortes dos criadores: até 40 s cada, com faixa de áudio (a voz original)', async ({ page, browserName }) => {
+// exceção pedida pelo responsável (2026-10-18): o vídeo horizontal do grupo vai até o fim do story (72 s)
+const LIMITE: Record<string, number> = { 'criadores-grupo-expectativa': 75 };
+test('cortes dos criadores: até 40 s cada (salvo exceção pedida), com faixa de áudio (a voz original)', async ({ page, browserName }) => {
   await page.goto('/');
   const fontes = await page.$$eval('[data-trilho] template[data-video]', (ts) => ts.map((t) => (t as HTMLTemplateElement).content.querySelector('source')?.getAttribute('src')).filter(Boolean) as string[]);
   test.skip(!fontes.length, 'sem vídeos de criadores neste build');
   for (const src of fontes) {
     const dur = await page.evaluate((s) => new Promise<number>((ok) => { const v = document.createElement('video'); v.preload = 'metadata'; v.muted = true; v.onloadedmetadata = () => ok(v.duration); v.onerror = () => ok(NaN); v.src = s; }), src);
-    expect(dur, src).toBeLessThanOrEqual(40);
+    expect(dur, src).toBeLessThanOrEqual(LIMITE[src.split('/').pop()!.replace('.web.mp4', '')] ?? 40);
     expect(dur, src).toBeGreaterThan(3);
     // a faixa de áudio: lida no MP4 (caixa “soun” do trak de áudio), sem depender do decodificador do navegador
     const temAudio = await page.evaluate(async (s) => { const b = new Uint8Array(await (await fetch(s)).arrayBuffer()); const txt = new TextDecoder('latin1').decode(b.subarray(0, Math.min(b.length, 4_000_000))); return txt.includes('soun'); }, src);
