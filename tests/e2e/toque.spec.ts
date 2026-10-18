@@ -18,7 +18,8 @@ test('nenhum elemento clicável com realce de toque (-webkit-tap-highlight-color
     // as regras ficam dentro de @layer: percorre os grupos
     const todas = (rs: CSSRuleList): CSSRule[] => [...rs].flatMap((r) => ('cssRules' in r ? [r, ...todas((r as CSSGroupingRule).cssRules)] : [r]));
     return [...document.styleSheets].flatMap((s) => { try { return todas(s.cssRules); } catch { return []; } })
-      .some((r) => r instanceof CSSStyleRule && r.selectorText === 'html' && /tap-highlight-color:\s*transparent/.test(r.cssText));
+      // o minificador pode juntar seletores (“html, *, ::before, ::after”): basta o html estar na lista
+      .some((r) => r instanceof CSSStyleRule && r.selectorText.split(',').map((s) => s.trim()).includes('html') && /tap-highlight-color:\s*transparent/.test(r.cssText));
   });
   expect(regra).toBe(true);
 });

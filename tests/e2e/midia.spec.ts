@@ -3,10 +3,12 @@ import { test, expect } from '@playwright/test';
 
 test('prioridade só na 1ª tela; demais imagens lazy; formatos modernos', async ({ page }) => {
   await page.goto('/');
-  const imgs = await page.$$eval('img', (els) => els.map((i) => ({ lazy: i.loading === 'lazy', alta: i.getAttribute('fetchpriority') === 'high', hero: !!i.closest('.hero'), src: i.currentSrc || i.src })));
+  // exceções eager de propósito: o hero inteiro, o logo do menu (pequeno; a folha não abre com o logo em branco) e as
+  // seções com cartões/abas que o site antecipa quando chegam perto da tela ([data-antecipar], lib/site.js)
+  const imgs = await page.$$eval('img', (els) => els.map((i) => ({ lazy: i.loading === 'lazy', alta: i.getAttribute('fetchpriority') === 'high', livre: !!i.closest('.hero, .sheet, [data-antecipar]'), src: i.currentSrc || i.src })));
   const prioritarias = imgs.filter((i) => i.alta);
   expect(prioritarias.length).toBeLessThanOrEqual(2);
-  for (const i of imgs.filter((x) => !x.hero)) expect(i.lazy, i.src).toBe(true);
+  for (const i of imgs.filter((x) => !x.livre)) expect(i.lazy, i.src).toBe(true);
   for (const i of imgs.filter((x) => x.src)) expect(i.src).toMatch(/\.(avif|webp)(\?|$)/);
 });
 

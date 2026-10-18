@@ -7,7 +7,7 @@ const SIM = 'http://127.0.0.1:4322/';
 const irParaComanda = async (page: Page, url = '/') => {
   await page.goto(url);
   await page.locator('#reservar').evaluate((el) => el.scrollIntoView());
-  await page.locator('.chips--dates .chip[role="radio"]').first().waitFor();
+  await page.locator('.cal__dia[role="radio"]:not([disabled])').first().waitFor();
 };
 
 test.describe('modo indisponível (padrão)', () => {
@@ -37,10 +37,21 @@ test.describe('modo indisponível (padrão)', () => {
     await expect(amb.locator('[aria-checked="true"]')).toHaveText('Salão principal');
     await page.getByRole('button', { name: 'Mais uma pessoa' }).click();
     await expect(page.locator('.stepper output')).toHaveText('3');
-    const datas = page.locator('[aria-labelledby="rf-l3"] [role="radio"]');
-    await expect(datas).toHaveCount(10);
-    await datas.nth(2).click();
-    await expect(datas.nth(2)).toHaveAttribute('aria-checked', 'true');
+    // calendário mensal: qualquer dia válido do mês; dias passados desabilitados; setas trocam o mês (janela de 60 dias)
+    const dias = page.locator('[aria-labelledby="rf-l3"] [role="radio"]');
+    const validos = page.locator('[aria-labelledby="rf-l3"] [role="radio"]:not([disabled])');
+    await expect(page.locator('[aria-labelledby="rf-l3"] [aria-checked="true"]')).toHaveAttribute('data-hoje', '');
+    expect(await dias.count()).toBeGreaterThanOrEqual(28);
+    await validos.last().click();
+    await expect(validos.last()).toHaveAttribute('aria-checked', 'true');
+    await expect(page.getByRole('button', { name: 'Mês anterior' })).toBeDisabled();
+    await page.getByRole('button', { name: 'Próximo mês' }).click();
+    await expect(validos.first()).toHaveText('1');
+    await validos.nth(14).click();
+    await expect(validos.nth(14)).toHaveAttribute('aria-checked', 'true');
+    // teclado: → anda um dia
+    await validos.nth(14).press('ArrowRight');
+    await expect(validos.nth(15)).toHaveAttribute('aria-checked', 'true');
   });
 
   test('rota /reservar mostra a mesma comanda', async ({ page }) => {
@@ -56,7 +67,7 @@ test.describe('modo simulado (só testes)', () => {
     await expect(page.locator('.ticket__sim')).toBeVisible();
     await expect(page.locator('.ticket__stamp')).toHaveText('simulação');
     // escolhe uma data que não seja segunda (a simulação não tem horários às segundas)
-    const datas = page.locator('[aria-labelledby="rf-l3"] [role="radio"]');
+    const datas = page.locator('[aria-labelledby="rf-l3"] [role="radio"]:not([disabled])');
     for (let i = 0; i < 3; i++) {
       await datas.nth(i).click();
       await page.locator('.ticket__slots:has-text("Carregando")').waitFor({ state: 'detached' });
@@ -115,7 +126,7 @@ test.describe('modo simulado (só testes)', () => {
 });
 
 async function escolherHorario(page: Page) {
-  const datas = page.locator('[aria-labelledby="rf-l3"] [role="radio"]');
+  const datas = page.locator('[aria-labelledby="rf-l3"] [role="radio"]:not([disabled])');
   for (let i = 0; i < 3; i++) {
     await datas.nth(i).click();
     await page.locator('.ticket__slots:has-text("Carregando")').waitFor({ state: 'detached' });

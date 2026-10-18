@@ -29,12 +29,38 @@ test.describe('com movimento normal', () => {
     const fim = Math.max(...tempos.map((t) => t.fim));
     expect(fim).toBeGreaterThanOrEqual(1000);
     expect(fim).toBeLessThanOrEqual(1400);
-    expect(tempos.find((t) => t.fim === fim)?.alvo).toMatch(/btn/);
+    // fecham a cena o CTA e a anotação “quentinho da fornada”, que se escreve por último
+    expect(tempos.find((t) => t.fim === fim)?.alvo).toMatch(/btn|hero__anota/);
     // a etiqueta (LCP) também nunca fica transparente
     expect(Number(await page.locator('.hero__label').evaluate((e) => getComputedStyle(e).opacity))).toBe(1);
+    // a cena acaba e não repete ao rolar de volta ao topo
     await expect.poll(() => page.evaluate(() => document.documentElement.classList.contains('enter')), { timeout: 3000 }).toBe(false);
-    await page.goto('/#reservar');
+    await page.evaluate(() => scrollTo({ top: 3000, behavior: 'instant' }));
+    await page.evaluate(() => scrollTo({ top: 0, behavior: 'instant' }));
+    await page.waitForTimeout(200);
     expect(await page.evaluate(() => document.documentElement.classList.contains('enter'))).toBe(false);
+  });
+
+  test('F5: a entrada do hero roda em cinco recarregamentos seguidos, mesmo depois de rolar ou de clicar numa âncora', async ({ page }) => {
+    await page.goto('/');
+    for (let i = 0; i < 5; i++) {
+      // estado que antes desligava a entrada: página rolada (restauração do scroll) e âncora na URL
+      await page.evaluate((n) => { scrollTo({ top: 2500, behavior: 'instant' }); if (n % 2) location.hash = '#reservar'; }, i);
+      await page.waitForTimeout(150);
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      const r = await page.evaluate(() => ({
+        enter: document.documentElement.classList.contains('enter'),
+        hash: location.hash,
+        cena: document.getAnimations().filter((a) => ((a.effect as KeyframeEffect)?.target as Element | null)?.closest?.('.hero')).length,
+      }));
+      expect(r.enter, `recarga ${i + 1}`).toBe(true);
+      expect(r.hash).toBe('');
+      expect(r.cena).toBeGreaterThan(8);
+      await page.waitForLoadState('load');
+      await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
+      // o título continua visível desde o 1º quadro (sem tela branca)
+      expect(Number(await page.locator('.hero__label').evaluate((e) => getComputedStyle(e).opacity))).toBe(1);
+    }
   });
 
   test('o scroll não é sequestrado (sem listeners de wheel/touch bloqueantes, sem smooth scroll por JS)', async ({ page, browserName }) => {
