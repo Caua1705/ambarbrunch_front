@@ -33,8 +33,8 @@ const inicioUrl = inicioMeta ? (await getImage({ src: inicioMeta, width: 450, fo
     <p class="roll__lead" data-reveal>{roll.lead}</p>
   </div>
 
-  <!-- Abertura: a espiral de creme, caramelo e canela numa janela em arco; um fio de caramelo sai dela, se desenha junto
-       com o vídeo e leva até o roll finalizado logo abaixo (lib/espiral.js). -->
+  <!-- Abertura: a espiral de creme, caramelo e canela numa janela em arco; um fio de caramelo sai dela, se desenha com a
+       rolagem e leva até o roll finalizado logo abaixo (lib/espiral.js). -->
   {espiralSrc && (
     <div class="abertura" data-espiral data-vivo>
       <div class="abertura__lado">
