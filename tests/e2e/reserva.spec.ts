@@ -7,6 +7,14 @@ const SIM = 'http://127.0.0.1:4322/';
 const irParaComanda = async (page: Page, url = '/') => {
   await page.goto(url);
   await page.locator('#reservar').evaluate((el) => el.scrollIntoView());
+  await page.locator('#reservar .data-campo').waitFor();
+  // a ilha precisa estar hidratada (antes disso o campo é só HTML)
+  await page.locator('#reservar astro-island:not([ssr])').waitFor({ state: 'attached' });
+};
+// celular (2026-10-22): o calendário começa fechado no campo “Escolher uma data”; um toque num dia escolhe e fecha
+const abrirCalendario = async (page: Page) => {
+  const campo = page.locator('#reservar .data-campo');
+  if ((await campo.getAttribute('aria-expanded')) !== 'true') await campo.click();
   await page.locator('.cal__dia[role="radio"]:not([disabled])').first().waitFor();
 };
 
@@ -37,21 +45,38 @@ test.describe('modo indisponível (padrão)', () => {
     await expect(amb.locator('[aria-checked="true"]')).toHaveText('Salão principal');
     await page.getByRole('button', { name: 'Mais uma pessoa' }).click();
     await expect(page.locator('.stepper output')).toHaveText('3');
+    // campo de data: fechado, sem data escolhida; abre dentro da comanda
+    const campo = page.locator('#reservar .data-campo');
+    await expect(campo).toHaveText(/Escolher uma data/);
+    await expect(campo).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.locator('#rf-cal')).toBeHidden();
+    await abrirCalendario(page);
+    await expect(campo).toHaveAttribute('aria-expanded', 'true');
     // calendário mensal: qualquer dia válido do mês; dias passados desabilitados; setas trocam o mês (janela de 60 dias)
     const dias = page.locator('[aria-labelledby="rf-l3"] [role="radio"]');
     const validos = page.locator('[aria-labelledby="rf-l3"] [role="radio"]:not([disabled])');
-    await expect(page.locator('[aria-labelledby="rf-l3"] [aria-checked="true"]')).toHaveAttribute('data-hoje', '');
+    await expect(page.locator('[aria-labelledby="rf-l3"] [aria-checked="true"]')).toHaveCount(0);
     expect(await dias.count()).toBeGreaterThanOrEqual(28);
     await validos.last().click();
+    // o toque escolhe e fecha: o campo mostra a data e volta a ter o foco
+    await expect(page.locator('#rf-cal')).toBeHidden();
+    await expect(campo).not.toHaveText(/Escolher uma data/);
+    await expect(campo).toBeFocused();
+    await abrirCalendario(page);
     await expect(validos.last()).toHaveAttribute('aria-checked', 'true');
     await expect(page.getByRole('button', { name: 'Mês anterior' })).toBeDisabled();
     await page.getByRole('button', { name: 'Próximo mês' }).click();
     await expect(validos.first()).toHaveText('1');
     await validos.nth(14).click();
+    await abrirCalendario(page);
     await expect(validos.nth(14)).toHaveAttribute('aria-checked', 'true');
-    // teclado: → anda um dia
+    // teclado: → anda um dia, sem fechar o calendário; Esc fecha
     await validos.nth(14).press('ArrowRight');
     await expect(validos.nth(15)).toHaveAttribute('aria-checked', 'true');
+    await expect(page.locator('#rf-cal')).toBeVisible();
+    await validos.nth(15).press('Escape');
+    await expect(page.locator('#rf-cal')).toBeHidden();
+    await expect(campo).toBeFocused();
   });
 
   test('rota /reservar mostra a mesma comanda', async ({ page }) => {
@@ -67,8 +92,11 @@ test.describe('modo simulado (só testes)', () => {
     await expect(page.locator('.ticket__sim')).toBeVisible();
     await expect(page.locator('.ticket__stamp')).toHaveText('simulação');
     // escolhe uma data que não seja segunda (a simulação não tem horários às segundas)
+    // sem data, nenhum horário é buscado
+    await expect(page.locator('#reservar .ticket')).toContainText('Escolha uma data para ver os horários.');
     const datas = page.locator('[aria-labelledby="rf-l3"] [role="radio"]:not([disabled])');
     for (let i = 0; i < 3; i++) {
+      await abrirCalendario(page);
       await datas.nth(i).click();
       await page.locator('.ticket__slots:has-text("Carregando")').waitFor({ state: 'detached' });
       if (await page.locator('[aria-labelledby="rf-l4"] [role="radio"]:not([disabled])').count()) break;
@@ -128,6 +156,7 @@ test.describe('modo simulado (só testes)', () => {
 async function escolherHorario(page: Page) {
   const datas = page.locator('[aria-labelledby="rf-l3"] [role="radio"]:not([disabled])');
   for (let i = 0; i < 3; i++) {
+    await abrirCalendario(page);
     await datas.nth(i).click();
     await page.locator('.ticket__slots:has-text("Carregando")').waitFor({ state: 'detached' });
     if (await page.locator('[aria-labelledby="rf-l4"] [role="radio"]:not([disabled])').count()) break;

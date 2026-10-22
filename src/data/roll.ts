@@ -3,16 +3,6 @@ export const roll = {
   instagram: { handle: '@roll.ofc', url: 'https://www.instagram.com/roll.ofc/' },
   /** copy editorial — só ingredientes do cardápio da Roll (fermentação lenta, manteiga, açúcar mascavo, canela e glacê) */
   lead: 'Fermentação lenta, manteiga, açúcar mascavo e canela. Glacê por cima e direto pra sua mesa.',
-  /** Sabores fixos citados nas legendas dos posts da Roll (ago/2026). Fotos: Instagram da Roll, autorizadas em 2026-10-17. */
-  bandejas: [
-    { sabor: 'Biscoff', foto: 'roll/bandeja-biscoff.webp', alt: 'Bandeja de cinnamon rolls de Biscoff', id: 'IG-OPT-06' },
-    { sabor: 'Red velvet', foto: 'roll/bandeja-red-velvet.webp', alt: 'Bandeja de cinnamon rolls red velvet', id: 'IG-09' },
-    { sabor: 'Oreo', foto: 'roll/bandeja-oreo.webp', alt: 'Bandeja de cinnamon rolls de Oreo', id: 'IG-OPT-07' },
-  ],
-  bandejasAutorizadas: true,
-  /** Sabores que já passaram pela fornada — legendas e cardápios da própria Roll (ago–out/2026). Apresentados como
-   *  histórico, nunca como disponibilidade do dia: os sabores mudam todo mês. */
-  sabores: ['Tradicional', 'Oreo', 'Biscoff', 'Red velvet', 'Pistache', 'Mirtilo', 'Nutella', 'Mood cheesecake', 'S’mores', 'Kinder Bueno'],
   /** Processo da própria Roll: vídeos reexportados sem áudio (npm run media:video), autorizados em 2026-10-17.
    *  Vídeos de criadores ficam em data/criadores.ts (seção “Reações reais”). */
   videos: [

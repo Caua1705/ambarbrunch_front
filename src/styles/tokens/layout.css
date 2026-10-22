@@ -6,7 +6,6 @@
   --gutter: 16px;
 
   /* Containers do desktop (≥ 960 px) */
-  --container-s: 900px;    /* bandejas da Roll */
   --container-m: 980px;    /* quadro, faixas, reserva, Novo capítulo, Visite */
   --container-l: 1100px;   /* ambientes */
   --container-xl: 1240px;  /* Mesa cheia, cabeçalho da Roll */

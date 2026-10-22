@@ -45,11 +45,6 @@
 /* pílulas do cardápio caem em cascata (--n = posição) */
 .js .bands[data-reveal] .bands__list li { opacity: 0; transform: translateY(calc(var(--lift) * -.5)); transition: opacity var(--dur-m) var(--ease), transform var(--dur-m) var(--ease-paper); transition-delay: calc(var(--n, 0) * var(--cascade) + var(--reveal-delay-scribble)); }
 .js .bands[data-reveal].is-in .bands__list li { opacity: 1; transform: none; }
-/* leque de bandejas abrindo a partir do centro */
-.js .trays[data-reveal] figure { transition: transform var(--dur-l) var(--ease-paper); transition-delay: var(--reveal-delay-draw); }
-.js .trays[data-reveal] figure:nth-child(1) { transform: translateX(45%) rotate(7deg); }
-.js .trays[data-reveal] figure:nth-child(3) { transform: translateX(-45%) rotate(2deg); }
-.js .trays[data-reveal].is-in figure:nth-child(n) { transform: none; }
 /* painéis de ambiente deslizam pela diagonal (o da manhã vem da esquerda; o âmbar, da direita) */
 .js [data-reveal="slide-l"] { translate: calc(var(--slide) * -1) var(--slide); }
 .js [data-reveal="slide-r"] { translate: var(--slide) var(--slide); }
@@ -61,9 +56,6 @@
 .js .anatomia .anatomia__espiral path { transition-duration: var(--dur-draw-long); }
 .js .anatomia .anatomia__nota { opacity: 0; translate: 0 12px; transition: opacity var(--dur-m) var(--ease), translate var(--dur-m) var(--ease-paper); transition-delay: calc(var(--reveal-delay-notes) + var(--i, 0) * var(--stagger)); }
 .js .anatomia.is-in .anatomia__foto { transform: none; clip-path: circle(50% at 50% 50%); }
-/* prato: pinos de ingrediente estalam um a um depois da foto */
-.js .prato__foto .prato__pino { opacity: 0; scale: .6; transition: opacity var(--dur-s) var(--ease), scale var(--dur-m) var(--ease-paper); transition-delay: calc(var(--reveal-delay-notes) + var(--i, 0) * 2 * var(--stagger)); }
-.js .prato__foto.is-in .prato__pino { opacity: 1; scale: 1; }
 .js .anatomia.is-in .anatomia__nota { opacity: 1; translate: none; }
 
 /* 2 · Entrada do hero (só no primeiro carregamento, no topo, sem âncora) — classe .enter no <html>, posta no <head>
@@ -140,8 +132,8 @@
 @keyframes sticker-in { from { opacity: 0; transform: scale(.6); } }
 @keyframes fade { from { opacity: 0; } }
 
-/* 2a · Cardápio tátil e ficha nutricional: o cartão se desdobra como papel (recorte que desce + leve assentar, ~320 ms),
-   a foto principal estala, os itens descem em cascata, as barras crescem. @keyframes recomeçam sozinhas quando o conteúdo
+/* 2a · Cardápio tátil: o cartão se desdobra como papel (recorte que desce + leve assentar, ~320 ms),
+   a foto principal estala, os itens descem em cascata. @keyframes recomeçam sozinhas quando o conteúdo
    aparece (hidden → visível): trocar de etiqueta com o cartão aberto troca o conteúdo com um esmaecimento curto. */
 .cartao:not([hidden]) .cartao__dentro { animation: cartao-in var(--dur-card-in) var(--ease) backwards; }
 /* a saída é o espelho da entrada, com a altura encolhendo junto (Web Animations em lib/cardapio-tatil.js, com estes tokens) */
@@ -152,12 +144,8 @@
 .cartao__grupo:not([hidden]) .cartao__itens li { animation: item-in var(--dur-s) var(--ease) both; animation-delay: calc(var(--card-delay-items) + var(--k, 0) * var(--card-stagger)); }
 @keyframes cat-in { from { opacity: 0; transform: translateY(4px); } }
 @keyframes prato-in { from { opacity: 0; transform: scale(.6) rotate(-30deg); } }
-/* ficha nutricional abrindo: as linhas descem em cascata e as barras crescem (recomeça a cada abertura) */
-.ficha[data-aberta] .ficha__tabela tr { animation: item-in var(--dur-s) var(--ease) both; animation-delay: calc(var(--card-delay-items) + var(--i, 0) * var(--card-stagger)); }
-.ficha[data-aberta] .ficha__barra i { animation: barra var(--dur-l) var(--ease-paper) both; animation-delay: calc(var(--card-delay-items) + var(--i, 0) * var(--stagger)); }
 @keyframes cartao-in { from { opacity: 0; clip-path: inset(-40px -20px 72% -20px); transform: translateY(-6px) rotate(-1.2deg); } to { clip-path: inset(-40px -20px -20px -20px); } }
 @keyframes item-in { from { opacity: 0; transform: translateY(6px); } }
-@keyframes barra { from { transform: scaleX(0); } }
 
 /* 2b · Momentos da comanda: uma vez, quando o estado muda */
 .stamp[data-state="reservado"], .stamp[data-state="erro"] { animation: stamp-hit var(--dur-m) var(--ease-paper) both; }
@@ -247,11 +235,30 @@
   .js .board__item .tape { scale: none; }
   .js .anatomia .anatomia__foto { transform: none; clip-path: none; }
   .js .anatomia .anatomia__selo { scale: 1; }
-  .js .prato__foto .prato__pino { opacity: 1; scale: 1; }
   .js .anatomia .anatomia__nota { opacity: 1; translate: none; }
-  .js .bands[data-reveal] .bands__list li, .js .trays[data-reveal] figure:nth-child(n) { opacity: 1; transform: none; }
+  .js .bands[data-reveal] .bands__list li { opacity: 1; transform: none; }
   .dupla__camada { translate: none; }
   /* CTA, doca e folha: só opacidade (a transição é religada de propósito, curta) */
   .sticky-cta, .menu-btn--fixo { transform: none !important; transition: opacity var(--dur-reduced) linear !important; }
   .menu-btn--fixo { rotate: 8deg; }
+}
+
+/* 6 · Clube Âmbar (2026-10-20) — tudo decorativo; o conteúdo é legível desde o primeiro quadro.
+   Brilho: atravessa a carteira uma vez quando o cartão assenta (e quando a carteira do membro abre); de novo ao passar o
+   ponteiro. Ondas da plaquinha (NFC): pulsam em sequência só enquanto visíveis. Cumprimento da mesa: estala ao aparecer. */
+.is-in .carteira__papel::after, .carteira[data-estado="membro"] .carteira__papel::after { animation: brilho var(--dur-brilho) var(--ease) var(--brilho-delay) both; }
+@media (hover: hover) { .carteira:hover .carteira__papel::after { animation: brilho-b var(--dur-brilho) var(--ease) both; } }
+@keyframes brilho { from { background-position: 160% 0; } to { background-position: -60% 0; } }
+@keyframes brilho-b { from { background-position: 160% 0; } to { background-position: -60% 0; } }
+.plq__ondas path { opacity: 0; animation: onda var(--onda-period) var(--ease) infinite; animation-delay: calc(var(--k, 0) * var(--onda-stagger)); }
+@keyframes onda { 0% { opacity: 0; translate: -4px 0; } 25% { opacity: 1; } 60%, 100% { opacity: 0; translate: 6px 0; } }
+[data-vivo]:not([data-visivel]) .plq__ondas path, [data-motion="paused"] .plq__ondas path { animation-play-state: paused; }
+.clube-chegada:not([hidden]) { animation: sticker-in var(--dur-m) var(--ease-paper) var(--reveal-delay-stamp) both; }
+/* Passaporte Âmbar (2026-10-22): quando a página assenta, cada carimbo bate em sequência (escala 1,5 → 1, como o carimbo
+   do Novo capítulo). Só transform/opacity; o texto está lá desde o 1º quadro. */
+.js .jornada[data-reveal] .marco__selo { opacity: 0; transform: scale(1.5) rotate(14deg); transition: opacity var(--dur-s) linear, transform var(--dur-m) var(--ease-paper); transition-delay: calc(var(--reveal-delay-stamp) + var(--i, 0) * 2 * var(--stagger)); }
+.js .jornada[data-reveal].is-in .marco__selo { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .plq__ondas path { opacity: 1; }
+  .js .jornada[data-reveal] .marco__selo { opacity: 1; transform: none; }
 }

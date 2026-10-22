@@ -9,6 +9,7 @@ import type { JSX } from 'preact';
 import { ErroReserva, type ReservaConfig, type ReservaCriada, type ReservasApi } from '../lib/api/contrato';
 import { criarApiSimulada } from '../lib/api/simulado';
 import { criarApiHttp } from '../lib/api/http';
+import { visita } from '../data/visita';
 
 type Modo = 'indisponivel' | 'simulado' | 'api';
 export type Etapa = 'escolha' | 'revisao' | 'enviando' | 'confirmada' | 'falha';
@@ -66,7 +67,8 @@ function validar(d: Dados, exigeEmail: boolean): Record<string, string> {
   if (d.nome.trim().length < 2) e.nome = 'Diga como podemos chamar você.';
   const tel = soDigitos(d.telefone);
   if (tel.length < 10 || tel.length > 11) e.telefone = 'Confira o número com DDD (10 ou 11 dígitos).';
-  if ((exigeEmail || d.email) && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email.trim())) e.email = 'Confira o e-mail.';
+  if (exigeEmail && !d.email.trim()) e.email = 'Informe o e-mail.';
+  else if (d.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email.trim())) e.email = 'Confira o e-mail.';
   if (!d.consentimento) e.consentimento = 'Para reservar, é preciso concordar com o uso dos dados.';
   return e;
 }
@@ -102,7 +104,7 @@ function Escolha<T extends string>(p: { rotulo: string; id: string; opcoes: { va
  * Calendário mensal da comanda (rodada final: substitui a fileira de 10 dias). Dias fora da janela [hoje, hoje + diasMax)
  * ficam riscados; setas trocam o mês; no teclado, ←/→ andam um dia e ↑/↓ uma semana (radiogroup, um dia focável).
  */
-function Calendario(p: { id: string; hoje: Date; diasMax: number; valor: string | null; aoEscolher: (v: string) => void }) {
+function Calendario(p: { id: string; hoje: Date; diasMax: number; valor: string | null; aoEscolher: (v: string) => void; aoConfirmar?: () => void }) {
   const inicio = new Date(p.hoje.getFullYear(), p.hoje.getMonth(), p.hoje.getDate());
   const fim = new Date(inicio); fim.setDate(inicio.getDate() + p.diasMax - 1);
   const [mes, setMes] = useState(() => { const v = p.valor ? new Date(`${p.valor}T12:00:00`) : inicio; return new Date(v.getFullYear(), v.getMonth(), 1); });
@@ -143,7 +145,7 @@ function Calendario(p: { id: string; hoje: Date; diasMax: number; valor: string 
             <button type="button" role="radio" class="cal__dia" data-valor={v} aria-checked={v === p.valor} tabIndex={v === focavel && ok ? 0 : -1}
               disabled={!ok} data-hoje={v === iso(inicio) ? '' : undefined}
               aria-label={`${v === iso(inicio) ? 'hoje, ' : ''}${SEMANA_LONGA[d.getDay()]}, ${d.getDate()}`}
-              onClick={() => p.aoEscolher(v)}>{d.getDate()}</button>
+              onClick={() => { p.aoEscolher(v); p.aoConfirmar?.(); }}>{d.getDate()}</button>
           );
         })}
       </div>
@@ -179,9 +181,29 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
   const chave = useRef<string>(uuid());
   const topo = useRef<HTMLParagraphElement>(null);
   const passo4 = useRef<HTMLLegendElement>(null);
+  // Campo de data (celular): o calendário começa fechado e abre dentro da comanda; um toque num dia escolhe e fecha.
+  // No desktop (≥ 960 px) o calendário fica sempre aberto e o campo some (CSS: .data-campo / .data-painel).
+  const [calAberto, setCalAberto] = useState(false);
+  const campoData = useRef<HTMLButtonElement>(null);
+  const fecharCal = () => {
+    setCalAberto(false);
+    const campo = campoData.current;
+    if (campo && campo.offsetParent) requestAnimationFrame(() => campo.focus());
+  };
 
-  // Datas só no navegador (o HTML estático foi gerado em outro dia).
-  useEffect(() => { const d = new Date(); setHoje(d); setData(iso(d)); }, []);
+  const amb = cfg.ambientes.find((a) => a.id === ambiente);
+  const nomeAmbiente = amb?.nome ?? ambiente;
+  /** Limites de UMA reserva online no ambiente escolhido (a lotação é capacidadeMax, conferida pela API). */
+  const minPessoas = amb?.pessoasMin ?? cfg.pessoas.min;
+  const maxPessoas = amb?.pessoasMax ?? cfg.pessoas.max;
+  /** Acima do máximo online: atendimento de grupos (a equipe lança pelo painel). */
+  const grupo = pessoas > maxPessoas;
+  const linkGrupo = `${visita.whatsapp.url}?text=${encodeURIComponent(`Olá! Quero reservar para um grupo de mais de ${maxPessoas} pessoas (${nomeAmbiente}).`)}`;
+
+  // Datas só no navegador (o HTML estático foi gerado em outro dia). Nenhuma data vem escolhida (2026-10-22): o campo
+  // começa em “Escolher uma data” e os horários só são buscados depois da escolha.
+  // Os estados de demonstração (/design-system/) continuam com hoje marcado, para mostrar horários e revisão completos.
+  useEffect(() => { const d = new Date(); setHoje(d); if (demo) setData(iso(d)); }, []);
   // Ambiente pedido por um “reservar aqui” (mesmo antes de a ilha carregar).
   useEffect(() => {
     const w = window as unknown as { __ambarAmbiente?: string };
@@ -195,9 +217,12 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
     if (!api) return;
     api.config().then((c) => { setCfg(c); if (!c.ambientes.some((a) => a.id === ambiente)) setAmbiente(c.ambientes[0]?.id ?? ''); }).catch(() => {});
   }, [api]);
+  // Ao trocar de ambiente, o número de pessoas entra na faixa dele (o grupo continua grupo).
+  useEffect(() => { setPessoas((n) => (n < minPessoas ? minPessoas : n > maxPessoas + 1 ? maxPessoas + 1 : n)); }, [minPessoas, maxPessoas]);
   // Horários: buscados a cada mudança de ambiente, pessoas ou data. Requisições antigas são canceladas.
   useEffect(() => {
     if (!api || !data || !ambiente || demo?.horarios) return;
+    if (pessoas < minPessoas || pessoas > maxPessoas) { setHora(null); setHorarios({ estado: 'ocioso', lista: [] }); return; }
     const ctrl = new AbortController();
     setHora(null);
     setHorarios({ estado: 'carregando', lista: [] });
@@ -209,12 +234,11 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
       })
       .catch((e) => { if (e?.name !== 'AbortError') setHorarios({ estado: 'erro', lista: [], msg: e instanceof ErroReserva ? e.message : 'Não foi possível carregar os horários.' }); });
     return () => ctrl.abort();
-  }, [api, data, pessoas, ambiente, tentativa]);
+  }, [api, data, pessoas, ambiente, tentativa, minPessoas, maxPessoas]);
   // Foco no topo da comanda a cada TROCA de etapa (leitor de tela e teclado); não na montagem.
   const montou = useRef(false);
   useEffect(() => { if (!montou.current) { montou.current = true; return; } if (etapa !== 'escolha') topo.current?.focus(); }, [etapa]);
 
-  const nomeAmbiente = cfg.ambientes.find((a) => a.id === ambiente)?.nome ?? ambiente;
   const dataTexto = data ? dataLonga.format(new Date(`${data}T12:00:00`)) : '';
   const mudarDado = (campo: keyof Dados) => (ev: Event) => {
     const alvo = ev.currentTarget as HTMLInputElement;
@@ -225,7 +249,7 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
 
   const continuar = (ev: Event) => {
     ev.preventDefault();
-    if (!api) return;
+    if (!api || grupo) return;
     if (etapa === 'revisao' || etapa === 'falha') { enviar(); return; }
     if (!hora) { setAnuncio('Escolha um horário.'); passo4.current?.scrollIntoView({ block: 'center' }); return; }
     const e = validar(dados, cfg.exigeEmail);
@@ -256,7 +280,11 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
     } catch (e) {
       const erro = e instanceof ErroReserva ? e : new ErroReserva('servidor', 'Não foi possível concluir. Tente de novo em instantes.');
       if (erro.tipo === 'conflito') { setEtapa('escolha'); setHora(null); setTentativa((t) => t + 1); setAnuncio(erro.message); setFalha(erro.message); return; }
-      if (erro.tipo === 'validacao' && Object.keys(erro.campos).length) { setErros(erro.campos); setEtapa('escolha'); setAnuncio(erro.message); return; }
+      if (erro.tipo === 'validacao' && Object.keys(erro.campos).length) {
+        // Erro de um campo que não fica no formulário de dados (pessoas, data, hora…): mostrar no topo da comanda.
+        const foraDosDados = ['pessoas', 'data', 'hora', 'ambienteId'].map((c) => erro.campos[c]).find(Boolean);
+        setErros(erro.campos); setEtapa('escolha'); setFalha(foraDosDados ?? ''); setAnuncio(foraDosDados ?? erro.message); return;
+      }
       setFalha(erro.message);
       setEtapa('falha');
       setAnuncio(erro.message);
@@ -268,7 +296,7 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
     const [y, m, d] = resultado.data.split('-'); const [h, min] = resultado.hora.split(':');
     const inicio = `${y}${m}${d}T${h}${min}00`;
     const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Ambar Brunch//Reserva//PT', 'BEGIN:VEVENT', `UID:${resultado.codigo}@ambarbrunch`,
-      `DTSTART:${inicio}`, 'DURATION:PT1H30M', `SUMMARY:Reserva no Âmbar Brunch (${resultado.pessoas} pessoas)`,
+      `DTSTART:${inicio}`, `DURATION:PT${resultado.duracaoMin ?? 90}M`, `SUMMARY:Reserva no Âmbar Brunch (${resultado.pessoas} pessoas)`,
       `DESCRIPTION:Código ${resultado.codigo} · ${nomeAmbiente}`, 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
     return `data:text/calendar;charset=utf-8,${encodeURIComponent(ics)}`;
   };
@@ -286,6 +314,7 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
       <div><dt>Horário</dt><dd>{hora}</dd></div>
       {etapa !== 'confirmada' && <div><dt>Nome</dt><dd>{dados.nome}</dd></div>}
       {etapa !== 'confirmada' && <div><dt>Telefone</dt><dd>{dados.telefone}</dd></div>}
+      {etapa !== 'confirmada' && dados.email.trim() && <div><dt>E-mail</dt><dd>{dados.email.trim()}</dd></div>}
     </dl>
   );
 
@@ -309,22 +338,38 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
           <fieldset>
             <legend id={`${px}-l2`} data-done={api ? '' : undefined}>02 · pessoas</legend>
             <div class="stepper">
-              <button type="button" aria-label="Menos uma pessoa" disabled={pessoas <= cfg.pessoas.min} onClick={() => setPessoas((n) => Math.max(cfg.pessoas.min, n - 1))}>−</button>
-              <output aria-live="polite" aria-labelledby={`${px}-l2`}>{pessoas}</output>
-              <button type="button" aria-label="Mais uma pessoa" disabled={pessoas >= cfg.pessoas.max} onClick={() => setPessoas((n) => Math.min(cfg.pessoas.max, n + 1))}>+</button>
+              <button type="button" aria-label="Menos uma pessoa" disabled={pessoas <= minPessoas} onClick={() => setPessoas((n) => Math.max(minPessoas, Math.min(n, maxPessoas + 1) - 1))}>−</button>
+              <output aria-live="polite" aria-labelledby={`${px}-l2`}>{grupo ? `+${maxPessoas}` : pessoas}</output>
+              <button type="button" aria-label={pessoas >= maxPessoas ? `Mais de ${maxPessoas} pessoas` : 'Mais uma pessoa'} disabled={grupo} onClick={() => setPessoas((n) => Math.min(maxPessoas + 1, n + 1))}>+</button>
             </div>
-            {pessoas >= cfg.pessoas.max && api && <p class="ticket__slots ticket__slots--after">Para grupos maiores, fale direto com o Âmbar.</p>}
+            {api && minPessoas > 1 && pessoas <= minPessoas && <p class="ticket__slots ticket__slots--after">{nomeAmbiente}: reservas a partir de {minPessoas} pessoas.</p>}
+            {api && grupo && (
+              <p class="ticket__status" role="status">
+                Reservas online em {nomeAmbiente} vão até {maxPessoas} pessoas. Para grupos maiores, a equipe monta a reserva com você.{' '}
+                <a class="ticket__link" href={linkGrupo} target="_blank" rel="noopener">Falar com a equipe no WhatsApp</a>
+              </p>
+            )}
           </fieldset>
-          <fieldset>
+          {!grupo && <fieldset>
             <legend id={`${px}-l3`} data-done={api && data ? '' : undefined}>03 · data</legend>
-            {hoje
-              ? <Calendario id={`${px}-l3`} hoje={hoje} diasMax={cfg.antecedencia.diasMax} valor={data}
-                  aoEscolher={(v) => { setData(v); setFalha(''); }} />
-              : <div class="cal cal--esqueleto" aria-hidden="true"><div class="cal__grade">{Array.from({ length: 35 }, () => <span class="cal__dia chip--skeleton" />)}</div></div>}
-          </fieldset>
-          <fieldset>
+            <button type="button" class="data-campo" ref={campoData} aria-expanded={calAberto} aria-controls={`${px}-cal`}
+              data-escolhida={data ? '' : undefined} onClick={() => setCalAberto((a) => !a)}>
+              <svg class="data-campo__icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 5.5h13a1.5 1.5 0 0 1 1.5 1.5v11.5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5V7a1.5 1.5 0 0 1 1.5-1.5zM4 10h16M8.5 3.5v4M15.5 3.5v4" /><path class="data-campo__ponto" d="M8 14h.01M12 14h.01M16 14h.01" /></svg>
+              <span class="data-campo__texto">{data ? dataTexto : 'Escolher uma data'}</span>
+              <span class="data-campo__acao" aria-hidden="true">{data ? 'trocar' : ''}<i /></span>
+            </button>
+            <div class="data-painel" id={`${px}-cal`} data-aberto={calAberto ? '' : undefined}
+              onKeyDown={(ev) => { if (ev.key === 'Escape' && calAberto) { ev.stopPropagation(); fecharCal(); } }}>
+              {hoje
+                ? <Calendario id={`${px}-l3`} hoje={hoje} diasMax={cfg.antecedencia.diasMax} valor={data}
+                    aoEscolher={(v) => { setData(v); setFalha(''); }} aoConfirmar={fecharCal} />
+                : <div class="cal cal--esqueleto" aria-hidden="true"><div class="cal__grade">{Array.from({ length: 35 }, () => <span class="cal__dia chip--skeleton" />)}</div></div>}
+            </div>
+          </fieldset>}
+          {!grupo && <fieldset>
             <legend id={`${px}-l4`} ref={passo4} data-done={hora ? '' : undefined}>04 · horário</legend>
             {!api && <p class="ticket__slots">Os horários aparecem aqui quando as reservas pelo site forem ativadas.</p>}
+            {api && !data && !demo?.horarios && <p class="ticket__slots">Escolha uma data para ver os horários.</p>}
             {api && horarios.estado === 'carregando' && <><div class="chips" aria-hidden="true">{[0, 1, 2, 3].map(() => <span class="chip chip--skeleton" />)}</div><p class="ticket__slots ticket__slots--after">Carregando horários…</p></>}
             {api && horarios.estado === 'vazio' && <p class="ticket__slots">Sem horários nesta data. Escolha outro dia.</p>}
             {api && horarios.estado === 'erro' && <p class="ticket__status" data-tone="error" role="alert">{horarios.msg} <button type="button" class="ticket__link" onClick={() => setTentativa((t) => t + 1)}>Tentar de novo</button></p>}
@@ -333,8 +378,8 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
                 opcoes={horarios.lista.map((h) => ({ valor: h.hora, texto: h.hora, desabilitado: !h.disponivel }))}
                 aoEscolher={(v) => { setHora(v); setFalha(''); }} />
             )}
-          </fieldset>
-          {api && hora && (
+          </fieldset>}
+          {api && hora && !grupo && (
             <fieldset class="ticket__dados">
               <legend>05 · seus dados</legend>
               <div class="ticket__fields">
@@ -350,7 +395,7 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
                 </label>
                 <label class="field" data-invalid={erros.email ? '' : undefined}>
                   <span class="field__label">E-mail {!cfg.exigeEmail && <small>(opcional)</small>}</span>
-                  <input id={`${px}-email`} class="field__input" type="email" inputMode="email" autocomplete="email" value={dados.email} onInput={mudarDado('email')} aria-invalid={!!erros.email} aria-describedby={erros.email ? `${px}-email-erro` : undefined} />
+                  <input id={`${px}-email`} class="field__input" type="email" inputMode="email" autocomplete="email" required={cfg.exigeEmail} aria-required={cfg.exigeEmail} value={dados.email} onInput={mudarDado('email')} aria-invalid={!!erros.email} aria-describedby={erros.email ? `${px}-email-erro` : undefined} />
                   <span class="field__error" id={`${px}-email-erro`}>{erros.email}</span>
                 </label>
                 <label class="field">
@@ -361,12 +406,13 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
                   <input id={`${px}-consentimento`} type="checkbox" checked={dados.consentimento} onChange={mudarDado('consentimento')} aria-invalid={!!erros.consentimento} aria-describedby={`${px}-consentimento-erro`} />
                   <span>Concordo com o uso dos meus dados para esta reserva, conforme a <a href={privacidadeUrl}>política de privacidade</a>.</span>
                 </label>
+                <p class="ticket__slots">Vale só para esta reserva: não é cadastro no Clube Âmbar nem autorização para promoções.</p>
                 {erros.consentimento && <span class="field__error field__error--block" id={`${px}-consentimento-erro`}>{erros.consentimento}</span>}
               </div>
             </fieldset>
           )}
           {api
-            ? <button class="btn btn--wine btn--block" type="submit">Continuar</button>
+            ? <button class="btn btn--wine btn--block" type="submit" disabled={grupo}>Continuar</button>
             : <button class="btn btn--wine btn--block" type="button" disabled>Reservas online em breve</button>}
         </>
       )}
@@ -395,6 +441,12 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
             <a class="btn btn--wine btn--block" href={agenda()} download={`reserva-ambar-${resultado.codigo}.ics`}>Adicionar à agenda</a>
             <button class="ticket__link" type="button" onClick={() => { setResultado(null); setHora(null); setEtapa('escolha'); setTentativa((t) => t + 1); }}>Fazer outra reserva</button>
           </div>
+          {resultado.clube?.convite && resultado.clube.url && (
+            <aside class="ticket__clube" aria-label="Convite opcional ao Clube Âmbar">
+              <p><strong>Conheça o Clube Âmbar.</strong> Pontos a cada compra no café. É opcional: sua reserva já está garantida.</p>
+              <a class="ticket__link" href={resultado.clube.url}>Ver o Clube</a>
+            </aside>
+          )}
         </>
       )}
 

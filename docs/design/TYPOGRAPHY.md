@@ -96,7 +96,6 @@ Tamanhos em px **calculados**. Onde a coluna é igual em todas as larguras, o ta
 | Scribble | `--t-scribble` | 500 · 24/1.1 | girado −4° |
 | Kicker (“pra comer”) | `--t-kicker` | 500 · 22/1 | — |
 | Nota da colagem | `--t-note` | 500 · 19/1.05 | **escala com o palco**: `clamp(16px, 19 × --u, 22px)` → 17,4 / 19 / 21,1 px em 360 / 390 / 430 |
-| Legenda de bandeja | `--t-caption-l` | 500 · 17/1 | — |
 | Legenda da polaroide | `--t-caption` | 500 · 16/1 | **escala com o palco**: `max(11px, 16 × --u)` → 12,4 / 16 / 17,8 px |
 | Etiqueta de vídeo, bolha | `--t-tag` | 500 · 15/1 | — |
 | Carimbo | `--t-stamp` | **600** · 15/1 | 16 px no Novo capítulo; 12,5 px no estado “erro” |

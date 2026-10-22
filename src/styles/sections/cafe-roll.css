@@ -17,7 +17,6 @@
 .cafe-roll .scribble { color: var(--cacao); max-width: 30ch; width: auto; }
 /* título “CAFÉ / + ROLL”: as duas linhas à esquerda; o “+ Roll” recua meio passo e encosta na 1ª linha */
 .cafe-roll .mega span + span { padding-left: .32em; margin-top: -.04em; }
-.cafe-roll__lead { margin-top: var(--s-22); max-width: 30ch; font-size: var(--fs-lead); font-weight: 600; color: var(--ink); }
 
 /* Palco ------------------------------------------------------------------------------------------------------- */
 .dupla {

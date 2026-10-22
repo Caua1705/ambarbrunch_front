@@ -13,3 +13,8 @@
 .doc .ticket { gap: var(--s-14); }
 .doc .ticket p { font: var(--t-prose); }
 .doc h1 { font: var(--t-ticket-title); font-variation-settings: var(--fvs-text); font-stretch: var(--stretch-tag); text-transform: uppercase; color: var(--wine); }
+.doc h2 { font: var(--t-pill); letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--wine); margin-top: var(--s-10); }
+.doc section { display: grid; gap: var(--s-8); }
+.doc__rascunho { padding: var(--s-10) var(--s-12); border: var(--border-control) dashed var(--wine); border-radius: var(--radius-control); color: var(--wine); }
+.doc .ticket p.doc__pendente { font-size: var(--fs-fine); color: var(--text-soft); font-style: italic; }
+.doc .ticket p.doc__versao { font-size: var(--fs-fine); color: var(--text-soft); }

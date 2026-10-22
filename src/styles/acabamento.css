@@ -7,13 +7,13 @@
    O corpo carrega o papel das seções transparentes (Mesa cheia, páginas internas). As escuras já têm o grão (base.css). */
 body { background-image: var(--paper-doodles), var(--paper-fibers); }
 :is(.novo, .climas) { background-image: var(--paper-fibers); }
-:is(.prato, .footer) { background-image: var(--paper-doodles), var(--paper-fibers); }
+.footer { background-image: var(--paper-doodles), var(--paper-fibers); }
 
 /* 2 · Costura de papel rasgado ---------------------------------------------------------------------------------------
    No topo de cada seção que troca de cor, a borda da folha de cima avança 14 px rasgada (na cor dela), dentro do respiro
    da seção. --costura = cor da seção anterior (ordem da home em pages/index.astro). Só na home. */
-.prato, .climas, .footer { position: relative; }
-:is(.roll, .cafe-roll, .prato, .provou, .climas, .reserva, .visite, .footer)::after {
+.climas, .clube-convite, .footer { position: relative; }
+:is(.roll, .cafe-roll, .provou, .climas, .reserva, .clube-convite, .visite, .footer)::after {
   content: ""; position: absolute; z-index: var(--z-1); top: -1px; left: 0; right: 0; height: 15px;
   background: var(--costura); pointer-events: none;
   -webkit-mask: var(--mask-torn);
@@ -21,15 +21,18 @@ body { background-image: var(--paper-doodles), var(--paper-fibers); }
 }
 .roll { --costura: var(--cream); }
 .cafe-roll { --costura: var(--cacao); }
-.prato { --costura: var(--caramel); }
-.provou { --costura: var(--cream); }
+/* Reações reais vem logo depois do Café + Roll desde que Saladas & bowls saiu (2026-10-20): o rasgo é caramelo */
+.provou { --costura: var(--caramel); }
 .climas { --costura: var(--wine); }
 .reserva { --costura: var(--butter); }
-.visite { --costura: var(--wine); }
+/* Clube Âmbar entre a reserva e a Visite (2026-10-20): rasgo vinho sobre o creme; a Visite passa a receber o creme */
+.clube-convite { --costura: var(--wine); }
+.visite { --costura: var(--cream); }
 .footer { --costura: var(--cacao); }
 /* variações do rasgo, para as costuras não repetirem o mesmo desenho */
 :is(.cafe-roll, .climas, .visite)::after { -webkit-mask-position: -97px 0; mask-position: -97px 0; }
-:is(.prato, .reserva)::after { -webkit-mask-position: -173px 0; mask-position: -173px 0; }
+:is(.provou, .reserva)::after { -webkit-mask-position: -173px 0; mask-position: -173px 0; }
+.clube-convite::after { -webkit-mask-position: -51px 0; mask-position: -51px 0; }
 /* páginas internas não têm a sequência de cores da home */
 main:not(:has(.visite)) ~ .footer::after { content: none; }
 

@@ -4,6 +4,7 @@
 // logo acima, fica só com o “como encontrar” (endereço, horário e “Como chegar”) — sem repetir os mesmos botões.
 // O botão fixo de reserva some quando o rodapé começa a aparecer, então não cobre os contatos.
 // Sem política de privacidade linkada por enquanto (decisão de 2026-10-17) e sem botão de pausar animações.
+// Compactação de 2026-10-22: logo menor, assinatura e linha institucional numa linha só, contatos na mesma fileira.
 import Foto from '../components/Foto.astro';
 import { visita as v } from '../data/visita';
 import { roll } from '../data/roll';
@@ -11,8 +12,7 @@ const ano = new Date().getFullYear();
 ---
 <footer class="footer">
   <Foto src="brand/logo-ambar.png" alt="Âmbar Brunch" class="footer__logo" sizes="240px" widths={[240, 480, 720]} qualidade={80} />
-  <p class="footer__sig">com assinatura gastronômica <Foto src="brand/logo-roll.png" alt="Roll" sizes="56px" widths={[56, 112, 168]} qualidade={80} /></p>
-  <p class="footer__inst">café, brunch e cinnamon rolls em Fortaleza</p>
+  <p class="footer__sig">café, brunch e cinnamon rolls em Fortaleza · com assinatura gastronômica <Foto src="brand/logo-roll.png" alt="Roll" sizes="56px" widths={[56, 112, 168]} qualidade={80} /></p>
   <nav class="footer__contatos" aria-label="Contatos">
     <a class="pill-link footer__whats" href={v.whatsapp.url} rel="noopener" target="_blank">WhatsApp {v.whatsapp.numero}</a>
     <a class="pill-link" href={v.instagram.url} rel="noopener" target="_blank">{v.instagram.handle}</a>

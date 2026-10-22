@@ -8,8 +8,8 @@
 //     Nas outras seções o recorte cai em frações de pixel diferentes (a seção 3 é nova e empurra o resto), o que muda a
 //     rasterização do texto sem mudar o desenho; por isso elas são verificadas por 1 e 2, e as capturas vão anexas.
 //
-// Adições aprovadas que não existem no v1 ficam ocultas: selo e doca do menu, créditos e controles dos vídeos, sabores
-// do mês, chamada final da Roll, marcações de revisão. A comanda mudou por dentro de propósito (reserva ainda não ativa)
+// Adições aprovadas que não existem no v1 ficam ocultas: selo e doca do menu, créditos e controles dos vídeos, chamada
+// final da Roll, marcações de revisão. Remoções aprovadas (2026-10-20: bandejas da fornada, nota do cardápio) saem das peças. A comanda mudou por dentro de propósito (reserva ainda não ativa)
 // e o rodapé ganhou links e a pausa: nelas valem só a caixa, o título e o carimbo.
 import { test, expect, type Page } from '@playwright/test';
 import fs from 'node:fs';
@@ -18,19 +18,19 @@ import path from 'node:path';
 const V1 = 'http://127.0.0.1:4173/experiments/concept-b-aprovado-v1/';
 // o site pode vir de outra porta (ex.: um `astro dev` ocupando a 4321): FIDELIDADE_SITE=http://127.0.0.1:4400/
 const SITE = process.env.FIDELIDADE_SITE ?? 'http://127.0.0.1:4321/';
-const OCULTAR_SITE = '.menu-btn, .story__by, .story__progress, .story__toggle, .pending, .roll__sabores, .roll__cta, .roll__pending, .review-flag, .sticky-cta, .na-mesa--vazia, .skip-link { display: none !important; }';
+const OCULTAR_SITE = '.menu-btn, .story__by, .story__progress, .story__toggle, .pending, .roll__cta, .roll__pending, .review-flag, .sticky-cta, .na-mesa--vazia, .skip-link { display: none !important; }';
 const OCULTAR_V1 = '.proto-ribbon, .sticky-cta { display: none !important; }';
 
 type Secao = { sel: string; pecas: string[]; pixels?: boolean; conta?: (chave: string) => boolean };
 const SECOES: Record<string, Secao> = {
   hero: { sel: 'header.hero', pixels: true, pecas: ['.hero__label', '.label', '.hero__headline', '.hero__headline .l1', '.hero__headline .l2', '.hero__headline .l3', '.hero__headline em', '.hero__collage', '.cut--circle', '.cut--polaroid', '.cut--polaroid figcaption', '.cut--tile', '.sticker--roll', '.sticker--roll svg', '.sparks', '.hero__foot .btn', '.hero__note'] },
   faixa: { sel: '.ticker', pecas: ['.ticker__track', '.ticker__track span'] },
-  mesa: { sel: '#gastronomia', pecas: ['.mega', '.mega span', '.scribble', '.board', '.board__item--a', '.board__item--b', '.board__item--c', '.tape', '.note--a', '.note--b', '.note--c', '.arrow--a', '.arrow--b', '.arrow--c', '.bands', '.bands__label', '.bands__list li', '.bands__note'] },
+  mesa: { sel: '#gastronomia', pecas: ['.mega', '.mega span', '.scribble', '.board', '.board__item--a', '.board__item--b', '.board__item--c', '.tape', '.note--a', '.note--b', '.note--c', '.arrow--a', '.arrow--b', '.arrow--c', '.bands', '.bands__label', '.bands__list li'] },
   fornadas: {
-    sel: '#roll', pecas: ['.roll__spiral', '.roll__badge', '.mega', '.mega span', '.roll__lead', '.stories', '.story', '.story__tag', '.roll__credit', '.trays', '.trays figure', '.trays img', '.trays figcaption'],
-    // desvio D16: a legenda das bandejas virou etiqueta sobre a própria foto (o leque fica mais baixo e as peças sobem);
-    // o crédito dos vídeos tem 1 linha desde a autorização (o texto “sujeito a autorização” saiu). Estilos das fotos continuam valendo.
-    conta: (k) => !(k === ' (altura)' || k === '.roll__credit#0 (altura)' || k.startsWith('.trays figcaption') || /^\.trays( figure| img)?#\d+( \(altura\))?$/.test(k)),
+    sel: '#roll', pecas: ['.roll__spiral', '.roll__badge', '.mega', '.mega span', '.roll__lead', '.stories', '.story', '.story__tag', '.roll__credit'],
+    // desvio D16: as bandejas saíram em 2026-10-20 (a seção termina nos vídeos);
+    // o crédito dos vídeos tem 1 linha desde a autorização (o texto “sujeito a autorização” saiu).
+    conta: (k) => !(k === ' (altura)' || k === '.roll__credit#0 (altura)'),
   },
   climas: { sel: '#ambientes', pecas: ['.mega', '.mega span', '.climas__notice', '.climas__stack', '.panel--day', '.panel--amber', '.panel img', '.tagline', '.panel a', '.bubble--a', '.bubble--b', '.bubble figcaption'] },
   reserva: {

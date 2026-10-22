@@ -18,6 +18,7 @@
   /* Bricolage Grotesque ---------------------------------------------------------------------- */
   --t-hero: 800 clamp(70px, 21.5vw, 168px)/.8 var(--display);
   --t-mega: 800 clamp(78px, 25vw, 200px)/.8 var(--display);   /* 97,5 px em 390 · 150 no tablet · 200 no desktop */
+  --t-title: 800 clamp(54px, 16.5vw, 112px)/.84 var(--display);  /* títulos de bloco nas páginas do Clube (64 px em 390) */
   --t-menu-item: 800 44px/.9 var(--display);         /* itens da folha do menu */
   --t-numeral: 800 32px/1 var(--display);
   --t-tagline: 800 30px/1 var(--display);
@@ -55,8 +56,12 @@
   --fs-cal-mes: 20px;     /* nome do mês no calendário da comanda */
   --fs-tagline-s: 22px;   /* tagline menor (polaroide da sala privativa) */
   --fs-menu-fluid: clamp(32px, 10.5vw, 44px);   /* itens da folha do menu: “Saladas & bowls” cabe em 360 px */
-  --fs-frase: clamp(28px, 8vw, 44px);           /* frase manuscrita em destaque (“Os sabores mudam…”) */
   --fs-mega-split: clamp(90px, 10vw, 160px);    /* mega título em meia coluna no desktop (Café + Roll) */
+  --fs-codigo: 28px;      /* código de confirmação do telefone (Clube): dígitos grandes e espaçados */
+  /* textos da plaquinha desenhada do Clube, em unidades do SVG (escalam com o desenho) */
+  --fs-plq-kicker: 10px;
+  --fs-plq-dica: 11px;
+  --fs-plq-marca: 22px;
 
   /* Fraunces itálica (voz manuscrita) ------------------------------------------------------------ */
   --t-hero-amp: italic 500 .78em/1 var(--serif);     /* o “&” do hero, relativo ao título */
@@ -64,7 +69,6 @@
   --t-call: italic 500 22px/1.05 var(--serif);       /* chamada final da Roll */
   --t-kicker: italic 500 22px/1 var(--serif);
   --t-note: italic 500 19px/1.05 var(--serif);
-  --t-caption-l: italic 500 17px/1 var(--serif);
   --t-caption: italic 500 16px/1 var(--serif);
   --t-stamp-l: italic 600 16px/1.05 var(--serif);    /* carimbo grande (Novo capítulo) */
   --t-tag: italic 500 15px/1 var(--serif);

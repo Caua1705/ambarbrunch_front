@@ -1,5 +1,5 @@
-// Cliente HTTP da API de reservas, segundo o contrato PROPOSTO (contrato.ts).
-// Só é usado com PUBLIC_RESERVAS_MODO=api e uma URL de STAGING — nunca antes de o contrato ser validado.
+// Cliente HTTP da API de reservas do Âmbar (contrato.ts).
+// Só é usado com PUBLIC_RESERVAS_MODO=api e PUBLIC_RESERVAS_API_URL definidos no build.
 import { ErroReserva, type ReservasApi, type ReservaConfig, type Disponibilidade, type ReservaCriada } from './contrato';
 
 const TEMPO_LIMITE = 12_000;

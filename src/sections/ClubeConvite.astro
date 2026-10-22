@@ -1,0 +1,19 @@
+---
+// 9b · CLUBE ÂMBAR — convite curto entre a reserva e a Visite. 2026-10-22: a carteira em forma de cartão saiu; entra o
+// Passaporte Âmbar (components/ClubeJornada.astro), uma prévia conceitual da Jornada — trilha de carimbos com o que já
+// está decidido e o que está em definição, sem simular cliente. Título, frase, passaporte e “Conhecer o Clube” → /clube/.
+// Sem formulário, sem número de pontos, sem vantagem que não foi aprovada.
+import MegaTitle from '../components/MegaTitle.astro';
+import ClubeJornada from '../components/ClubeJornada.astro';
+import { clube } from '../data/clube';
+import { secoes } from '../data/secoes';
+const s = secoes.clube;
+---
+<section class="clube-convite" id={s.id} aria-labelledby="clube-titulo" tabindex="-1">
+  <MegaTitle linhas={[...s.linhas]} id="clube-titulo" tom="wine" scribble={s.sub} />
+  <ClubeJornada class="clube-convite__jornada" />
+  <div class="clube-convite__texto">
+    <p class="clube-convite__lead" data-reveal>{clube.lead}</p>
+    <a class="btn btn--wine clube-convite__cta" href="/clube/" data-reveal>Conhecer o Clube <span aria-hidden="true">→</span></a>
+  </div>
+</section>

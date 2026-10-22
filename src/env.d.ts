@@ -7,5 +7,10 @@ interface ImportMetaEnv {
   readonly PUBLIC_RESERVAS_MODO?: 'indisponivel' | 'simulado' | 'api';
   /** URL base da API de reservas (staging). Nunca a de produção antes do contrato validado. */
   readonly PUBLIC_RESERVAS_API_URL?: string;
+  /** "indisponivel" (padrão: ficha e carteira fechadas, nada é enviado) · "api" (só com a API do Clube validada).
+   *  Sem modo simulado: o Clube nunca finge cadastro, adesão ou saldo. */
+  readonly PUBLIC_CLUBE_MODO?: 'indisponivel' | 'api';
+  /** URL base da API do Clube (FastAPI do Âmbar; staging antes de validar). */
+  readonly PUBLIC_CLUBE_API_URL?: string;
 }
 interface ImportMeta { readonly env: ImportMetaEnv; }

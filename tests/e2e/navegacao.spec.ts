@@ -7,7 +7,7 @@ const rolarAte = (page: Page, sel: string, dy = 60) => page.locator(sel).first()
 
 test('CTA fixo: escondido no hero, em Novo capítulo e Para sua mesa; aparece em Direto da fornada; some na reserva e no rodapé', async ({ page }) => {
   await page.goto('/');
-  for (const [sel, esperado] of [['#novo', false], ['#gastronomia', false], ['#roll', true], ['#cafe-roll', true], ['#saladas', true], ['#quem-provou', true], ['#ambientes', true], ['#reservar', false], ['#visite', true]] as const) {
+  for (const [sel, esperado] of [['#novo', false], ['#gastronomia', false], ['#roll', true], ['#cafe-roll', true], ['#quem-provou', true], ['#ambientes', true], ['#reservar', false], ['#visite', true]] as const) {
     await rolarAte(page, sel);
     await expect.poll(() => visivel(page, '[data-sticky-cta]'), { message: sel }).toBe(esperado);
   }
@@ -65,7 +65,7 @@ test('menu: só logo, seções, “Reservar mesa” e fechar — sem endereço, 
   const folha = page.locator('dialog#menu');
   await expect(folha).toBeVisible();
   await expect(folha.locator('.sheet__logo')).toBeVisible();
-  await expect(folha.locator('.sheet__nav a')).toHaveCount(7);
+  await expect(folha.locator('.sheet__nav a')).toHaveCount(6);   // sem “Saladas & bowls” desde 2026-10-20
   await expect(folha.locator('.btn.btn--wine')).toHaveText(/Reservar mesa/);
   await expect(folha.locator('[data-menu-close]')).toBeVisible();
   const texto = await folha.innerText();
@@ -96,7 +96,7 @@ test.describe('entrada do menu sem salto', () => {
         await page.setViewportSize({ width: w, height: 800 });
         await page.goto('/');
         await page.waitForTimeout(2600);
-        if (onde === 'rolado') { await rolarAte(page, '#saladas', 0); await expect.poll(() => visivel(page, '.menu-btn--fixo')).toBe(true); }
+        if (onde === 'rolado') { await rolarAte(page, '#quem-provou', 0); await expect.poll(() => visivel(page, '.menu-btn--fixo')).toBe(true); }
         const botao = page.locator(onde === 'topo' ? '.menu-btn--hero' : '.menu-btn--fixo');
         for (let vez = 0; vez < 3; vez++) {
           await page.waitForTimeout(600);   // o selo fixo termina de voltar

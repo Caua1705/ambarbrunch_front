@@ -83,7 +83,7 @@
 | `--t-scribble` | Fraunces 500 24px/1.1, −4° | frase manuscrita sob o título |
 | `--t-kicker` | Fraunces 500 22px | “pra comer”, “pra beber” |
 | `--t-note` | Fraunces 500 19px/1.05 (escala com o palco, 16–22 px) | anotações das colagens |
-| `--t-caption-l` / `--t-caption` | Fraunces 500 17 / 16px | legendas de bandeja / polaroide |
+| `--t-caption` | Fraunces 500 16px | legenda da polaroide |
 | `--t-tag` | Fraunces 500 15px | etiqueta de vídeo, bolha |
 | `--t-stamp` | Fraunces 600 15px | carimbo |
 | `--t-sig` | Fraunces 500 14px | assinatura do rodapé |

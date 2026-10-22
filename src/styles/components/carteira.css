@@ -1,0 +1,62 @@
+/* Carteira do Clube Âmbar (novo, 2026-10-20) — components/Carteira.tsx.
+   Cartão vinho na proporção de cartão (1,586), com luz caramelo no canto, guilhoché de espirais, costura tracejada
+   manteiga e dois furos de comanda na altura dos dados. A sombra deslocada (assinatura do site) fica no invólucro com
+   drop-shadow, porque a máscara dos furos cortaria um box-shadow. Tudo escala com a largura do cartão (cqw). */
+
+.carteira {
+  --focus-ring: var(--butter);
+  /* o invólucro é o contêiner: padding e furos do papel (cqw) medem a largura do cartão, nunca a da tela */
+  container-type: inline-size;
+  width: min(100%, 360px);
+  text-align: left;
+  filter: var(--drop-carteira);
+}
+.carteira__papel {
+  position: relative; overflow: hidden; isolation: isolate;
+  aspect-ratio: 1.586;
+  padding: 7cqw 7.5cqw 6.5cqw;
+  border-radius: var(--radius-l);
+  background:
+    radial-gradient(90% 80% at 92% 4%, color-mix(in srgb, var(--caramel) 34%, transparent), transparent 62%),
+    linear-gradient(158deg, color-mix(in srgb, var(--wine) 82%, var(--berry)) 0%, var(--wine) 46%, color-mix(in srgb, var(--wine) 72%, var(--ink)) 100%);
+  color: var(--butter);
+  /* furos de comanda nas laterais, na altura dos dados */
+  -webkit-mask: var(--mask-carteira);
+          mask: var(--mask-carteira);
+}
+/* costura tracejada por dentro da borda */
+.carteira__papel::before {
+  content: ""; position: absolute; inset: 2.6cqw; z-index: -1;
+  border: 1.5px dashed color-mix(in srgb, var(--butter) 38%, transparent); border-radius: calc(var(--radius-l) - 6px);
+}
+/* brilho que atravessa o cartão uma vez quando ele entra (motion.css §Clube) e de novo ao passar o ponteiro */
+.carteira__papel::after {
+  content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: linear-gradient(105deg, transparent 38%, color-mix(in srgb, var(--glaze) 22%, transparent) 50%, transparent 62%) 160% 0 / 260% 100% no-repeat;
+}
+.carteira__guilhoche { position: absolute; inset: 0; z-index: -1; width: 100%; height: 100%; fill: none; stroke: var(--caramel-lt); stroke-width: .8; opacity: .2; }
+.carteira__guilhoche path { stroke-width: 2.4; stroke-linecap: round; opacity: .9; }
+
+.carteira__marca { display: grid; gap: .8cqw; }
+.carteira__marca span { font: var(--t-legend); font-size: 3.6cqw; letter-spacing: .32em; text-transform: uppercase; color: var(--caramel-lt); }
+.carteira__marca strong {
+  font: var(--t-mega); font-size: 15.5cqw; line-height: .82;
+  font-variation-settings: var(--fvs-display); font-stretch: var(--stretch-mega); letter-spacing: var(--track-mega);
+  text-transform: uppercase; color: var(--butter); padding-top: .1em;
+}
+.carteira__selo { position: absolute; right: 7cqw; top: 6.5cqw; width: 15cqw; fill: none; stroke: var(--butter); stroke-width: 2.6; stroke-linecap: round; rotate: 12deg; }
+.carteira__selo circle { stroke-dasharray: 3 4.5; stroke-width: 2; }
+.carteira__dados { position: absolute; left: 7.5cqw; right: 7.5cqw; bottom: 12.5cqw; display: flex; justify-content: space-between; align-items: end; gap: 4cqw; margin: 0; }
+.carteira__dados dt { font: var(--t-legend); font-size: 2.9cqw; letter-spacing: var(--track-legend); text-transform: uppercase; color: var(--caramel-lt); }
+.carteira__dados dd { margin: 1.2cqw 0 0; }
+.carteira__nome { font: var(--t-caption); font-size: 5.2cqw; color: var(--butter); max-width: 48cqw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.carteira__nome em { font-style: italic; opacity: .55; }
+.carteira__saldo { text-align: right; }
+.carteira__saldo dd { font: var(--t-numeral); font-size: 9cqw; line-height: .9; font-variant-numeric: tabular-nums; font-stretch: var(--stretch-tag); color: var(--butter); }
+.carteira__traco { opacity: .55; }
+.carteira__numero {
+  position: absolute; left: 7.5cqw; bottom: 5.5cqw;
+  font: var(--t-legend); font-size: 3.1cqw; letter-spacing: .24em; font-variant-numeric: tabular-nums; color: var(--caramel-lt);
+}
+/* sem dados (convite e carteira sem sessão): o cartão é uma promessa de lugar, um pouco mais apagado nos campos */
+.carteira[data-estado="vazia"] .carteira__dados, .carteira[data-estado="vazia"] .carteira__numero { opacity: .75; }

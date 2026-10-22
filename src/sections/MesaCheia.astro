@@ -2,8 +2,9 @@
 // 3 · PARA SUA MESA — quadro de cortiça + cardápio em faixas (markup do v1).
 // As fotos assentam como peças de colagem; as setas se desenham; parallax leve nas fotos.
 // Cardápio tátil: cada etiqueta é um botão (indicador “+” que vira “×”) e abre um cartão de papel logo abaixo, com a foto
-// principal da categoria, os itens do cardápio do cliente e, nos principais, miniaturas. Sem selo de “imagem
-// ilustrativa” (decisão da rodada final). O cartão dos rolls separa doces e salgados em abas (lib/cardapio-tatil.js).
+// principal da categoria (só quando há uma foto correta), os itens do cardápio oficial e, nos principais, miniaturas.
+// Sem selo de “imagem ilustrativa” (decisão da rodada final). O cartão dos rolls separa doces e salgados em abas
+// (lib/cardapio-tatil.js).
 // Fotos dos cartões: lazy, mas antecipadas quando o cardápio chega perto da tela (data-antecipar, lib/site.js) — o
 // cartão nunca abre com a foto em branco.
 import Foto from '../components/Foto.astro';
@@ -38,7 +39,7 @@ const s = secoes.mesa;
       <Foto src="gastronomia/bebida-chocolate-creme.webp" alt="Bebida gelada de chocolate com calda" sizes="(min-width: 960px) 274px, 40vw" />
     </figure>
 
-    <p class="note note--a">bruschettas<br />&amp; toasts</p>
+    <p class="note note--a">toasts</p>
     <Seta variante="a" />
     <p class="note note--b">croissant</p>
     <Seta variante="b" i={1} />
@@ -120,7 +121,6 @@ const s = secoes.mesa;
         </div>
       </>
     ))}
-    <p class="bands__note">{cardapio.nota}</p>
   </div>
 </section>
 

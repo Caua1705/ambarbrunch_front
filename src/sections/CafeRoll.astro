@@ -23,7 +23,6 @@ const gelados = cardapio.beber.find((b) => b.id === 'gelados');
   <section class="cafe-roll" id={s.id} aria-labelledby="cafe-roll-titulo" tabindex="-1" data-cafe-roll data-vivo>
     <div class="cafe-roll__texto">
       <MegaTitle linhas={[...s.linhas]} direita={[...s.direita]} id="cafe-roll-titulo" tom="wine" scribble={s.sub} />
-      <p class="cafe-roll__lead" data-reveal>{cr.lead}</p>
     </div>
 
     <div class="dupla" data-dupla data-antecipar style={`--liq-a:${primeiro.liquido[0]};--liq-b:${primeiro.liquido[1]}`}>

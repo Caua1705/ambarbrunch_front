@@ -1,5 +1,5 @@
 // Ajustes finais de 2026-10-18: fio da abertura da fornada desenhado com a rolagem até o fim, cartões do cardápio fechando
-// com animação (sem salto), ficha nutricional recolhida que abre e fecha suave, subtítulo de “Visite o Âmbar”.
+// com animação (sem salto), subtítulo de “Visite o Âmbar”. (A ficha nutricional saiu com a seção Saladas & bowls.)
 import { test, expect, type Page, type Locator } from '@playwright/test';
 
 type Amostra = { t: number; h: number };
@@ -105,26 +105,9 @@ test.describe('com movimento', () => {
       expect(Math.abs((await painel.boundingBox())!.height - cheio)).toBeLessThan(2);
     });
   }
-
-  test('ficha nutricional: abre e fecha com a altura deslizando (sem salto), começando recolhida', async ({ page }) => {
-    await page.goto('/');
-    const ficha = page.locator('#prato-salada-atum .ficha');
-    const corpo = ficha.locator('.ficha__corpo');
-    const botao = ficha.locator('[data-ficha-botao]');
-    await ficha.evaluate((el) => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
-    expect((await corpo.boundingBox())!.height, 'recolhida').toBeLessThan(1);
-    const abrindo = await medirDurante(page, corpo, botao);
-    const aberta = (await corpo.boundingBox())!.height;
-    expect(aberta).toBeGreaterThan(200);
-    continua(abrindo, 0, aberta);
-    await expect(ficha.locator('.ficha__tabela')).toBeVisible();
-    const fechando = await medirDurante(page, corpo, botao);
-    continua(fechando, aberta, 0);
-    await expect(ficha.locator('.ficha__tabela')).toBeHidden();
-  });
 });
 
-test('movimento reduzido: o cartão do cardápio e a ficha abrem e fecham direto; o fio fica inteiro', async ({ page }) => {
+test('movimento reduzido: o cartão do cardápio abre e fecha direto; o fio fica inteiro', async ({ page }) => {
   await page.goto('/');
   const tap = page.locator('[data-categoria="sanduiches"]');
   await tap.scrollIntoViewIfNeeded();
@@ -132,11 +115,6 @@ test('movimento reduzido: o cartão do cardápio e a ficha abrem e fecham direto
   await expect(page.locator('#painel-comer')).toBeVisible();
   await tap.click();
   await expect(page.locator('#painel-comer')).toBeHidden();
-  const ficha = page.locator('#prato-salada-atum .ficha');
-  await ficha.locator('[data-ficha-botao]').click();
-  await expect(ficha.locator('.ficha__tabela')).toBeVisible();
-  await ficha.locator('[data-ficha-botao]').click();
-  await expect(ficha.locator('.ficha__tabela')).toBeHidden();
   const fio = page.locator('.abertura__fio path');
   if (await fio.count()) expect(await fio.evaluate((p) => parseFloat(getComputedStyle(p).strokeDashoffset))).toBe(0);
 });

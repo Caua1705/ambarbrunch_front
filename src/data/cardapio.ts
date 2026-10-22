@@ -1,11 +1,10 @@
-// Cardápio do Âmbar Brunch — 13 CATEGORIAS da proposta Âmbar × Roll (PDF, págs. 5–6), confirmadas em 2026-10-17.
-// Itens e descrições: só os dos cardápios do próprio cliente (artes recebidas por WhatsApp: Âmbar Café, Cafés gelados e
-// Roll · cinnamon rolls; pág. 12 da proposta para os rolls salgados). Sem preço e sem disponibilidade do dia.
-// Cada categoria tem uma foto principal (real ou ilustrativa, ver lib/conteudo.ts → Origem); miniaturas só nos itens
-// principais. Categoria sem itens confirmados mostra só a foto e uma nota neutra — nunca sabores inventados.
-// Rodada final: cartões enxutos — nome e, quando acrescenta, uma descrição curta; nada de ficha de catálogo.
+// Cardápio do Âmbar Brunch — cardápio oficial “Âmbar Café & Brunch” (2 páginas, recebido em 2026-10-20): cafés, sucos,
+// cafés gelados, croissants, toasts, sanduíches e bowls. Só os produtos dele, mais os cinnamon rolls da Roll (cardápio
+// “Roll · cinnamon rolls”; pág. 12 da proposta para os salgados). Descrições: as do cardápio oficial, sem ingrediente a
+// mais. Sem preço e sem disponibilidade do dia.
+// Foto principal só quando a imagem mostra de fato a categoria (real ou ilustrativa, ver lib/conteudo.ts → Origem);
+// sem uma foto correta, o cartão abre só com o título — nunca a foto de um prato que não está no cardápio.
 import type { Origem } from '../lib/conteudo';
-import { bebidas } from './bebidas';
 
 /** Pares fundo/texto aprovados em TOKENS.md §1 (faixas do cardápio). */
 export const PARES = {
@@ -31,8 +30,9 @@ export interface Grupo {
   nota?: string;
 }
 export interface Detalhe {
-  linha?: string;                                  // subtítulo do cardápio do cliente (ex.: “no pão rústico tostado”)
-  foto: FotoCardapio;                              // foto principal da categoria
+  linha?: string;                                  // subtítulo do cardápio do cliente (ex.: “pão de longa fermentação”)
+  /** foto principal da categoria — só quando mostra a categoria de verdade */
+  foto?: FotoCardapio;
   grupos: Grupo[];
   /** grupos viram abas (ex.: doces | salgados) */
   abas?: boolean;
@@ -43,7 +43,6 @@ export interface Categoria { id: string; nome: string; cor: Cor; detalhe: Detalh
 
 const real = (src: string, alt: string): FotoCardapio => ({ src, alt, origem: 'real' });
 const ilustrativa = (src: string, alt: string): FotoCardapio => ({ src, alt, origem: 'ilustrativa' });
-const VARIA = 'as opções variam · consulte a equipe';
 
 /** Sabores da Roll em destaque no cartão (cardápio “Roll · cinnamon rolls”): foto + uma linha curta. */
 const rollsDoces: Item[] = [
@@ -53,45 +52,50 @@ const rollsDoces: Item[] = [
   { nome: 'Kinder Bueno', desc: 'Kinder Bueno e Nutella', foto: real('roll/roll-kinder-bueno.webp', 'Cinnamon roll Kinder Bueno com fios de Nutella') },
 ];
 
-export const cardapio: { comer: Categoria[]; beber: Categoria[]; faixa: string[]; nota: string } = {
+const FAIXA = ['Croissants', 'Cafés', 'Toasts', 'Cafés gelados', 'Sanduíches', 'Sucos', 'Bowls', 'Cinnamon rolls'];
+
+export const cardapio: { comer: Categoria[]; beber: Categoria[]; faixa: string[] } = {
   comer: [
-    { id: 'bruschettas', nome: 'Bruschettas', cor: 'wine', detalhe: {
-      linha: 'bruschettas & toasts',
-      foto: real('gastronomia/bruschetta-brunch.webp', 'Torrada coberta vista de cima, com xícara de café ao lado'),
+    { id: 'croissants', nome: 'Croissants', cor: 'caramel', detalhe: {
+      foto: real('gastronomia/croissant-prato-azul.webp', 'Croissant num prato azul'),
       grupos: [{ itens: [
-        { nome: 'Caprese', foto: ilustrativa('cardapio/bruschetta-caprese.webp', 'Bruschetta caprese com tomate, muçarela e manjericão') },
-        { nome: 'Confit rústica' }, { nome: 'Vigente cremoso' }, { nome: 'Avocado toast' },
+        { nome: 'Clássico', desc: 'massa folhada e amanteigada' },
+        { nome: 'Brie e geleia', desc: 'queijo brie e geleia artesanal · consultar disponibilidade' },
+        { nome: 'Caprese', desc: 'mussarela de búfala, manjericão e tomate cereja confitado' },
+        { nome: 'Prosciutto', desc: 'presunto de parma, mussarela de búfala, tomate cereja, rúcula e mel' },
       ] }],
     } },
-    { id: 'cheesecakes', nome: 'Cheesecakes', cor: 'caramel', detalhe: {
-      foto: ilustrativa('cardapio/cheesecakes.webp', 'Fatia de cheesecake com calda de frutas vermelhas'),
-      grupos: [], nota: VARIA,
+    { id: 'toasts', nome: 'Toasts', cor: 'wine', detalhe: {
+      foto: real('gastronomia/bruschetta-brunch.webp', 'Toast servido num prato branco, com xícara de café ao lado'),
+      grupos: [{ itens: [
+        { nome: 'Figo & brie', desc: 'toast com queijo brie, cottage, figo, finalizado com mel, nozes e parma' },
+        { nome: 'Avocado toast', desc: 'avocado, ovos mexidos e cottage, finalizado com mix de grãos' },
+        { nome: 'Toast americano', desc: 'ovos mexidos, bacon e maple syrup' },
+      ] }],
     } },
     { id: 'sanduiches', nome: 'Sanduíches', cor: 'cacao', detalhe: {
-      linha: 'no pão rústico tostado',
-      foto: ilustrativa('cardapio/sanduiches.webp', 'Sanduíche no pão rústico tostado com queijo derretido, tomate e folhas'),
+      linha: 'pão de longa fermentação',
+      foto: ilustrativa('cardapio/sanduiche-brie.webp', 'Sanduíche de brie derretido com geleia de mirtilo'),
       grupos: [{ itens: [
-        { nome: 'Brie & mirtilo', desc: 'mirtilo, brie e parmesão', foto: ilustrativa('cardapio/sanduiche-brie.webp', 'Sanduíche de brie com geleia de mirtilo no pão rústico') },
-        { nome: 'Ragu', desc: 'ragu, muçarela, tomate confitado e mel' },
-        { nome: 'Atum & abacate', desc: 'atum, gergelim, creme de ricota, shoyu e abacate' },
-        { nome: 'Mortadela ou parma', desc: 'rúcula, parmesão e tomate confitado' },
+        { nome: 'Steak & Herbs', desc: 'tiras de carne bovina selada, molho fresco de ervas, provolone derretido e crosta de parmesão maçaricado' },
+        { nome: 'Ragú', desc: 'ragú de carne bovina cozida lentamente, provolone derretido, salsa verde e crosta de parmesão maçaricado' },
+        { nome: 'Tuna', desc: 'atum fresco, maionese picante, pepino japonês, cebola roxa, cebolinha, gergelim e limão' },
+        { nome: 'Brie & Blueberry', desc: 'queijo brie derretido, geleia de mirtilo e mel trufado' },
       ] }],
     } },
-    { id: 'saladas', nome: 'Saladas', cor: 'leaf', detalhe: {
-      linha: 'menu saudável',
-      foto: ilustrativa('cardapio/salada-atum.webp', 'Salada de atum com abacate, pepino, tomate e folhas'),
+    { id: 'bowls', nome: 'Bowls', cor: 'leaf', detalhe: {
       grupos: [{ itens: [
-        { nome: 'Salada de atum', desc: 'atum, abacate, mix de folhas, pepino, shoyu e manga' },
-        { nome: 'Carne do sol', desc: 'creme de carne do sol, dadinhos de tapioca, folhas e parmesão' },
+        { nome: 'Ragú', desc: 'quinoa, tomate confitado, rúcula, pesto e picles de cebola roxa' },
+        { nome: 'Salmão', desc: 'arroz integral, edamame, salmão, sunomono saudável, ricota, avocado temperado e shoyu de coco' },
+        { nome: 'Vegetariano', desc: 'mix de folhas, quinoa, legumes assados, avocado, cenoura, tomate cereja, cottage e molho de tahine com limão' },
+        { nome: 'Chicken', desc: 'frango à base de laranja, quinoa, milho, tomates cereja, ricota light e mix de folhas, finalizado com gergelim' },
       ] }],
-      ancora: { href: '#saladas', texto: 'saladas & bowls' },
     } },
     { id: 'rolls', nome: 'Cinnamon rolls doces & salgados', cor: 'butter', detalhe: {
       linha: 'com assinatura da Roll',
       foto: real('roll/roll-espiral.webp', 'Cinnamon roll em espiral entre rolls red velvet, na bandeja da Roll'),
       abas: true,
       grupos: [
-        // os outros sabores já aparecem em “Direto da fornada” (pílulas): o cartão não repete a lista
         { id: 'doces', titulo: 'doces', itens: rollsDoces, nota: 'os sabores mudam com a fornada' },
         { id: 'salgados', titulo: 'salgados', itens: [
           { nome: 'Pesto & ricota', foto: ilustrativa('cardapio/roll-salgado-pesto.webp', 'Roll salgado de pesto e ricota') },
@@ -102,41 +106,38 @@ export const cardapio: { comer: Categoria[]; beber: Categoria[]; faixa: string[]
       ],
       ancora: { href: '#roll', texto: 'direto da fornada' },
     } },
-    { id: 'bowls', nome: 'Bowls', cor: 'berry', detalhe: {
-      foto: ilustrativa('cardapio/bowls-poke.webp', 'Poke com arroz, salmão, milho, abacate e gergelim'),
-      grupos: [{ itens: [{ nome: 'Poke', desc: 'arroz, salmão, milho crocante, abacate e gergelim' }] }],
-      ancora: { href: '#saladas', texto: 'saladas & bowls' },
-    } },
-    { id: 'brownies', nome: 'Brownies diferentes', cor: 'cacao-lt', detalhe: {
-      foto: ilustrativa('cardapio/brownies.webp', 'Brownies empilhados com calda de chocolate'),
-      grupos: [], nota: VARIA,
-    } },
   ],
   beber: [
-    { id: 'gelados', nome: 'Cafés gelados', cor: 'caramel', detalhe: {
-      linha: 'gelados da casa',
+    { id: 'cafes', nome: 'Cafés', cor: 'cacao', detalhe: {
+      foto: ilustrativa('cardapio/cafes-diversos.webp', 'Café expresso e café com leite em copos de vidro'),
+      grupos: [{ itens: [
+        { nome: 'Cappuccino' }, { nome: 'Cappuccino gelado' }, { nome: 'Café expresso' }, { nome: 'Macchiato' },
+        { nome: 'Café na prensa francesa' }, { nome: 'Coado na mesa' }, { nome: 'Expresso duplo' },
+      ] }],
+    } },
+    // o id continua “gelados”: o atalho “ver bebidas no cardápio” do Café + Roll abre esta etiqueta
+    { id: 'gelados', nome: 'Cafés gelados especiais', cor: 'caramel', detalhe: {
       foto: ilustrativa('cardapio/cafes-gelados.webp', 'Latte gelado e matcha latte em copos com gelo'),
-      // só os nomes: “café, leite e gelo” não acrescenta nada a um iced latte
-      grupos: [{ itens: bebidas.gelados.map((b) => ({ nome: b.nome })), nota: `leites: ${bebidas.leites.join(' · ')}` }],
+      grupos: [{ itens: [
+        { nome: 'Matcha latte', desc: 'matcha, leite e gelo' },
+        { nome: 'Matcha frutas vermelhas', desc: 'matcha, frutas vermelhas, leite e gelo' },
+        { nome: 'Honey latte', desc: 'café, leite, mel e gelo' },
+        { nome: 'Iced americano', desc: 'café, água e gelo' },
+        { nome: 'Biscoff latte', desc: 'café, leite, pasta Biscoff e gelo' },
+        { nome: 'Cinnamon latte', desc: 'café, leite, caramelo e mini cinnamon roll' },
+      ], nota: 'leites: integral · desnatado · aveia · amêndoas · vegetal' }],
       ancora: { href: '#cafe-roll', texto: 'café + roll' },
     } },
-    { id: 'cappuccino', nome: 'Cappuccino', cor: 'wine', detalhe: {
-      foto: ilustrativa('cardapio/cappuccino.webp', 'Cappuccino com desenho de folha na espuma'), grupos: [], nota: VARIA,
-    } },
-    { id: 'frappe', nome: 'Frappé', cor: 'butter', detalhe: {
-      foto: real('gastronomia/bebida-chocolate-creme.webp', 'Bebida gelada de chocolate com calda escorrendo no copo'), grupos: [], nota: VARIA,
-    } },
-    { id: 'cafes', nome: 'Cafés diversos', cor: 'cacao', detalhe: {
-      foto: ilustrativa('cardapio/cafes-diversos.webp', 'Espresso e café com leite em copos de vidro'), grupos: [], nota: VARIA,
-    } },
-    { id: 'cha', nome: 'Chá', cor: 'leaf', detalhe: {
-      foto: ilustrativa('cardapio/cha.webp', 'Chás gelados vermelho e dourado em copos altos'), grupos: [], nota: VARIA,
-    } },
-    { id: 'smoothies', nome: 'Smoothies proteicos', cor: 'berry', detalhe: {
-      foto: ilustrativa('cardapio/smoothies.webp', 'Smoothie de frutas vermelhas em copo alto'), grupos: [], nota: VARIA,
+    { id: 'sucos', nome: 'Sucos', cor: 'berry', detalhe: {
+      grupos: [{ itens: [
+        { nome: 'Laranja' },
+        { nome: 'Retinol', desc: 'cenoura, limão, gengibre, água de coco, cúrcuma e óleo de coco' },
+        { nome: 'Green', desc: 'couve-manteiga, laranja, kiwi, hortelã e abacaxi' },
+        { nome: 'Antioxidant', desc: 'frutas vermelhas, limão e melancia' },
+      ] }],
     } },
   ],
-  /** Faixa em movimento abaixo do hero: as 13 categorias, alternando comer e beber. */
-  faixa: ['Bruschettas', 'Cafés gelados', 'Cheesecakes', 'Cappuccino', 'Sanduíches', 'Frappé', 'Saladas', 'Cafés diversos', 'Cinnamon rolls doces & salgados', 'Chá', 'Bowls', 'Smoothies proteicos', 'Brownies diferentes'],
-  nota: 'Cardápio de estreia · pode variar com a fornada e a estação',
+  /** Faixa em movimento abaixo do hero: as categorias do cardápio, alternando comer e beber. A lista vai duas vezes: com
+   *  oito nomes, uma volta só (~1.170 px) não cobre uma tela de desktop e o laço abriria um buraco no fim. */
+  faixa: [...FAIXA, ...FAIXA],
 };

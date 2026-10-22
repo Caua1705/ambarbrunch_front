@@ -13,7 +13,6 @@
 }
 .bands__list li:nth-child(odd) { rotate: -1.5deg; }
 .bands__list li:nth-child(even) { rotate: 1.5deg; }
-.bands__note { margin-top: var(--s-22); font-size: var(--fs-fine); color: var(--text-muted); }
 
 /* Cardápio tátil: toda etiqueta é um botão de papel com relevo (borda inferior), e o indicador “+” à direita diz que
    ela abre. Estados: normal (em relevo) · pressionado (afunda, perde o relevo) · ativo (levanta, sombra deslocada, “+” vira

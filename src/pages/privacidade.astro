@@ -1,9 +1,14 @@
 ---
-// /privacidade — o TEXTO LEGAL é do Âmbar (pendente). Esta página não inventa política: só diz o que existe hoje.
+// /privacidade — o TEXTO LEGAL é do Âmbar (pendente de validação). Estrutura e fatos do sistema em src/data/privacidade.ts.
+// Política não aprovada: o build de produção só diz o que existe hoje; o rascunho aparece no modo de revisão.
 import Base from '../layouts/Base.astro';
 import Foto from '../components/Foto.astro';
-import Pendente from '../components/Pendente.astro';
 import Footer from '../sections/Footer.astro';
+import { privacidade } from '../data/privacidade';
+import { REVISAO, isPendente } from '../lib/conteudo';
+
+const rascunho = !privacidade.aprovada && REVISAO;
+const mostrar = privacidade.aprovada || rascunho;
 ---
 <Base titulo="Privacidade — Âmbar Brunch" home={false} indexar={false}>
   <header class="page-bar">
@@ -13,10 +18,28 @@ import Footer from '../sections/Footer.astro';
   <main class="doc">
     <article class="ticket">
       <h1>Privacidade</h1>
-      <p>A política de privacidade do Âmbar Brunch está sendo preparada e será publicada aqui antes de o site começar a receber reservas.</p>
-      <p>Hoje este site não coleta dados pessoais, não usa cookies de rastreamento e não envia formulários.</p>
-      <p>A única preferência guardada é a escolha “pausar animações”, que fica só no seu navegador.</p>
-      <Pendente falta="Texto da política de privacidade (LGPD) e do consentimento da reserva" bloco />
+      {mostrar ? (
+        <>
+          {rascunho && <p class="doc__rascunho" role="note">Rascunho em validação — não publicado. Os trechos marcados dependem do controlador.</p>}
+          {privacidade.secoes.map((secao) => (
+            <section aria-labelledby={`priv-${secao.id}`}>
+              <h2 id={`priv-${secao.id}`}>{secao.titulo}</h2>
+              {secao.itens.map((item) => isPendente(item)
+                ? (rascunho && <p class="doc__pendente">A confirmar: {item.falta}</p>)
+                : <p>{item}</p>)}
+            </section>
+          ))}
+          {isPendente(privacidade.versao)
+            ? rascunho && <p class="doc__pendente">A confirmar: {privacidade.versao.falta}</p>
+            : <p class="doc__versao">{privacidade.versao}</p>}
+        </>
+      ) : (
+        <>
+          <p>A política de privacidade do Âmbar Brunch está sendo preparada e será publicada aqui antes de o site começar a receber reservas.</p>
+          <p>Hoje este site não coleta dados pessoais, não usa cookies de rastreamento e não envia formulários.</p>
+          <p>A única preferência guardada é a escolha “pausar animações”, que fica só no seu navegador.</p>
+        </>
+      )}
     </article>
   </main>
   <Footer />

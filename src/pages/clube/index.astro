@@ -1,0 +1,136 @@
+---
+// /clube — página do Clube Âmbar (2026-10-20). Ordem: topo vinho com a carteira · como funciona (creme) · direto da mesa
+// (manteiga: NFC e QR Code) · regras da casa (creme: o que já está decidido e o que está em definição) · ficha de
+// inscrição (vinho, ilha). Entradas pelas mesas: /clube/?canal=nfc&mesa=12 e /clube/?canal=qr&mesa=12 (lib/clube-origem.ts).
+// Nada de pontuação, recompensa ou vantagem que não foi aprovada (data/clube.ts). Sem a API do Clube, a ficha fica
+// fechada e diz isso; o selo do topo também.
+import Base from '../../layouts/Base.astro';
+import Foto from '../../components/Foto.astro';
+import MegaTitle from '../../components/MegaTitle.astro';
+import SeloFornada from '../../components/SeloFornada.astro';
+import ClubeJornada from '../../components/ClubeJornada.astro';
+import Footer from '../../sections/Footer.astro';
+import ClubeCadastro from '../../islands/ClubeCadastro';
+import { clube } from '../../data/clube';
+import { secoes } from '../../data/secoes';
+import { isPendente } from '../../lib/conteudo';
+import { CLUBE_MODO, CLUBE_API_URL } from '../../lib/clube-modo';
+
+const s = secoes.clube;
+const aberto = CLUBE_MODO === 'api';
+/** o que ainda depende da decisão sobre a fidelidade, dito em linguagem de gente */
+const emDefinicao = [
+  isPendente(clube.pontuacao) && 'quantos pontos cada compra soma',
+  isPendente(clube.recompensas) && 'as recompensas',
+  isPendente(clube.regulamento) && 'o regulamento',
+].filter(Boolean) as string[];
+const lista = (xs: string[]) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} e ${xs.at(-1)}` : xs[0] ?? '');
+---
+<Base titulo="Clube Âmbar — Âmbar Brunch" descricao="Clube Âmbar: o clube de pontos do Âmbar Brunch, direto no navegador. Sem aplicativo, só com o seu telefone." home={false}>
+  <header class="page-bar">
+    <a href="/" aria-label="Âmbar Brunch — voltar ao início"><span class="label"><Foto src="brand/logo-ambar.png" alt="Âmbar Brunch" sizes="122px" widths={[122, 244, 366]} prioridade qualidade={80} /></span></a>
+    <a class="page-back" href="/">← início</a>
+  </header>
+  <main class="clube">
+    <section class="clube-topo surface-grain surface-dark" aria-labelledby="clube-h1" data-vivo>
+      <!-- quem chega pela plaquinha da mesa (NFC/QR) é recebido pelo número dela; posicionado por cima, sem empurrar nada -->
+      <p class="clube-chegada" data-chegada hidden></p>
+      <MegaTitle as="h1" linhas={[...s.linhas]} id="clube-h1" tom="light" scribble={s.sub} />
+      <p class="clube-topo__lead" data-reveal>{clube.lead} Cada compra identificada soma pontos na sua carteira.</p>
+      <!-- 2026-10-22: o Passaporte Âmbar (prévia da Jornada) no lugar do cartão -->
+      <div class="clube-topo__palco">
+        <ClubeJornada class="clube-topo__jornada" />
+        <SeloFornada class="clube-topo__selo" id="selo-clube" texto={aberto ? 'clube âmbar · sem aplicativo · ' : 'clube âmbar · inscrições em breve · '} />
+      </div>
+      <div class="clube-topo__acoes" data-reveal>
+        <a class="btn btn--butter" href="#cadastro">Quero entrar <span aria-hidden="true">↓</span></a>
+        <a class="clube-topo__link" href="/clube/membro/">Já sou membro</a>
+      </div>
+    </section>
+
+    <section class="clube-passos" aria-labelledby="passos-titulo">
+      <h2 class="titulo" id="passos-titulo" data-reveal="lines"><span>Como</span><span class="mega__r">funciona</span></h2>
+      <ol class="passos">
+        {clube.passos.map((p, i) => (
+          <li class="passos__item" data-reveal="piece" style={`--i:${i}`}>
+            <span class="passos__n" aria-hidden="true">{String(i + 1).padStart(2, '0')}</span>
+            <h3 class="passos__titulo">{p.titulo}</h3>
+            <p class="passos__texto">{p.texto}</p>
+          </li>
+        ))}
+      </ol>
+    </section>
+
+    <section class="clube-mesa" aria-labelledby="mesa-titulo" data-vivo>
+      <h2 class="titulo" id="mesa-titulo" data-reveal="lines"><span>Direto</span><span class="mega__r">da mesa</span></h2>
+      <div class="clube-mesa__grid">
+        <figure class="plaquinha" data-reveal="piece" aria-hidden="true">
+          <svg viewBox="0 0 320 240">
+            <path class="plq__mesa" d="M8 214H312" />
+            <ellipse class="plq__sombra" cx="132" cy="214" rx="84" ry="6" />
+            <path class="plq__lado" d="M176 46l12 6 18 158-8 4z" />
+            <path class="plq__frente" d="M62 214L84 46h92l22 168z" />
+            <text class="plq__clube" x="130" y="70" text-anchor="middle">CLUBE</text>
+            <text class="plq__ambar" x="130" y="94" text-anchor="middle">ÂMBAR</text>
+            <g class="plq__qr" transform="translate(103 106)">
+              <rect class="plq__qr-fundo" width="54" height="54" rx="4" />
+              <path class="plq__qr-olho" d="M5 5h13v13H5zM36 5h13v13H36zM5 36h13v13H5z" />
+              <path class="plq__qr-ponto" d="M9 9h5v5H9zM40 9h5v5h-5zM9 40h5v5H9zM23 6h4v4h-4zM28 12h4v4h-4zM23 18h4v4h-4zM6 23h4v4H6zM14 25h4v4h-4zM24 26h5v5h-5zM33 23h4v4h-4zM42 25h5v4h-5zM28 34h4v4h-4zM36 36h4v4h-4zM44 40h4v4h-4zM24 42h4v5h-4zM32 44h5v4h-5zM40 47h4v3h-4z" />
+            </g>
+            <text class="plq__dica" x="130" y="186" text-anchor="middle">aproxime ou escaneie</text>
+            <g class="plq__ondas">
+              <path pathLength="1" style="--k:0" d="M212 112a18 18 0 0 1 0 28" />
+              <path pathLength="1" style="--k:1" d="M222 104a30 30 0 0 1 0 44" />
+              <path pathLength="1" style="--k:2" d="M232 96a42 42 0 0 1 0 60" />
+            </g>
+            <g class="plq__celular" transform="translate(244 74) rotate(-12)" data-float="b">
+              <rect class="plq__cel" width="60" height="110" rx="12" />
+              <rect class="plq__tela" x="6" y="12" width="48" height="86" rx="5" />
+              <rect class="plq__mini" x="11" y="40" width="38" height="24" rx="4" />
+              <path class="plq__mini-linha" d="M16 47h14M16 58h8" />
+            </g>
+          </svg>
+        </figure>
+        <div class="clube-mesa__texto" data-reveal>
+          <p class="clube-mesa__kicker">{clube.mesas.ativas ? 'nas mesas do Âmbar' : 'em breve nas mesas'}</p>
+          <p class="clube-mesa__lead">Aproxime o celular da plaquinha (NFC) ou aponte a câmera para o QR Code: a página do Clube abre no navegador, sem instalar nada.</p>
+          <p class="clube-mesa__aviso">Aproximar o celular só abre a página. Pontos vêm de compras identificadas.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="clube-regras" aria-labelledby="regras-titulo">
+      <h2 class="titulo" id="regras-titulo" data-reveal="lines"><span>Regras</span><span class="mega__r">da casa</span></h2>
+      <div class="clube-regras__grid">
+        <div class="ticket clube-regras__ticket" data-reveal="piece">
+          <p class="ticket__title">Já está decidido</p>
+          <ul class="regras">{clube.regras.map((r) => <li>{r}</li>)}</ul>
+        </div>
+        {emDefinicao.length > 0 && (
+          <div class="clube-definicao" data-reveal="piece" style="--i:1">
+            <p class="clube-definicao__titulo">Em definição</p>
+            <p>{lista(emDefinicao).replace(/^./, (c) => c.toUpperCase())}. Tudo é publicado aqui antes de as inscrições abrirem.</p>
+          </div>
+        )}
+      </div>
+    </section>
+
+    <section class="clube-cadastro surface-grain surface-dark" id="cadastro" aria-labelledby="cadastro-titulo" tabindex="-1">
+      <h2 class="titulo titulo--light" id="cadastro-titulo" data-reveal="lines"><span>Faça</span><span class="mega__r">parte</span></h2>
+      <ClubeCadastro client:visible={{ rootMargin: '400px' }} modo={CLUBE_MODO} apiUrl={CLUBE_API_URL} privacidadeUrl="/privacidade/" />
+      <p class="clube-cadastro__membro">Já é do Clube? <a href="/clube/membro/">Abrir minha carteira</a></p>
+    </section>
+  </main>
+  <Footer />
+</Base>
+
+<script>
+  import { origemDaVisita } from '../../lib/clube-origem';
+  // Chegada pela plaquinha da mesa: só um cumprimento. Não registra presença nem soma pontos.
+  const el = document.querySelector<HTMLElement>('[data-chegada]');
+  const o = origemDaVisita();
+  if (el && (o.canal === 'nfc' || o.canal === 'qr')) {
+    el.textContent = o.mesa ? `bem-vindo à mesa ${o.mesa}` : 'bem-vindo à sua mesa';
+    el.hidden = false;
+  }
+</script>

@@ -15,8 +15,6 @@ export interface Par {
 }
 
 export const cafeRoll = {
-  /** frase curta sob o título: a seção é uma sugestão editorial, não um cardápio repetido */
-  lead: 'Um gelado da casa, um roll da fornada.',
   pares: [
     { id: 'biscoff', bebida: 'Biscoff latte', roll: 'Biscoff', frase: 'Biscoff em dobro', liquido: ['var(--caramel)', 'var(--butter)'],
       foto: { src: 'roll/roll-biscoff.webp', alt: 'Cinnamon roll de Biscoff com creme e biscoito triturado', origem: 'real' } },

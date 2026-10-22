@@ -5,7 +5,7 @@ import AxeBuilder from '@axe-core/playwright';
 const graves = (r: Awaited<ReturnType<AxeBuilder['analyze']>>) =>
   r.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => `${v.id}: ${v.help} (${v.nodes.length}× · ${v.nodes.slice(0, 2).map((n) => n.target.join(' ')).join(' | ')})`);
 
-for (const url of ['/', '/reservar/', '/privacidade/']) {
+for (const url of ['/', '/reservar/', '/privacidade/', '/clube/', '/clube/membro/']) {
   test(`axe ${url}`, async ({ page }) => {
     await page.goto(url);
     const total = await page.evaluate(() => document.documentElement.scrollHeight);

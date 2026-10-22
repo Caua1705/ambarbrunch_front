@@ -1,0 +1,258 @@
+/* CLUBE ÂMBAR (novo, 2026-10-20): convite na home (.clube-convite), página /clube, área de membro /clube/membro e a
+   página interna de estados. Mesma linguagem do site: mega títulos, papel creme e manteiga, vinho com grão, comanda
+   picotada, sombra deslocada cacau. A carteira em si mora em components/carteira.css; o movimento, em motion.css §6. */
+
+/* Título de bloco das páginas do Clube: o mega título num corpo menor (as páginas internas têm vários blocos) */
+.titulo {
+  font: var(--t-title);
+  font-variation-settings: var(--fvs-display); font-stretch: var(--stretch-mega);
+  letter-spacing: var(--track-mega); text-transform: uppercase;
+  color: var(--wine);
+}
+.titulo span { display: block; }
+.titulo--light { color: var(--butter); }
+
+/* 1 · Convite na home ------------------------------------------------------------------------------------------------ */
+.clube-convite { padding: var(--rhythm-b) var(--gutter) calc(var(--rhythm-b) + var(--rhythm-tail)); overflow: hidden; }
+/* Passaporte Âmbar (2026-10-22): no lugar da carteira em camadas; o resto do palco antigo fica para /clube/membro */
+.clube-convite__jornada { width: min(100%, 460px); margin: var(--s-26) auto 0; }
+.clube-convite .clube-convite__texto { margin-top: var(--s-22); gap: var(--s-14); }
+
+/* palco: a carteira vinho por cima de um verso manteiga, com uma anotação manuscrita */
+.clube-palco { position: relative; width: min(100%, 420px); margin: var(--s-34) auto 0; padding: var(--s-30) 0 var(--s-44); }
+.clube-palco__frente { position: relative; z-index: var(--z-2); width: 88%; rotate: -5deg; }
+.clube-palco__frente .carteira { width: 100%; }
+.clube-palco__verso {
+  position: absolute; z-index: var(--z-1); top: var(--s-6); right: -2%; width: 74%; aspect-ratio: 1.586;
+  border-radius: var(--radius-l); background: var(--butter) var(--paper-fibers);
+  box-shadow: var(--shadow-offset), var(--shadow-photo);
+  rotate: 8deg;
+}
+.clube-palco__verso::before { content: ""; position: absolute; inset: 9px; border: 1.5px dashed color-mix(in srgb, var(--wine) 30%, transparent); border-radius: calc(var(--radius-l) - 6px); }
+.clube-palco__nota { position: absolute; z-index: var(--z-3); right: 2%; bottom: 0; font: var(--t-note); color: var(--caramel-dk); text-align: right; rotate: -4deg; }
+.clube-palco__seta { position: absolute; z-index: var(--z-3); right: 26%; bottom: 4px; width: 62px; fill: none; stroke: var(--caramel-dk); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; rotate: 180deg; scale: -1 1; }
+
+.clube-convite__texto { display: grid; justify-items: start; gap: var(--s-18); max-width: 520px; }
+.clube-convite__lead { font-size: var(--fs-lead); max-width: 30ch; }
+.clube-marcas { display: flex; flex-wrap: wrap; gap: var(--s-8); }
+.clube-marcas li {
+  display: inline-flex; align-items: center; gap: var(--s-6); padding: 8px var(--s-12) 7px; border-radius: var(--radius-pill);
+  border: var(--border-control) solid var(--wine); background: var(--glaze); color: var(--wine);
+  font: var(--t-pill); letter-spacing: var(--track-caps); text-transform: uppercase;
+  rotate: calc((var(--i) - 1) * -1.2deg);
+}
+.clube-marcas li::before { content: "✺"; color: var(--caramel); font-size: 1.05em; }
+.clube-convite__cta { margin-top: var(--s-6); }
+
+@media (min-width: 960px) {
+  .clube-convite {
+    display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); grid-template-areas: "titulo palco" "texto palco";
+    column-gap: var(--s-44); align-items: start; max-width: calc(var(--container-m) + 2 * var(--gutter)); margin-inline: auto;
+  }
+  .clube-convite > .mega { grid-area: titulo; }
+  .clube-palco, .clube-convite__jornada { grid-area: palco; align-self: center; margin-top: 0; }
+  .clube-convite__jornada { width: 100%; max-width: none; }
+  .clube-convite .clube-convite__texto { grid-area: texto; margin-top: var(--s-26); }
+}
+
+/* 2 · Página /clube ------------------------------------------------------------------------------------------------- */
+.clube-topo {
+  padding: 56px var(--gutter) calc(var(--rhythm-c) + var(--rhythm-tail));
+  background: var(--wine); color: var(--butter); overflow: hidden;
+}
+.clube-topo__lead { margin-top: var(--s-26); max-width: 34ch; font-size: var(--fs-lead); color: var(--text-on-dark-muted); }
+.clube-topo__palco { position: relative; width: min(100%, 520px); margin: var(--s-34) auto 0; padding: var(--s-14) 0 var(--s-22); }
+.clube-topo__palco .selo { top: -18px; right: -10px; width: 88px; }
+.clube-topo__cartao { rotate: -4deg; }
+.clube-topo__cartao .carteira { width: 100%; filter: var(--drop-carteira-escuro); }
+/* carteira vinho sobre vinho: um contorno manteiga fino separa o cartão do fundo */
+.clube-topo__cartao .carteira__papel { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--butter) 35%, transparent); }
+/* o selo girando cobre o selinho impresso no canto do cartão (um selo só, nunca dois sobrepostos) */
+.clube-topo__selo { position: absolute; z-index: var(--z-2); width: 104px; right: -4px; top: 0; color: var(--wine); rotate: -10deg; }
+.clube-topo__acoes { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-14) var(--s-22); margin-top: var(--s-30); }
+.clube-topo__link { min-height: 44px; display: inline-flex; align-items: center; font: var(--t-link); letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--butter); text-decoration: underline 2px; text-underline-offset: 6px; }
+/* cumprimento de quem chega pela plaquinha da mesa (posicionado por cima: aparecer depois não empurra nada) */
+.clube-chegada {
+  position: absolute; z-index: var(--z-3); top: var(--s-18); right: var(--gutter);
+  padding: 6px var(--s-12) 7px; border-radius: var(--radius-pill); background: var(--butter); color: var(--wine);
+  font: var(--t-tag); box-shadow: var(--shadow-offset-xs); rotate: 3deg;
+}
+.clube-chegada[hidden] { display: none; }
+
+.clube-passos, .clube-regras { padding: var(--rhythm-b) var(--gutter) calc(var(--rhythm-b) + var(--rhythm-tail)); }
+.passos { display: grid; gap: var(--s-26); margin-top: var(--s-40); counter-reset: passo; }
+.passos__item { position: relative; display: grid; grid-template-columns: 64px minmax(0, 1fr); column-gap: var(--s-16); row-gap: var(--s-6); }
+.passos__n {
+  grid-row: span 2; display: grid; place-items: center; width: 64px; aspect-ratio: 1;
+  border: var(--border-control) dashed var(--wine); border-radius: var(--radius-round);
+  font: var(--t-numeral); font-stretch: var(--stretch-tag); color: var(--wine); background: var(--glaze);
+}
+.passos__item:nth-child(2) .passos__n { rotate: 8deg; }
+.passos__item:nth-child(3) .passos__n { rotate: -6deg; background: var(--wine); color: var(--butter); border-style: solid; }
+/* o fio pontilhado que costura um passo ao seguinte */
+.passos__item:not(:last-child)::after { content: ""; position: absolute; left: 31px; top: 70px; bottom: calc(var(--s-26) * -1 + 6px); border-left: var(--border-control) dotted var(--caramel); }
+.passos__titulo { align-self: end; padding-top: var(--s-10); font: var(--t-band); font-stretch: var(--stretch-band); text-transform: uppercase; letter-spacing: var(--track-tight-caps); color: var(--wine); }
+.passos__texto { color: var(--text-soft); max-width: 40ch; }
+
+.clube-mesa {
+  padding: var(--rhythm-b) var(--gutter) calc(var(--rhythm-b) + var(--rhythm-tail));
+  background: var(--butter) var(--paper-fibers); overflow: hidden;
+}
+.clube-mesa__grid { display: grid; gap: var(--s-22); margin-top: var(--s-30); }
+.plaquinha { margin: 0 auto; width: min(100%, 400px); }
+.plaquinha svg { width: 100%; overflow: visible; }
+.plq__mesa { stroke: var(--caramel-dk); stroke-width: 3; stroke-linecap: round; }
+.plq__sombra { fill: var(--shadow-ground); }
+.plq__frente { fill: var(--cream); stroke: var(--wine); stroke-width: 3; stroke-linejoin: round; }
+.plq__lado { fill: var(--caramel-lt); stroke: var(--wine); stroke-width: 3; stroke-linejoin: round; }
+.plq__clube { font: var(--t-legend); font-size: var(--fs-plq-kicker); letter-spacing: .3em; fill: var(--caramel-dk); }
+.plq__ambar { font: var(--t-band); font-size: var(--fs-plq-marca); font-stretch: var(--stretch-mega); fill: var(--wine); }
+.plq__qr-fundo { fill: var(--glaze); stroke: var(--rule); stroke-width: 1.5; }
+.plq__qr-olho { fill: none; stroke: var(--wine); stroke-width: 3; }
+.plq__qr-ponto { fill: var(--wine); }
+.plq__dica { font: var(--t-fine-serif); font-size: var(--fs-plq-dica); fill: var(--caramel-dk); }
+.plq__ondas path { fill: none; stroke: var(--wine); stroke-width: 3; stroke-linecap: round; }
+.plq__cel { fill: var(--ink); }
+.plq__tela { fill: var(--glaze); }
+.plq__mini { fill: var(--wine); }
+.plq__mini-linha { stroke: var(--butter); stroke-width: 2.5; stroke-linecap: round; }
+.clube-mesa__texto { display: grid; gap: var(--s-12); max-width: 46ch; }
+.clube-mesa__kicker { font: var(--t-kicker); color: var(--caramel-dk); }
+.clube-mesa__lead { font-size: var(--fs-lead); }
+.clube-mesa__aviso {
+  justify-self: start; padding: var(--s-10) var(--s-14); border-radius: var(--radius-control);
+  border: var(--border-control) dashed var(--wine); color: var(--wine); font: var(--t-status);
+}
+
+.clube-regras__grid { display: grid; gap: var(--s-26); margin-top: var(--s-40); }
+.clube-regras__ticket { margin-inline: 0; rotate: -1deg; box-shadow: none; }
+.clube-regras__ticket .ticket__title { max-width: none; }
+.regras { display: grid; gap: 0; }
+.regras li { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: var(--s-10); padding: var(--s-12) 0; border-bottom: var(--border-control) dashed var(--rule); }
+.regras li:last-child { border-bottom: 0; padding-bottom: 0; }
+.regras li::before { content: "✓"; font: var(--t-button); color: var(--wine); line-height: 1.5; }
+.clube-definicao {
+  display: grid; gap: var(--s-8); max-width: 480px; padding: var(--s-18) var(--s-22);
+  border: var(--border-control) dashed var(--wine); border-radius: var(--radius-l); background: var(--glaze);
+  rotate: 1.2deg;
+}
+.clube-definicao__titulo { font: var(--t-legend); letter-spacing: var(--track-legend); text-transform: uppercase; color: var(--caramel-dk); }
+
+.clube-cadastro, .clube-membro {
+  padding: var(--rhythm-d) var(--gutter) calc(var(--rhythm-d) + var(--rhythm-tail));
+  background: var(--wine); color: var(--butter); overflow: hidden;
+}
+.clube-membro { padding-top: 56px; }
+.clube-cadastro .ticket, .clube-membro .membro { margin-top: var(--s-40); }
+.clube-cadastro__membro { margin-top: var(--s-26); text-align: center; font: var(--t-caption); color: var(--text-on-dark-muted); }
+.clube-cadastro__membro a { color: var(--butter); font: var(--t-link); letter-spacing: var(--track-caps); text-transform: uppercase; text-decoration: underline 2px; text-underline-offset: 5px; margin-left: var(--s-6); }
+
+/* costuras rasgadas entre os blocos da página (a cor da folha de cima) */
+.clube-passos, .clube-mesa, .clube-regras, .clube-cadastro { position: relative; }
+:is(.clube-passos, .clube-mesa, .clube-regras, .clube-cadastro)::after {
+  content: ""; position: absolute; z-index: var(--z-1); top: -1px; left: 0; right: 0; height: 15px;
+  background: var(--costura); pointer-events: none; -webkit-mask: var(--mask-torn); mask: var(--mask-torn);
+}
+.clube-passos { --costura: var(--wine); }
+.clube-mesa { --costura: var(--cream); }
+.clube-regras { --costura: var(--butter); }
+.clube-cadastro { --costura: var(--cream); }
+:is(.clube-mesa, .clube-cadastro)::after { -webkit-mask-position: -173px 0; mask-position: -173px 0; }
+
+@media (min-width: 960px) {
+  .clube-topo { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); grid-template-areas: "titulo palco" "lead palco" "acoes palco"; column-gap: var(--s-44); align-content: start; }
+  .clube-topo > * { min-width: 0; }
+  .clube-topo > .mega { grid-area: titulo; }
+  .clube-topo__lead { grid-area: lead; }
+  .clube-topo__acoes { grid-area: acoes; align-self: start; }
+  .clube-topo__palco { grid-area: palco; align-self: center; margin: 0; width: 100%; max-width: 420px; justify-self: center; }
+  :is(.clube-topo, .clube-passos, .clube-mesa, .clube-regras) { padding-inline: max(var(--gutter), calc((100% - var(--container-m)) / 2)); }
+  .passos { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-30); }
+  .passos__item { grid-template-columns: 1fr; }
+  .passos__item:not(:last-child)::after { left: 76px; right: calc(var(--s-30) * -1 + 8px); top: 31px; bottom: auto; border-left: 0; border-top: var(--border-control) dotted var(--caramel); }
+  .passos__n { grid-row: auto; }
+  .clube-mesa__grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: var(--s-44); }
+  .clube-regras__grid { grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); align-items: start; }
+  .clube-cadastro > .titulo, .clube-membro > .titulo { max-width: var(--container-m); margin-inline: auto; }
+}
+
+/* 3 · Ficha de inscrição e acesso (dentro da comanda) --------------------------------------------------------------- */
+.ficha legend small { font: var(--t-chip-small); letter-spacing: 0; text-transform: none; color: var(--text-muted); }
+.ficha fieldset { display: grid; gap: var(--s-12); }
+.ficha fieldset:last-of-type { border-bottom: 0; padding-bottom: 0; }
+.ficha__origem { justify-self: start; margin-top: calc(var(--s-6) * -1); padding: 4px var(--s-10) 5px; border-radius: var(--radius-pill); background: var(--butter); color: var(--wine); font: var(--t-tag); rotate: -2deg; }
+/* ficha fechada: os campos aparecem como papel em branco, tracejados — legíveis, mas claramente sem uso */
+.ficha fieldset:disabled .field__input { border-style: dashed; border-color: color-mix(in srgb, var(--ink) 40%, transparent); background: transparent; cursor: not-allowed; }
+.ficha fieldset:disabled .check { cursor: not-allowed; }
+.ficha fieldset:disabled .check input { border-style: dashed; background: transparent; cursor: not-allowed; }
+.ficha fieldset:disabled a { pointer-events: auto; }
+.ficha .check a, .ficha__inline { color: var(--wine); font-weight: 700; text-decoration: underline 1.5px; text-underline-offset: 3px; }
+.ficha__digitos { font: var(--t-numeral); font-size: var(--fs-codigo); letter-spacing: .5em; text-align: center; padding-left: calc(var(--s-14) + .5em); font-variant-numeric: tabular-nums; }
+.ficha__links { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--s-6); }
+.ficha__destino { white-space: nowrap; color: var(--wine); }
+.ficha__carteira { justify-self: center; rotate: -2deg; margin: var(--s-6) 0 var(--s-10); }
+.ficha__carregando { display: flex; gap: var(--s-10); }
+.ficha__carregando .chip--skeleton { width: 100%; height: 52px; }
+.ficha--acesso .ticket__title { max-width: 11ch; }
+
+/* 4 · Área de membro ------------------------------------------------------------------------------------------------- */
+.membro { display: grid; gap: var(--s-44); width: 100%; max-width: 520px; margin-inline: auto; }
+.carteira-area { display: grid; justify-items: center; gap: var(--s-12); text-align: center; }
+.carteira-area__ola { font: var(--t-tagline); font-stretch: var(--stretch-tag); text-transform: uppercase; color: var(--butter); }
+.carteira-area__ola:focus { outline: none; }
+.carteira-area__kicker { font: var(--t-kicker); color: var(--caramel-lt); }
+.carteira-area__cartao { rotate: -2deg; margin: var(--s-14) 0 var(--s-6); }
+.carteira-area__cartao .carteira__papel { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--butter) 35%, transparent); }
+.carteira-area__meta { font-size: var(--fs-fine); color: var(--text-on-dark-faint); }
+.carteira-area__paineis { display: grid; gap: var(--s-14); width: 100%; margin-top: var(--s-14); text-align: left; }
+.carteira-area__sair { color: var(--butter); margin-top: var(--s-10); }
+.carteira-area--previa { padding: var(--s-26) var(--s-16) var(--s-22); border: var(--border-control) dashed color-mix(in srgb, var(--butter) 40%, transparent); border-radius: var(--radius-xl); }
+
+.painel {
+  --focus-ring: var(--wine);
+  display: grid; gap: var(--s-12); padding: var(--s-18) var(--s-22) var(--s-22);
+  border-radius: var(--radius-l); background: var(--cream) var(--paper-fibers); color: var(--ink);
+  box-shadow: var(--shadow-offset);
+}
+.painel__titulo { font: var(--t-legend); letter-spacing: var(--track-legend); text-transform: uppercase; color: var(--caramel-dk); }
+.painel__vazio { font: var(--t-caption); line-height: 1.3; color: var(--text-soft); }
+.painel__nota { font-size: var(--fs-fine); color: var(--text-muted); }
+.painel__mais { justify-self: center; }
+
+.extrato li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: baseline; gap: var(--s-12); padding: var(--s-10) 0; border-bottom: var(--border-control) dashed var(--rule); }
+.extrato li:last-child { border-bottom: 0; }
+.extrato time { font: var(--t-legend); font-variant-numeric: tabular-nums; color: var(--caramel-dk); }
+.extrato__desc { font: var(--t-body-s); }
+.extrato__pts { font: var(--t-review); font-variant-numeric: tabular-nums; color: var(--wine); }
+.extrato__pts[data-sinal="neg"] { color: var(--berry); }
+.extrato--esqueleto li { grid-template-columns: 1fr 64px; }
+.extrato--esqueleto span { height: 16px; border-radius: var(--radius-2xs); background: linear-gradient(100deg, var(--glaze) 30%, var(--butter) 50%, var(--glaze) 70%) 0 0 / 300% 100%; animation: shimmer var(--dur-loop-busy) linear infinite; }
+
+.recompensas li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--s-6) var(--s-12); padding: var(--s-12) 0; border-bottom: var(--border-control) dashed var(--rule); }
+.recompensas li:last-child { border-bottom: 0; }
+.recompensas__nome { font: var(--t-review); color: var(--ink); }
+.recompensas__desc { font-size: var(--fs-small); color: var(--text-soft); }
+.recompensas__pts { font-size: var(--fs-small); color: var(--text-soft); text-align: right; }
+.recompensas__pts strong { font: var(--t-review); color: var(--wine); }
+.recompensas__estado { grid-column: 1 / -1; justify-self: start; padding: 3px var(--s-10) 4px; border-radius: var(--radius-pill); border: var(--border-control) dashed var(--rule); font: var(--t-pill); letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--text-muted); }
+.recompensas li[data-disponivel] .recompensas__estado { border-style: solid; border-color: var(--wine); background: var(--wine); color: var(--butter); }
+
+/* interruptor (autorização de novidades): alvo de 44 px, tinta e papel */
+.interruptor { display: grid; grid-template-columns: 54px minmax(0, 1fr); align-items: center; gap: var(--s-12); min-height: 44px; font: var(--t-body-s); cursor: pointer; }
+.interruptor input { appearance: none; position: relative; width: 54px; height: 32px; margin: 0; border: var(--border-control) solid var(--ink); border-radius: var(--radius-pill); background: var(--glaze); cursor: pointer; transition: background var(--dur-chip) var(--ease); }
+.interruptor input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: var(--radius-round); background: var(--ink); transition: translate var(--dur-chip) var(--ease-paper), background var(--dur-chip) var(--ease); }
+.interruptor input:checked { background: var(--wine); border-color: var(--wine); }
+.interruptor input:checked::after { translate: 22px 0; background: var(--butter); }
+.interruptor input:disabled { opacity: .55; cursor: not-allowed; }
+
+/* 5 · Página interna de estados (só revisão) ------------------------------------------------------------------------ */
+.clube-estados { padding: 40px var(--gutter) 120px; background: var(--cacao); color: var(--cream); }
+.clube-estados__topo { max-width: 760px; margin: 0 auto var(--s-40); display: grid; gap: var(--s-12); }
+.clube-estados__topo h1 { font: var(--t-tagline); text-transform: uppercase; color: var(--butter); }
+.clube-estados__grade { display: grid; gap: var(--s-30); margin-bottom: var(--s-44); }
+.clube-estados__quadro { display: grid; gap: var(--s-14); align-content: start; padding: var(--s-22) var(--s-14) var(--s-26); border-radius: var(--radius-xl); background: var(--wine); color: var(--butter); }
+.clube-estados__quadro > h2 { justify-self: start; padding: 5px var(--s-12); border-radius: var(--radius-pill); background: var(--butter); color: var(--wine); font: var(--t-pill); letter-spacing: var(--track-caps); text-transform: uppercase; }
+.clube-estados__quadro .ticket { margin: 0; width: 100%; }
+@media (min-width: 960px) {
+  .clube-estados__grade { grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); }
+}

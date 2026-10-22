@@ -58,3 +58,7 @@
 /* novos estados: prévia (padrão, tracejado) · reservado (cheio) · erro (tente de novo) */
 .stamp[data-state="reservado"] { border-style: solid; border-width: 3px; background: var(--wine); color: var(--butter); }
 .stamp[data-state="erro"] { border-color: var(--berry); color: var(--berry); font: var(--t-stamp-s); }
+
+/* novo · convite OPCIONAL ao Clube Âmbar, só depois da reserva registrada: discreto, nunca um passo do fluxo */
+.ticket__clube { display: grid; gap: var(--s-6); justify-items: center; padding: var(--s-12) var(--s-14); border: var(--border-control) dashed var(--rule); border-radius: var(--radius-control); text-align: center; font-size: var(--fs-fine); color: var(--text-soft); }
+.ticket__clube strong { color: var(--wine); }

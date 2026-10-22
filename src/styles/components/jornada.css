@@ -1,0 +1,75 @@
+/* Passaporte Âmbar (2026-10-22) — página de passaporte em papel creme com costura tracejada na lombada; a Jornada é uma
+   trilha pontilhada caramelo ligando carimbos redondos. Decidido = carimbo vinho cheio; em definição = carimbo só
+   tracejado, sem tinta. Celular: trilha vertical (compacta e legível); a partir de 600 px: trilha horizontal.
+   Os carimbos batendo em sequência moram em motion.css §6. */
+
+.jornada {
+  --selo: 52px;
+  position: relative; isolation: isolate;
+  padding: var(--s-16) var(--s-18) var(--s-14) var(--s-30);
+  border-radius: var(--radius-s) var(--radius-l) var(--radius-l) var(--radius-s);
+  background: var(--glaze) var(--paper-fibers); color: var(--ink);
+  box-shadow: var(--shadow-offset);
+  rotate: -1deg;
+}
+/* lombada: costura tracejada vinho a 12 px da borda esquerda */
+.jornada::before {
+  content: ""; position: absolute; left: 12px; top: 10px; bottom: 10px; z-index: -1;
+  border-left: 1.5px dashed color-mix(in srgb, var(--wine) 45%, transparent);
+}
+
+.jornada__topo { display: flex; align-items: center; justify-content: space-between; gap: var(--s-10); }
+.jornada__marca { font: var(--t-legend); letter-spacing: var(--track-legend); text-transform: uppercase; color: var(--wine); }
+.jornada__previa {
+  padding: 3px var(--s-10) 4px; border: 1.5px dashed var(--caramel-dk); border-radius: var(--radius-pill);
+  font: var(--t-chip-small); color: var(--caramel-dk); rotate: 4deg;
+}
+
+/* trilha (celular): carimbos à esquerda, ligados por um fio pontilhado vertical */
+.jornada__trilha { position: relative; display: grid; gap: var(--s-6); margin-top: var(--s-12); }
+.jornada__trilha::before {
+  content: ""; position: absolute; z-index: -1;
+  left: calc(var(--selo) / 2 - 1px); top: calc(var(--selo) / 2); bottom: calc(var(--selo) / 2);
+  border-left: 2.5px dotted var(--caramel);
+}
+.marco { display: grid; grid-template-columns: var(--selo) minmax(0, 1fr); align-items: center; gap: var(--s-14); }
+.marco__selo {
+  display: grid; place-items: center; width: var(--selo); aspect-ratio: 1; border-radius: var(--radius-round);
+  background: var(--wine); color: var(--butter);
+  outline: 1.5px dashed var(--wine); outline-offset: 3px;
+  rotate: -8deg;
+}
+.marco:nth-child(even) .marco__selo { rotate: 7deg; }
+.marco__selo svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.marco__txt { display: grid; gap: 2px; }
+.marco__txt strong { font: var(--t-band); font-variation-settings: var(--fvs-text); font-stretch: var(--stretch-band); text-transform: uppercase; color: var(--wine); }
+.marco__txt span { font: var(--t-caption); color: var(--caramel-dk); }
+/* em definição: carimbo sem tinta, à espera */
+.marco--definicao .marco__selo { background: var(--glaze); color: var(--caramel-dk); outline: 2px dashed var(--caramel-dk); outline-offset: -2px; }
+.marco--definicao .marco__txt strong { color: var(--cacao); }
+.marco--definicao .marco__txt span { font: var(--t-chip-small); }
+
+.jornada__rodape {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--s-10);
+  margin-top: var(--s-12); padding-top: var(--s-10); border-top: var(--border-control) dashed var(--rule);
+}
+.jornada__chamada { font: var(--t-fine-serif); color: var(--text-muted); }
+.jornada__compartilhar {
+  display: inline-flex; align-items: center; gap: var(--s-6); min-height: 44px; padding: 0; border: 0; background: none; cursor: pointer;
+  font: var(--t-link); font-size: var(--fs-micro); letter-spacing: var(--track-caps); text-transform: uppercase;
+  color: var(--wine); text-decoration: underline 2px; text-underline-offset: 4px;
+}
+.jornada__aviso { font: var(--t-chip-small); color: var(--caramel-dk); }
+.jornada__aviso:empty { display: none; }
+html:not(.js) .jornada__compartilhar, html:not(.js) .jornada__chamada { display: none; }
+
+/* a partir do tablet: trilha horizontal, nome de cada marco embaixo do carimbo */
+@media (min-width: 600px) {
+  .jornada { --selo: 58px; padding: var(--s-18) var(--s-24) var(--s-14) var(--s-34); }
+  .jornada__trilha { grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: var(--s-10); margin-top: var(--s-18); }
+  .jornada__trilha::before { left: 10%; right: 10%; top: calc(var(--selo) / 2); bottom: auto; border-left: 0; border-top: 2.5px dotted var(--caramel); }
+  .jornada__trilha { align-items: start; }
+  .marco { grid-template-columns: 1fr; justify-items: center; align-content: start; gap: var(--s-10); text-align: center; }
+  .marco__txt strong { font-size: var(--fs-small); line-height: 1.1; }
+  .marco__txt span { font-size: var(--fs-small); line-height: 1.2; }
+}

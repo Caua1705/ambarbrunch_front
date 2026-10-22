@@ -1,4 +1,4 @@
-// Interações da homepage: cardápio tátil, Café + Roll, Saladas & bowls, espiral da fornada e experiência sem avisos internos.
+// Interações da homepage: cardápio tátil, Café + Roll, espiral da fornada e experiência sem avisos internos.
 import { test, expect } from '@playwright/test';
 
 test('sem avisos internos na experiência (“a confirmar”, “crédito a confirmar”, marcador de revisão)', async ({ page }) => {
@@ -11,11 +11,18 @@ test('sem avisos internos na experiência (“a confirmar”, “crédito a conf
 test('ordem final das seções e títulos aprovados', async ({ page }) => {
   await page.goto('/');
   const ids = await page.$$eval('main > section', (ss) => ss.map((x) => x.id));
-  expect(ids).toEqual(['novo', 'gastronomia', 'roll', 'cafe-roll', 'saladas', 'quem-provou', 'ambientes', 'reservar', 'visite']);
+  // 2026-10-20: convite ao Clube Âmbar entre a reserva e a Visite
+  expect(ids).toEqual(['novo', 'gastronomia', 'roll', 'cafe-roll', 'quem-provou', 'ambientes', 'reservar', 'clube', 'visite']);
   const titulos = await page.$$eval('main > section .mega', (ms) => ms.map((m) => [...m.querySelectorAll(':scope > span')].map((s) => s.textContent).join(' ').toUpperCase()));
-  expect(titulos).toEqual(['O ÂMBAR AGORA É BRUNCH.', 'PARA SUA MESA', 'DIRETO DA FORNADA', 'CAFÉ + ROLL', 'SALADAS & BOWLS', 'REAÇÕES REAIS', 'ESCOLHA SEU LUGAR', 'RESERVE SUA MESA', 'VISITE O ÂMBAR']);
+  expect(titulos).toEqual(['O ÂMBAR AGORA É BRUNCH.', 'PARA SUA MESA', 'DIRETO DA FORNADA', 'CAFÉ + ROLL', 'REAÇÕES REAIS', 'ESCOLHA SEU LUGAR', 'RESERVE SUA MESA', 'CLUBE ÂMBAR', 'VISITE O ÂMBAR']);
   await expect(page.locator('.hero .cut--polaroid figcaption')).toHaveCount(0);
-  await expect(page.locator('#roll')).toContainText('Os sabores mudam. A vontade fica.');
+  // Direto da fornada enxuta (2026-10-20): termina nos vídeos — sem bandejas, frase e pílulas de sabores
+  const fornada = page.locator('#roll');
+  await expect(fornada.locator('.stories .story')).toHaveCount(3);
+  await expect(fornada.locator('.trays, .sabores, .roll__frase')).toHaveCount(0);
+  await expect(fornada).not.toContainText('Os sabores mudam');
+  await expect(fornada).not.toContainText('já passaram pela fornada');
+  await expect(page.locator('#saladas, .prato')).toHaveCount(0);
   const lugares = (await page.locator('#ambientes').innerText()).toLowerCase();
   for (const l of ['jardim', 'salão principal', 'lounge', 'sala privativa']) expect(lugares).toContain(l);
 });
@@ -29,24 +36,31 @@ test('cardápio tátil: etiqueta abre o cartão (foto principal), troca de conte
   const painel = page.locator('#painel-comer');
   await expect(painel).toBeVisible();
   await expect(painel.locator('[data-cat="sanduiches"]')).toBeVisible();
-  await expect(painel.locator('[data-cat="sanduiches"]')).toContainText('Brie & mirtilo');
+  await expect(painel.locator('[data-cat="sanduiches"]')).toContainText('Brie & Blueberry');
   await expect(painel.locator('[data-cat="sanduiches"] .cartao__prato img')).toBeVisible();
   // sem selo “imagem ilustrativa” desde a rodada final (a origem segue registrada em data/cardapio.ts)
   await expect(painel.locator('.selo-ia')).toHaveCount(0);
   // trocar de etiqueta troca o conteúdo sem fechar
-  await page.locator('[data-categoria="saladas"]').click();
-  await expect(painel.locator('[data-cat="saladas"]')).toBeVisible();
+  await page.locator('[data-categoria="bowls"]').click();
+  await expect(painel.locator('[data-cat="bowls"]')).toBeVisible();
   await expect(painel.locator('[data-cat="sanduiches"]')).toBeHidden();
   await expect(sand).toHaveAttribute('aria-expanded', 'false');
   await page.keyboard.press('Escape');
   await expect(painel).toBeHidden();
-  // toda categoria tem foto principal; nenhuma mostra preço
-  expect(await page.locator('.cartao__cat').count()).toBe(13);
-  expect(await page.locator('.cartao__cat .cartao__prato').count()).toBe(13);
-  expect(await page.locator('#gastronomia').innerText()).not.toMatch(/R\$/);
+  // cardápio oficial (2026-10-20): só estas categorias; foto principal só onde há uma foto correta (sucos e bowls
+  // abrem só com o título); nenhum preço e nenhum aviso de cardápio provisório
+  const categorias = await page.$$eval('[data-categoria]', (bs) => bs.map((b) => b.getAttribute('data-categoria')));
+  expect(categorias).toEqual(['croissants', 'toasts', 'sanduiches', 'bowls', 'rolls', 'cafes', 'gelados', 'sucos']);
+  expect(await page.locator('.cartao__cat').count()).toBe(8);
+  await expect(page.locator('.cartao__cat .cartao__prato')).toHaveCount(6);
+  await expect(page.locator('[data-cat="sucos"] .cartao__prato, [data-cat="bowls"] .cartao__prato')).toHaveCount(0);
+  const cardapio = await page.locator('#gastronomia').evaluate((s) => s.textContent ?? '');
+  expect(cardapio).not.toMatch(/R\$/);
+  for (const t of ['estreia', 'consulte a equipe', 'Saladas', 'Bruschetta', 'Cheesecake', 'Brownie', 'Frappé', 'Smoothie', 'Poke', 'Iced latte']) expect(cardapio, t).not.toContain(t);
+  for (const t of ['Expresso duplo', 'Antioxidant', 'Cinnamon latte', 'Prosciutto', 'Toast americano', 'Steak & Herbs', 'Vegetariano', 'Chicken']) expect(cardapio, t).toContain(t);
 });
 
-test('cartão dos rolls: abas doces | salgados, uma miniatura por sabor, sem repetir a lista da fornada', async ({ page }) => {
+test('cartão dos rolls: abas doces | salgados, uma miniatura por sabor', async ({ page }) => {
   await page.goto('/');
   const rolls = page.locator('[data-categoria="rolls"]');
   await rolls.scrollIntoViewIfNeeded();
@@ -83,43 +97,6 @@ test('Café + Roll: escolher a dupla troca roll, bebida e cor do copo; atalho ab
   await sec.locator('[data-abrir="gelados"]').click();
   await expect(page.locator('[data-categoria="gelados"]')).toHaveAttribute('aria-expanded', 'true');
   await expect(page.locator('[data-cat="gelados"]')).toBeVisible();
-});
-
-test('Saladas & bowls: abas trocam o prato; ficha nutricional recolhida, abre e fecha, sem selo de rascunho', async ({ page }) => {
-  await page.goto('/');
-  const sec = page.locator('#saladas');
-  await sec.scrollIntoViewIfNeeded();
-  await expect(sec.locator('#prato-salada-atum')).toBeVisible();
-  await expect(sec.locator('#prato-poke')).toBeHidden();
-  await sec.getByRole('tab', { name: /poke/i }).click();
-  await expect(sec.locator('#prato-poke')).toBeVisible();
-  // a ficha começa recolhida: só o título (botão) à vista; o conteúdo fora da leitura e do Tab
-  const ficha = sec.locator('#prato-poke .ficha');
-  const botao = ficha.getByRole('button', { name: 'Informação nutricional' });
-  await expect(botao).toHaveAttribute('aria-expanded', 'false');
-  await expect(ficha.locator('.ficha__tabela')).toBeHidden();
-  await botao.click();
-  await expect(botao).toHaveAttribute('aria-expanded', 'true');
-  await expect(ficha.locator('.ficha__tabela')).toBeVisible();
-  await expect(ficha).toContainText('Alergênicos');
-  for (const campo of ['Valor energético', 'Carboidratos', 'Proteínas', 'Gorduras totais', 'Fibra alimentar', 'Sódio']) await expect(ficha).toContainText(campo);
-  await expect(ficha.locator('tbody tr')).toHaveCount(6);
-  await expect(ficha.locator('.ficha__barra')).toHaveCount(6);
-  // nenhum selo ou aviso de rascunho na tela, em nenhum build
-  await expect(ficha.locator('.ficha__selo, .ficha__nota')).toHaveCount(0);
-  const visivel = (await ficha.innerText()).toLowerCase();
-  for (const t of ['demonstrativ', 'fictíci', 'revisão interna']) expect(visivel, t).not.toContain(t);
-  // revisão: números provisórios (marcados só em data-provisoria); site publicado: cada linha “em validação”, nenhum número
-  if (await ficha.getAttribute('data-provisoria') !== null) await expect(ficha.locator('tbody strong')).toHaveCount(6);
-  else {
-    await expect(ficha.locator('tbody em', { hasText: 'em validação' })).toHaveCount(6);
-    await expect(ficha.locator('tbody strong')).toHaveCount(0);
-  }
-  await botao.click();
-  await expect(botao).toHaveAttribute('aria-expanded', 'false');
-  await expect(ficha.locator('.ficha__tabela')).toBeHidden();
-  const texto = (await sec.innerText()).toLowerCase();
-  for (const t of ['baixo em calorias', 'rico em proteína']) expect(texto).not.toContain(t);
 });
 
 test.describe('abertura da fornada (espiral ilustrativa)', () => {

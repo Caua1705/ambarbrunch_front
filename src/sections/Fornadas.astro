@@ -1,7 +1,8 @@
 ---
 // 4 · DIRETO DA FORNADA — a Roll como assinatura gastronômica do Âmbar: a espiral de creme e caramelo (vídeo decorativo),
-// um roll finalizado revelado em círculo, o processo em vídeo (da própria Roll, mudo), bandejas e os sabores que já
-// passaram por aqui. Vídeos de criadores ficam em “Reações reais”. Não é vitrine: sem preço, sem compra, sem delivery.
+// um roll finalizado revelado em círculo e o processo em vídeo (da própria Roll, mudo), que fecha a seção (enxugada em
+// 2026-10-20: sem bandejas nem pílulas de sabores; os sabores ficam no cartão dos rolls do cardápio). Vídeos de criadores
+// ficam em “Reações reais”. Não é vitrine: sem preço, sem compra, sem delivery.
 // Imagens sem autorização (roll.fotos.*.autorizado = false) só aparecem no modo de revisão.
 import Foto from '../components/Foto.astro';
 import MegaTitle from '../components/MegaTitle.astro';
@@ -18,7 +19,6 @@ import { getImage } from 'astro:assets';
 
 const s = secoes.fornada;
 const videos = roll.videos.filter((v) => podeMostrar(v.autorizado) && video(v.arquivo));
-const bandejas = podeMostrar(roll.bandejasAutorizadas) ? roll.bandejas.filter((b) => imagem(b.foto)) : [];
 const anatomia = podeMostrar(roll.fotos.anatomia.autorizado) && imagem(roll.fotos.anatomia.foto) ? roll.fotos.anatomia : undefined;
 // abertura: espiral (vídeo decorativo, volta ao início com esmaecimento). Capa responsiva; o 1º quadro vira o poster do <video>.
 const espiral = roll.espiral;
@@ -86,25 +86,6 @@ const inicioUrl = inicioMeta ? (await getImage({ src: inicioMeta, width: 450, fo
       </ol>
     </>
   )}
-
-  {bandejas.length > 0 && (
-    <div class="trays" data-reveal>
-      {bandejas.map((b, i) => (
-        <figure data-parallax={i === 1 ? 'up' : undefined}>
-          <Foto src={b.foto} alt={b.alt} sizes="(min-width: 960px) 300px, 34vw" />
-          <figcaption>{b.sabor}</figcaption>
-        </figure>
-      ))}
-    </div>
-  )}
-
-  <div class="roll__sabores">
-    <p class="roll__frase" data-reveal>{s.sabores}</p>
-    <p class="bands__label">já passaram pela fornada</p>
-    <ul class="sabores" aria-label="Sabores que já passaram pela fornada da Roll">
-      {roll.sabores.map((sabor, n) => <li style={`--n:${n}`}>{sabor}</li>)}
-    </ul>
-  </div>
 </section>
 
 <script>

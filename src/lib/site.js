@@ -43,7 +43,7 @@ document.addEventListener('click', (ev) => {
   destino.focus({ preventScroll: true });
 });
 
-// Imagens que só aparecem depois de um toque (cartões do cardápio, prato da 2ª aba, duplas do Café + Roll): o lazy do
+// Imagens que só aparecem depois de um toque (cartões do cardápio, duplas do Café + Roll): o lazy do
 // navegador só as baixaria no toque, e o cartão abria com a foto em branco. Quando a seção chega a ~1 tela de distância,
 // elas passam a “eager” e baixam em segundo plano; seções longe da tela continuam sem custo no carregamento inicial.
 if ('IntersectionObserver' in window) {

@@ -51,6 +51,36 @@
 @media (hover: hover) { .cal__dia:not(:disabled, [aria-checked="true"]):hover { border-color: var(--wine); color: var(--wine); } }
 .cal--esqueleto .cal__dia { border-color: var(--rule); }
 
+/* Campo de data (2026-10-22): no celular o calendário começa fechado — um campo de papel com ícone, “Escolher uma data”
+   e a seta; aberto, o calendário desce dentro da comanda e fecha sozinho depois do toque num dia, mostrando a data.
+   No desktop (≥ 960 px) o campo some e o calendário fica sempre aberto. */
+.data-campo {
+  display: flex; align-items: center; gap: var(--s-10); width: 100%; max-width: 360px; min-height: 52px; padding: var(--s-8) var(--s-14);
+  border: var(--border-control) solid var(--ink); border-radius: var(--radius-control);
+  background: var(--glaze); color: var(--ink); text-align: left; cursor: pointer; box-shadow: 0 3px 0 var(--ink);
+  transition: transform var(--dur-xs) var(--ease), box-shadow var(--dur-xs) var(--ease), border-color var(--dur-chip);
+}
+.data-campo:active { transform: translateY(3px); box-shadow: 0 0 0 var(--ink); transition-duration: var(--dur-press-in); }
+.data-campo[aria-expanded="true"] { border-color: var(--wine); box-shadow: 0 3px 0 var(--wine); }
+.data-campo__icone { flex: none; width: 24px; height: 24px; fill: none; stroke: var(--wine); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.data-campo__ponto { stroke-width: 2.6; }
+.data-campo__texto { flex: 1; min-width: 0; font: var(--t-kicker); font-size: var(--fs-lead); line-height: 1.15; color: var(--caramel-dk); }
+.data-campo[data-escolhida] .data-campo__texto { color: var(--wine); }
+.data-campo__acao { display: inline-flex; align-items: center; gap: var(--s-6); font: var(--t-chip-small); color: var(--caramel-dk); }
+.data-campo__acao i {
+  width: 9px; height: 9px; margin-top: -4px; border-right: 2px solid var(--wine); border-bottom: 2px solid var(--wine);
+  rotate: 45deg; transition: rotate var(--dur-s) var(--ease), margin var(--dur-s) var(--ease);
+}
+.data-campo[aria-expanded="true"] .data-campo__acao i { rotate: 225deg; margin-top: 4px; }
+.data-painel:not([data-aberto]) { display: none; }
+.data-painel { margin-top: var(--s-14); }
+.data-painel[data-aberto] { animation: data-abre var(--dur-m) var(--ease-paper); }
+@keyframes data-abre { from { opacity: 0; transform: translateY(-8px) scaleY(.96); transform-origin: top; } }
+@media (min-width: 960px) {
+  .data-campo { display: none; }
+  .data-painel, .data-painel:not([data-aberto]) { display: block; margin-top: 0; animation: none; }
+}
+
 /* Ambiente escolhido em “Escolha seu lugar”: o chip dele pulsa uma vez quando a comanda chega à tela (a rolagem leva
    ~0,6 s; daí o atraso). Movimento reduzido: só a cor de escolhido, sem pulso. */
 [data-destaque] .chip[aria-checked="true"] { animation: chip-destaque var(--dur-destaque) var(--ease-paper) var(--destaque-delay) both; }
