@@ -103,6 +103,8 @@ export default function ClubeCadastro({ modo, apiUrl, privacidadeUrl, ids: px = 
   const focoAuto = useRef(false);
   /** token do convite (caminho A): só em memória, usado uma vez no toque em “Ativar meu Clube” */
   const tokenConvite = useRef<string | null>(null);
+  /** há um convite ainda não usado, mas a página abriu numa sessão que já existia (talvez de outro número) */
+  const [convitePendente, setConvitePendente] = useState(false);
 
   // simulação local: carregada só no `astro dev` (o bloco some de qualquer build)
   useEffect(() => {
@@ -126,8 +128,13 @@ export default function ClubeCadastro({ modo, apiUrl, privacidadeUrl, ids: px = 
       setCfg(c);
       // sem as duas versões (regulamento e privacidade) não há como aceitar: a ficha continua fechada
       if (!(c.inscricoesAbertas && c.regulamento?.versao && c.privacidade?.versao)) { setEtapa('fechado'); return; }
-      // sessão que já vale neste navegador (completa ou a de ativação de um toque anterior) vem antes do convite
-      try { aplicar(await api.me(), false); return; }
+      // sessão que já vale neste navegador (completa ou a de ativação de um toque anterior) vem antes do convite — mas,
+      // com um convite em mãos, a opção de ativá-lo continua à vista (a sessão aberta pode ser de outro número)
+      try {
+        aplicar(await api.me(), false);
+        if (convite && tokenConvite.current) setConvitePendente(true);
+        return;
+      }
       // 401 = sem sessão (o normal, e sempre fora de ambarbrunch.com); outro erro também segue: dá para entrar pelo código
       catch { /* segue */ }
       if (convite && tokenConvite.current) { setEtapa('convite'); return; }
@@ -183,9 +190,13 @@ export default function ClubeCadastro({ modo, apiUrl, privacidadeUrl, ids: px = 
     setAnuncio(concluiuAgora ? 'Ainda falta um dado.' : s.situacao === 'ativacao' ? 'Convite confirmado.' : 'WhatsApp confirmado.');
   };
 
-  // A · convite do caixa: o token só é usado aqui, no toque (nunca ao abrir a página)
+  // A · convite do caixa: o token só é usado aqui, no toque (nunca ao abrir a página). Também a partir de uma sessão que
+  // já estava aberta neste navegador — num aparelho compartilhado ela pode ser de OUTRO número: “Ativar o convite
+  // recebido” troca a sessão pela de ativação (o backend revoga a anterior; se o convite é de quem já é membro, vem
+  // “entrar” e nada é revogado).
   const ativar = async () => {
-    if (!api || etapa !== 'convite') return;
+    const origem = etapa;
+    if (!api || !(origem === 'convite' || origem === 'membro' || origem === 'cadastro')) return;
     focoAuto.current = true;
     const token = tokenConvite.current;
     if (!token) { setAviso('Para ativar pelo convite, toque de novo no botão da mensagem do WhatsApp — ou entre com seu WhatsApp aqui.'); setEtapa('telefone'); return; }
@@ -193,19 +204,22 @@ export default function ClubeCadastro({ modo, apiUrl, privacidadeUrl, ids: px = 
     try {
       const s = await api.ativarConvite(token);
       tokenConvite.current = null;   // usado
+      setConvitePendente(false);
       aplicar(s, false);
     } catch (e) {
       const erro = comoErro(e);
       if (erro.tipo === 'codigo') {
-        // 410: vencido, já usado, substituído por um link mais novo ou inválido — a entrada pelo WhatsApp resolve
-        tokenConvite.current = null;
+        // 410: vencido, já usado, substituído por um link mais novo ou inválido
+        tokenConvite.current = null; setConvitePendente(false);
+        setAnuncio('Link de ativação vencido.');
+        // vindo de uma sessão já aberta, ela continua valendo: fica onde estava, com o aviso
+        if (origem !== 'convite') { setFalha('Este link de ativação venceu ou já foi usado.'); setEtapa(origem); return; }
         setFalha('Este link de ativação venceu ou já foi usado. Entre com seu WhatsApp aqui mesmo.');
-        setAnuncio('Link de ativação vencido. Entre com seu WhatsApp.');
         setEtapa('telefone');
         return;
       }
       // 403, 429, 503, rede: o convite continua valendo; dá para tentar de novo
-      setFalha(erro.message); setAnuncio(erro.message); setEtapa('convite');
+      setFalha(erro.message); setAnuncio(erro.message); setEtapa(origem);
     }
   };
 
@@ -318,8 +332,9 @@ export default function ClubeCadastro({ modo, apiUrl, privacidadeUrl, ids: px = 
     focoAuto.current = true;
     try { await api?.sair(); } catch { /* sem rede: a sessão vence sozinha; o importante é a tela voltar ao início */ }
     setMembro(null); setCadastro(null); setDesafio(null); setNovo(false); setAtivacao(false); setAviso(''); setErros({}); setFalha('');
-    setTelefone(''); setDados({ nome: '', aniversario: '', aceite: false, marketing: false });
-    setEtapa('telefone'); setAnuncio('Você saiu do Clube neste aparelho.');
+    setTelefone(''); setDados({ nome: '', aniversario: '', aceite: false, marketing: false }); setConvitePendente(false);
+    // com um convite ainda não usado (aparelho compartilhado), sair leva ao botão do convite
+    setEtapa(tokenConvite.current ? 'convite' : 'telefone'); setAnuncio('Você saiu do Clube neste aparelho.');
   };
 
   const carimbo = etapa === 'membro' || etapa === 'ativado' ? { estado: 'reservado', texto: 'membro' }
@@ -451,6 +466,7 @@ export default function ClubeCadastro({ modo, apiUrl, privacidadeUrl, ids: px = 
             )}
             <button class="btn btn--wine btn--block" type="submit" disabled={etapa === 'salvando'}>{etapa === 'salvando' ? 'Salvando…' : 'Concluir cadastro'}</button>
             <button class="ticket__link ficha__sair" type="button" disabled={etapa === 'salvando'} onClick={sair}>Não é você? Sair</button>
+            {convitePendente && <button class="ticket__link ficha__sair" type="button" disabled={etapa === 'salvando'} onClick={ativar}>Ativar o convite recebido</button>}
           </form>
         )}
 
@@ -462,8 +478,10 @@ export default function ClubeCadastro({ modo, apiUrl, privacidadeUrl, ids: px = 
               <span>{novo ? 'Agora você faz parte do Clube Âmbar.' : 'Você já faz parte do Clube Âmbar.'}</span>
             </p>
             <p class="ficha__breve">As vantagens do Clube começam em breve. Para entrar de novo, é só usar este mesmo WhatsApp.</p>
+            {falha && <p class="ticket__status" data-tone="error" role="alert">{falha}</p>}
             <a class="btn btn--wine btn--block" href="/">Voltar ao início</a>
             <button class="ticket__link ficha__sair" type="button" onClick={sair}>Não é você? Sair</button>
+            {convitePendente && <button class="ticket__link ficha__sair" type="button" onClick={ativar}>Ativar o convite recebido</button>}
           </>
         )}
 

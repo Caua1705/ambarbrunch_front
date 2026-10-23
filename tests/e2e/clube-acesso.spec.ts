@@ -441,6 +441,39 @@ test('sessão de ativação vence no meio (401): aviso do convite e entrada pelo
   await expect(ficha.getByLabel('WhatsApp')).toBeVisible();
 });
 
+test('aparelho compartilhado: com outra sessão aberta, o convite mostra a conta atual e oferece “Ativar o convite recebido”', async ({ page }) => {
+  const api = await apiFalsa(page);
+  let ficha = await entrar(page, '85988880001');
+  await confirmarCodigo(page);
+  await expect(ficha.locator('.ficha__boas-vindas')).toHaveText(/Olá, Maria!/);
+  // abre o convite de outra pessoa neste navegador: a sessão de Maria aparece, o convite não é usado sozinho
+  await page.goto(`${SITE}/clube/ativar?c=conv-novo`);
+  expect(page.url()).toBe(`${SITE}/clube/ativar`);
+  ficha = page.locator('#cadastro .ficha');
+  await expect(ficha.locator('.ficha__boas-vindas')).toHaveText(/Olá, Maria!/);
+  expect(api.chamadas.filter((c) => c.rota === '/clube/convites/ativar')).toHaveLength(0);
+  // o toque usa o convite (o backend troca a sessão deste navegador pela de ativação) → cadastro de quem foi convidado
+  await ficha.getByRole('button', { name: 'Ativar o convite recebido' }).click();
+  await expect(ficha.getByLabel('Nome')).toBeVisible();
+  await expect(ficha).not.toContainText('Maria');
+  expect(api.chamadas.filter((c) => c.rota === '/clube/convites/ativar')).toHaveLength(1);
+  await expect(ficha.getByRole('button', { name: 'Ativar o convite recebido' })).toHaveCount(0);
+  // convite já usado com a sessão de Maria aberta: ela continua na própria conta, com o aviso
+  await ficha.getByRole('button', { name: 'Não é você? Sair' }).click();
+  await expect(ficha.getByLabel('WhatsApp')).toBeVisible();
+  ficha = await entrar(page, '85988880001');
+  await confirmarCodigo(page);
+  await page.goto(`${SITE}/clube/ativar?c=conv-novo`);
+  await ficha.getByRole('button', { name: 'Ativar o convite recebido' }).click();
+  await expect(ficha.locator('.ticket__status[data-tone="error"]')).toHaveText(/venceu ou já foi usado/);
+  await expect(ficha.locator('.ficha__boas-vindas')).toHaveText(/Olá, Maria!/);
+  await expect(ficha.getByRole('button', { name: 'Ativar o convite recebido' })).toHaveCount(0);
+  // “Sair” com um convite ainda não usado leva ao botão do convite
+  await page.goto(`${SITE}/clube/ativar?c=conv-incompleto`);
+  await ficha.getByRole('button', { name: 'Não é você? Sair' }).click();
+  await expect(ficha.getByRole('button', { name: 'Ativar meu Clube' })).toBeVisible();
+});
+
 for (const largura of [360, 390]) {
   test(`convite em ${largura} px: botão, cadastro e conclusão cabem, e passam no axe`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 800 });
