@@ -1,17 +1,23 @@
 ---
 // 9b · CLUBE ÂMBAR — convite entre a reserva e o rodapé, sobre a foto do Clube (presente, roll e café). 2026-10-23
 // (refino): título em duas linhas alinhadas à esquerda (sem o vão do “ÂMBAR” jogado à direita), uma frase curta, dois
-// micro-benefícios em pílula (as .clube-marcas, que já existiam) e o botão cheio “Quero fazer parte” → /clube/.
+// micro-benefícios em pílula (as .clube-marcas, que já existiam) e o botão cheio.
 // Os benefícios são genéricos de propósito: nada de número, desconto ou recompensa que ainda não foi definida.
-// Foto e selo moram juntos num “palco”: no celular a foto sobe até encostar no botão e o selo girando (o mesmo da página
-// /clube, só com a marca e a cidade — sem promessa) costura o botão à foto; no desktop o selo fica na divisa entre texto e foto.
+// Foto e selo moram juntos num “palco”: no celular a foto sobe até encostar no botão e o selo girando (só com a marca e a
+// cidade — sem promessa) costura o botão à foto; no desktop o selo fica na divisa entre texto e foto.
+// O botão segue a disponibilidade do Clube (PUBLIC_CLUBE_MODO, lib/clube-modo.ts): aberto (API, ou a simulação do
+// `astro dev`), “Quero fazer parte” leva direto à entrada pelo WhatsApp (/clube/#cadastro); fechado (pré-lançamento),
+// “Conheça o Clube” leva à apresentação (/clube/).
 import MegaTitle from '../components/MegaTitle.astro';
 import Foto from '../components/Foto.astro';
 import SeloFornada from '../components/SeloFornada.astro';
 import { clube } from '../data/clube';
 import { secoes } from '../data/secoes';
+import { CLUBE_ABERTO } from '../lib/clube-modo';
+
 const s = secoes.clube;
 const c = clube.convite;
+const aberto = CLUBE_ABERTO;
 ---
 <section class="clube-convite" id={s.id} aria-labelledby="clube-titulo" tabindex="-1" data-vivo>
   <div class="clube-convite__texto">
@@ -20,10 +26,10 @@ const c = clube.convite;
     <ul class="clube-marcas" aria-label="No Clube" data-reveal>
       {c.marcas.map((m, i) => <li style={`--i:${i}`}>{m}</li>)}
     </ul>
-    <a class="btn btn--wine clube-convite__cta" href="/clube/" data-reveal>{c.botao} <span aria-hidden="true">→</span></a>
+    <a class="btn btn--wine clube-convite__cta" href={aberto ? '/clube/#cadastro' : '/clube/'} data-reveal>{aberto ? c.botao.aberto : c.botao.breve} <span aria-hidden="true">→</span></a>
   </div>
   <div class="clube-convite__palco">
     <Foto src="clube/convite.webp" alt="" class="clube-convite__foto" sizes="(min-width: 720px) 58vw, 100vw" widths={[480, 720, 1086]} qualidade={70} />
-    <SeloFornada class="clube-convite__selo" id="selo-convite" texto={'clube âmbar · café & brunch · fortaleza · '} />
+    <SeloFornada class="clube-convite__selo" id="selo-convite" texto="clube âmbar · café & brunch · fortaleza · " />
   </div>
 </section>

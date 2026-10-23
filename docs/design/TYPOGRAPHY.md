@@ -163,7 +163,6 @@ Tamanhos em px **calculados**. Onde a coluna é igual em todas as larguras, o ta
 | Novo token | Valor | Substitui |
 | --- | --- | --- |
 | `--t-menu-item` | `800 44px/.9 var(--display)` | `.sheet__nav a` |
-| `--t-address` | `800 26px/1.02 var(--display)` | `.placa__addr` |
 | `--t-input` | `700 16px/1.2 var(--display)` | `.field__input` |
 | `--t-status` | `700 14px/1.35 var(--display)` | `.ticket__status` |
 | `--t-error` | `700 13px/1.3 var(--display)` | `.field__error` |

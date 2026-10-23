@@ -41,7 +41,6 @@ export function criarClubeHttp(base: string): ClubeApi {
     pedir<T>(base, caminho, { method: 'POST', body: JSON.stringify(corpo), headers });
   return {
     config: () => pedir<ClubeConfig>(base, 'clube/config'),
-    aderir: (a, chave) => post<DesafioCodigo>('clube/adesoes', a, { 'Idempotency-Key': chave }),
     pedirCodigo: (telefone) => post<DesafioCodigo>('clube/acesso', { telefone }),
     verificar: (desafioId, codigo) => post<Membro>('clube/acesso/verificar', { desafioId, codigo }),
     membro: () => pedir<Membro>(base, 'clube/membro'),

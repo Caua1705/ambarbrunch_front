@@ -1,0 +1,75 @@
+---
+// Corpo da página do Clube Âmbar — o mesmo em /clube e em /clube/ativar (o link do convite do caixa). Só muda o que a
+// comanda faz (islands/ClubeCadastro, prop `convite`). Curta, numa seção só:
+//  · apresentação: título, a frase, uma linha sobre o conceito e dois destaques em polaroide (.cut--polaroid, a mesma
+//    peça das colagens do site) — fotos de casa e de preparo, nunca de brinde ou de item que pareça recompensa — e os
+//    três passos de “como vai funcionar” (sem aplicativo; sem nenhuma regra de pontos até a mecânica ser aprovada);
+//  · a comanda logo abaixo (id “cadastro”, destino de “Quero fazer parte” na home):
+//      - com a API (PUBLIC_CLUBE_MODO=api) — ou a simulação local do `astro dev` (PUBLIC_CLUBE_MODO=simulado): a ENTRADA
+//        ÚNICA pelo WhatsApp (sessão existente → situação direto; senão telefone → código → o backend diz a situação);
+//        em /clube/ativar, primeiro o botão “Ativar meu Clube” (o convite só é usado no toque);
+//      - pré-lançamento (sem a API): o bilhete “em breve”, SEM campos — nada é pedido nem enviado. A ilha é renderizada
+//        só no servidor (sem JavaScript na página).
+//  · fechamento mínimo (Footer `minimo`): “Âmbar Café · Política de Privacidade · © ano”.
+// Entradas pelas mesas continuam: /clube/?canal=nfc&mesa=12 e /clube/?canal=qr&mesa=12 (lib/clube-origem.ts) — só o
+// cumprimento. Sem pontuação, desconto, brinde ou nível (data/clube.ts).
+import Foto from '../components/Foto.astro';
+import Footer from './Footer.astro';
+import ClubeCadastro from '../islands/ClubeCadastro';
+import { CLUBE_MODO, CLUBE_API_URL, CLUBE_ABERTO } from '../lib/clube-modo';
+import { clube } from '../data/clube';
+
+interface Props {
+  /** /clube/ativar: a comanda começa pelo convite do caixa */
+  convite?: boolean;
+}
+const { convite = false } = Astro.props;
+const aberto = CLUBE_ABERTO;
+const p = clube.pagina;
+---
+<header class="page-bar">
+  <a href="/" aria-label="Âmbar Café — voltar ao início"><span class="label"><Foto src="brand/logo-ambar.png" alt="Âmbar Café" sizes="122px" widths={[122, 244, 366]} prioridade qualidade={80} /></span></a>
+  <a class="page-back" href="/">← início</a>
+</header>
+<main class="clube">
+  <section class="clube-pag" aria-labelledby="clube-h1">
+    <p class="clube-chegada" data-chegada hidden></p>
+
+    <div class="clube-pag__convite">
+      <h1 class="mega clube-pag__titulo" id="clube-h1">Clube Âmbar</h1>
+      <p class="clube-pag__frase">{p.frase}</p>
+      <p class="clube-pag__texto">{p.texto}</p>
+      <ul class="clube-pag__destaques" aria-label="No Clube">
+        {p.destaques.map((d, i) => (
+          <li>
+            <figure class="cut cut--polaroid clube-pag__foto" style={`--i:${i}`}>
+              <Foto src={d.foto} alt={d.alt} sizes="(min-width: 960px) 200px, 44vw" widths={[180, 270, 360, 420]} eager />
+              <figcaption>{d.titulo}</figcaption>
+            </figure>
+          </li>
+        ))}
+      </ul>
+      <ol class="clube-pag__passos" aria-label="Como vai funcionar, sem aplicativo">
+        {p.passos.map((t, i) => <li><span class="clube-pag__n" aria-hidden="true">{String(i + 1).padStart(2, '0')}</span>{t}</li>)}
+      </ol>
+    </div>
+
+    <div class="clube-pag__ficha" id="cadastro" tabindex="-1">
+      {aberto
+        ? <ClubeCadastro client:idle modo={CLUBE_MODO} apiUrl={CLUBE_API_URL} privacidadeUrl="/privacidade/" convite={convite} />
+        : <ClubeCadastro modo={CLUBE_MODO} privacidadeUrl="/privacidade/" />}
+    </div>
+  </section>
+</main>
+<Footer minimo />
+
+<script>
+  import { origemDaVisita } from '../lib/clube-origem';
+  // Chegada pela plaquinha da mesa: só um cumprimento. Não registra presença nem soma pontos.
+  const chegada = document.querySelector<HTMLElement>('[data-chegada]');
+  const o = origemDaVisita();
+  if (chegada && (o.canal === 'nfc' || o.canal === 'qr')) {
+    chegada.textContent = o.mesa ? `bem-vindo à mesa ${o.mesa}` : 'bem-vindo à sua mesa';
+    chegada.hidden = false;
+  }
+</script>

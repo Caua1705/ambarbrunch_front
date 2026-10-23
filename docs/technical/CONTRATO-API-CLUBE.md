@@ -22,14 +22,18 @@
 ## 1. Telas e fluxos
 
 ```text
-Home → convite curto (#clube) → /clube/  (conceito · como funciona · direto da mesa · regras · ficha)
-Ficha:    dados (nome, celular, aceite do regulamento, novidades opcional) → código no telefone → bem-vindo → carteira
+Home → convite curto (#clube) → sem API: “Conheça o Clube” → /clube/ · com API: “Quero fazer parte” → /clube/#cadastro
+/clube/:  página curta — apresentação (título, frase, duas polaroides) e a comanda logo abaixo:
+          sem API (pré-lançamento) ou com inscrições fechadas na API: bilhete “em breve”, SEM campos (nada é pedido);
+          com API e inscrições abertas: a ficha. Fecha com o rodapé mínimo (Âmbar Café · Política de Privacidade · ©)
+Ficha:    dados (nome, WhatsApp, aniversário opcional; aceite da privacidade + regulamento; novidades pelo WhatsApp
+          opcional e separado) → código no WhatsApp → bem-vindo → carteira
 Carteira: /clube/membro/ → [sessão?] carteira : celular → código → carteira (saldo · histórico · recompensas · novidades · sair)
 Mesa:     plaquinha NFC/QR → /clube/?canal=nfc|qr&mesa=ID  (só abre a página e marca a origem do cadastro)
 Reserva:  confirmação → convite OPCIONAL (já existente) → url devolvida pela API de reservas, ex.: /clube/?canal=reserva
 ```
 
-Estados tratados — ficha: fechada (sem API ou sem regulamento) · carregando regras · aberta · erro de campo ·
+Estados tratados — ficha: fechada = bilhete “em breve” sem campos (sem API, inscrições fechadas ou sem regulamento) · carregando regras · aberta · erro de campo ·
 telefone já no Clube (link para a carteira) · enviando · código · código incorreto/vencido · reenvio com contagem ·
 trocar número · bem-vindo (só com resposta da API) · falha com nova tentativa.
 Carteira: acesso desligado + prévia sem dados · conferindo sessão · entrar · enviando · código · falha ao abrir ·
@@ -59,7 +63,8 @@ do site). Erros no mesmo formato da API de reservas (`detail` do FastAPI ou `{ m
 Corpo de `POST /clube/adesoes`:
 
 ```json
-{ "nome": "…", "telefone": "85999990000", "aceiteRegulamento": true, "regulamentoVersao": "2026-11",
+{ "nome": "…", "telefone": "85999990000", "aniversario": "12-25 (opcional, MM-DD; só vai se preenchido)",
+  "aceiteRegulamento": true, "regulamentoVersao": "2026-11",
   "marketing": { "autorizado": false },
   "origem": { "canal": "nfc", "mesa": "12", "campanha": "…(opcional)", "utm": { "source": "…", "medium": "…", "campaign": "…" } } }
 ```
@@ -95,6 +100,14 @@ pela aproximação**; a origem só vai junto com o cadastro, se a pessoa se insc
 6. Mesas: lista de IDs, onde ficam as plaquinhas e se haverá campanha por mesa.
 7. Exclusão de conta e retirada de dados pelo próprio membro (LGPD) — rota e fluxo.
 8. Texto do aceite (regulamento + privacidade) e da autorização de novidades — validação jurídica.
+9. **(2026-10-23) Aniversário:** a ficha pede, opcionalmente, dia e mês e envia `aniversario: "MM-DD"` em
+   `POST /clube/adesoes` só quando preenchido. A API precisa aceitar (ou ignorar) esse campo; com `extra = "forbid"` no
+   modelo Pydantic, o cadastro com aniversário falharia em 422. Onde ele fica e se poderá ser alterado na carteira.
+10. **(2026-10-23) Novidades pelo WhatsApp:** a ficha agora diz “novidades e ofertas do Âmbar pelo WhatsApp” (pedido do
+    Âmbar), em vez de montar o texto com `config.marketing.canais`. Se a API passar a oferecer outro canal, o texto da
+    ficha precisa mudar junto.
+11. **(2026-10-23) WhatsApp do membro:** o campo `telefone` passou a ser rotulado “WhatsApp” e a ficha só aceita celular
+    (DDD + 9 + 8 dígitos). O código de confirmação deveria ir por WhatsApp (`canal: "whatsapp"`).
 
 ## 5. O que falta para o Clube real
 
@@ -106,3 +119,64 @@ pela aproximação**; a origem só vai junto com o cadastro, se a pessoa se insc
 | 4 | Preencher `data/clube.ts` (pontuação, recompensas, regulamento, `mesas.ativas`) e a política de privacidade | Âmbar + frontend |
 | 5 | Build com `PUBLIC_CLUBE_MODO=api` + `PUBLIC_CLUBE_API_URL` (staging) e testes e2e contra o staging | frontend |
 | 6 | Gravar as plaquinhas NFC e imprimir os QR Codes com as URLs da §3 | Âmbar |
+
+## 6. Acesso unificado (2026-10-23) — contrato FINAL do backend
+
+O cadastro e o acesso em `/clube` seguem o contrato final do backend: `giardini_back`,
+`docs/auditoria-ambar/arquitetura/CLUBE.md` §4 e §9 (commits `e410da2` — sessão em cookie — e `ebc8b5d` — convite do
+caixa, "porta A"; locais). Código:
+[`src/lib/api/clube-acesso.ts`](../../src/lib/api/clube-acesso.ts) (tipos e cliente) e
+[`src/islands/ClubeCadastro.tsx`](../../src/islands/ClubeCadastro.tsx) (interface). As seções 1–5 acima descrevem a
+carteira antiga (`/clube/membro`), que **não existe** neste backend: a carteira real é `GET /clube/me`.
+
+```text
+C · abrir    → GET /clube/me (cookie) → 200 {situacao, membro, cadastro} sem pedir código · 401 → formulário do WhatsApp
+B · WhatsApp → POST /clube/acesso {telefone} → 202 (sempre igual, com ou sem cadastro)
+    código   → POST /clube/acesso/verificar → 200 {situacao, membro|null, cadastro|null, sessao:{expiraEm}} + Set-Cookie
+    cadastro → POST /clube/adesoes (cookie; telefone vem da sessão; envio parcial) → {situacao, membro, cadastro}
+    sair     → POST /clube/sair → 204 (o backend apaga o cookie)
+A · /clube/ativar?c=<token> → (nada ao abrir) → toque “Ativar meu Clube” → POST /clube/convites/ativar {convite}
+      → 200 ativacao (+ cookie de ativação, 30 min) · 200 entrar (já é membro, sem cookie) · 410 link_expirado
+    cadastro → POST /clube/adesoes → ativacao (falta algo) · ativado (concluído; cookie de ativação apagado)
+```
+
+- **Sessão:** cookie HttpOnly `__Secure-ambar_clube` (SameSite=Strict, 30 dias, cai após 7 sem uso). O site não vê nem
+  guarda token: todo `fetch` ao Clube vai com `credentials: "include"`, e toda chamada que muda algo leva
+  `X-Ambar-Csrf: 1` (sem ele, 403 `origem_invalida`). Ao abrir a página, `GET /clube/me` restaura a situação; 401 em
+  qualquer ponto volta ao formulário do WhatsApp. “Não é você? Sair” (cadastro e membro) chama `POST /clube/sair`.
+- **Domínio:** o cookie só funciona com site e API no mesmo site — `https://ambarbrunch.com` → `https://api.ambarbrunch.com`
+  (ou `localhost` → `localhost:8000` em desenvolvimento, com a origem em `AMBAR_CLUBE_ORIGENS` do backend). Em
+  `ambarbrunch-front.vercel.app` o Clube **não** funciona: o `GET /clube/me` dá 401 e o código não abre sessão.
+- **Corpo do cadastro:** só `nome`, `aniversario` ("MM-DD"), `aceiteRegulamento` + `regulamentoVersao` +
+  `privacidadeVersao`, `marketing {autorizado, textoVersao}` — campo desconhecido é 422 (`extra=forbid`). **Sem
+  `origem`**: o backend a ignora (sabe pelo desafio se veio do link) e só aceitaria texto. Nome é obrigatório no 1º envio.
+- **Abertura:** `inscricoesAbertas` e as duas versões (regulamento e privacidade) presentes; senão, bilhete "em breve".
+  Links do aceite: `privacidade.url` e `regulamento.url` do `config` quando vierem (sem URL, o regulamento fica em texto).
+- **Erros:** campo (422) no formato do FastAPI — `detail: [{loc:["body","<campo>"], msg}]`, sem `campos`; regra ou
+  estado — `detail` em português, mostrado ao cliente. 409 `versao_desatualizada` → pede o aceite de novo; 410 código
+  vencido/usado; 429 (`reenvio_cedo`, `limite_excedido`, 5ª tentativa); 401 → volta ao WhatsApp; 503 Clube fechado. A
+  API não diferencia "número sem WhatsApp" (envio em fila): a tela do código traz a dica de conferir ou trocar o número.
+- **Convite do caixa (A):** a página `/clube/ativar` (mesmo visual do `/clube`, `sections/ClubePagina.astro`) lê o `c`
+  no `<head>`, guarda-o só em memória e o tira da URL na hora (`history.replaceState`); `referrer: no-referrer`; `noindex`.
+  Nada é chamado com o token ao abrir (GET em `/clube/convites/ativar` é 405): só o toque em "Ativar meu Clube". Na
+  sessão de ativação o backend nunca mostra dados já gravados (nome e aniversário vêm null): o formulário pede só o que
+  falta; aniversário e novidades só para quem ainda não tem cadastro. Já membro (`entrar`) → login por código, sem acesso
+  pelo link. Concluído (`ativado`) → "Cadastro concluído! Você vai receber a confirmação no WhatsApp." e "Entrar no
+  Clube" ("Ver meus pontos" quando `programaAtivo`). Link vencido, usado, substituído ou recarregado sem o token →
+  entrada pelo WhatsApp na mesma comanda.
+- **Membro ativo:** só a confirmação; sem pontos (`programa.saldo` é null com o programa desligado) e sem link de carteira.
+- **Modos:** `indisponivel` (bilhete "em breve", sem campos) · `api` · `simulado` — só no `astro dev`
+  (`.env.development`, ligado no `npm run dev`/`dev:clube`; `src/lib/api/clube-simulado.ts`: finais 0001 = membro,
+  0002 = incompleto, código 123456; convites `/clube/ativar?c=demo-novo` · `demo-incompleto` · `demo-ativo` ·
+  `demo-vencido`). Nenhum build carrega a simulação.
+- **Testes:** `tests/e2e/clube-acesso.spec.ts`, no build só de testes (`dist-sim`), com a API interceptada imitando o
+  contrato final (cookie e anti-CSRF, 401 com `Authorization`, 422 de campo desconhecido, restauração ao recarregar, sair,
+  sessão vencida no meio do cadastro; convite novo, incompleto, de membro, vencido, usado, recarregado, sessão de
+  ativação vencida, e o token fora da URL e de qualquer requisição antes do toque).
+
+Pendências: (1) carteira — trocar `/clube/membro` (contrato antigo, cookie) por `GET /clube/me`, `PUT /clube/me/marketing`,
+`DELETE /clube/me/mensagens` e `POST /clube/sair`, quando o programa existir (`membro.programa` e `saldo` já chegam
+pelo `GET /clube/me`); (2) templates na Meta (`ambar_clube_codigo_acesso`, `ambar_clube_ativar_cadastro` com a URL
+`https://ambarbrunch.com/clube/ativar?c={{1}}`, `ambar_clube_cadastro_concluido`) — com o dono; (3) atribuição por mesa (NFC/QR) e UTM não chega mais ao backend — se
+for preciso medir isso, combinar um campo com o backend; (4) configurar `AMBAR_CLUBE_REGULAMENTO_URL` e
+`_PRIVACIDADE_URL` (https) no backend.

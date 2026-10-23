@@ -16,7 +16,23 @@ export const clube = {
   convite: {
     frase: 'Feito para quem volta sempre.',
     marcas: ['vantagens especiais', 'mimos da casa'],
-    botao: 'Quero fazer parte',
+    /** botão da home conforme a disponibilidade (PUBLIC_CLUBE_MODO): com a API, leva direto à ficha; sem ela, à página */
+    botao: { aberto: 'Quero fazer parte', breve: 'Conheça o Clube' },
+  },
+  /** página /clube (2026-10-23, versão final): a apresentação curta antes da ficha. Sem prometer nada que não foi
+   *  definido — nada de “cada visita conta” (pontos só vêm de compras identificadas, nunca de presença), desconto,
+   *  brinde ou nível. Os dois destaques são os mesmos conceitos aprovados do convite, cada um com uma foto de casa e de
+   *  preparo (nenhuma foto de brinde ou de item que pareça recompensa); trocar pelas vantagens reais quando existirem. */
+  pagina: {
+    frase: 'Quem volta sempre merece ser reconhecido.',
+    texto: 'Um clube pensado para quem faz parte da história do Âmbar: quem volta pelo café, pelo roll e pela conversa.',
+    /** como vai funcionar, em três passos (2026-10-23): só o caminho — sem aplicativo nem senha. NADA de regra de
+     *  pontos, recompensa, saldo ou nível aqui enquanto a mecânica não for aprovada (depende da validação da Eyemobile). */
+    passos: ['Faça parte pelo WhatsApp', 'Identifique-se nas compras', 'Acompanhe suas vantagens pelo site'],
+    destaques: [
+      { titulo: 'Vantagens especiais', foto: 'ambientes/sala-04-jardim.webp', alt: 'O jardim do Âmbar, com mesas de madeira entre as plantas' },
+      { titulo: 'Mimos da casa', foto: 'cardapio/cappuccino.webp', alt: 'Cappuccino com desenho de folha na espuma' },
+    ],
   },
   /** frase curta do topo da página /clube */
   lead:'O clube de pontos do Âmbar, direto no navegador: sem aplicativo, só com o seu telefone.',

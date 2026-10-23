@@ -1,5 +1,10 @@
-// Clube Âmbar (2026-10-20) no build de revisão (:4321), modo padrão “indisponível” — sem a API do Clube:
-// convite na home → /clube/ → ficha fechada; carteira sem dados. Nada pode parecer cadastro feito, saldo real ou envio.
+// Clube Âmbar no build de revisão (:4321), modo padrão “indisponível” (pré-lançamento) — sem a API do Clube:
+// convite na home (“Conheça o Clube”) → /clube/ → apresentação + bilhete “em breve”, sem campos; carteira sem dados.
+// Nada pode parecer cadastro feito, saldo real ou envio.
+// 2026-10-23 (versão final): /clube é uma página curta — apresentação (título, frase, duas polaroides) e a comanda logo
+// abaixo; fecha com o rodapé mínimo. O fluxo com a API (botão “Quero fazer parte”, ficha → código → bem-vindo,
+// duplicado, erros, inscrições fechadas na API) depende da API real: foi conferido contra respostas interceptadas num
+// build em modo api, fora desta suíte.
 import { test, expect, type Page } from '@playwright/test';
 
 const externos = (page: Page) => {
@@ -8,7 +13,7 @@ const externos = (page: Page) => {
   return lista;
 };
 
-test('home: convite curto ao Clube logo depois da reserva, com “Quero fazer parte” → /clube/', async ({ page }) => {
+test('home: convite curto ao Clube logo depois da reserva; em pré-lançamento, “Conheça o Clube” → /clube/', async ({ page }) => {
   await page.goto('/');
   const ordem = await page.locator('main > section').evaluateAll((s) => s.map((e) => e.id));
   expect(ordem.indexOf('clube')).toBe(ordem.indexOf('reservar') + 1);
@@ -26,7 +31,7 @@ test('home: convite curto ao Clube logo depois da reserva, com “Quero fazer pa
   const pilulas = await secao.locator('.clube-marcas li').evaluateAll((ls) => ls.map((l) => Math.round(l.getBoundingClientRect().top / 10)));
   expect(new Set(pilulas).size, 'as duas pílulas na mesma linha').toBe(1);
   await expect(secao.locator('.jornada, .carteira')).toHaveCount(0);
-  // selo girando sobre a foto: decorativo, só com a marca (lido por leitor de tela? não)
+  // selo girando sobre a foto: decorativo, só com a marca
   const selo = secao.locator('.clube-convite__selo');
   await expect(selo).toHaveAttribute('aria-hidden', 'true');
   await expect(selo).toContainText('clube âmbar');
@@ -34,54 +39,76 @@ test('home: convite curto ao Clube logo depois da reserva, com “Quero fazer pa
   const vao = await secao.evaluate((s) => s.querySelector('.clube-convite__palco')!.getBoundingClientRect().top - s.querySelector('.clube-convite__cta')!.getBoundingClientRect().bottom);
   expect(vao, 'foto encostada no botão').toBeLessThan(0);
   await expect(secao).not.toContainText(/prévia|passaporte|navegador|aplicativo|cadastro|telefone/i);
-  const cta = secao.getByRole('link', { name: /Quero fazer parte/ });
+  // pré-lançamento: o botão convida a conhecer (não a “fazer parte” de algo que ainda não abre)
+  await expect(secao.getByRole('link', { name: /Quero fazer parte/ })).toHaveCount(0);
+  const cta = secao.getByRole('link', { name: /Conheça o Clube/ });
   await expect(cta).toHaveClass(/btn--wine/);
+  await expect(cta).toHaveAttribute('href', '/clube/');
   await cta.click();
   await expect(page).toHaveURL(/\/clube\/$/);
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('Clube');
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Clube Âmbar');
 });
 
-test('/clube: ficha fechada sem a API — campos desligados, nada enviado nem guardado', async ({ page }) => {
+test('/clube (pré-lançamento): apresentação curta e o bilhete “em breve” — nenhum campo, nada pedido nem enviado', async ({ page }) => {
   const fora = externos(page);
   await page.goto('/clube/');
-  await page.locator('#cadastro').scrollIntoViewIfNeeded();
+  await expect(page.locator('main > section')).toHaveCount(1);
+  // apresentação: título, frase, uma linha e duas polaroides com foto de verdade e título discreto
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/Clube Âmbar/i);
+  await expect(page.locator('.clube-pag__frase')).toHaveText('Quem volta sempre merece ser reconhecido.');
+  const fotos = page.locator('.clube-pag__destaques figure.cut--polaroid');
+  await expect(fotos).toHaveCount(2);
+  await expect(fotos.locator('figcaption')).toHaveText(['Vantagens especiais', 'Mimos da casa']);
+  for (const img of await fotos.locator('img').all()) {
+    await expect(img).toBeVisible();
+    expect(await img.getAttribute('alt'), 'foto com texto alternativo').toBeTruthy();
+  }
+  // como vai funcionar: três passos curtos, só o caminho — nenhum número de pontos, recompensa ou nível
+  const passos = page.locator('ol.clube-pag__passos > li');
+  await expect(passos).toHaveText([/Faça parte pelo WhatsApp/, /Identifique-se nas compras/, /Acompanhe suas vantagens pelo site/]);
+  await expect(page.locator('ol.clube-pag__passos')).not.toContainText(/ponto|R\$|recompensa|saldo|nível/i);
+  // a foto do convite da home não se repete aqui
+  await expect(page.locator('img.clube-convite__foto')).toHaveCount(0);
+  // bilhete “em breve”: sem nenhum campo nem botão de envio; volta ao início
   const ficha = page.locator('#cadastro .ficha');
+  await expect(ficha).toHaveAttribute('data-etapa', 'fechado');
+  await expect(ficha.locator('.ticket__title')).toHaveText(/Inscrições em breve/i);
   await expect(ficha.locator('.ticket__stamp')).toHaveText('em breve');
-  await expect(ficha.getByRole('button', { name: 'Inscrições em breve' })).toBeDisabled();
-  await expect(ficha.locator('#cf-nome')).toBeDisabled();
-  await expect(ficha.locator('#cf-telefone')).toBeDisabled();
-  await expect(ficha).toContainText('ainda não estão abertas. Nada é enviado.');
-  // só nome e telefone; aceite do regulamento e novidades em caixas separadas, novidades desmarcada e opcional
-  await expect(ficha.locator('input:not([type="checkbox"])')).toHaveCount(2);
-  await expect(ficha.locator('#cf-aceite')).not.toBeChecked();
-  await expect(ficha.locator('#cf-marketing')).not.toBeChecked();
-  await expect(ficha.locator('legend', { hasText: 'novidades' })).toContainText('opcional');
-  await expect(ficha).toContainText('Separado do Clube');
+  await expect(ficha.locator('input, select, textarea, button[type="submit"]')).toHaveCount(0);
+  await expect(ficha.getByRole('link', { name: 'Voltar ao início' })).toHaveAttribute('href', '/');
+  await expect(ficha).toContainText('Nenhum dado é pedido antes da abertura.');
+  // sem a API, a carteira não funciona: nenhum atalho para ela
+  await expect(page.locator('a[href="/clube/membro/"]')).toHaveCount(0);
+  // nada de passaporte, cartão físico, NFC, plaquinha, aplicativo, pontos, desconto, brinde ou nível
+  await expect(page.locator('.jornada, .passos, .plaquinha, .carteira, .clube-regras')).toHaveCount(0);
+  await expect(page.locator('main')).not.toContainText(/passaporte|nfc|plaquinha|aplicativo|navegador|pontos|R\$|desconto|ganhe|brinde|grátis|nível|ranking/i);
   expect(await page.evaluate(() => Object.keys(localStorage))).toEqual([]);
   expect(fora, 'requisições para fora do site').toEqual([]);
 });
 
-test('/clube: regras decididas à vista e nada de pontuação ou recompensa inventada', async ({ page }) => {
-  await page.goto('/clube/');
-  const corpo = page.locator('main');
-  await expect(corpo).toContainText('não precisa baixar aplicativo');
-  await expect(corpo).toContainText('não soma pontos');
-  await expect(page.locator('.clube-definicao')).toContainText('Em definição');
-  await expect(corpo).not.toContainText(/\d+\s*pontos|R\$|% de desconto|ganhe/i);
-  // 2026-10-22: o topo mostra o Passaporte Âmbar — prévia conceitual, sem cartão, sem cliente simulado e sem número
-  const passaporte = page.locator('.clube-topo .jornada');
-  await expect(passaporte).toContainText('prévia');
-  await expect(passaporte.locator('.marco')).toHaveCount(5);
-  await expect(passaporte.locator('.marco--definicao')).toHaveCount(2);
-  await expect(passaporte).not.toContainText(/\d/);
-  await expect(page.locator('.clube-topo .carteira')).toHaveCount(0);
-});
+for (const largura of [360, 390, 1280]) {
+  test(`/clube em ${largura} px: página curta, sem rolagem horizontal, e o rodapé mínimo fechando na base`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: largura < 600 ? 740 : 800 });
+    await page.goto('/clube/');
+    const total = await page.evaluate(() => document.documentElement.scrollHeight);
+    expect(total, 'cerca de uma tela e meia, no máximo').toBeLessThan(largura < 600 ? 1150 : 1000);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth), 'sem rolagem horizontal').toBeLessThanOrEqual(largura);
+    // sem o rodapé completo (marca, endereço, mapa, contatos): só a linha mínima, com o link da privacidade
+    await expect(page.locator('footer.footer, .footer__mapa, .footer__contatos')).toHaveCount(0);
+    const rodape = page.locator('footer.rodape-min');
+    await expect(rodape).toHaveText(/Âmbar Café\s*·\s*Política de Privacidade\s*·\s*©\s*\d{4}/);
+    await expect(rodape.getByRole('link', { name: 'Política de Privacidade' })).toHaveAttribute('href', '/privacidade/');
+    // termina na base: nada depois do rodapé, sem vão artificial
+    const base = await rodape.evaluate((f) => Math.round(f.getBoundingClientRect().bottom + scrollY));
+    expect(Math.abs(base - total)).toBeLessThanOrEqual(1);
+    // retorno ao início no topo
+    await expect(page.locator('.page-bar a.page-back')).toHaveAttribute('href', '/');
+  });
+}
 
 test('/clube: NFC e QR da mesa — atribuição validada na URL, cumprimento, e só a origem (nada pessoal) na sessão', async ({ page }) => {
   await page.goto('/clube/?canal=nfc&mesa=12&utm_source=mesa');
   await expect(page.locator('[data-chegada]')).toHaveText('bem-vindo à mesa 12');
-  await page.locator('#cadastro').scrollIntoViewIfNeeded();
-  await expect(page.locator('.ficha__origem')).toHaveText('inscrição pela mesa 12');
   const origem = await page.evaluate(() => sessionStorage.getItem('ambar:clube:origem'));
   expect(JSON.parse(origem ?? '{}')).toEqual({ canal: 'nfc', mesa: '12', utm: { source: 'mesa' } });
   // lixo na URL não passa pela lista fechada
@@ -89,6 +116,15 @@ test('/clube: NFC e QR da mesa — atribuição validada na URL, cumprimento, e 
   await page.goto('/clube/?canal=<script>&mesa=../../x');
   await expect(page.locator('[data-chegada]')).toBeHidden();
   expect(await page.evaluate(() => sessionStorage.getItem('ambar:clube:origem'))).toBeNull();
+});
+
+test('/clube/ativar (pré-lançamento): o link do convite também só mostra “em breve” — e tira o token da URL', async ({ page }) => {
+  await page.goto('/clube/ativar?c=token-de-teste');
+  expect(page.url()).not.toContain('token-de-teste');
+  await expect(page.locator('meta[name="referrer"]')).toHaveAttribute('content', 'no-referrer');
+  const ficha = page.locator('#cadastro .ficha');
+  await expect(ficha.locator('.ticket__title')).toHaveText(/Inscrições em breve/i);
+  await expect(ficha.locator('input, button')).toHaveCount(0);
 });
 
 test('/clube/membro: acesso desligado e prévia da carteira sem nenhum número', async ({ page }) => {

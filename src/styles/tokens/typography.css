@@ -23,7 +23,6 @@
   --t-numeral: 800 32px/1 var(--display);
   --t-tagline: 800 30px/1 var(--display);
   --t-ticket-title: 800 30px/.9 var(--display);
-  --t-address: 800 26px/1.02 var(--display);         /* placa de endereço */
   --t-ticker: 800 25px/1 var(--display);
   --t-step-key: 700 22px/1 var(--display);           /* − e + do stepper */
   --t-band: 800 17px/1 var(--display);
@@ -58,10 +57,17 @@
   --fs-menu-fluid: clamp(32px, 10.5vw, 44px);   /* itens da folha do menu: “Saladas & bowls” cabe em 360 px */
   --fs-mega-split: clamp(90px, 10vw, 160px);    /* mega título em meia coluna no desktop (Café + Roll) */
   --fs-codigo: 28px;      /* código de confirmação do telefone (Clube): dígitos grandes e espaçados */
-  /* textos da plaquinha desenhada do Clube, em unidades do SVG (escalam com o desenho) */
-  --fs-plq-kicker: 10px;
-  --fs-plq-dica: 11px;
-  --fs-plq-marca: 22px;
+  /* Clube Âmbar (convite da home e etapa 1 da página /clube, 2026-10-23): mega um pouco menor — a foto é a protagonista */
+  --fs-mega-clube: clamp(60px, 18.5vw, 96px);         /* 66 px em 360, 72 em 390 */
+  --fs-mega-clube-split: clamp(72px, 7.6vw, 120px);   /* meia coluna, a partir de 720 px */
+  --fs-mega-clube-ficha: clamp(42px, 12.5vw, 64px);   /* “CLUBE ÂMBAR” numa linha, com a ficha aberta */
+  --fs-clube-frase: clamp(21px, 6vw, 24px);
+  --fs-clube-frase-split: clamp(21px, 2.3vw, 26px);
+  --fs-tag-s: 14px;       /* pílulas do Clube e “Como chegar” do minimapa (--t-tag menor) */
+  --fs-tag-split: clamp(14px, 1.1vw, 16px);           /* pílulas do Clube na meia coluna */
+  /* rodapé compacto (2026-10-23) */
+  --fs-rodape: 15px;      /* endereço e horários */
+  --fs-rodape-contato: clamp(13px, 3.6vw, 14px);      /* fileira de contatos: cabe em 360 px */
 
   /* Fraunces itálica (voz manuscrita) ------------------------------------------------------------ */
   --t-hero-amp: italic 500 .78em/1 var(--serif);     /* o “&” do hero, relativo ao título */

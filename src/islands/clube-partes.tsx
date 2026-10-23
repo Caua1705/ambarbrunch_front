@@ -13,14 +13,24 @@ interface CodigoProps {
   aoConfirmar: (codigo: string) => void;
   aoReenviar: () => void;
   aoTrocarNumero: () => void;
+  /** linha de ajuda abaixo do campo (ex.: “não recebeu?”) */
+  dica?: string;
+  /** limite de reenvios atingido: o botão de reenviar sai (a API também limita) */
+  semReenvio?: boolean;
 }
 
 /** Passo “confirme seu telefone”: um campo só (autocomplete one-time-code), contagem para reenviar e troca de número. */
-export function PassoCodigo({ px, desafio, digitos, ocupado, erro, aoConfirmar, aoReenviar, aoTrocarNumero }: CodigoProps) {
+export function PassoCodigo({ px, desafio, digitos, ocupado, erro, aoConfirmar, aoReenviar, aoTrocarNumero, dica, semReenvio = false }: CodigoProps) {
   const [codigo, setCodigo] = useState('');
   const [espera, setEspera] = useState(desafio.reenvioEm);
   const campo = useRef<HTMLInputElement>(null);
-  useEffect(() => { setEspera(desafio.reenvioEm); setCodigo(''); campo.current?.focus(); }, [desafio.desafioId]);
+  // código novo (reenvio): zera o campo e a contagem. Na montagem só foca — zerar ali apagava um código colado ou
+  // preenchido pelo celular antes do efeito rodar (o botão “Confirmar” ficava desligado).
+  const primeiro = useRef(desafio.desafioId);
+  useEffect(() => {
+    if (primeiro.current !== desafio.desafioId) { primeiro.current = desafio.desafioId; setEspera(desafio.reenvioEm); setCodigo(''); }
+    campo.current?.focus();
+  }, [desafio.desafioId]);
   useEffect(() => {
     if (espera <= 0) return;
     const t = setTimeout(() => setEspera((s) => s - 1), 1000);
@@ -39,14 +49,15 @@ export function PassoCodigo({ px, desafio, digitos, ocupado, erro, aoConfirmar, 
           onInput={(ev) => setCodigo((ev.currentTarget as HTMLInputElement).value.replace(/\D/g, '').slice(0, digitos))}
           aria-invalid={!!erro} aria-describedby={erro ? `${px}-codigo-erro` : undefined} />
         <span class="field__error" id={`${px}-codigo-erro`} role={erro ? 'alert' : undefined}>{erro}</span>
+        {dica && <span class="field__hint">{dica}</span>}
       </label>
       <button class="btn btn--wine btn--block" type="button" disabled={!completo || ocupado} onClick={() => aoConfirmar(codigo)}>
         {ocupado ? 'Confirmando…' : 'Confirmar'}
       </button>
       <div class="ficha__links">
-        <button class="ticket__link" type="button" disabled={espera > 0 || ocupado} onClick={aoReenviar}>
+        {!semReenvio && <button class="ticket__link" type="button" disabled={espera > 0 || ocupado} onClick={aoReenviar}>
           {espera > 0 ? `Reenviar em ${Math.floor(espera / 60)}:${String(espera % 60).padStart(2, '0')}` : 'Reenviar código'}
-        </button>
+        </button>}
         <button class="ticket__link" type="button" disabled={ocupado} onClick={aoTrocarNumero}>Trocar número</button>
       </div>
     </fieldset>

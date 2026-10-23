@@ -23,7 +23,8 @@ npm run preview            # http://localhost:4321
 
 | Comando | Para quê |
 | --- | --- |
-| `npm run dev` | desenvolvimento (modo revisão) |
+| `npm run dev` | desenvolvimento (modo revisão); o Clube abre na **prévia simulada** (ver abaixo) |
+| `npm run dev:clube` | o mesmo, já abrindo `http://localhost:4321/clube/` no navegador |
 | `npm run media:kit` | recortes do kit de fotos complementares v2 (extraído em `creative/inbox/kit-complementar-v2/`) para `src/assets/media` |
 | `npm run build` | build de **produção**: sem marcações de revisão, sem mídia não autorizada |
 | `npm run build:simulado` | build só de testes, com a reserva simulada (sempre com aviso) em `dist-sim/` |
@@ -35,7 +36,32 @@ npm run preview            # http://localhost:4321
 
 Produção (Vercel): `PUBLIC_REVISAO=0` e `PUBLIC_RESERVAS_MODO=indisponivel`. Imagens ilustrativas (IA ou arte da proposta) saem sempre com o selo “imagem ilustrativa” (`src/lib/conteudo.ts` → `Origem`); ficha nutricional só com dados validados.
 
-Variáveis (`.env.example`): `PUBLIC_REVISAO`, `PUBLIC_RESERVAS_MODO` (`indisponivel` · `simulado` · `api`), `PUBLIC_RESERVAS_API_URL` (staging).
+Variáveis (`.env.example`): `PUBLIC_REVISAO`, `PUBLIC_RESERVAS_MODO` (`indisponivel` · `simulado` · `api`), `PUBLIC_RESERVAS_API_URL` (staging),
+`PUBLIC_CLUBE_MODO` (`indisponivel` · `api` · `simulado`, este só no `astro dev`), `PUBLIC_CLUBE_API_URL`.
+
+### Prévia do Clube Âmbar (entrada pelo WhatsApp)
+
+`npm run dev:clube` abre `/clube/` com o formulário funcionando contra uma **API de mentira** (`src/lib/api/clube-simulado.ts`),
+com o aviso “Simulação local” no cartão. Nada sai do computador. Roteiro:
+
+| Número (qualquer DDD, celular) | O que acontece depois do código |
+| --- | --- |
+| termina em `0001` | **membro ativo** — “Olá, Maria!”, sem cadastro de novo |
+| termina em `0002` | **cadastro incompleto** — já tem nome; pede só o aceite dos termos |
+| qualquer outro, ex. `(85) 97777-1234` | **cliente novo** — nome, aniversário (opcional), aceite e novidades → confirmação |
+
+Código: `123456` confere · `000000` = vencido · outro = incorreto (o 5º erro trava). Recarregar a página mantém a sessão
+de mentira (imita o cookie real); **“Não é você? Sair”** encerra. Tudo fica só na aba (some ao fechá-la).
+
+Convite do caixa (o link do WhatsApp “Ativar meu Clube”), na mesma prévia:
+`/clube/ativar?c=demo-novo` (cliente novo) · `demo-incompleto` (só o aceite) · `demo-ativo` (já é membro → login por
+código) · `demo-vencido` (link vencido → entrada pelo WhatsApp). Cada convite de demonstração vale uma vez por aba.
+
+Como funciona: o arquivo `.env.development` (só lido pelo `astro dev`) liga `PUBLIC_CLUBE_MODO=simulado`. **Nenhum build
+usa a simulação** — `npm run build`, `build:revisao` e `build:simulado` mostram “Inscrições em breve” (em
+`src/lib/clube-modo.ts`, “simulado” só vale com `import.meta.env.DEV`). Para ver o pré-lançamento no `astro dev`, crie
+`.env.development.local` com `PUBLIC_CLUBE_MODO=indisponivel`; para a API real local, `PUBLIC_CLUBE_MODO=api` e
+`PUBLIC_CLUBE_API_URL=http://localhost:8000/` (a origem do site precisa estar em `AMBAR_CLUBE_ORIGENS` do backend).
 
 ## Como trabalhamos
 

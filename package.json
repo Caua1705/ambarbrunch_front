@@ -9,6 +9,7 @@
   },
   "scripts": {
     "dev": "astro dev",
+    "dev:clube": "astro dev --open /clube/",
     "build": "astro build",
     "build:revisao": "astro build --mode revisao",
     "build:simulado": "astro build --mode simulado --outDir dist-sim",

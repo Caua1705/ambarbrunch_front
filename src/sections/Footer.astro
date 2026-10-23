@@ -4,9 +4,14 @@
 // minimapa desenhado da antiga Visite à direita (o mapa inteiro abre o endereço no Google Maps), e os três contatos numa
 // fileira, com ícone. Sem botão de reserva aqui: o botão fixo “Reservar mesa” fica na tela até o fim da página, e a base
 // do rodapé guarda o espaço dele (footer.css). Sem política de privacidade linkada por enquanto (decisão de 2026-10-17).
+// `minimo` (página /clube, 2026-10-23): só uma linha — “Âmbar Café · Política de Privacidade · © ano”, sem marca,
+// endereço, mapa nem contatos, e sem o id “visite” (o item “Visite” do menu continua indo para o rodapé completo da home).
 import Foto from '../components/Foto.astro';
 import { visita as v } from '../data/visita';
 import { roll } from '../data/roll';
+
+interface Props { minimo?: boolean }
+const { minimo = false } = Astro.props;
 const ano = new Date().getFullYear();
 // “Coutinho, 1580” nunca se separa: em coluna estreita a quebra cai antes, e o número não fica sozinho na linha
 const endereco = v.endereco.replace(', ', ', ');
@@ -16,6 +21,11 @@ const ICONES = {
   instagram: 'M7.5 3.5h9a4 4 0 0 1 4 4v9a4 4 0 0 1-4 4h-9a4 4 0 0 1-4-4v-9a4 4 0 0 1 4-4zM12 8.3a3.7 3.7 0 1 0 0 7.4 3.7 3.7 0 0 0 0-7.4zM17.2 6.9v.01',
 };
 ---
+{minimo ? (
+<footer class="rodape-min">
+  <p>Âmbar Café <span aria-hidden="true">·</span> <a href="/privacidade/">Política de Privacidade</a> <span aria-hidden="true">·</span> © {ano}</p>
+</footer>
+) : (
 <footer class="footer" id="visite" tabindex="-1">
   <div class="footer__marca">
     <Foto src="brand/logo-ambar.png" alt="Âmbar Café" class="footer__logo" sizes="124px" widths={[124, 248, 372]} qualidade={80} />
@@ -62,3 +72,4 @@ const ICONES = {
 
   <p class="footer__fine">Âmbar Café · {v.dominio} · {ano}</p>
 </footer>
+)}

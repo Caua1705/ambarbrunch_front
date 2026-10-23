@@ -3,7 +3,10 @@
    ícone. Celular: marca centralizada, duas colunas proporcionais (texto | mapa); 600 px: endereço e horários lado a lado;
    960 px: a marca vira a 1ª coluna.
    O botão fixo “Reservar mesa” fica na tela até o fim: a base do rodapé guarda o espaço dele, então no fim da rolagem
-   nada fica embaixo do botão (62 px de altura, a 12 px da base no celular/tablet e a 28 px à direita no desktop). */
+   nada fica embaixo do botão (62 px de altura, a 12 px da base no celular/tablet e a 28 px à direita no desktop).
+   2026-10-23: esse espaço só onde o botão existe — a home (o hero com [data-hero] liga o botão, lib/sticky-cta.js). Nas
+   páginas internas o botão nunca aparece e os 92 px viravam vazio: lá o rodapé termina com o respiro normal. Sem
+   suporte a :has, a regra é ignorada e o espaço fica (nunca cobre os créditos). */
 
 .footer {
   --focus-ring: var(--wine);
@@ -11,6 +14,16 @@
   padding: var(--s-34) var(--gutter) var(--livre-dock);
   background: var(--cream); text-align: center;
 }
+body:not(:has([data-hero])) .footer { padding-bottom: max(var(--s-30), env(safe-area-inset-bottom)); }
+
+/* fechamento mínimo (página /clube, Footer `minimo`): uma linha sobre o picote tracejado da comanda, sem marca, endereço,
+   mapa nem contatos; termina com o respiro da base, sem espaço reservado (a página não tem o botão fixo) */
+.rodape-min {
+  padding: var(--s-10) var(--gutter) max(var(--s-18), env(safe-area-inset-bottom));
+  border-top: var(--border-control) dashed var(--rule);
+  text-align: center; font-size: var(--fs-small); color: var(--text-muted);
+}
+.rodape-min a { display: inline-block; padding-block: var(--s-12); color: var(--wine); text-decoration: underline 1.5px; text-underline-offset: 3px; }
 
 /* marca */
 .footer__marca { display: grid; justify-items: center; gap: var(--s-6); }
@@ -28,7 +41,7 @@
 .footer__info { display: grid; align-content: center; gap: var(--s-14); }
 .footer__bloco { display: grid; justify-items: start; align-content: start; gap: var(--s-6); }
 .footer__kicker { font: var(--t-legend); letter-spacing: var(--track-legend); text-transform: uppercase; color: var(--caramel-dk); }
-.footer__texto { font: var(--t-review); font-size: 15px; font-style: normal; line-height: 1.35; color: var(--ink); }
+.footer__texto { font: var(--t-review); font-size: var(--fs-rodape); font-style: normal; line-height: 1.35; color: var(--ink); }
 .footer__horas { color: var(--wine); font-variant-numeric: tabular-nums; }
 
 /* minimapa: o desenho da antiga Visite num cartão pequeno, levemente girado como as outras peças de papel; o cartão
@@ -43,7 +56,7 @@
 .footer__chegar {
   position: absolute; left: 50%; bottom: var(--s-8); translate: -50% 0; white-space: nowrap;
   padding: 4px var(--s-10) 5px; border-radius: var(--radius-pill);
-  background: var(--wine); color: var(--butter); font: var(--t-tag); font-size: 14px; box-shadow: var(--shadow-offset-xs);
+  background: var(--wine); color: var(--butter); font: var(--t-tag); font-size: var(--fs-tag-s); box-shadow: var(--shadow-offset-xs);
 }
 .mapa__fundo { fill: var(--butter); }
 .mapa__quadra { fill: var(--glaze); stroke: var(--caramel-lt); stroke-width: 1.5; }
@@ -66,7 +79,7 @@
 .footer__contatos { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 clamp(10px, 3vw, var(--s-16)); }
 .footer__contatos a {
   display: inline-flex; align-items: center; gap: var(--s-6); min-height: 44px; white-space: nowrap;
-  font: var(--t-review); font-size: clamp(13px, 3.6vw, 14px); color: var(--wine); font-variant-numeric: tabular-nums; text-decoration: none;
+  font: var(--t-review); font-size: var(--fs-rodape-contato); color: var(--wine); font-variant-numeric: tabular-nums; text-decoration: none;
 }
 .footer__contatos a span { text-decoration: underline 1.5px color-mix(in srgb, var(--wine) 30%, transparent); text-underline-offset: 4px; }
 .footer__contatos svg { flex: none; width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }

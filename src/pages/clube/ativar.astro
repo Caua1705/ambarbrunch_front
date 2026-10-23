@@ -1,0 +1,24 @@
+---
+// /clube/ativar?c=<token> — o link do convite do caixa (template ambar_clube_ativar_cadastro, botão “ATIVAR MEU CLUBE”).
+// Contrato: giardini_back, CLUBE.md §4 (“Porta A”) e §9 (commit ebc8b5d). A página é a mesma do Clube; a comanda começa
+// pelo botão “Ativar meu Clube”.
+// Proteção do link:
+//  · o script do <head> lê o `c` antes de qualquer pintura, guarda-o SÓ em memória (window.__ambarConvite, que a ilha
+//    lê uma vez e apaga) e tira o `c` da barra de endereço na hora (history.replaceState) — não fica no histórico, nem
+//    em favoritos ou compartilhamentos;
+//  · `referrer: no-referrer`: nenhuma requisição desta página (fotos, fontes, API) leva o endereço com o token;
+//  · NADA é chamado ao abrir: o convite só é usado no toque em “Ativar meu Clube” (POST /clube/convites/ativar; GET dá
+//    405 de propósito). Pré-visualizadores de link, que só abrem a página, não gastam o convite;
+//  · fora dos buscadores (noindex). O token aparece só no log de acesso da hospedagem: é de uso único e vale no máximo
+//    48 h (decisão do backend).
+// Sem o `c` (ou ao recarregar, depois que ele saiu da URL) a comanda oferece a entrada normal pelo WhatsApp.
+import Base from '../../layouts/Base.astro';
+import ClubePagina from '../../sections/ClubePagina.astro';
+---
+<Base titulo="Ative seu Clube Âmbar — Âmbar Café" descricao="Ative seu cadastro no Clube Âmbar." home={false} indexar={false}>
+  <Fragment slot="head">
+    <meta name="referrer" content="no-referrer" />
+    <script is:inline>(function(){try{var u=new URL(location.href),c=u.searchParams.get('c');if(c){window.__ambarConvite=c;u.searchParams.delete('c');var q=u.searchParams.toString();history.replaceState(history.state,'',u.pathname+(q?'?'+q:'')+u.hash);}}catch(e){}})();</script>
+  </Fragment>
+  <ClubePagina convite />
+</Base>

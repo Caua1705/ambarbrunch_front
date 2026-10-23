@@ -1,4 +1,6 @@
-// Contrato PROPOSTO entre o site e a API do Clube Âmbar (FastAPI do Âmbar) — ainda não validado.
+// Contrato PROPOSTO da CARTEIRA do Clube Âmbar (/clube/membro, islands/ClubeMembro.tsx) — ainda não validado.
+// 2026-10-23: o backend fechou um contrato real diferente para o acesso (Bearer, /clube/me…). O cadastro e o acesso
+// unificado de /clube seguem o contrato real em clube-acesso.ts; a carteira continua aqui até ser alinhada a /clube/me.
 // Documento: docs/technical/CONTRATO-API-CLUBE.md. Mudou o contrato? Ajustar AQUI (tipos) e em clube-http.ts (rotas).
 // Regras que o contrato preserva:
 //  - adesão voluntária e separada da reserva; consentimento de marketing separado da adesão;
@@ -29,17 +31,6 @@ export interface ClubeConfig {
   marketing: { canais: ('whatsapp' | 'email')[] };
   /** código de verificação do telefone */
   codigo: { digitos: number };
-}
-
-/** POST /clube/adesoes → 202 DesafioCodigo (o cadastro só vale depois de confirmar o código) */
-export interface NovaAdesao {
-  nome: string;
-  telefone: string;                 // só dígitos, com DDD
-  aceiteRegulamento: true;
-  regulamentoVersao: string;
-  /** autorização de marketing — opcional, desmarcada por padrão, independente da adesão (canais em ClubeConfig) */
-  marketing: { autorizado: boolean };
-  origem: OrigemCadastro;
 }
 
 /** POST /clube/acesso { telefone } → 202 DesafioCodigo (entrar na carteira, sem senha) */
@@ -78,14 +69,13 @@ export interface Recompensa { id: string; nome: string; descricao?: string; pont
 export interface Recompensas { publicadas: boolean; itens: Recompensa[] }
 
 /** Erros normalizados para a interface. `sessao` = 401 (sem sessão ou sessão vencida). */
-export type TipoErroClube = 'rede' | 'tempo' | 'validacao' | 'ja-membro' | 'codigo' | 'limite' | 'fechado' | 'sessao' | 'indisponivel' | 'servidor';
+export type TipoErroClube = 'rede' | 'tempo' | 'validacao' | 'ja-membro' | 'codigo' | 'limite' | 'fechado' | 'sessao' | 'versao' | 'indisponivel' | 'servidor';
 export class ErroClube extends Error {
   constructor(public tipo: TipoErroClube, mensagem: string, public campos: Record<string, string> = {}) { super(mensagem); }
 }
 
 export interface ClubeApi {
   config(): Promise<ClubeConfig>;
-  aderir(a: NovaAdesao, chaveIdempotencia: string): Promise<DesafioCodigo>;
   pedirCodigo(telefone: string): Promise<DesafioCodigo>;
   verificar(desafioId: string, codigo: string): Promise<Membro>;
   membro(): Promise<Membro>;

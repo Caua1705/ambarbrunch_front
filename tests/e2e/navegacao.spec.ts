@@ -300,6 +300,18 @@ test('rodapé: logo, assinatura da Roll e os três contatos funcionais (WhatsApp
 });
 
 for (const largura of [360, 390]) {
+  test(`rodapé em ${largura} px: espaço do botão fixo só na home; nas páginas internas termina logo após os créditos`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 800 });
+    const vao = () => page.locator('footer.footer').evaluate((f) => f.getBoundingClientRect().bottom - f.querySelector('.footer__fine')!.getBoundingClientRect().bottom);
+    // /clube tem só o fechamento mínimo (sem footer.footer) — coberto em clube.spec.ts
+    for (const url of ['/reservar/', '/privacidade/']) {
+      await page.goto(url);
+      expect(await vao(), `${url}: respiro após os créditos`).toBeLessThanOrEqual(40);
+    }
+    await page.goto('/');
+    expect(await vao(), 'home: guarda o espaço do botão fixo').toBeGreaterThanOrEqual(80);
+  });
+
   test(`rodapé compacto em ${largura} px: endereço e horário à esquerda, minimapa à direita, contatos numa fileira com ícone`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 800 });
     await page.goto('/');

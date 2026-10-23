@@ -56,6 +56,8 @@ const fontes = `
        anterior deixou na URL (antes, “#reservar” ou a rolagem restaurada desligavam a cena). Link direto para uma seção
        continua indo até ela. A classe sai sozinha ao fim da cena (lib/motion.js), então rolar de volta não repete. -->
   <script is:inline>(function(d){d.classList.add('js');try{history.scrollRestoration='manual';var n=performance.getEntriesByType('navigation')[0];if(n&&n.type==='reload'&&location.hash)history.replaceState(history.state,'',location.pathname+location.search);}catch(e){}if(!matchMedia('(prefers-reduced-motion: reduce)').matches)d.classList.add('enter');})(document.documentElement);</script>
+  <!-- extras de uma página no <head> (ex.: /clube/ativar: referrer e captura do link antes de qualquer pintura) -->
+  <slot name="head" />
 </head>
 <body>
   <a class="skip-link" href={home ? '#reservar' : '/#reservar'}>Pular para a reserva</a>

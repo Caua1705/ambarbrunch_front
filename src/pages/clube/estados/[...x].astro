@@ -8,6 +8,7 @@ import Footer from '../../../sections/Footer.astro';
 import ClubeCadastro, { type DemoFicha } from '../../../islands/ClubeCadastro';
 import ClubeMembro, { type DemoMembro } from '../../../islands/ClubeMembro';
 import type { DesafioCodigo, Membro } from '../../../lib/api/clube-contrato';
+import type { CadastroPendente, DesafioAcesso, MembroClube } from '../../../lib/api/clube-acesso';
 import { REVISAO } from '../../../lib/conteudo';
 
 export function getStaticPaths() {
@@ -16,19 +17,27 @@ export function getStaticPaths() {
 
 const desafio: DesafioCodigo = { desafioId: 'demo', canal: 'whatsapp', destino: '(85) •••••-0000', reenvioEm: 30 };
 const membro: Membro = { nome: 'Nome Exemplo', numero: '0000 0000', desde: '2026-10-20', saldo: null, marketing: { autorizado: false } };
-const dados = { nome: 'Nome Exemplo', telefone: '(85) 90000-0000', aceite: true };
 
+const acesso: DesafioAcesso = { desafioId: 'demo', canal: 'whatsapp', destino: '(85) •••••-0000', reenvioEm: 30, expiraEm: '2026-10-23T12:00:00Z' };
+const membroClube: MembroClube = { nome: 'Nome Exemplo', telefone: '(85) •••••-0000', aniversario: null, membroDesde: '2026-10-23', marketing: { autorizado: false }, mensagens: { autorizado: true }, programa: { ativo: false, saldo: null } };
+const novo: CadastroPendente = { nome: null, aniversario: null, faltam: ['nome', 'aceite'], marketing: { autorizado: false } };
+const incompleto: CadastroPendente = { nome: 'Nome Exemplo', aniversario: '03-14', faltam: ['aceite'], marketing: { autorizado: true } };
+
+// entrada única pelo WhatsApp (2026-10-23): telefone → código → cadastro só do que falta → membro
 const fichas: { titulo: string; demo: DemoFicha }[] = [
-  { titulo: 'Ficha · fechada (padrão do site hoje)', demo: { etapa: 'fechado' } },
-  { titulo: 'Ficha · carregando as regras', demo: { etapa: 'carregando' } },
-  { titulo: 'Ficha · aberta, vinda da mesa 12', demo: { etapa: 'dados', origem: { canal: 'nfc', mesa: '12' } } },
-  { titulo: 'Ficha · campos com erro', demo: { etapa: 'dados', dados: { nome: 'A', telefone: '(85) 9000' }, erros: { nome: 'Diga como podemos chamar você.', telefone: 'Confira o número com DDD (10 ou 11 dígitos).', aceite: 'Para entrar no Clube, é preciso aceitar o regulamento.' } } },
-  { titulo: 'Ficha · telefone já no Clube', demo: { etapa: 'dados', dados, falha: 'Este telefone já está no Clube.' } },
-  { titulo: 'Ficha · enviando', demo: { etapa: 'enviando', dados } },
-  { titulo: 'Ficha · código', demo: { etapa: 'codigo', desafio } },
-  { titulo: 'Ficha · código incorreto', demo: { etapa: 'codigo', desafio, erros: { codigo: 'Código incorreto. Confira e tente de novo.' } } },
-  { titulo: 'Ficha · bem-vindo (só com resposta da API)', demo: { etapa: 'bem-vindo', membro } },
-  { titulo: 'Ficha · falha', demo: { etapa: 'falha', falha: 'O Clube está indisponível no momento.' } },
+  { titulo: 'Entrada · fechada (padrão do site hoje)', demo: { etapa: 'fechado' } },
+  { titulo: 'Entrada · carregando as regras', demo: { etapa: 'carregando' } },
+  { titulo: 'Entrada · WhatsApp', demo: { etapa: 'telefone' } },
+  { titulo: 'Entrada · WhatsApp inválido', demo: { etapa: 'telefone', telefone: '(85) 9000', erros: { telefone: 'Confira o WhatsApp com DDD, ex.: (85) 99999-9999.' } } },
+  { titulo: 'Entrada · enviando o código', demo: { etapa: 'enviando', telefone: '(85) 90000-0000' } },
+  { titulo: 'Entrada · código', demo: { etapa: 'codigo', desafio: acesso } },
+  { titulo: 'Entrada · código incorreto', demo: { etapa: 'codigo', desafio: acesso, erros: { codigo: 'Código incorreto. Confira e tente de novo.' } } },
+  { titulo: 'Cadastro · cliente novo (nome, aniversário, termos, novidades)', demo: { etapa: 'cadastro', cadastro: novo } },
+  { titulo: 'Cadastro · incompleto (só os termos atuais)', demo: { etapa: 'cadastro', cadastro: incompleto, dados: { nome: 'Nome Exemplo', aceite: false } } },
+  { titulo: 'Cadastro · campos com erro', demo: { etapa: 'cadastro', cadastro: novo, dados: { nome: 'A', aniversario: '31/02' }, erros: { nome: 'Diga como podemos chamar você.', aniversario: 'Use dia e mês, ex.: 25/12 — ou deixe em branco.', aceite: 'Para entrar no Clube, aceite a política de privacidade e o regulamento.' } } },
+  { titulo: 'Membro · acabou de entrar (só com resposta da API)', demo: { etapa: 'membro', membro: membroClube, novo: true } },
+  { titulo: 'Membro · já era do Clube', demo: { etapa: 'membro', membro: membroClube } },
+  { titulo: 'Entrada · falha', demo: { etapa: 'falha', falha: 'O Clube está indisponível no momento. Tente mais tarde.' } },
 ];
 const carteiras: { titulo: string; demo: DemoMembro }[] = [
   { titulo: 'Carteira · acesso desligado + prévia (padrão do site hoje)', demo: { etapa: 'indisponivel' } },

@@ -42,8 +42,6 @@
   --drop-produto: drop-shadow(0 18px 22px rgba(0, 0, 0, .45));   /* recorte de produto sobre fundo escuro (caixa da Roll, copos) */
   /* carteira do Clube: sombra deslocada + sombra de chão, no invólucro (a máscara dos furos cortaria um box-shadow) */
   --drop-carteira: drop-shadow(4px 4px 0 var(--cacao)) drop-shadow(0 22px 22px rgba(36, 21, 15, .35));
-  --drop-carteira-escuro: drop-shadow(4px 4px 0 var(--cacao)) drop-shadow(0 26px 26px rgba(0, 0, 0, .45));   /* sobre vinho */
-  --shadow-ground: rgba(36, 21, 15, .14);         /* sombra no tampo da mesa (plaquinha desenhada do Clube) */
   --shadow-lift: 0 22px 34px -18px rgba(0, 0, 0, .6);  /* card ativo do carrossel de criadores, levemente erguido */
   --glow-ativo: 0 0 0 9px rgba(243, 221, 174, .16);   /* card com som ligado no carrossel de criadores (cabe no respiro do trilho) */
   /* anéis (box-shadow sem desfoque): moldura do vídeo e campo inválido */
@@ -60,6 +58,9 @@
   --paper-doodles: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220' fill='none' stroke='%239A5F25' stroke-opacity='.16' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M42 46a3 3 0 0 1 6 0a6 6 0 0 1-12 0a9 9 0 0 1 18 0a12 12 0 0 1-24 0'/%3E%3Cg transform='translate(160 38) rotate(32)'%3E%3Cellipse rx='7' ry='10'/%3E%3Cpath d='M0-9c-4 6 4 12 0 18'/%3E%3C/g%3E%3Cpath d='M110 104v14M103 111h14M105 106l10 10M115 106l-10 10'/%3E%3Cpath d='M26 168c7-13 25-13 32 0M34 163l3 6M42 159v8M50 162l-3 6'/%3E%3Cpath d='M152 170h20v7a10 10 0 0 1-20 0zM172 172h3a3.5 3.5 0 0 1 0 7h-3M158 163c-2-3 2-5 0-8M166 163c-2-3 2-5 0-8'/%3E%3Cg fill='%239A5F25' fill-opacity='.18' stroke='none'%3E%3Ccircle cx='188' cy='112' r='1.8'/%3E%3Ccircle cx='86' cy='196' r='1.8'/%3E%3Ccircle cx='14' cy='100' r='1.8'/%3E%3Ccircle cx='96' cy='22' r='1.8'/%3E%3C/g%3E%3C/svg%3E");
   /* esmaece para baixo (polvilho da Fornada) */
   --mask-fade-bottom: linear-gradient(#000 55%, #0000);
+  /* foto do Clube (2026-10-23): no celular aparece de cima para baixo; na meia coluna, pela esquerda e pelo alto */
+  --mask-clube-foto: linear-gradient(to bottom, #0000, #000 18%);
+  --mask-clube-foto-lado: linear-gradient(to right, #0000, #000 22%), linear-gradient(to bottom, #0000, #000 24%);
   /* costura de papel rasgado no topo de uma seção (a borda da folha de cima, na cor dela) */
   --mask-torn: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='14'%3E%3Cpath d='M0 0H240V7L228 10L215 5L201 11L188 6L173 12L160 7L146 10L131 4L118 9L104 6L90 12L77 7L62 10L49 4L35 9L20 6L8 11L0 7Z'/%3E%3C/svg%3E") 0 0 / 240px 14px repeat-x;
   /* borda recortada (etiqueta do logo): ondas de 20 px na base */
