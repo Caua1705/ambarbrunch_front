@@ -41,6 +41,7 @@ test('home: convite curto ao Clube logo depois da reserva; em pré-lançamento, 
   await expect(secao).not.toContainText(/prévia|passaporte|navegador|aplicativo|cadastro|telefone/i);
   // pré-lançamento: o botão convida a conhecer (não a “fazer parte” de algo que ainda não abre)
   await expect(secao.getByRole('link', { name: /Quero fazer parte/ })).toHaveCount(0);
+  await expect(secao.locator('a[href^="/clube/conta"]')).toHaveCount(0);   // atalho da conta só com o Clube aberto
   const cta = secao.getByRole('link', { name: /Conheça o Clube/ });
   await expect(cta).toHaveClass(/btn--wine/);
   await expect(cta).toHaveAttribute('href', '/clube/');
@@ -127,16 +128,36 @@ test('/clube/ativar (pré-lançamento): o link do convite também só mostra “
   await expect(ficha.locator('input, button')).toHaveCount(0);
 });
 
-test('/clube/membro: acesso desligado e prévia da carteira sem nenhum número', async ({ page }) => {
+test('telas do Clube no pré-lançamento: entrar, cadastro, conta, histórico e recompensas dizem “em breve”, sem campo nem chamada', async ({ page }) => {
   const fora = externos(page);
-  await page.goto('/clube/membro/');
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('carteira');
-  await expect(page.getByRole('button', { name: 'Acesso em breve' })).toBeDisabled();
-  await expect(page.locator('#cm-telefone')).toBeDisabled();
-  await expect(page.locator('.carteira-area--previa')).toContainText('assim fica a sua carteira');
-  await expect(page.locator('.carteira__saldo dd')).toHaveText('—');
-  await expect(page.locator('.carteira-area--previa')).not.toContainText(/\d/);
+  for (const rota of ['/clube/entrar/', '/clube/cadastro/']) {
+    await page.goto(rota);
+    await expect(page.locator('#cadastro .ficha .ticket__title')).toHaveText(/Inscrições em breve/i);
+    await expect(page.locator('#cadastro .ficha').getByRole('link', { name: 'Conhecer o Clube' })).toHaveAttribute('href', '/clube/');
+    await expect(page.locator('input, button[type="submit"]')).toHaveCount(0);
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', /noindex/);
+  }
+  for (const rota of ['/clube/conta/', '/clube/historico/', '/clube/recompensas/']) {
+    await page.goto(rota);
+    await expect(page.locator('[data-estado="fechado"]')).toContainText('O Clube Âmbar abre em breve');
+    await expect(page.locator('.carteira, .conta, input')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /resgatar/i })).toHaveCount(0);
+    await expect(page.locator('main')).not.toContainText(/[0-9]+ *pontos/i);
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', /noindex/);
+  }
   expect(fora).toEqual([]);
+  // a landing não mostra “Minha conta” enquanto o Clube não abre
+  await page.goto('/clube/');
+  await expect(page.locator('.page-bar').getByRole('link', { name: 'Minha conta' })).toHaveCount(0);
+});
+
+test('a prévia local e a simulação não existem no build publicado; a carteira antiga redireciona para a conta', async ({ page, request }) => {
+  expect((await request.get('/clube/previa/')).status()).toBe(404);
+  expect((await request.get('/clube/previa/conta/')).status()).toBe(404);
+  await page.goto('/clube/');
+  await expect(page.locator('.clube-dev, .previa-faixa')).toHaveCount(0);
+  await page.goto('/clube/membro/');
+  await page.waitForURL(/[/]clube[/]conta[/]$/);
 });
 
 test('reserva continua acessível a partir das páginas do Clube', async ({ page }) => {

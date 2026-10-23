@@ -25,7 +25,6 @@ export const clube = {
    *  preparo (nenhuma foto de brinde ou de item que pareça recompensa); trocar pelas vantagens reais quando existirem. */
   pagina: {
     frase: 'Quem volta sempre merece ser reconhecido.',
-    texto: 'Um clube pensado para quem faz parte da história do Âmbar: quem volta pelo café, pelo roll e pela conversa.',
     /** como vai funcionar, em três passos (2026-10-23): só o caminho — sem aplicativo nem senha. NADA de regra de
      *  pontos, recompensa, saldo ou nível aqui enquanto a mecânica não for aprovada (depende da validação da Eyemobile). */
     passos: ['Faça parte pelo WhatsApp', 'Identifique-se nas compras', 'Acompanhe suas vantagens pelo site'],

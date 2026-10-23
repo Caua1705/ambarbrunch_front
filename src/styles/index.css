@@ -44,6 +44,7 @@
 @import url("sections/footer.css") layer(sections);
 @import url("sections/pagina.css") layer(sections);
 @import url("sections/clube.css") layer(sections);
+@import url("sections/clube-area.css") layer(sections);
 
 @import url("acabamento.css") layer(acabamento);
 

@@ -1,4 +1,5 @@
-// Entrada única do Clube (2026-10-23) no build SÓ DE TESTES (:4322, dist-sim, PUBLIC_CLUBE_MODO=api apontando para um
+// Experiência completa do Clube (2026-10-23) — landing, /clube/entrar, /clube/cadastro, /clube/ativar e a área do membro
+// (/clube/conta, /historico, /recompensas) — no build SÓ DE TESTES (:4322, dist-sim, PUBLIC_CLUBE_MODO=api apontando para um
 // endereço .invalid). A API é interceptada aqui pelo Playwright, imitando o contrato FINAL do backend (giardini_back,
 // CLUBE.md §4 e §9, commit e410da2): sessão em cookie HttpOnly (aqui, guardada do lado do “servidor” falso e mantida ao
 // recarregar a página), `X-Ambar-Csrf: 1` em tudo que muda algo (sem ele, 403 origem_invalida), `Authorization` = 401,
@@ -20,7 +21,10 @@ interface Registro { rota: string; metodo: string; corpo: Record<string, unknown
 type Pendente = { nome: string | null; aniversario: string | null; faltam: string[]; marketing: { autorizado: boolean } };
 
 /** API falsa com o formato do contrato real. Devolve o registro das chamadas. */
-async function apiFalsa(page: Page, opcoes: { inscricoesAbertas?: boolean; versaoNova?: boolean; sessaoVenceAntesDeConcluir?: boolean } = {}) {
+async function apiFalsa(page: Page, opcoes: { inscricoesAbertas?: boolean; versaoNova?: boolean; sessaoVenceAntesDeConcluir?: number; reenvioEm?: number; foraDoAr?: boolean } = {}) {
+  let vencerSessao = opcoes.sessaoVenceAntesDeConcluir ?? 0;
+  /** preferências de comunicação de cada número (final de 4 dígitos) */
+  const prefs = new Map<string, { marketing: boolean; mensagens: boolean }>();
   const chamadas: Registro[] = [];
   /** a “sessão do cookie”: o telefone com código confirmado (sobrevive a recarregar a página, como o cookie) */
   let sessao: string | null = null;
@@ -35,13 +39,16 @@ async function apiFalsa(page: Page, opcoes: { inscricoesAbertas?: boolean; versa
   const membros = new Map<string, string>([['0001', 'Maria Clara']]);
   let versaoRecusada = false;
   const json = (r: Route, status: number, body?: unknown) => r.fulfill({ status, headers: CORS, contentType: 'application/json', body: body === undefined ? '' : JSON.stringify(body) });
-  const membro = (nome: string, autorizado: boolean) => ({ nome, telefone: '(85) •••••-0001', aniversario: null, membroDesde: '2026-10-23', marketing: { autorizado }, mensagens: { autorizado: true }, programa: { ativo: false, saldo: null } });
+  const membro = (fim: string, nome: string, autorizado: boolean) => {
+    const p = prefs.get(fim) ?? { marketing: autorizado, mensagens: true };
+    return { nome, telefone: `(85) •••••-${fim}`, aniversario: fim === '0001' ? '02-07' : null, membroDesde: '2026-10-23', marketing: { autorizado: p.marketing }, mensagens: { autorizado: p.mensagens }, programa: { ativo: false, saldo: null } };
+  };
   /** 422 no formato do FastAPI (sem chave `campos`) */
   const campo = (r: Route, nome: string, msg: string, codigo?: string) => json(r, 422, { detail: [{ loc: ['body', nome], msg, type: codigo ?? 'value_error' }], ...(codigo ? { codigo } : {}) });
   const ADESAO = ['nome', 'aniversario', 'aceiteRegulamento', 'regulamentoVersao', 'privacidadeVersao', 'marketing', 'origem'];
   const situacao = (tel: string) => {
     const fim = tel.slice(-4);
-    if (membros.has(fim)) return { situacao: 'membro', membro: membro(membros.get(fim)!, fim === '0001'), cadastro: null };
+    if (membros.has(fim)) return { situacao: 'membro', membro: membro(fim, membros.get(fim)!, fim === '0001'), cadastro: null };
     if (!pendentes.has(fim)) pendentes.set(fim, fim === '0002' ? { nome: 'João Pedro', aniversario: '03-14', faltam: ['aceite'], marketing: { autorizado: true } } : { nome: null, aniversario: null, faltam: ['nome', 'aceite'], marketing: { autorizado: false } });
     return { situacao: 'cadastro', cadastro: pendentes.get(fim), membro: null };
   };
@@ -61,7 +68,8 @@ async function apiFalsa(page: Page, opcoes: { inscricoesAbertas?: boolean; versa
     // como o backend: o token antigo no cabeçalho é recusado; mudança sem o cabeçalho anti-CSRF também
     if (h.authorization) return json(r, 401, { detail: 'Entre de novo.', codigo: 'sessao_invalida' });
     if (req.method() !== 'GET' && h['x-ambar-csrf'] !== '1') return json(r, 403, { detail: 'Origem inválida.', codigo: 'origem_invalida' });
-    if (rota === '/clube/config') return json(r, 200, { inscricoesAbertas: opcoes.inscricoesAbertas ?? true, programaAtivo: false, regulamento: { versao: 'r1', url: null }, privacidade: { versao: 'p1', url: 'https://ambar.teste/privacidade' }, marketing: { textoVersao: 'm1' }, codigo: { digitos: 6, validadeS: 600 } });
+    if (opcoes.foraDoAr) return json(r, 503, { detail: 'O Clube está indisponível no momento. Tente mais tarde.', codigo: 'indisponivel' });
+    if (rota === '/clube/config') return json(r, 200, { inscricoesAbertas: opcoes.inscricoesAbertas ?? true, programaAtivo: false, regulamento: { versao: 'r1', url: 'https://ambar.teste/regulamento' }, privacidade: { versao: 'p1', url: 'https://ambar.teste/privacidade' }, marketing: { textoVersao: 'm1' }, codigo: { digitos: 6, validadeS: 600 } });
     if (rota === '/clube/me') {
       if (!sessao) return json(r, 401, { detail: 'Entre de novo.', codigo: 'sessao_invalida' });
       if (escopo === 'ativacao') {
@@ -81,10 +89,25 @@ async function apiFalsa(page: Page, opcoes: { inscricoesAbertas?: boolean; versa
       sessao = tel; escopo = 'ativacao';   // Set-Cookie de ativação (30 min)
       return json(r, 200, vistaAtivacao(s.cadastro as Pendente));
     }
+    if (rota === '/clube/me/marketing') {
+      if (req.method() !== 'PUT') return json(r, 405, { detail: 'Método não permitido.' });
+      if (!sessao || escopo !== 'completa') return json(r, 401, { detail: 'Entre de novo.', codigo: 'sessao_invalida' });
+      if (corpo?.textoVersao !== 'm1') return json(r, 409, { detail: 'O texto mudou.', codigo: 'versao_desatualizada' });
+      const s = situacao(sessao) as { membro: { mensagens: { autorizado: boolean } } };
+      prefs.set(sessao.slice(-4), { marketing: !!corpo?.autorizado, mensagens: s.membro.mensagens.autorizado });
+      return json(r, 200, situacao(sessao));
+    }
+    if (rota === '/clube/me/mensagens') {
+      if (req.method() !== 'DELETE') return json(r, 405, { detail: 'Método não permitido.' });
+      if (!sessao || escopo !== 'completa') return json(r, 401, { detail: 'Entre de novo.', codigo: 'sessao_invalida' });
+      const s = situacao(sessao) as { membro: { marketing: { autorizado: boolean } } };
+      prefs.set(sessao.slice(-4), { marketing: s.membro.marketing.autorizado, mensagens: false });
+      return r.fulfill({ status: 204, headers: CORS });
+    }
     if (rota === '/clube/sair') { sessao = null; return r.fulfill({ status: 204, headers: CORS }); }
     if (rota === '/clube/acesso') {
       const tel = String(corpo?.telefone ?? '');
-      return json(r, 202, { desafioId: `d-${tel}`, canal: 'whatsapp', destino: `(${tel.slice(0, 2)}) •••••-${tel.slice(-4)}`, reenvioEm: 0, expiraEm: '2026-10-23T23:00:00Z' });
+      return json(r, 202, { desafioId: `d-${tel}`, canal: 'whatsapp', destino: `(${tel.slice(0, 2)}) •••••-${tel.slice(-4)}`, reenvioEm: opcoes.reenvioEm ?? 0, expiraEm: '2030-01-01T00:00:00Z' });
     }
     if (rota === '/clube/acesso/verificar') {
       const tel = String(corpo?.desafioId ?? '').slice(2);
@@ -94,7 +117,7 @@ async function apiFalsa(page: Page, opcoes: { inscricoesAbertas?: boolean; versa
       return json(r, 200, { ...situacao(tel), sessao: { expiraEm: '2026-11-22T23:00:00Z' } });
     }
     if (rota === '/clube/adesoes') {
-      if (opcoes.sessaoVenceAntesDeConcluir) sessao = null;
+      if (vencerSessao > 0) { vencerSessao -= 1; sessao = null; }
       if (!sessao) return json(r, 401, { detail: 'Entre de novo.', codigo: 'sessao_invalida' });
       const fim = sessao.slice(-4);
       const c = pendentes.get(fim)!;
@@ -111,246 +134,464 @@ async function apiFalsa(page: Page, opcoes: { inscricoesAbertas?: boolean; versa
       membros.set(fim, nome!);
       // concluído pela sessão de ativação: ela acaba (cookie apagado) e a resposta é “ativado”
       if (escopo === 'ativacao') { sessao = null; escopo = 'completa'; return json(r, 200, { situacao: 'ativado', membro: null, cadastro: null }); }
-      return json(r, 200, { situacao: 'membro', membro: membro(nome!, (corpo?.marketing as { autorizado?: boolean } | undefined)?.autorizado ?? c.marketing.autorizado), cadastro: null });
+      return json(r, 200, { situacao: 'membro', membro: membro(fim, nome!, (corpo?.marketing as { autorizado?: boolean } | undefined)?.autorizado ?? c.marketing.autorizado), cadastro: null });
     }
     return json(r, 404, { detail: 'rota' });
   });
-  return { chamadas };
+  /** a sessão vence do lado do servidor (o cookie para de valer) */
+  return { chamadas, derrubarSessao: () => { sessao = null; } };
 }
 
 /** todas as chamadas à API do Clube saíram com credentials: "include" */
 const tudoComCookie = (page: Page) => page.evaluate((api) => (window as unknown as { __fetches: { url: string; credentials?: string }[] }).__fetches
   .filter((f) => f.url.startsWith(api)).every((f) => f.credentials === 'include'), API);
 
+const ficha = (page: Page) => page.locator('#cadastro .ficha');
+/** landing → WhatsApp → /clube/entrar já no código (o número não é digitado de novo) */
 const entrar = async (page: Page, telefone: string) => {
   await page.goto(`${SITE}/clube/#cadastro`);
-  const ficha = page.locator('#cadastro .ficha');
-  await expect(ficha.locator('.ticket__title')).toHaveText(/Entre para o Clube Âmbar/i);
-  await ficha.getByLabel('WhatsApp').fill(telefone);
-  await ficha.getByRole('button', { name: 'Continuar' }).click();
-  await expect(ficha.locator('.ticket__title')).toHaveText(/Confirme seu WhatsApp/i);
-  return ficha;
+  await expect(ficha(page).locator('.ticket__title')).toHaveText(/Seu lugar no Clube começa aqui/i);
+  await ficha(page).getByLabel('WhatsApp').fill(telefone);
+  await ficha(page).getByRole('button', { name: 'Continuar' }).click();
+  await page.waitForURL(`${SITE}/clube/entrar/`);
+  await expect(ficha(page).locator('.ticket__title')).toHaveText(/Confirme seu WhatsApp/i);
+  return ficha(page);
 };
 const confirmarCodigo = async (page: Page, codigo = '123456') => {
   await page.locator('#cf-codigo').fill(codigo);
   await page.getByRole('button', { name: 'Confirmar' }).click();
 };
+/** login completo de um membro (…0001) até a conta */
+const entrarNaConta = async (page: Page, telefone = '85988880001') => {
+  await entrar(page, telefone);
+  await confirmarCodigo(page);
+  await page.waitForURL(`${SITE}/clube/conta/`);
+  await expect(page.locator('.conta-topo__ola')).toHaveText(/Olá, Maria/);
+};
 
+// ── Landing e /clube/entrar ───────────────────────────────────────────────────────────────────────────────────────
 test('entrada única: só o WhatsApp, um botão “Continuar”, sem aplicativo nem senha — e nada revela o cadastro antes do código', async ({ page }) => {
   const api = await apiFalsa(page);
   await page.goto(`${SITE}/clube/#cadastro`);
-  const ficha = page.locator('#cadastro .ficha');
-  await expect(ficha.locator('.ticket__title')).toHaveText(/Entre para o Clube Âmbar/i);
-  await expect(ficha).toContainText('Seu WhatsApp é a chave para suas vantagens.');
-  await expect(ficha).toContainText('Sem aplicativo. Sem senha.');
-  await expect(ficha.locator('input')).toHaveCount(1);
-  await expect(ficha.getByLabel('WhatsApp')).toHaveAttribute('placeholder', '(85) 99999-9999');
-  await expect(ficha.getByRole('button')).toHaveText(['Continuar']);
-  await expect(ficha.getByRole('button', { name: /cadastrar|entrar/i })).toHaveCount(0);
+  const f = ficha(page);
+  await expect(f.locator('.ticket__title')).toHaveText(/Seu lugar no Clube começa aqui/i);
+  await expect(f).toContainText('Informe seu WhatsApp para entrar ou fazer parte.');
+  await expect(f).toContainText('Um único acesso. Sem senha.');
+  await expect(f.locator('input')).toHaveCount(1);
+  await expect(f.getByLabel('WhatsApp')).toHaveAttribute('placeholder', '(85) 99999-9999');
+  await expect(f.getByRole('button')).toHaveText([/^Continuar/]);
+  await expect(f.getByRole('button', { name: 'Continuar', exact: true })).toHaveCount(1);   // a seta não entra no nome
+  await expect(f.getByRole('button', { name: /cadastrar|entrar/i })).toHaveCount(0);
   // telefone inválido: erro claro, nada enviado
-  await ficha.getByLabel('WhatsApp').fill('8533334444');
-  await ficha.getByRole('button', { name: 'Continuar' }).click();
-  await expect(ficha.locator('#cf-telefone-erro')).toHaveText(/Confira o WhatsApp com DDD/);
-  await expect(ficha.getByLabel('WhatsApp')).toBeFocused();
+  await f.getByLabel('WhatsApp').fill('8533334444');
+  await f.getByRole('button', { name: 'Continuar' }).click();
+  await expect(f.locator('#cf-telefone-erro')).toHaveText(/Confira o WhatsApp com DDD/);
+  await expect(f.getByLabel('WhatsApp')).toBeFocused();
   expect(api.chamadas.filter((c) => c.rota === '/clube/acesso')).toHaveLength(0);
-  // membro e não membro veem exatamente a mesma tela depois do “Continuar”
+  // membro e não membro veem exatamente a mesma tela do código
   const textos: string[] = [];
   for (const tel of ['85988880001', '85977771234']) {
-    await ficha.getByLabel('WhatsApp').fill(tel);
-    await ficha.getByRole('button', { name: 'Continuar' }).click();
-    await expect(ficha.locator('.ticket__title')).toHaveText(/Confirme seu WhatsApp/i);
-    textos.push((await ficha.innerText()).replace(/\d{4}\b/g, '####'));
-    await ficha.getByRole('button', { name: 'Trocar número' }).click();
-    await expect(ficha.getByLabel('WhatsApp')).toHaveValue(/\(85\)/);   // o número digitado continua lá
+    await entrar(page, tel);
+    textos.push((await ficha(page).innerText()).replace(/\d{4}\b/g, '####'));
   }
   expect(textos[0]).toBe(textos[1]);
+  // nada pessoal guardado: só a passagem do desafio, que é apagada ao ser lida
   expect(await page.evaluate(() => [Object.keys(localStorage), Object.keys(sessionStorage).filter((k) => k !== 'ambar:clube:origem')])).toEqual([[], []]);
 });
 
-test('cliente novo: código → nome, aniversário, aceite e novidades → membro, pela sessão em cookie (sem token no navegador)', async ({ page }) => {
-  const api = await apiFalsa(page);
-  const ficha = await entrar(page, '(85) 97777-1234');
+test('/clube/entrar: da landing direto ao código, sem redigitar; reenvio com contagem; trocar número; código incorreto e vencido', async ({ page }) => {
+  const api = await apiFalsa(page, { reenvioEm: 2 });
+  const f = await entrar(page, '(85) 97777-1234');
+  await expect(f.locator('.ficha__destino')).toHaveText('(85) •••••-1234');
+  await expect(f.locator('#cf-telefone')).toHaveCount(0);
+  // o número digitado na landing não foi junto (só o destino mascarado do desafio)
+  expect(api.chamadas.filter((c) => c.rota === '/clube/acesso')).toHaveLength(1);
+  // reenvio: contagem e depois o botão
+  await expect(f.getByRole('button', { name: /Reenviar em/ })).toBeDisabled();
+  await expect(f.getByRole('button', { name: 'Reenviar código' })).toBeEnabled({ timeout: 5000 });
   // código errado e vencido: mensagens claras, segue na mesma etapa
   await confirmarCodigo(page, '111111');
   await expect(page.locator('#cf-codigo-erro')).toHaveText('Código incorreto. Confira e tente de novo.');
   await confirmarCodigo(page, '000000');
   await expect(page.locator('#cf-codigo-erro')).toHaveText('Este código venceu. Peça um novo.');   // texto do backend
+  // trocar número: volta ao WhatsApp nesta mesma tela
+  await f.getByRole('button', { name: 'Trocar número' }).click();
+  await expect(f.getByLabel('WhatsApp')).toBeFocused();
+  await expect(f.locator('.ticket__title')).toHaveText('Acesse o Clube Âmbar');
+  await f.getByLabel('WhatsApp').fill('85977779999');
+  await f.getByRole('button', { name: 'Continuar' }).click();
+  await expect(f.locator('.ficha__destino')).toHaveText('(85) •••••-9999');
+  expect(await tudoComCookie(page)).toBe(true);
+});
+
+test('/clube/entrar: sessão vencida avisa; indisponível oferece tentar de novo', async ({ page }) => {
+  await apiFalsa(page);
+  await page.goto(`${SITE}/clube/entrar/?motivo=sessao`);
+  await expect(ficha(page).locator('.ticket__status[role="status"]')).toHaveText(/sessão terminou/);
+  await expect(ficha(page).getByLabel('WhatsApp')).toBeVisible();
+  const p2 = await page.context().newPage();
+  await apiFalsa(p2, { foraDoAr: true });
+  await p2.goto(`${SITE}/clube/entrar/`);
+  await expect(ficha(p2).locator('.ticket__title')).toHaveText('Não deu certo agora');
+  await expect(ficha(p2).locator('.ticket__status[data-tone="error"]')).toHaveText(/indisponível/);
+  await expect(ficha(p2).getByRole('button', { name: 'Tentar de novo' })).toBeVisible();
+});
+
+// ── Cadastro ─────────────────────────────────────────────────────────────────────────────────────────────────────
+test('cliente novo: código → /clube/cadastro → nome, aniversário, aceite e novidades → “Você faz parte do Clube Âmbar!” → conta', async ({ page }) => {
+  const api = await apiFalsa(page);
+  await entrar(page, '(85) 97777-1234');
   await confirmarCodigo(page);
-  await expect(ficha.locator('.ticket__title')).toHaveText(/Quase lá/i);
-  await expect(ficha.getByLabel('Nome')).toBeVisible();
-  await expect(ficha.getByLabel(/Aniversário/)).toBeVisible();
-  await expect(ficha.locator('#cf-aceite')).not.toBeChecked();
-  await expect(ficha.locator('#cf-marketing')).not.toBeChecked();
+  await page.waitForURL(`${SITE}/clube/cadastro/`);
+  const f = ficha(page);
+  await expect(f.locator('.ticket__title')).toHaveText(/Quase lá/i);
+  await expect(f.getByLabel('Nome')).toBeVisible();
+  await expect(f.getByLabel(/Aniversário/)).toBeVisible();
+  await expect(f.locator('#cf-aceite')).not.toBeChecked();
+  await expect(f.locator('#cf-marketing')).not.toBeChecked();   // novidades: opcional e desmarcado
   // erros sem perder o que foi digitado
-  await ficha.getByLabel(/Aniversário/).fill('3102');
-  await ficha.getByRole('button', { name: 'Concluir cadastro' }).click();
-  await expect(ficha.locator('#cf-nome-erro')).toHaveText(/chamar você/);
-  await expect(ficha.locator('#cf-aniversario-erro')).toHaveText(/dia e mês/);
-  await expect(ficha.locator('#cf-aceite-erro')).toHaveText(/aceite a política/);
-  await expect(ficha.getByLabel(/Aniversário/)).toHaveValue('31/02');
-  await ficha.getByLabel('Nome').fill('Ana Lúcia');
-  await ficha.getByLabel(/Aniversário/).fill('2512');
-  await ficha.locator('#cf-aceite').check();
-  await ficha.locator('#cf-marketing').check();
-  await ficha.getByRole('button', { name: 'Concluir cadastro' }).click();
-  await expect(ficha.locator('.ficha__boas-vindas')).toHaveText(/Pronto, Ana!.*Agora você faz parte do Clube Âmbar/s);
-  await expect(ficha.locator('.ticket__stamp')).toHaveText('membro');
+  await f.getByLabel(/Aniversário/).fill('3102');
+  await f.getByRole('button', { name: 'Concluir cadastro' }).click();
+  await expect(f.locator('#cf-nome-erro')).toHaveText(/chamar você/);
+  await expect(f.locator('#cf-aniversario-erro')).toHaveText(/dia e mês/);
+  await expect(f.locator('#cf-aceite-erro')).toHaveText(/aceite a política/);
+  await expect(f.getByLabel(/Aniversário/)).toHaveValue('31/02');
+  await f.getByLabel('Nome').fill('Ana Lúcia');
+  await f.getByLabel(/Aniversário/).fill('2512');
+  await f.locator('#cf-aceite').check();
+  await f.locator('#cf-marketing').check();
+  await f.getByRole('button', { name: 'Concluir cadastro' }).click();
+  await expect(f.locator('.ticket__title')).toHaveText('Você faz parte do Clube Âmbar!');
+  await expect(f.locator('.ficha__boas-vindas')).toHaveText(/Pronto, Ana!.*Cadastro concluído/s);
+  // pelo site não sai WhatsApp de confirmação (só pelo convite): a tela não promete mensagem
+  await expect(f).not.toContainText(/receber.*WhatsApp/i);
   const adesao = api.chamadas.find((c) => c.rota === '/clube/adesoes')!;
-  // sessão só no cookie: nada de Authorization; toda mudança com o cabeçalho anti-CSRF; todo fetch com credentials
   expect(api.chamadas.every((c) => !c.auth)).toBe(true);
   expect(api.chamadas.filter((c) => c.metodo !== 'GET').every((c) => c.csrf === '1')).toBe(true);
   expect(await tudoComCookie(page)).toBe(true);
   expect(adesao.chave).toBeTruthy();
   expect(adesao.corpo).toEqual({ nome: 'Ana Lúcia', aniversario: '12-25', aceiteRegulamento: true, regulamentoVersao: 'r1', privacidadeVersao: 'p1', marketing: { autorizado: true, textoVersao: 'm1' } });
   expect(adesao.corpo).not.toHaveProperty('telefone');   // o telefone vem da sessão
-  // sem carteira de mentira e nada guardado pelo site
-  await expect(ficha.locator('.carteira, a[href="/clube/membro/"]')).toHaveCount(0);
-  expect(await page.evaluate(() => [Object.keys(localStorage), Object.keys(sessionStorage).filter((k) => k !== 'ambar:clube:origem')])).toEqual([[], []]);
+  await f.getByRole('link', { name: 'Abrir minha conta' }).click();
+  await page.waitForURL(`${SITE}/clube/conta/`);
+  await expect(page.locator('.conta-topo__ola')).toHaveText(/Olá, Ana/);
 });
 
-test('sessão em cookie: recarregar a página volta direto à situação, sem código; “Sair” encerra e volta ao WhatsApp', async ({ page }) => {
+test('cadastro incompleto: recupera o nome e pede só o aceite dos termos atuais, com os links reais', async ({ page }) => {
   const api = await apiFalsa(page);
-  const ficha = await entrar(page, '85988880001');
+  await entrar(page, '85988880002');
   await confirmarCodigo(page);
-  await expect(ficha.locator('.ficha__boas-vindas')).toHaveText(/Olá, Maria!/);
-  // abrir de novo: GET /clube/me restaura (sem pedir código)
-  await page.reload();
-  await expect(ficha.locator('.ficha__boas-vindas')).toHaveText(/Olá, Maria!/);
-  await expect(ficha.locator('#cf-telefone, #cf-codigo')).toHaveCount(0);
-  expect(api.chamadas.filter((c) => c.rota === '/clube/acesso')).toHaveLength(1);
-  // ao abrir já na sessão, a página não rola sozinha até a comanda
-  await page.goto(`${SITE}/clube/`);
-  await expect(ficha.locator('.ficha__boas-vindas')).toBeVisible();
-  expect(await page.evaluate(() => scrollY)).toBe(0);
-  // sair: POST /clube/sair com o cabeçalho anti-CSRF → volta ao WhatsApp; recarregar não restaura mais
-  await ficha.getByRole('button', { name: 'Não é você? Sair' }).click();
-  await expect(ficha.locator('.ticket__title')).toHaveText(/Entre para o Clube Âmbar/i);
-  expect(api.chamadas.find((c) => c.rota === '/clube/sair')!.csrf).toBe('1');
-  await page.reload();
-  await expect(ficha.locator('.ticket__title')).toHaveText(/Entre para o Clube Âmbar/i);
-  expect(await tudoComCookie(page)).toBe(true);
-});
-
-test('sessão vencida no meio do cadastro (401): volta ao WhatsApp com aviso, sem perder o número', async ({ page }) => {
-  await apiFalsa(page, { sessaoVenceAntesDeConcluir: true });
-  const ficha = await entrar(page, '85977774321');
-  await confirmarCodigo(page);
-  await ficha.getByLabel('Nome').fill('Rui');
-  await ficha.locator('#cf-aceite').check();
-  await ficha.getByRole('button', { name: 'Concluir cadastro' }).click();
-  await expect(ficha.locator('.ticket__title')).toHaveText(/Entre para o Clube Âmbar/i);
-  await expect(ficha.locator('.ticket__status[data-tone="error"]')).toHaveText(/Confirme o WhatsApp de novo/);
-  await expect(ficha.getByLabel('WhatsApp')).toHaveValue('(85) 97777-4321');
-});
-
-test('cadastro incompleto: recupera o nome e pede só o aceite dos termos atuais', async ({ page }) => {
-  const api = await apiFalsa(page);
-  const ficha = await entrar(page, '85988880002');
-  await confirmarCodigo(page);
-  await expect(ficha.locator('.ticket__title')).toHaveText(/Falta pouco, João/i);
-  await expect(ficha).toContainText('Só falta confirmar os termos');
-  await expect(ficha.getByLabel('Nome')).toHaveCount(0);           // já existe
-  await expect(ficha.getByLabel(/Aniversário/)).toHaveCount(0);    // já existe
-  await expect(ficha.locator('#cf-marketing')).toHaveCount(0);     // já autorizado antes
-  // links do aceite: a política vem da URL do backend; o regulamento, sem URL configurada, fica em texto
-  await expect(ficha.getByRole('link', { name: 'política de privacidade' })).toHaveAttribute('href', 'https://ambar.teste/privacidade');
-  await expect(ficha.getByRole('link', { name: 'regulamento do Clube' })).toHaveCount(0);
-  await ficha.locator('#cf-aceite').check();
-  await ficha.getByRole('button', { name: 'Concluir cadastro' }).click();
-  await expect(ficha.locator('.ficha__boas-vindas')).toHaveText(/Pronto, João!/);
+  await page.waitForURL(`${SITE}/clube/cadastro/`);
+  const f = ficha(page);
+  await expect(f.locator('.ticket__title')).toHaveText(/Falta pouco, João/i);
+  await expect(f).toContainText('Só falta confirmar os termos');
+  await expect(f.getByLabel('Nome')).toHaveCount(0);
+  await expect(f.getByLabel(/Aniversário/)).toHaveCount(0);
+  await expect(f.locator('#cf-marketing')).toHaveCount(0);
+  await expect(f.getByRole('link', { name: 'política de privacidade' })).toHaveAttribute('href', 'https://ambar.teste/privacidade');
+  await expect(f.getByRole('link', { name: 'regulamento do Clube' })).toHaveAttribute('href', 'https://ambar.teste/regulamento');
+  await f.locator('#cf-aceite').check();
+  await f.getByRole('button', { name: 'Concluir cadastro' }).click();
+  await expect(f.locator('.ficha__boas-vindas')).toHaveText(/Pronto, João!/);
   expect(api.chamadas.find((c) => c.rota === '/clube/adesoes')!.corpo).toEqual({ aceiteRegulamento: true, regulamentoVersao: 'r1', privacidadeVersao: 'p1' });
 });
 
-test('termos atualizados durante o cadastro (409): pede o aceite de novo sem perder os campos', async ({ page }) => {
+test('termos atualizados (409) e sessão vencida (401) no cadastro: nada do que foi digitado se perde', async ({ page }) => {
   await apiFalsa(page, { versaoNova: true });
-  const ficha = await entrar(page, '85977775678');
+  await entrar(page, '85977775678');
   await confirmarCodigo(page);
-  await ficha.getByLabel('Nome').fill('Bia');
-  await ficha.locator('#cf-aceite').check();
-  await ficha.getByRole('button', { name: 'Concluir cadastro' }).click();
-  await expect(ficha.locator('#cf-aceite-erro')).toHaveText(/foram atualizados/);
-  await expect(ficha.locator('#cf-aceite')).not.toBeChecked();
-  await expect(ficha.getByLabel('Nome')).toHaveValue('Bia');
-  await ficha.locator('#cf-aceite').check();
-  await ficha.getByRole('button', { name: 'Concluir cadastro' }).click();
-  await expect(ficha.locator('.ficha__boas-vindas')).toHaveText(/Pronto, Bia!/);
+  await page.waitForURL(`${SITE}/clube/cadastro/`);
+  const f = ficha(page);
+  await f.getByLabel('Nome').fill('Bia');
+  await f.locator('#cf-aceite').check();
+  await f.getByRole('button', { name: 'Concluir cadastro' }).click();
+  await expect(f.locator('#cf-aceite-erro')).toHaveText(/foram atualizados/);
+  await expect(f.locator('#cf-aceite')).not.toBeChecked();
+  await expect(f.getByLabel('Nome')).toHaveValue('Bia');
+  await f.locator('#cf-aceite').check();
+  await f.getByRole('button', { name: 'Concluir cadastro' }).click();
+  await expect(f.locator('.ficha__boas-vindas')).toHaveText(/Pronto, Bia!/);
 });
 
-test('cliente ativo: entra direto, sem cadastro de novo e sem carteira de mentira', async ({ page }) => {
-  const api = await apiFalsa(page);
-  const ficha = await entrar(page, '85988880001');
+test('sessão vencida no meio do cadastro (401): confirma o WhatsApp ali mesmo e volta ao formulário preenchido', async ({ page }) => {
+  await apiFalsa(page, { sessaoVenceAntesDeConcluir: 1 });
+  await entrar(page, '85977774321');
   await confirmarCodigo(page);
-  await expect(ficha.locator('.ficha__boas-vindas')).toHaveText(/Olá, Maria!.*Você já faz parte do Clube Âmbar/s);
-  await expect(ficha.locator('input')).toHaveCount(0);
-  await expect(ficha.locator('.carteira, a[href="/clube/membro/"]')).toHaveCount(0);
-  await expect(ficha).not.toContainText(/\d+\s*pontos|saldo/i);
-  await expect(ficha.getByRole('link', { name: 'Voltar ao início' })).toHaveAttribute('href', '/');
-  expect(api.chamadas.some((c) => c.rota === '/clube/adesoes')).toBe(false);
+  await page.waitForURL(`${SITE}/clube/cadastro/`);
+  const f = ficha(page);
+  await f.getByLabel('Nome').fill('Rui Lima');
+  await f.locator('#cf-aceite').check();
+  await f.getByRole('button', { name: 'Concluir cadastro' }).click();
+  await expect(f.locator('.ticket__status[data-tone="error"]')).toHaveText(/Confirme o WhatsApp de novo/);
+  await f.getByLabel('WhatsApp').fill('85977774321');
+  await f.getByRole('button', { name: 'Continuar' }).click();
+  await confirmarCodigo(page);
+  await expect(f.getByLabel('Nome')).toHaveValue('Rui Lima');
+  await expect(page).toHaveURL(`${SITE}/clube/cadastro/`);
+});
+
+test('/clube/cadastro sem sessão pede o WhatsApp; membro que abre o cadastro vai para a conta', async ({ page }) => {
+  await apiFalsa(page);
+  await page.goto(`${SITE}/clube/cadastro/`);
+  await expect(ficha(page).locator('.ticket__status[role="status"]')).toHaveText(/continuar o cadastro/);
+  await expect(ficha(page).getByLabel('WhatsApp')).toBeVisible();
+  await entrarNaConta(page);
+  await page.goto(`${SITE}/clube/cadastro/`);
+  await page.waitForURL(`${SITE}/clube/conta/`);
+});
+
+// ── Conta ────────────────────────────────────────────────────────────────────────────────────────────────────────
+test('membro: o código abre a conta — saudação, cartão, programa em preparação, sem pontos nem compras inventadas', async ({ page }) => {
+  const api = await apiFalsa(page);
+  await entrarNaConta(page);
+  await expect(page).toHaveTitle(/Minha conta/);
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', /noindex/);
+  await expect(page.locator('.conta-topo__desde')).toHaveText('Membro do Clube Âmbar desde outubro de 2026');
+  const cartao = page.locator('.carteira[data-estado="membro"]');
+  await expect(cartao.locator('.carteira__nome')).toHaveText('Maria Clara');
+  await expect(cartao.locator('.carteira__saldo dd')).toHaveText('em breve');
+  await expect(page.locator('.conta-programa--preparo')).toContainText('Suas vantagens estão sendo preparadas');
+  // histórico, recompensas e resgates: à vista, mas “em breve” enquanto não existem
+  await expect(page.locator('.conta-atalho')).toHaveCount(3);
+  await expect(page.locator('.conta-atalho__breve')).toHaveCount(3);
+  await expect(page.locator('main')).not.toContainText(/\d+\s*pontos|R\$|desconto|grátis/i);
+  // dados reais da sessão
+  await expect(page.locator('.conta-dados')).toContainText('(85) •••••-0001');
+  await expect(page.locator('.conta-dados')).toContainText('7 de fevereiro');
+  // a sessão restaura ao recarregar, sem código
+  await page.reload();
+  await expect(page.locator('.conta-topo__ola')).toHaveText(/Olá, Maria/);
+  expect(api.chamadas.filter((c) => c.rota === '/clube/acesso')).toHaveLength(1);
+  expect(await tudoComCookie(page)).toBe(true);
+});
+
+test('conta: novidades (PUT /clube/me/marketing) e avisos (DELETE /clube/me/mensagens), com anti-CSRF', async ({ page }) => {
+  const api = await apiFalsa(page);
+  await entrarNaConta(page);
+  const novidades = page.getByRole('switch', { name: /Novidades e ofertas/ });
+  await expect(novidades).toBeChecked();
+  await novidades.uncheck();
+  await expect(page.locator('.conta-bloco .ticket__status[role="status"]')).toHaveText(/desligadas/);
+  await expect(novidades).not.toBeChecked();
+  const put = api.chamadas.find((c) => c.rota === '/clube/me/marketing')!;
+  expect(put).toMatchObject({ metodo: 'PUT', corpo: { autorizado: false, textoVersao: 'm1' }, csrf: '1' });
+  // parar os avisos de serviço NÃO é uma preferência comum (não tem volta pelo site): fora do bloco de comunicação,
+  // recolhido, e o aviso de que não dá para religar vem antes do botão
+  const comunicacao = page.locator('.conta-bloco', { has: page.getByRole('heading', { name: 'Comunicação' }) });
+  await expect(comunicacao.getByRole('button')).toHaveCount(0);
+  await expect(comunicacao.getByRole('switch')).toHaveCount(1);
+  const parar = page.locator('details.conta-parar');
+  await expect(parar.getByRole('button', { name: 'Parar os avisos' })).toBeHidden();
+  await parar.locator('summary').click();
+  await expect(parar).toContainText('não dá para religar por aqui');
+  expect(api.chamadas.some((c) => c.rota === '/clube/me/mensagens')).toBe(false);
+  await parar.getByRole('button', { name: 'Parar os avisos' }).click();
+  await expect(page.locator('.conta-mensagens')).toContainText('Desligados. O código de acesso continua chegando');
+  await expect(page.locator('details.conta-parar')).toHaveCount(0);   // sem botão de religar inventado
+  expect(api.chamadas.find((c) => c.rota === '/clube/me/mensagens')).toMatchObject({ metodo: 'DELETE', csrf: '1' });
+  // as novidades continuam como estavam (consentimentos separados)
+  await expect(novidades).not.toBeChecked();
+});
+
+test('conta sem sessão → /clube/entrar com destino seguro; depois do código, volta à seção pedida', async ({ page }) => {
+  await apiFalsa(page);
+  await page.goto(`${SITE}/clube/historico/`);
+  await page.waitForURL(`${SITE}/clube/entrar/?volta=historico`);
+  await ficha(page).getByLabel('WhatsApp').fill('85988880001');
+  await ficha(page).getByRole('button', { name: 'Continuar' }).click();
+  await confirmarCodigo(page);
+  await page.waitForURL(`${SITE}/clube/historico/`);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Histórico');
+  // destino fora da lista fechada: vai para a conta, nunca para outro endereço
+  await page.goto(`${SITE}/clube/entrar/?volta=https://exemplo.invalid/`);
+  await page.waitForURL(`${SITE}/clube/conta/`);
+});
+
+test('sessão que vence durante o uso da conta (401) → entrar de novo com aviso, voltando à conta', async ({ page }) => {
+  const api = await apiFalsa(page);
+  await entrarNaConta(page);
+  api.derrubarSessao();
+  await page.getByRole('switch', { name: /Novidades e ofertas/ }).click();
+  await page.waitForURL(`${SITE}/clube/entrar/?motivo=sessao`);
+  await expect(ficha(page).locator('.ticket__status[role="status"]')).toHaveText(/sessão terminou/);
+});
+
+test('cadastro pela metade que abre a conta vai para /clube/cadastro; sair encerra e volta à landing', async ({ page }) => {
+  const api = await apiFalsa(page);
+  await entrar(page, '85988880002');
+  await confirmarCodigo(page);
+  await page.waitForURL(`${SITE}/clube/cadastro/`);
+  await page.goto(`${SITE}/clube/conta/`);
+  await page.waitForURL(`${SITE}/clube/cadastro/`);
+  // membro: sair da conta
+  await page.locator('#cf-aceite').check();
+  await page.getByRole('button', { name: 'Concluir cadastro' }).click();
+  await page.getByRole('link', { name: 'Abrir minha conta' }).click();
+  await page.waitForURL(`${SITE}/clube/conta/`);
+  await page.getByRole('button', { name: 'Sair deste aparelho' }).click();
+  await page.waitForURL(`${SITE}/clube/`);
+  expect(api.chamadas.find((c) => c.rota === '/clube/sair')!.csrf).toBe('1');
+  await expect(ficha(page).getByLabel('WhatsApp')).toBeVisible();
+});
+
+test('da home à conta: “Minha conta” ao lado do botão do Clube leva o membro direto à conta, sem a apresentação', async ({ page }) => {
+  await apiFalsa(page);
+  await entrarNaConta(page);
+  await page.goto(`${SITE}/`);
+  const atalho = page.locator('#clube').getByRole('link', { name: 'Minha conta' });
+  await expect(atalho).toHaveAttribute('href', '/clube/conta/');
+  await atalho.click();
+  await page.waitForURL(`${SITE}/clube/conta/`);
+  await expect(page.locator('.conta-topo__ola')).toHaveText(/Olá, Maria/);
+  // sem sessão, o mesmo atalho leva ao login e volta para a conta
+  await page.context().clearCookies();
+  await page.getByRole('button', { name: 'Sair deste aparelho' }).click();
+  await page.waitForURL(`${SITE}/clube/`);
+  await page.goto(`${SITE}/`);
+  await page.locator('#clube').getByRole('link', { name: 'Minha conta' }).click();
+  await page.waitForURL(`${SITE}/clube/entrar/`);
+  await expect(ficha(page).getByLabel('WhatsApp')).toBeVisible();
+});
+
+test('landing com sessão: “Olá” e “Abrir minha conta”, sem repetir a apresentação; “Minha conta” no topo', async ({ page }) => {
+  await apiFalsa(page);
+  await entrarNaConta(page);
+  await page.goto(`${SITE}/clube/`);
+  const f = ficha(page);
+  await expect(f.locator('.ticket__title')).toHaveText('Olá, Maria!');
+  await expect(f.getByRole('link', { name: 'Abrir minha conta' })).toHaveAttribute('href', '/clube/conta/');
+  await expect(page.locator('.clube-pag__mais')).toBeHidden();
+  await expect(page.locator('.page-bar').getByRole('link', { name: 'Minha conta' })).toHaveAttribute('href', '/clube/conta/');
+  expect(await page.evaluate(() => scrollY)).toBe(0);
+  await f.getByRole('button', { name: 'Não é você? Sair' }).click();
+  await expect(f.locator('.ticket__title')).toHaveText(/Seu lugar no Clube começa aqui/i);
+});
+
+test('histórico e recompensas: “em preparação”, sem lista, saldo, produto ou botão de resgate', async ({ page }) => {
+  await apiFalsa(page);
+  await entrarNaConta(page);
+  for (const [rota, titulo] of [['historico', 'Histórico'], ['recompensas', 'Recompensas']]) {
+    await page.goto(`${SITE}/clube/${rota}/`);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(titulo);
+    await expect(page.locator('.area-vazio--preparo')).toBeVisible();
+    await expect(page.locator('.extrato, .catalogo, .recompensa, .resgate')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /resgatar/i })).toHaveCount(0);
+    await expect(page.locator('main')).not.toContainText(/\d+\s*pontos/i);
+    await expect(page.locator(`.area-abas--base .area-aba[aria-current="page"]`)).toHaveText(titulo);
+  }
+});
+
+for (const largura of [360, 390]) {
+  test(`área do membro em ${largura} px: abas na base, sem rolagem horizontal, axe sem violações graves`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 800 });
+    await apiFalsa(page);
+    await entrarNaConta(page);
+    await expect(page.locator('.area-abas--base')).toBeVisible();
+    await expect(page.locator('.area-abas--topo')).toBeHidden();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    const graves = (await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze())
+      .violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(' | ')}`);
+    expect(graves).toEqual([]);
+  });
+}
+
+test('área do membro no desktop: abas no topo, conta em duas colunas', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await apiFalsa(page);
+  await entrarNaConta(page);
+  await expect(page.locator('.area-abas--topo')).toBeVisible();
+  await expect(page.locator('.area-abas--base')).toBeHidden();
+  const [a, b] = await page.locator('.conta-topo, .conta__colunas').evaluateAll((es) => es.map((e) => e.getBoundingClientRect().left));
+  expect(b).toBeGreaterThan(a + 300);
 });
 
 test('inscrições fechadas na API: bilhete “em breve”, sem nenhum campo', async ({ page }) => {
   await apiFalsa(page, { inscricoesAbertas: false });
   await page.goto(`${SITE}/clube/`);
-  const ficha = page.locator('#cadastro .ficha');
-  await expect(ficha.locator('.ticket__title')).toHaveText(/Inscrições em breve/i);
-  await expect(ficha.locator('input, button[type="submit"]')).toHaveCount(0);
+  await expect(ficha(page).locator('.ticket__title')).toHaveText(/Inscrições em breve/i);
+  await expect(ficha(page).locator('input, button[type="submit"]')).toHaveCount(0);
 });
 
-for (const largura of [360, 390]) {
-  test(`entrada única em ${largura} px: cada etapa cabe sem rolagem horizontal`, async ({ page }) => {
-    await page.setViewportSize({ width: largura, height: 800 });
+// 2026-10-23 (acesso primeiro): o cartão vem logo depois do título e da frase; fotos e passos, depois dele
+for (const [largura, altura] of [[360, 780], [390, 844]]) {
+  test(`acesso primeiro em ${largura} × ${altura}: campo e “Continuar” na primeira tela, sem carimbo nem aviso técnico`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: altura });
     await apiFalsa(page);
-    const ficha = await entrar(page, '85977771234');
-    const semEstouro = () => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth);
-    expect(await semEstouro(), 'código').toBe(true);
-    await confirmarCodigo(page);
-    await expect(ficha.getByLabel('Nome')).toBeVisible();
-    expect(await semEstouro(), 'cadastro').toBe(true);
-    expect(await ficha.evaluate((f) => [...f.querySelectorAll('input, button, .check')].every((e) => e.getBoundingClientRect().right <= f.getBoundingClientRect().right + 1))).toBe(true);
+    await page.goto(`${SITE}/clube/`);
+    const f = ficha(page);
+    await expect(f.locator('.ticket__title')).toHaveText('Seu lugar no Clube começa aqui.');
+    const ordem = await page.locator('.clube-pag > :not(.clube-chegada)').evaluateAll((es) => es.map((e) => e.className));
+    expect(ordem).toEqual(['clube-pag__cabeca', 'clube-pag__ficha', 'clube-pag__mais']);
+    for (const alvo of [f.getByLabel('WhatsApp'), f.getByRole('button', { name: 'Continuar' })]) {
+      expect((await alvo.boundingBox())!.y + (await alvo.boundingBox())!.height, 'visível sem rolar').toBeLessThanOrEqual(altura);
+    }
+    const t = await f.locator('.ticket__title').evaluate((e) => ({ h: e.getBoundingClientRect().height, lh: parseFloat(getComputedStyle(e).lineHeight), caixa: getComputedStyle(e).textTransform }));
+    expect(Math.round(t.h / t.lh)).toBeLessThanOrEqual(2);
+    expect(t.caixa).toBe('none');
+    await expect(f.locator('.ticket__stamp')).toHaveCount(0);
+    await expect(page.locator('.clube-dev')).toHaveCount(0);   // o painel da simulação só existe no `astro dev`
+    await expect(f).not.toContainText(/simula|teste|0001|123456/i);
+    const fimFicha = (await f.boundingBox())!.y + (await f.boundingBox())!.height;
+    expect((await page.locator('.clube-pag__destaques').boundingBox())!.y).toBeGreaterThan(fimFicha);
   });
 }
 
-test('acessibilidade (axe) nas três etapas da entrada: WhatsApp, código e cadastro', async ({ page }) => {
+for (const largura of [360, 390]) {
+  test(`telas de acesso em ${largura} px: código e cadastro cabem sem rolagem horizontal`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 800 });
+    await apiFalsa(page);
+    const f = await entrar(page, '85977771234');
+    const semEstouro = () => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth);
+    expect(await semEstouro(), 'código').toBe(true);
+    await confirmarCodigo(page);
+    await page.waitForURL(`${SITE}/clube/cadastro/`);
+    await expect(f.getByLabel('Nome')).toBeVisible();
+    expect(await semEstouro(), 'cadastro').toBe(true);
+    expect(await f.evaluate((e) => [...e.querySelectorAll('input, button, .check')].every((x) => x.getBoundingClientRect().right <= e.getBoundingClientRect().right + 1))).toBe(true);
+  });
+}
+
+test('acessibilidade (axe) nas telas de acesso: código, WhatsApp e cadastro com erros', async ({ page }) => {
   await apiFalsa(page);
-  const graves = async () => (await new AxeBuilder({ page }).include('#cadastro').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze())
+  const graves = async () => (await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze())
     .violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(' | ')}`);
-  const ficha = await entrar(page, '85977771234');
+  const f = await entrar(page, '85977771234');
   expect(await graves(), 'código').toEqual([]);
-  await ficha.getByRole('button', { name: 'Trocar número' }).click();
+  await f.getByRole('button', { name: 'Trocar número' }).click();
   expect(await graves(), 'WhatsApp').toEqual([]);
-  await ficha.getByRole('button', { name: 'Continuar' }).click();
+  // vindo da landing, o número não fica guardado: a troca começa com o campo vazio
+  await expect(f.getByLabel('WhatsApp')).toHaveValue('');
+  await f.getByLabel('WhatsApp').fill('85977771234');
+  await f.getByRole('button', { name: 'Continuar' }).click();
   await confirmarCodigo(page);
-  await ficha.getByRole('button', { name: 'Concluir cadastro' }).click();   // com os erros à vista
+  await page.waitForURL(`${SITE}/clube/cadastro/`);
+  await f.getByRole('button', { name: 'Concluir cadastro' }).click();   // com os erros à vista
   expect(await graves(), 'cadastro com erros').toEqual([]);
 });
 
-// ── Caminho A: convite do caixa (/clube/ativar?c=<token>) ──────────────────────────────────────────────────────────
+// ── Caminho A: convite do WhatsApp (/clube/ativar?c=<token>) ──────────────────────────────────────────────────────
 const abrirConvite = async (page: Page, token: string) => {
   const urls: string[] = [];
   page.on('request', (r) => urls.push(r.url()));
   await page.goto(`${SITE}/clube/ativar?c=${token}`);
-  const ficha = page.locator('#cadastro .ficha');
-  await expect(ficha.locator('.ticket__title')).toHaveText(/Ative seu Clube Âmbar/i);
-  return { ficha, urls };
+  await expect(ficha(page).locator('.ticket__title')).toHaveText(/Ative seu Clube Âmbar/i);
+  return { ficha: ficha(page), urls };
 };
 
 test('convite (A): abrir o link não usa o convite — token fora da URL, no-referrer, só o toque chama POST', async ({ page }) => {
   const api = await apiFalsa(page);
-  const { ficha, urls } = await abrirConvite(page, 'conv-novo');
-  // o token saiu da barra (e do histórico) e nenhuma outra requisição levou o token na URL
+  const { ficha: f, urls } = await abrirConvite(page, 'conv-novo');
   expect(page.url()).toBe(`${SITE}/clube/ativar`);
   await expect(page.locator('meta[name="referrer"]')).toHaveAttribute('content', 'no-referrer');
   expect(urls.filter((u) => u.includes('conv-novo') && !u.startsWith(`${SITE}/clube/ativar?c=`))).toEqual([]);
   expect(await page.evaluate(() => (window as unknown as { __ambarConvite?: string }).__ambarConvite)).toBeUndefined();
-  // nada usou o convite ao abrir
   expect(api.chamadas.filter((c) => c.rota === '/clube/convites/ativar')).toHaveLength(0);
-  await expect(ficha.getByRole('button', { name: 'Ativar meu Clube' })).toBeVisible();
-  await expect(ficha.locator('input')).toHaveCount(0);
+  await expect(f.getByRole('button', { name: 'Ativar meu Clube' })).toBeVisible();
+  await expect(f.locator('input')).toHaveCount(0);
   await expect(page).toHaveTitle(/Ative seu Clube/);
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', /noindex/);
-  // o toque: POST com o token no corpo, cookie e anti-CSRF — nunca GET
-  await ficha.getByRole('button', { name: 'Ativar meu Clube' }).click();
-  await expect(ficha.getByLabel('Nome')).toBeVisible();
+  await f.getByRole('button', { name: 'Ativar meu Clube' }).click();
+  await expect(f.getByLabel('Nome')).toBeVisible();
   const ativar = api.chamadas.filter((c) => c.rota === '/clube/convites/ativar');
   expect(ativar).toHaveLength(1);
   expect(ativar[0]).toMatchObject({ metodo: 'POST', corpo: { convite: 'conv-novo' }, csrf: '1' });
@@ -358,137 +599,154 @@ test('convite (A): abrir o link não usa o convite — token fora da URL, no-ref
   expect(await tudoComCookie(page)).toBe(true);
 });
 
-test('convite novo: ativar → nome, aniversário, aceite e novidades → “Cadastro concluído”; a sessão de ativação acaba', async ({ page }) => {
+test('convite novo: ativar → nome, aniversário, aceite e novidades → concluído, sem código; a sessão de ativação não vê a conta', async ({ page }) => {
   const api = await apiFalsa(page);
-  const { ficha } = await abrirConvite(page, 'conv-novo');
-  await ficha.getByRole('button', { name: 'Ativar meu Clube' }).click();
-  await expect(ficha).toContainText('Convite confirmado. Agora, como podemos chamar você?');
-  await expect(ficha.getByLabel(/Aniversário/)).toBeVisible();
-  await ficha.getByLabel('Nome').fill('Bia Torres');
-  await ficha.getByLabel(/Aniversário/).fill('0907');
-  await ficha.locator('#cf-aceite').check();
-  await ficha.locator('#cf-marketing').check();
-  await ficha.getByRole('button', { name: 'Concluir cadastro' }).click();
-  await expect(ficha.locator('.ficha__boas-vindas')).toHaveText(/Cadastro concluído!.*confirmação no WhatsApp/s);
-  // sem saldo nem recompensa: com o programa desligado, o botão leva ao login normal
-  await expect(ficha).not.toContainText(/pontos|saldo/i);
-  expect(api.chamadas.find((c) => c.rota === '/clube/adesoes')!.corpo).toEqual({ nome: 'Bia Torres', aniversario: '07-09', aceiteRegulamento: true, regulamentoVersao: 'r1', privacidadeVersao: 'p1', marketing: { autorizado: true, textoVersao: 'm1' } });
-  await ficha.getByRole('button', { name: 'Entrar no Clube' }).click();
-  await expect(ficha.locator('.ticket__title')).toHaveText(/Entre para o Clube Âmbar/i);
-  // a sessão de ativação acabou: abrir o Clube de novo pede o WhatsApp
+  const { ficha: f } = await abrirConvite(page, 'conv-novo');
+  await f.getByRole('button', { name: 'Ativar meu Clube' }).click();
+  await expect(f).toContainText('Convite confirmado. Agora, como podemos chamar você?');
+  // a sessão de ativação não abre a carteira nem nada privado: conta, histórico e recompensas mandam de volta ao
+  // cadastro; a landing não mostra nome; nenhuma preferência é alterável
+  for (const rota of ['conta', 'historico', 'recompensas']) {
+    await page.goto(`${SITE}/clube/${rota}/`);
+    await page.waitForURL(`${SITE}/clube/cadastro/`);
+    await expect(page.locator('.carteira, .conta, .conta-dados, .area-secao')).toHaveCount(0);
+  }
   await page.goto(`${SITE}/clube/`);
-  await expect(ficha.locator('.ticket__title')).toHaveText(/Entre para o Clube Âmbar/i);
+  await expect(f.locator('.ticket__title')).toHaveText('Falta pouco');
+  await expect(page.locator('main')).not.toContainText(/Olá|•••••|aniversário/i);
+  expect(api.chamadas.some((c) => c.rota.startsWith('/clube/me/'))).toBe(false);
+  await page.goto(`${SITE}/clube/cadastro/`);
+  await expect(f).toContainText('Convite confirmado');
+  await f.getByLabel('Nome').fill('Bia Torres');
+  await f.getByLabel(/Aniversário/).fill('0907');
+  await f.locator('#cf-aceite').check();
+  await f.locator('#cf-marketing').check();
+  await f.getByRole('button', { name: 'Concluir cadastro' }).click();
+  await expect(f.locator('.ticket__title')).toHaveText('Você faz parte do Clube Âmbar!');
+  await expect(f.locator('.ficha__boas-vindas')).toHaveText(/Cadastro concluído!.*confirmação no WhatsApp/s);
+  await expect(f).not.toContainText(/pontos|saldo/i);
+  expect(api.chamadas.some((c) => c.rota === '/clube/acesso')).toBe(false);   // nenhum código pedido
+  expect(api.chamadas.find((c) => c.rota === '/clube/adesoes')!.corpo).toEqual({ nome: 'Bia Torres', aniversario: '07-09', aceiteRegulamento: true, regulamentoVersao: 'r1', privacidadeVersao: 'p1', marketing: { autorizado: true, textoVersao: 'm1' } });
+  // a conta se abre pelo login normal
+  await f.getByRole('link', { name: 'Entrar na minha conta' }).click();
+  await page.waitForURL(`${SITE}/clube/entrar/`);
+  await expect(f.getByLabel('WhatsApp')).toBeVisible();
 });
 
 test('convite incompleto: pede só o aceite — nome e aniversário já gravados não aparecem nem são enviados', async ({ page }) => {
   const api = await apiFalsa(page);
-  const { ficha } = await abrirConvite(page, 'conv-incompleto');
-  await ficha.getByRole('button', { name: 'Ativar meu Clube' }).click();
-  await expect(ficha.locator('.ticket__title')).toHaveText(/Falta pouco/i);
-  await expect(ficha).toContainText('Só falta aceitar os termos do Clube.');
-  await expect(ficha.locator('#cf-nome, #cf-aniversario, #cf-marketing')).toHaveCount(0);
-  await ficha.locator('#cf-aceite').check();
-  await ficha.getByRole('button', { name: 'Concluir cadastro' }).click();
-  await expect(ficha.locator('.ficha__boas-vindas')).toHaveText(/Cadastro concluído!/);
+  const { ficha: f } = await abrirConvite(page, 'conv-incompleto');
+  await f.getByRole('button', { name: 'Ativar meu Clube' }).click();
+  await expect(f.locator('.ticket__title')).toHaveText(/Falta pouco/i);
+  await expect(f).toContainText('Só falta aceitar os termos do Clube.');
+  await expect(f.locator('#cf-nome, #cf-aniversario, #cf-marketing')).toHaveCount(0);
+  await f.locator('#cf-aceite').check();
+  await f.getByRole('button', { name: 'Concluir cadastro' }).click();
+  await expect(f.locator('.ficha__boas-vindas')).toHaveText(/Cadastro concluído!/);
   expect(api.chamadas.find((c) => c.rota === '/clube/adesoes')!.corpo).toEqual({ aceiteRegulamento: true, regulamentoVersao: 'r1', privacidadeVersao: 'p1' });
 });
 
-test('convite de quem já é membro: o link não dá acesso — vai para o login por código', async ({ page }) => {
+test('convite de quem já é membro: o link não dá acesso — login por código abre a conta', async ({ page }) => {
   const api = await apiFalsa(page);
-  const { ficha } = await abrirConvite(page, 'conv-ativo');
-  await ficha.getByRole('button', { name: 'Ativar meu Clube' }).click();
-  await expect(ficha.locator('.ticket__title')).toHaveText(/Entre para o Clube Âmbar/i);
-  await expect(ficha.locator('.ticket__status[role="status"]')).toHaveText(/já faz parte do Clube.*confirme seu WhatsApp/i);
-  await expect(ficha.locator('.ficha__boas-vindas, .carteira')).toHaveCount(0);
-  // sem sessão: só o código abre a conta
-  await ficha.getByLabel('WhatsApp').fill('85988880001');
-  await ficha.getByRole('button', { name: 'Continuar' }).click();
+  const { ficha: f } = await abrirConvite(page, 'conv-ativo');
+  await f.getByRole('button', { name: 'Ativar meu Clube' }).click();
+  await expect(f.locator('.ticket__status[role="status"]')).toHaveText(/já faz parte do Clube.*confirme seu WhatsApp/i);
+  await expect(f.locator('.ficha__boas-vindas, .carteira')).toHaveCount(0);
+  await f.getByLabel('WhatsApp').fill('85988880001');
+  await f.getByRole('button', { name: 'Continuar' }).click();
   await confirmarCodigo(page);
-  await expect(ficha.locator('.ficha__boas-vindas')).toHaveText(/Olá, Maria!/);
+  await page.waitForURL(`${SITE}/clube/conta/`);
   expect(api.chamadas.filter((c) => c.rota === '/clube/acesso')).toHaveLength(1);
 });
 
 test('link vencido, usado ou recarregado: recuperação segura pela entrada do WhatsApp', async ({ page }) => {
   await apiFalsa(page);
-  // inválido/vencido
-  let { ficha } = await abrirConvite(page, 'conv-vencido');
-  await ficha.getByRole('button', { name: 'Ativar meu Clube' }).click();
-  await expect(ficha.locator('.ticket__title')).toHaveText(/Entre para o Clube Âmbar/i);
-  await expect(ficha.locator('.ticket__status[data-tone="error"]')).toHaveText(/venceu ou já foi usado/);
-  await expect(ficha.getByLabel('WhatsApp')).toBeVisible();
-  // já usado: ativa, sai e tenta o mesmo link de novo
-  ({ ficha } = await abrirConvite(page, 'conv-incompleto'));
-  await ficha.getByRole('button', { name: 'Ativar meu Clube' }).click();
-  await ficha.getByRole('button', { name: 'Não é você? Sair' }).click();
-  ({ ficha } = await abrirConvite(page, 'conv-incompleto'));
-  await ficha.getByRole('button', { name: 'Ativar meu Clube' }).click();
-  await expect(ficha.locator('.ticket__status[data-tone="error"]')).toHaveText(/venceu ou já foi usado/);
-  // recarregar depois que o token saiu da URL: aviso e entrada normal (o token não volta)
-  ({ ficha } = await abrirConvite(page, 'conv-novo'));
+  let { ficha: f } = await abrirConvite(page, 'conv-vencido');
+  await f.getByRole('button', { name: 'Ativar meu Clube' }).click();
+  await expect(f.locator('.ticket__status[data-tone="error"]')).toHaveText(/venceu ou já foi usado/);
+  await expect(f.getByLabel('WhatsApp')).toBeVisible();
+  ({ ficha: f } = await abrirConvite(page, 'conv-incompleto'));
+  await f.getByRole('button', { name: 'Ativar meu Clube' }).click();
+  await f.getByRole('button', { name: 'Não é você? Sair' }).click();
+  ({ ficha: f } = await abrirConvite(page, 'conv-incompleto'));
+  await f.getByRole('button', { name: 'Ativar meu Clube' }).click();
+  await expect(f.locator('.ticket__status[data-tone="error"]')).toHaveText(/venceu ou já foi usado/);
+  ({ ficha: f } = await abrirConvite(page, 'conv-novo'));
   await page.reload();
-  await expect(ficha.locator('.ticket__status[role="status"]')).toHaveText(/toque de novo no botão da mensagem/);
-  await expect(ficha.getByLabel('WhatsApp')).toBeVisible();
+  await expect(f.locator('.ticket__status[role="status"]')).toHaveText(/toque de novo no botão da mensagem/);
+  await expect(f.getByLabel('WhatsApp')).toBeVisible();
 });
 
 test('sessão de ativação vence no meio (401): aviso do convite e entrada pelo WhatsApp', async ({ page }) => {
-  await apiFalsa(page, { sessaoVenceAntesDeConcluir: true });
-  const { ficha } = await abrirConvite(page, 'conv-novo');
-  await ficha.getByRole('button', { name: 'Ativar meu Clube' }).click();
-  await ficha.getByLabel('Nome').fill('Rui');
-  await ficha.locator('#cf-aceite').check();
-  await ficha.getByRole('button', { name: 'Concluir cadastro' }).click();
-  await expect(ficha.locator('.ticket__status[data-tone="error"]')).toHaveText(/tempo para ativar pelo convite acabou/);
-  await expect(ficha.getByLabel('WhatsApp')).toBeVisible();
+  await apiFalsa(page, { sessaoVenceAntesDeConcluir: 1 });
+  const { ficha: f } = await abrirConvite(page, 'conv-novo');
+  await f.getByRole('button', { name: 'Ativar meu Clube' }).click();
+  await f.getByLabel('Nome').fill('Rui');
+  await f.locator('#cf-aceite').check();
+  await f.getByRole('button', { name: 'Concluir cadastro' }).click();
+  await expect(f.locator('.ticket__status[data-tone="error"]')).toHaveText(/tempo para ativar pelo convite acabou/);
+  await expect(f.getByLabel('WhatsApp')).toBeVisible();
 });
 
 test('aparelho compartilhado: com outra sessão aberta, o convite mostra a conta atual e oferece “Ativar o convite recebido”', async ({ page }) => {
   const api = await apiFalsa(page);
-  let ficha = await entrar(page, '85988880001');
-  await confirmarCodigo(page);
-  await expect(ficha.locator('.ficha__boas-vindas')).toHaveText(/Olá, Maria!/);
-  // abre o convite de outra pessoa neste navegador: a sessão de Maria aparece, o convite não é usado sozinho
+  await entrarNaConta(page);
   await page.goto(`${SITE}/clube/ativar?c=conv-novo`);
   expect(page.url()).toBe(`${SITE}/clube/ativar`);
-  ficha = page.locator('#cadastro .ficha');
-  await expect(ficha.locator('.ficha__boas-vindas')).toHaveText(/Olá, Maria!/);
+  const f = ficha(page);
+  await expect(f.locator('.ticket__title')).toHaveText('Olá, Maria!');
   expect(api.chamadas.filter((c) => c.rota === '/clube/convites/ativar')).toHaveLength(0);
-  // o toque usa o convite (o backend troca a sessão deste navegador pela de ativação) → cadastro de quem foi convidado
-  await ficha.getByRole('button', { name: 'Ativar o convite recebido' }).click();
-  await expect(ficha.getByLabel('Nome')).toBeVisible();
-  await expect(ficha).not.toContainText('Maria');
+  await f.getByRole('button', { name: 'Ativar o convite recebido' }).click();
+  await expect(f.getByLabel('Nome')).toBeVisible();
+  await expect(f).not.toContainText('Maria');
   expect(api.chamadas.filter((c) => c.rota === '/clube/convites/ativar')).toHaveLength(1);
-  await expect(ficha.getByRole('button', { name: 'Ativar o convite recebido' })).toHaveCount(0);
+  await expect(f.getByRole('button', { name: 'Ativar o convite recebido' })).toHaveCount(0);
   // convite já usado com a sessão de Maria aberta: ela continua na própria conta, com o aviso
-  await ficha.getByRole('button', { name: 'Não é você? Sair' }).click();
-  await expect(ficha.getByLabel('WhatsApp')).toBeVisible();
-  ficha = await entrar(page, '85988880001');
-  await confirmarCodigo(page);
+  await f.getByRole('button', { name: 'Não é você? Sair' }).click();
+  await entrarNaConta(page);
   await page.goto(`${SITE}/clube/ativar?c=conv-novo`);
-  await ficha.getByRole('button', { name: 'Ativar o convite recebido' }).click();
-  await expect(ficha.locator('.ticket__status[data-tone="error"]')).toHaveText(/venceu ou já foi usado/);
-  await expect(ficha.locator('.ficha__boas-vindas')).toHaveText(/Olá, Maria!/);
-  await expect(ficha.getByRole('button', { name: 'Ativar o convite recebido' })).toHaveCount(0);
+  await f.getByRole('button', { name: 'Ativar o convite recebido' }).click();
+  await expect(f.locator('.ticket__status[data-tone="error"]')).toHaveText(/venceu ou já foi usado/);
+  await expect(f.locator('.ticket__title')).toHaveText('Olá, Maria!');
+  await expect(f.getByRole('button', { name: 'Ativar o convite recebido' })).toHaveCount(0);
   // “Sair” com um convite ainda não usado leva ao botão do convite
   await page.goto(`${SITE}/clube/ativar?c=conv-incompleto`);
-  await ficha.getByRole('button', { name: 'Não é você? Sair' }).click();
-  await expect(ficha.getByRole('button', { name: 'Ativar meu Clube' })).toBeVisible();
+  await f.getByRole('button', { name: 'Não é você? Sair' }).click();
+  await expect(f.getByRole('button', { name: 'Ativar meu Clube' })).toBeVisible();
 });
 
 for (const largura of [360, 390]) {
   test(`convite em ${largura} px: botão, cadastro e conclusão cabem, e passam no axe`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 800 });
     await apiFalsa(page);
-    const graves = async () => (await new AxeBuilder({ page }).include('#cadastro').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze())
+    const graves = async () => (await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze())
       .violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => v.id);
-    const { ficha } = await abrirConvite(page, 'conv-novo');
+    const { ficha: f } = await abrirConvite(page, 'conv-novo');
     expect(await graves(), 'convite').toEqual([]);
-    await ficha.getByRole('button', { name: 'Ativar meu Clube' }).click();
-    await ficha.getByLabel('Nome').fill('Bia');
-    await ficha.locator('#cf-aceite').check();
+    await f.getByRole('button', { name: 'Ativar meu Clube' }).click();
+    await f.getByLabel('Nome').fill('Bia');
+    await f.locator('#cf-aceite').check();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    await ficha.getByRole('button', { name: 'Concluir cadastro' }).click();
-    await expect(ficha.locator('.ficha__boas-vindas')).toBeVisible();
+    await f.getByRole('button', { name: 'Concluir cadastro' }).click();
+    await expect(f.locator('.ficha__boas-vindas')).toBeVisible();
     expect(await graves(), 'concluído').toEqual([]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
 }
+
+// ── Prévia local: só no build de testes (e no `astro dev`) ────────────────────────────────────────────────────────
+test('prévia local: todas as telas com dados de exemplo marcados, sem chamar a API', async ({ page }) => {
+  const api = await apiFalsa(page);
+  await page.goto(`${SITE}/clube/previa/`);
+  const links = await page.locator('.previa-indice a').evaluateAll((as) => as.map((a) => (a as HTMLAnchorElement).getAttribute('href')!));
+  expect(links.length).toBeGreaterThanOrEqual(30);
+  for (const href of links) {
+    await page.goto(`${SITE}${href}`);
+    await expect(page.locator('.previa-faixa')).toContainText('dados de exemplo');
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', /noindex/);
+  }
+  expect(api.chamadas).toEqual([]);
+  // o QR Code do exemplo vem pronto como imagem (o componente nunca gera QR a partir do id)
+  await page.goto(`${SITE}/clube/previa/resgate-aguardando/`);
+  await expect(page.locator('.resgate__qr img')).toHaveAttribute('src', /^data:image\/svg\+xml/);
+});

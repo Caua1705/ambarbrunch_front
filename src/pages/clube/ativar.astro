@@ -1,7 +1,7 @@
 ---
 // /clube/ativar?c=<token> — o link do convite do caixa (template ambar_clube_ativar_cadastro, botão “ATIVAR MEU CLUBE”).
-// Contrato: giardini_back, CLUBE.md §4 (“Porta A”) e §9 (commit ebc8b5d). A página é a mesma do Clube; a comanda começa
-// pelo botão “Ativar meu Clube”.
+// Contrato: giardini_back, CLUBE.md §4 (“Porta A”) e §9 (commit ebc8b5d). Tela de acesso dedicada (sections/ClubeFoco),
+// com o cartão islands/ClubeAcesso (pagina="ativar") começando pelo botão “Ativar meu Clube”.
 // Proteção do link:
 //  · o script do <head> lê o `c` antes de qualquer pintura, guarda-o SÓ em memória (window.__ambarConvite, que a ilha
 //    lê uma vez e apaga) e tira o `c` da barra de endereço na hora (history.replaceState) — não fica no histórico, nem
@@ -13,12 +13,18 @@
 //    48 h (decisão do backend).
 // Sem o `c` (ou ao recarregar, depois que ele saiu da URL) a comanda oferece a entrada normal pelo WhatsApp.
 import Base from '../../layouts/Base.astro';
-import ClubePagina from '../../sections/ClubePagina.astro';
+import ClubeFoco from '../../sections/ClubeFoco.astro';
+import ClubeAcesso from '../../islands/ClubeAcesso';
+import { CLUBE_MODO, CLUBE_API_URL, CLUBE_ABERTO } from '../../lib/clube-modo';
 ---
 <Base titulo="Ative seu Clube Âmbar — Âmbar Café" descricao="Ative seu cadastro no Clube Âmbar." home={false} indexar={false}>
   <Fragment slot="head">
     <meta name="referrer" content="no-referrer" />
     <script is:inline>(function(){try{var u=new URL(location.href),c=u.searchParams.get('c');if(c){window.__ambarConvite=c;u.searchParams.delete('c');var q=u.searchParams.toString();history.replaceState(history.state,'',u.pathname+(q?'?'+q:'')+u.hash);}}catch(e){}})();</script>
   </Fragment>
-  <ClubePagina convite />
+  <ClubeFoco rotulo="Ativação">
+    {CLUBE_ABERTO
+      ? <ClubeAcesso client:load pagina="ativar" modo={CLUBE_MODO} apiUrl={CLUBE_API_URL} privacidadeUrl="/privacidade/" />
+      : <ClubeAcesso pagina="ativar" modo={CLUBE_MODO} privacidadeUrl="/privacidade/" />}
+  </ClubeFoco>
 </Base>

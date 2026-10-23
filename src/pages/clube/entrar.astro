@@ -1,0 +1,16 @@
+---
+// /clube/entrar — acesso dedicado ao Clube Âmbar: WhatsApp e código (islands/ClubeAcesso, pagina="entrar"). Vindo da
+// landing, abre direto no código (o número não é digitado de novo). `?volta=` (lista fechada: conta, historico,
+// recompensas) diz para onde ir depois; `?motivo=sessao` avisa que a sessão terminou. Fora dos buscadores.
+import Base from '../../layouts/Base.astro';
+import ClubeFoco from '../../sections/ClubeFoco.astro';
+import ClubeAcesso from '../../islands/ClubeAcesso';
+import { CLUBE_MODO, CLUBE_API_URL, CLUBE_ABERTO } from '../../lib/clube-modo';
+---
+<Base titulo="Entrar — Clube Âmbar" descricao="Entre no Clube Âmbar com seu WhatsApp." home={false} indexar={false}>
+  <ClubeFoco rotulo="Entrar">
+    {CLUBE_ABERTO
+      ? <ClubeAcesso client:load pagina="entrar" modo={CLUBE_MODO} apiUrl={CLUBE_API_URL} privacidadeUrl="/privacidade/" />
+      : <ClubeAcesso pagina="entrar" modo={CLUBE_MODO} privacidadeUrl="/privacidade/" />}
+  </ClubeFoco>
+</Base>

@@ -39,29 +39,31 @@ Produção (Vercel): `PUBLIC_REVISAO=0` e `PUBLIC_RESERVAS_MODO=indisponivel`. I
 Variáveis (`.env.example`): `PUBLIC_REVISAO`, `PUBLIC_RESERVAS_MODO` (`indisponivel` · `simulado` · `api`), `PUBLIC_RESERVAS_API_URL` (staging),
 `PUBLIC_CLUBE_MODO` (`indisponivel` · `api` · `simulado`, este só no `astro dev`), `PUBLIC_CLUBE_API_URL`.
 
-### Prévia do Clube Âmbar (entrada pelo WhatsApp)
+### Clube Âmbar no computador (simulação e prévia)
 
-`npm run dev:clube` abre `/clube/` com o formulário funcionando contra uma **API de mentira** (`src/lib/api/clube-simulado.ts`),
-com o aviso “Simulação local” no cartão. Nada sai do computador. Roteiro:
+`npm run dev:clube` abre `/clube/` com tudo funcionando contra uma **API de mentira** (`src/lib/api/clube-simulado.ts`).
+Nada sai do computador. O painel **“Simulação local”** (canto inferior esquerdo, recolhido) traz o roteiro e os atalhos.
 
-| Número (qualquer DDD, celular) | O que acontece depois do código |
+| Número (qualquer DDD, celular) | Depois do código |
 | --- | --- |
-| termina em `0001` | **membro ativo** — “Olá, Maria!”, sem cadastro de novo |
-| termina em `0002` | **cadastro incompleto** — já tem nome; pede só o aceite dos termos |
-| qualquer outro, ex. `(85) 97777-1234` | **cliente novo** — nome, aniversário (opcional), aceite e novidades → confirmação |
+| termina em `0001` | **membro ativo** → `/clube/conta/` |
+| termina em `0002` | **cadastro incompleto** → `/clube/cadastro/`, só o aceite dos termos |
+| qualquer outro, ex. `(85) 97777-1234` | **cliente novo** → `/clube/cadastro/` → “Você faz parte do Clube Âmbar!” |
 
-Código: `123456` confere · `000000` = vencido · outro = incorreto (o 5º erro trava). Recarregar a página mantém a sessão
-de mentira (imita o cookie real); **“Não é você? Sair”** encerra. Tudo fica só na aba (some ao fechá-la).
+Código: `123456` confere · `000000` = vencido · outro = incorreto. Convites: `/clube/ativar?c=demo-novo` ·
+`demo-incompleto` · `demo-ativo` · `demo-vencido`. Recarregar mantém a sessão de mentira; “Zerar simulação” recomeça.
 
-Convite do caixa (o link do WhatsApp “Ativar meu Clube”), na mesma prévia:
-`/clube/ativar?c=demo-novo` (cliente novo) · `demo-incompleto` (só o aceite) · `demo-ativo` (já é membro → login por
-código) · `demo-vencido` (link vencido → entrada pelo WhatsApp). Cada convite de demonstração vale uma vez por aba.
+Telas: `/clube/` (landing) · `/clube/entrar/` · `/clube/cadastro/` · `/clube/ativar/` · `/clube/conta/` ·
+`/clube/historico/` · `/clube/recompensas/`. **Prévia de todos os estados** com dados de exemplo (inclusive conta com
+pontos, histórico, recompensas e QR Code): `/clube/previa/`.
 
-Como funciona: o arquivo `.env.development` (só lido pelo `astro dev`) liga `PUBLIC_CLUBE_MODO=simulado`. **Nenhum build
-usa a simulação** — `npm run build`, `build:revisao` e `build:simulado` mostram “Inscrições em breve” (em
-`src/lib/clube-modo.ts`, “simulado” só vale com `import.meta.env.DEV`). Para ver o pré-lançamento no `astro dev`, crie
-`.env.development.local` com `PUBLIC_CLUBE_MODO=indisponivel`; para a API real local, `PUBLIC_CLUBE_MODO=api` e
-`PUBLIC_CLUBE_API_URL=http://localhost:8000/` (a origem do site precisa estar em `AMBAR_CLUBE_ORIGENS` do backend).
+Como funciona: `.env.development` (só lido pelo `astro dev`) liga `PUBLIC_CLUBE_MODO=simulado`. **Nenhum build publica
+a simulação nem a prévia**: `npm run build` e `build:revisao` mostram “em breve” em todas as páginas do Clube e não geram
+`/clube/previa/` (`src/lib/clube-modo.ts`). O build de testes (`build:simulado`, `dist-sim`, nunca publicado) usa
+`PUBLIC_CLUBE_MODO=api` com um endereço `.invalid` que os testes interceptam, e inclui a prévia. Para ver o
+pré-lançamento no `astro dev`, crie `.env.development.local` com `PUBLIC_CLUBE_MODO=indisponivel`; para a API real
+local, `PUBLIC_CLUBE_MODO=api` e `PUBLIC_CLUBE_API_URL=http://localhost:8000/` (a origem do site em
+`AMBAR_CLUBE_ORIGENS` do backend). Arquitetura e contrato: [`docs/technical/CONTRATO-API-CLUBE.md`](docs/technical/CONTRATO-API-CLUBE.md).
 
 ## Como trabalhamos
 

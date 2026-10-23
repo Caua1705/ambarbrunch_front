@@ -1,0 +1,15 @@
+---
+// /clube/recompensas — catálogo de recompensas e resgates (em preparação, sem ação de resgate). Área do membro (sections/ClubeAreaMolde + islands/ClubeArea): a sessão é
+// conferida na ilha; sem sessão, vai para /clube/entrar/ e volta para cá. Fora dos buscadores.
+import Base from '../../layouts/Base.astro';
+import ClubeAreaMolde from '../../sections/ClubeAreaMolde.astro';
+import ClubeArea from '../../islands/ClubeArea';
+import { CLUBE_MODO, CLUBE_API_URL, CLUBE_ABERTO } from '../../lib/clube-modo';
+---
+<Base titulo="Recompensas — Clube Âmbar" descricao="Recompensas no Clube Âmbar." home={false} indexar={false}>
+  <ClubeAreaMolde atual="recompensas" titulo="Recompensas">
+    {CLUBE_ABERTO
+      ? <ClubeArea client:load secao="recompensas" modo={CLUBE_MODO} apiUrl={CLUBE_API_URL} />
+      : <ClubeArea secao="recompensas" modo={CLUBE_MODO} />}
+  </ClubeAreaMolde>
+</Base>

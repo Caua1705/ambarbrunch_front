@@ -67,6 +67,8 @@ function podarMidiaNaoReferenciada() {
 export default defineConfig({
   site: 'https://ambarbrunch.com',
   output: 'static',
+  // a carteira antiga (/clube/membro) virou a área do membro: o endereço velho continua funcionando
+  redirects: { '/clube/membro': '/clube/conta/' },
   integrations: [preact(), podarMidiaNaoReferenciada()],
   build: { inlineStylesheets: 'auto', assets: '_astro' },
   image: { responsiveStyles: false },

@@ -1,0 +1,29 @@
+---
+// Painel da simulação local (2026-10-23): aviso, roteiro de teste e atalhos para todas as telas do Clube, recolhido num
+// canto, fora da composição que o cliente vê. Só no `astro dev` com a simulação ligada (lib/clube-modo: a simulação
+// nunca sai num build) — o bloco inteiro, inclusive o script inline, nem é gerado nos builds.
+import { CLUBE_MODO } from '../../lib/clube-modo';
+---
+{CLUBE_MODO === 'simulado' && (
+  <details class="clube-dev">
+    <summary>Simulação local</summary>
+    <div class="clube-dev__corpo">
+      <p>Nada é enviado. Este painel só existe no <code>astro dev</code>.</p>
+      <ul>
+        <li>Final <b>0001</b> → membro · <b>0002</b> → cadastro incompleto · outro número → novo</li>
+        <li>Código <b>123456</b> · <b>000000</b> = vencido · outro = incorreto</li>
+        <li>Convite: <a href="/clube/ativar?c=demo-novo">novo</a> · <a href="/clube/ativar?c=demo-incompleto">incompleto</a> · <a href="/clube/ativar?c=demo-ativo">já membro</a> · <a href="/clube/ativar?c=demo-vencido">vencido</a></li>
+        <li>Telas: <a href="/clube/">landing</a> · <a href="/clube/entrar/">entrar</a> · <a href="/clube/cadastro/">cadastro</a> · <a href="/clube/conta/">conta</a> · <a href="/clube/historico/">histórico</a> · <a href="/clube/recompensas/">recompensas</a></li>
+        <li><a href="/clube/previa/">Prévia de todos os estados</a> (inclusive pontos, recompensas e QR Code)</li>
+      </ul>
+      <button type="button" data-zerar-simulacao>Zerar simulação</button>
+    </div>
+    <script is:inline>
+      // “Zerar” apaga a sessão falsa da aba (lib/api/clube-simulado) e recomeça
+      document.querySelector('[data-zerar-simulacao]').addEventListener('click', () => {
+        try { sessionStorage.removeItem('ambar:clube:simulacao'); } catch { /* sem armazenamento */ }
+        location.assign('/clube/');
+      });
+    </script>
+  </details>
+)}

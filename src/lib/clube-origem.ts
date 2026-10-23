@@ -3,7 +3,16 @@
 // Convite depois da reserva: /clube/?canal=reserva · campanhas: &campanha=… e utm_source/utm_medium/utm_campaign.
 // Encostar o celular na plaquinha SÓ abre a página e marca a origem: não gera ponto nem registra presença.
 // A origem não é dado pessoal; fica na sessionStorage para sobreviver a uma ida à home e volta (some ao fechar a aba).
-import type { Canal, OrigemCadastro } from './api/clube-contrato';
+/** de onde veio a visita (atribuição). Lido da URL, nunca digitado pela pessoa. */
+export type Canal = 'nfc' | 'qr' | 'site' | 'reserva' | 'instagram' | 'whatsapp';
+export interface OrigemCadastro {
+  canal: Canal;
+  /** identificador da mesa gravado na plaquinha (NFC) ou no QR Code */
+  mesa?: string;
+  /** campanha interna (ex.: cardápio impresso, evento) */
+  campanha?: string;
+  utm?: { source?: string; medium?: string; campaign?: string };
+}
 
 const CANAIS: readonly Canal[] = ['nfc', 'qr', 'site', 'reserva', 'instagram', 'whatsapp'];
 const CHAVE = 'ambar:clube:origem';

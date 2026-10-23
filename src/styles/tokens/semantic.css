@@ -41,6 +41,9 @@
   --drop-label: drop-shadow(0 14px 18px rgba(20, 4, 9, .35));
   --drop-produto: drop-shadow(0 18px 22px rgba(0, 0, 0, .45));   /* recorte de produto sobre fundo escuro (caixa da Roll, copos) */
   /* carteira do Clube: sombra deslocada + sombra de chão, no invólucro (a máscara dos furos cortaria um box-shadow) */
+  /* cartão de acesso do Clube: sombra de chão macia, no invólucro (o picote cortaria um box-shadow; a deslocada sólida
+     marcava cada furo do picote) */
+  --drop-ficha: drop-shadow(0 16px 22px rgba(36, 21, 15, .16)) drop-shadow(0 2px 3px rgba(36, 21, 15, .1));
   --drop-carteira: drop-shadow(4px 4px 0 var(--cacao)) drop-shadow(0 22px 22px rgba(36, 21, 15, .35));
   --shadow-lift: 0 22px 34px -18px rgba(0, 0, 0, .6);  /* card ativo do carrossel de criadores, levemente erguido */
   --glow-ativo: 0 0 0 9px rgba(243, 221, 174, .16);   /* card com som ligado no carrossel de criadores (cabe no respiro do trilho) */

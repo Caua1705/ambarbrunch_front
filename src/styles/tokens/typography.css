@@ -18,11 +18,11 @@
   /* Bricolage Grotesque ---------------------------------------------------------------------- */
   --t-hero: 800 clamp(70px, 21.5vw, 168px)/.8 var(--display);
   --t-mega: 800 clamp(78px, 25vw, 200px)/.8 var(--display);   /* 97,5 px em 390 · 150 no tablet · 200 no desktop */
-  --t-title: 800 clamp(54px, 16.5vw, 112px)/.84 var(--display);  /* títulos de bloco nas páginas do Clube (64 px em 390) */
   --t-menu-item: 800 44px/.9 var(--display);         /* itens da folha do menu */
   --t-numeral: 800 32px/1 var(--display);
   --t-tagline: 800 30px/1 var(--display);
   --t-ticket-title: 800 30px/.9 var(--display);
+  --t-ficha-titulo: 800 clamp(26px, 7.4vw, 30px)/1.02 var(--display);   /* título em frase do cartão de acesso do Clube */
   --t-ticker: 800 25px/1 var(--display);
   --t-step-key: 700 22px/1 var(--display);           /* − e + do stepper */
   --t-band: 800 17px/1 var(--display);
@@ -61,6 +61,11 @@
   --fs-mega-clube: clamp(60px, 18.5vw, 96px);         /* 66 px em 360, 72 em 390 */
   --fs-mega-clube-split: clamp(72px, 7.6vw, 120px);   /* meia coluna, a partir de 720 px */
   --fs-mega-clube-ficha: clamp(42px, 12.5vw, 64px);   /* “CLUBE ÂMBAR” numa linha, com a ficha aberta */
+  --fs-mega-clube-pag: clamp(64px, 5.6vw, 84px);      /* o mesmo título na coluna do cartão, no desktop */
+  /* área do membro e telas de acesso (2026-10-23) */
+  --fs-area-marca: 24px;                              /* “ÂMBAR” da barra da área e da marca das telas de acesso */
+  --fs-conta-ola: clamp(32px, 9vw, 42px);             /* “Olá, Marina” */
+  --fs-saldo: clamp(44px, 12vw, 60px);                /* pontos disponíveis (só com o programa ativo) */
   --fs-clube-frase: clamp(21px, 6vw, 24px);
   --fs-clube-frase-split: clamp(21px, 2.3vw, 26px);
   --fs-tag-s: 14px;       /* pílulas do Clube e “Como chegar” do minimapa (--t-tag menor) */

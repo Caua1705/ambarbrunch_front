@@ -1,35 +1,33 @@
 /** @jsxImportSource preact */
-// Entrada do Clube Âmbar — ilha Preact, dentro da comanda da página /clube. 2026-10-23: ACESSO UNIFICADO — uma entrada
-// só, pelo WhatsApp; ninguém precisa escolher entre “cadastrar” e “entrar”:
-//   telefone → código no WhatsApp → o BACKEND diz a situação (lib/api/clube-acesso.ts, contrato real do backend):
-//     · membro ativo → “que bom te ver de novo” (sem cadastro de novo e sem carteira de mentira);
-//     · cadastro novo ou incompleto → pede SÓ o que falta (nome, aceite dos termos atuais) + aniversário e novidades,
-//       opcionais, quando ainda não existem → conclui.
-// Antes do código nada revela se o número já está no Clube (a resposta da API é sempre a mesma).
-// Modos:
-//  - "indisponivel" (padrão, pré-lançamento): bilhete “Inscrições em breve”, SEM campos — nada é pedido nem enviado.
-//    O mesmo bilhete aparece com a API quando a configuração diz que as inscrições estão fechadas.
-//  - "api": o fluxo acima contra a API real.
-//  - "simulado": SÓ no `astro dev` — o mesmo fluxo contra lib/api/clube-simulado.ts, com aviso visível.
-// Sessão: cookie HttpOnly da API (o site não vê nem guarda token). Ao abrir a página, GET /clube/me restaura a situação
-// sem pedir código (caminho C); “Não é você? Sair” (POST /clube/sair) encerra a sessão deste aparelho.
-// Caminho A — convite do caixa (prop `convite`, página /clube/ativar): o token do link chega por window.__ambarConvite
-// (capturado e tirado da URL no <head> da página) e fica só em memória. NADA é chamado com ele ao abrir: só o toque em
-// “Ativar meu Clube” faz POST /clube/convites/ativar → sessão de ATIVAÇÃO (30 min; nome e aniversário nunca vêm: pede só
-// o que falta) ou “entrar” (já é membro: o link não dá acesso, vai para o login por código) · 410 → link vencido, entrar
-// pelo WhatsApp. Concluído pelo convite → “ativado”: a sessão de ativação acaba e a conta se abre pelo login normal.
-// Sem a origem da visita (mesa, UTM): o backend sabe pelo desafio se o acesso veio do link de ativação ou do site.
-import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+// Acesso ao Clube Âmbar — ilha Preact compartilhada pelas páginas de entrada (2026-10-23, experiência completa). Uma
+// entrada só, pelo WhatsApp; ninguém escolhe entre “cadastrar” e “entrar”: telefone → código → o BACKEND diz a situação
+// (lib/api/clube-acesso.ts, contrato real). A mesma lógica muda de papel conforme a página (`pagina`):
+//  - landing (/clube): o cartão de acesso. Pede o código e leva o desafio para /clube/entrar (a pessoa não digita o
+//    número de novo). Com a sessão aberta: “Olá, Maria — Abrir minha conta” (ou “Concluir cadastro”).
+//  - entrar (/clube/entrar): telefone e código, com reenvio, troca de número, código incorreto ou vencido, sessão vencida
+//    (`?motivo=sessao`) e indisponibilidade. Confirmado: membro → a conta (ou o destino de `?volta=`, lista fechada);
+//    cadastro pendente → /clube/cadastro.
+//  - cadastro (/clube/cadastro): conclui o cadastro (só o que falta). Sem sessão, pede o WhatsApp ali mesmo. Concluído:
+//    “Você faz parte do Clube Âmbar!” e o caminho para a conta. Membro que chega aqui vai direto à conta.
+//  - ativar (/clube/ativar): convite do WhatsApp. O token (capturado e tirado da URL no <head> da página) fica só em
+//    memória e só é usado no toque em “Ativar meu Clube” → sessão de ATIVAÇÃO (30 min, só o que falta, sem dados da
+//    conta) ou “entrar” (já é membro: login normal) · 410 link vencido → entrar pelo WhatsApp. Concluído → “ativado”: a
+//    sessão de ativação acaba (o backend manda a confirmação no WhatsApp; o site não dispara mensagem).
+// Modos (lib/clube-modo.ts): “indisponivel” (pré-lançamento: bilhete “em breve”, sem campos), “api” e “simulado” (só no
+// `astro dev`). Sessão: cookie HttpOnly da API — o site não vê nem guarda token.
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { PassoCodigo } from './clube-partes';
-import { ErroClube } from '../lib/api/clube-contrato';
-import { criarAcessoHttp, type AcessoClubeApi, type CadastroPendente, type ConclusaoCadastro, type ConfigClube, type DesafioAcesso, type MembroClube, type SituacaoClube } from '../lib/api/clube-acesso';
+import { ErroClube } from '../lib/api/clube-erro';
+import type { CadastroPendente, ConclusaoCadastro, ConfigClube, DesafioAcesso, MembroClube, SituacaoClube } from '../lib/api/clube-acesso';
+import { ROTAS, destinoSeguro, levarDesafio, primeiroNome, trazerDesafio, urlEntrar, useApiClube } from '../lib/clube-cliente';
 import { mascaraTel, soDigitos, uuid } from '../lib/telefone';
 import type { ModoClube } from '../lib/clube-modo';
 
+export type PaginaAcesso = 'landing' | 'entrar' | 'cadastro' | 'ativar';
 export type EtapaFicha = 'carregando' | 'fechado' | 'falha' | 'convite' | 'ativando' | 'telefone' | 'enviando' | 'codigo' | 'verificando'
-  | 'cadastro' | 'salvando' | 'membro' | 'ativado';
+  | 'cadastro' | 'salvando' | 'pendente' | 'membro' | 'ativado' | 'abrindo';
 interface Dados { nome: string; aniversario: string; aceite: boolean; marketing: boolean }
-/** Estado forçado — SÓ para a página interna de estados (/clube/estados/, build de revisão). Nada é enviado. */
+/** Estado forçado — SÓ para a prévia local (/clube/previa/, fora do build de produção). Nada é enviado. */
 export interface DemoFicha {
   etapa: EtapaFicha;
   telefone?: string;
@@ -43,22 +41,25 @@ export interface DemoFicha {
   /** cadastro pela sessão de ativação do convite */
   ativacao?: boolean;
   aviso?: string;
+  /** reenvios já usados (mostra o limite) */
+  envios?: number;
+  cfg?: Partial<ConfigClube>;
 }
 interface Props {
   modo: ModoClube;
   apiUrl?: string;
   privacidadeUrl: string;
+  pagina: PaginaAcesso;
   /** prefixo dos ids (várias fichas na mesma página) */
   ids?: string;
   demo?: DemoFicha;
-  /** página /clube/ativar: começa pelo convite do caixa */
-  convite?: boolean;
 }
 
 const DIGITOS_PADRAO = 6;
 /** pedidos de código por número nesta visita (a API também limita, por IP e por telefone) */
 const MAX_ENVIOS = 3;
 const TEXTO_FALHA = 'Não foi possível concluir. Tente de novo em instantes.';
+const AVISO_CONVITE = 'Para ativar pelo convite, toque de novo no botão da mensagem do WhatsApp — ou entre com seu WhatsApp aqui.';
 
 /** WhatsApp é celular: DDD + 9 + 8 dígitos (11 no total). */
 const whatsappValido = (s: string) => /^[1-9]{2}9\d{8}$/.test(soDigitos(s));
@@ -73,21 +74,20 @@ function aniversarioApi(s: string): string | null | undefined {
   const max = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][mes - 1];
   return max && dia >= 1 && dia <= max ? `${m[2]}-${m[1]}` : undefined;
 }
-const primeiroNome = (n: string) => n.trim().split(/\s+/)[0];
+const ir = (url: string) => { window.location.assign(url); };
 
-export default function ClubeCadastro({ modo, apiUrl, privacidadeUrl, ids: px = 'cf', demo, convite = false }: Props) {
-  const real = useMemo(() => (!demo && modo === 'api' && apiUrl ? criarAcessoHttp(apiUrl) : null), [modo, apiUrl]);
-  const [api, setApi] = useState<AcessoClubeApi | null>(real);
-  const simulado = !demo && modo === 'simulado';
-  const [cfg, setCfg] = useState<ConfigClube | null>(null);
-  const [etapa, setEtapa] = useState<EtapaFicha>(demo?.etapa ?? (real || simulado ? 'carregando' : 'fechado'));
+export default function ClubeAcesso({ modo, apiUrl, privacidadeUrl, pagina, ids: px = 'cf', demo }: Props) {
+  const api = useApiClube(modo, apiUrl, !!demo);
+  const aberto = !demo && ((modo === 'api' && !!apiUrl) || modo === 'simulado');
+  const [cfg, setCfg] = useState<ConfigClube | null>((demo?.cfg as ConfigClube | undefined) ?? null);
+  const [etapa, setEtapa] = useState<EtapaFicha>(demo?.etapa ?? (aberto ? 'carregando' : 'fechado'));
   const [telefone, setTelefone] = useState(demo?.telefone ?? '');
   const [dados, setDados] = useState<Dados>({ nome: '', aniversario: '', aceite: false, marketing: false, ...demo?.dados });
   const [erros, setErros] = useState<Record<string, string>>(demo?.erros ?? {});
   const [falha, setFalha] = useState(demo?.falha ?? '');
   const [desafio, setDesafio] = useState<DesafioAcesso | null>(demo?.desafio ?? null);
   const [erroCodigo, setErroCodigo] = useState(demo?.erros?.codigo ?? '');
-  const [envios, setEnvios] = useState(0);
+  const [envios, setEnvios] = useState(demo?.envios ?? 0);
   const [cadastro, setCadastro] = useState<CadastroPendente | null>(demo?.cadastro ?? null);
   const [membro, setMembro] = useState<MembroClube | null>(demo?.membro ?? null);
   const [novo, setNovo] = useState(demo?.novo ?? false);
@@ -99,20 +99,18 @@ export default function ClubeCadastro({ modo, apiUrl, privacidadeUrl, ids: px = 
   const [tentativa, setTentativa] = useState(0);
   const chave = useRef(uuid());
   const topo = useRef<HTMLParagraphElement>(null);
-  /** o foco acompanha só as ações da pessoa — restaurar a sessão ao abrir a página não rola a tela até a comanda */
+  /** o foco acompanha só as ações da pessoa — restaurar a sessão ao abrir a página não rola a tela até o cartão */
   const focoAuto = useRef(false);
-  /** token do convite (caminho A): só em memória, usado uma vez no toque em “Ativar meu Clube” */
+  /** token do convite: só em memória, usado uma vez no toque em “Ativar meu Clube” */
   const tokenConvite = useRef<string | null>(null);
   /** há um convite ainda não usado, mas a página abriu numa sessão que já existia (talvez de outro número) */
   const [convitePendente, setConvitePendente] = useState(false);
+  /** para onde ir depois do login (lista fechada) */
+  const destino = useRef<string>(ROTAS.conta);
 
-  // simulação local: carregada só no `astro dev` (o bloco some de qualquer build)
-  useEffect(() => {
-    if (import.meta.env.DEV && simulado) import('../lib/api/clube-simulado').then((m) => setApi(m.criarAcessoSimulado()));
-  }, []);
   // convite: pega o token que o <head> de /clube/ativar tirou da URL e apaga a cópia global (fica só aqui, em memória)
   useEffect(() => {
-    if (!convite || demo) return;
+    if (pagina !== 'ativar' || demo) return;
     const w = window as unknown as { __ambarConvite?: string };
     tokenConvite.current = w.__ambarConvite ?? null;
     delete w.__ambarConvite;
@@ -122,24 +120,33 @@ export default function ClubeCadastro({ modo, apiUrl, privacidadeUrl, ids: px = 
   useEffect(() => {
     if (!api) return;
     setEtapa('carregando');
+    const q = new URLSearchParams(window.location.search);
+    destino.current = destinoSeguro(q.get('volta'));
     (async () => {
       let c: ConfigClube;
       try { c = await api.config(); } catch (e) { setFalha(comoErro(e).message); setEtapa('falha'); return; }
       setCfg(c);
       // sem as duas versões (regulamento e privacidade) não há como aceitar: a ficha continua fechada
       if (!(c.inscricoesAbertas && c.regulamento?.versao && c.privacidade?.versao)) { setEtapa('fechado'); return; }
-      // sessão que já vale neste navegador (completa ou a de ativação de um toque anterior) vem antes do convite — mas,
-      // com um convite em mãos, a opção de ativá-lo continua à vista (a sessão aberta pode ser de outro número)
+      // vindo da landing: o código já foi pedido — direto para ele, sem digitar o número de novo
+      if (pagina === 'entrar') {
+        const t = trazerDesafio();
+        if (t) { setDesafio(t.desafio); setEnvios(t.envios); setEtapa('codigo'); return; }
+      }
+      // sessão que já vale neste navegador vem antes do convite — mas, com um convite em mãos, a opção de ativá-lo
+      // continua à vista (a sessão aberta pode ser de outro número)
       try {
         aplicar(await api.me(), false);
-        if (convite && tokenConvite.current) setConvitePendente(true);
+        if (pagina === 'ativar' && tokenConvite.current) setConvitePendente(true);
         return;
       }
       // 401 = sem sessão (o normal, e sempre fora de ambarbrunch.com); outro erro também segue: dá para entrar pelo código
       catch { /* segue */ }
-      if (convite && tokenConvite.current) { setEtapa('convite'); return; }
+      if (pagina === 'ativar' && tokenConvite.current) { setEtapa('convite'); return; }
       // /clube/ativar sem o token (recarregou depois de ele sair da URL, ou link incompleto): entrada normal
-      if (convite) setAviso('Para ativar pelo convite, toque de novo no botão da mensagem do WhatsApp — ou entre com seu WhatsApp aqui.');
+      if (pagina === 'ativar') setAviso(AVISO_CONVITE);
+      if (pagina === 'cadastro') setAviso('Confirme seu WhatsApp para continuar o cadastro.');
+      if (pagina === 'entrar' && q.get('motivo') === 'sessao') setAviso('Sua sessão terminou. Confirme seu WhatsApp para continuar.');
       setEtapa('telefone');
     })();
   }, [api, tentativa]);
@@ -151,7 +158,7 @@ export default function ClubeCadastro({ modo, apiUrl, privacidadeUrl, ids: px = 
     else if (etapa === 'cadastro' || etapa === 'membro' || etapa === 'ativado' || etapa === 'falha') topo.current?.focus();
   }, [etapa]);
 
-  const digitos = cfg?.codigo.digitos ?? DIGITOS_PADRAO;
+  const digitos = cfg?.codigo?.digitos ?? DIGITOS_PADRAO;
   const limparErro = (campo: string) => { if (erros[campo]) setErros((e) => { const n = { ...e }; delete n[campo]; return n; }); };
   const mudar = (campo: keyof Dados) => (ev: Event) => {
     const alvo = ev.currentTarget as HTMLInputElement;
@@ -161,12 +168,16 @@ export default function ClubeCadastro({ modo, apiUrl, privacidadeUrl, ids: px = 
   };
   const focar = (campo: string) => requestAnimationFrame(() => document.getElementById(`${px}-${campo}`)?.focus());
   const comoErro = (e: unknown) => (e instanceof ErroClube ? e : new ErroClube('servidor', TEXTO_FALHA));
+  const abrir = (url: string, texto: string) => { setEtapa('abrindo'); setAnuncio(texto); ir(url); };
 
   /** a situação vem SEMPRE do backend (sessão restaurada, convite, verificação ou conclusão) */
   const aplicar = (s: SituacaoClube, concluiuAgora: boolean) => {
     if (s.situacao === 'membro') {
-      setMembro(s.membro); setCadastro(null); setNovo(concluiuAgora); setAtivacao(false); setEtapa('membro');
-      setAnuncio(concluiuAgora ? 'Pronto! Você faz parte do Clube Âmbar.' : `Que bom te ver de novo, ${primeiroNome(s.membro.nome)}.`);
+      setMembro(s.membro); setCadastro(null); setAtivacao(false);
+      // login confirmado (ou membro que abriu o cadastro): direto à conta
+      if (pagina === 'entrar' || (pagina === 'cadastro' && !concluiuAgora)) { abrir(destino.current, 'Abrindo sua conta…'); return; }
+      setNovo(concluiuAgora); setEtapa('membro');
+      setAnuncio(concluiuAgora ? 'Cadastro concluído! Você faz parte do Clube Âmbar.' : `Olá, ${primeiroNome(s.membro.nome)}.`);
       return;
     }
     if (s.situacao === 'ativado') {
@@ -183,23 +194,26 @@ export default function ClubeCadastro({ modo, apiUrl, privacidadeUrl, ids: px = 
       return;
     }
     const c = s.cadastro;
+    // falta cadastro: a conclusão tem página própria (a landing só mostra o atalho; o login leva até lá)
+    if (pagina === 'entrar') { abrir(ROTAS.cadastro, 'Falta pouco para concluir seu cadastro.'); return; }
     setCadastro(c); setAtivacao(s.situacao === 'ativacao');
+    if (pagina === 'landing') { setEtapa('pendente'); return; }
     // o que já existe não é pedido de novo; o que ainda falta continua preenchido com o que a pessoa digitou
     setDados((d) => ({ ...d, nome: c.faltam.includes('nome') ? d.nome : (c.nome ?? ''), aceite: c.faltam.includes('aceite') ? d.aceite : true }));
     setEtapa('cadastro');
     setAnuncio(concluiuAgora ? 'Ainda falta um dado.' : s.situacao === 'ativacao' ? 'Convite confirmado.' : 'WhatsApp confirmado.');
   };
 
-  // A · convite do caixa: o token só é usado aqui, no toque (nunca ao abrir a página). Também a partir de uma sessão que
-  // já estava aberta neste navegador — num aparelho compartilhado ela pode ser de OUTRO número: “Ativar o convite
-  // recebido” troca a sessão pela de ativação (o backend revoga a anterior; se o convite é de quem já é membro, vem
-  // “entrar” e nada é revogado).
+  // A · convite: o token só é usado aqui, no toque (nunca ao abrir a página). Também a partir de uma sessão que já
+  // estava aberta neste navegador — num aparelho compartilhado ela pode ser de OUTRO número: “Ativar o convite recebido”
+  // troca a sessão pela de ativação (o backend revoga a anterior; se o convite é de quem já é membro, vem “entrar” e
+  // nada é revogado; um 410 também não revoga nada).
   const ativar = async () => {
     const origem = etapa;
     if (!api || !(origem === 'convite' || origem === 'membro' || origem === 'cadastro')) return;
     focoAuto.current = true;
     const token = tokenConvite.current;
-    if (!token) { setAviso('Para ativar pelo convite, toque de novo no botão da mensagem do WhatsApp — ou entre com seu WhatsApp aqui.'); setEtapa('telefone'); return; }
+    if (!token) { setAviso(AVISO_CONVITE); setEtapa('telefone'); return; }
     setEtapa('ativando'); setFalha('');
     try {
       const s = await api.ativarConvite(token);
@@ -231,6 +245,8 @@ export default function ClubeCadastro({ modo, apiUrl, privacidadeUrl, ids: px = 
     setFalha('');
     try {
       const d = await api.pedirCodigo(soDigitos(telefone));
+      // na landing, o código é digitado na tela própria de acesso
+      if (pagina === 'landing' && !reenvio) { levarDesafio(d, envios + 1); abrir(ROTAS.entrar, `Enviamos um código para ${d.destino}.`); return; }
       setEnvios((n) => n + 1);
       setDesafio(d); setErroCodigo(''); setEtapa('codigo');
       setAnuncio(`Enviamos um código para ${d.destino}.`);
@@ -260,10 +276,14 @@ export default function ClubeCadastro({ modo, apiUrl, privacidadeUrl, ids: px = 
   // 2 · código → situação
   const confirmar = async (codigo: string) => {
     if (!api || !desafio) return;
+    focoAuto.current = true;
     setEtapa('verificando'); setErroCodigo('');
     try {
       // a sessão chega como cookie HttpOnly (Set-Cookie): o site não vê nem guarda token
-      aplicar(await api.verificar(desafio.desafioId, codigo), false);
+      const s = await api.verificar(desafio.desafioId, codigo);
+      // no convite, quem entra pelo código já é membro: a conta abre direto
+      if (s.situacao === 'membro' && pagina === 'ativar') { abrir(destino.current, 'Abrindo sua conta…'); return; }
+      aplicar(s, false);
     } catch (e) {
       const erro = comoErro(e);
       setEtapa('codigo');
@@ -280,7 +300,7 @@ export default function ClubeCadastro({ modo, apiUrl, privacidadeUrl, ids: px = 
   // vazio ou uma caixa desmarcada poderia parecer que apagamos o que a pessoa já tinha
   const ehNovo = !!cadastro?.faltam.includes('nome');
   const pedeAniversario = !!cadastro && !cadastro.aniversario && (!ativacao || ehNovo);
-  // novidades: só se a pessoa ainda não autorizou e a API oferece o texto de consentimento (na demo, sempre)
+  // novidades: só se a pessoa ainda não autorizou e a API oferece o texto de consentimento (na prévia, sempre)
   const pedeMarketing = !!cadastro && !cadastro.marketing.autorizado && (!ativacao || ehNovo) && (!!demo || !!cfg?.marketing?.textoVersao);
   const concluir = async (ev: Event) => {
     ev.preventDefault();
@@ -298,7 +318,7 @@ export default function ClubeCadastro({ modo, apiUrl, privacidadeUrl, ids: px = 
       ...(aniversario ? { aniversario } : {}),
       ...(pedeAceite && cfg?.regulamento?.versao && cfg.privacidade?.versao ? { aceiteRegulamento: true as const, regulamentoVersao: cfg.regulamento.versao, privacidadeVersao: cfg.privacidade.versao } : {}),
       ...(pedeMarketing && cfg?.marketing?.textoVersao ? { marketing: { autorizado: dados.marketing, textoVersao: cfg.marketing.textoVersao } } : {}),
-      // sem `origem`: o backend sabe pelo desafio de onde veio o acesso (e só aceitaria texto, não este objeto)
+      // sem `origem`: o backend sabe pelo desafio de onde veio o acesso (e só aceitaria texto, não um objeto)
     };
     chave.current = uuid();
     setEtapa('salvando'); setAnuncio('Salvando…');
@@ -308,7 +328,8 @@ export default function ClubeCadastro({ modo, apiUrl, privacidadeUrl, ids: px = 
       const erro = comoErro(err);
       setAnuncio(erro.message);
       if (erro.tipo === 'sessao') {
-        // 401: sessão vencida — a de ativação dura 30 min — ou o cadastro já ficou ativo por outro caminho
+        // 401: sessão vencida — a de ativação dura 30 min — ou o cadastro já ficou ativo por outro caminho. O que foi
+        // digitado continua guardado: depois do código, o formulário volta preenchido.
         setFalha(ativacao ? 'O tempo para ativar pelo convite acabou. Entre com seu WhatsApp para concluir.' : erro.message);
         setAtivacao(false); setDesafio(null); setEtapa('telefone');
         return;
@@ -337,49 +358,57 @@ export default function ClubeCadastro({ modo, apiUrl, privacidadeUrl, ids: px = 
     setEtapa(tokenConvite.current ? 'convite' : 'telefone'); setAnuncio('Você saiu do Clube neste aparelho.');
   };
 
-  const carimbo = etapa === 'membro' || etapa === 'ativado' ? { estado: 'reservado', texto: 'membro' }
-    : etapa === 'falha' ? { estado: 'erro', texto: 'tente de novo' }
-    : etapa === 'convite' || etapa === 'ativando' ? { estado: undefined, texto: 'convite' }
-    : etapa === 'codigo' || etapa === 'verificando' ? { estado: undefined, texto: 'quase lá' }
-    : etapa === 'cadastro' || etapa === 'salvando' ? { estado: undefined, texto: 'ficha' }
-    : { estado: undefined, texto: etapa === 'fechado' ? 'em breve' : 'entrada' };
+  const nome1 = membro ? primeiroNome(membro.nome) : '';
   const titulo = etapa === 'fechado' ? 'Inscrições em breve'
     : etapa === 'convite' || etapa === 'ativando' ? 'Ative seu Clube Âmbar'
     : etapa === 'codigo' || etapa === 'verificando' ? 'Confirme seu WhatsApp'
     : etapa === 'cadastro' || etapa === 'salvando' ? (cadastro?.nome && !pedeNome ? `Falta pouco, ${primeiroNome(cadastro.nome)}` : ativacao && !pedeNome ? 'Falta pouco' : 'Quase lá')
-    : etapa === 'membro' ? (novo ? 'Bem-vindo ao Clube' : 'Que bom te ver')
-    : etapa === 'ativado' ? 'Bem-vindo ao Clube'
+    : etapa === 'pendente' ? (cadastro?.nome ? `Falta pouco, ${primeiroNome(cadastro.nome)}` : 'Falta pouco')
+    : etapa === 'membro' ? (novo ? 'Você faz parte do Clube Âmbar!' : `Olá, ${nome1}!`)
+    : etapa === 'ativado' ? 'Você faz parte do Clube Âmbar!'
+    : etapa === 'abrindo' ? 'Um instante…'
     : etapa === 'falha' ? 'Não deu certo agora'
-    : 'Entre para o Clube Âmbar';
+    : pagina === 'landing' ? 'Seu lugar no Clube começa aqui.'
+    : pagina === 'cadastro' ? 'Continue seu cadastro'
+    : 'Acesse o Clube Âmbar';
   const grupo = etapa === 'enviando' ? 'telefone' : etapa === 'verificando' ? 'codigo' : etapa === 'salvando' ? 'cadastro' : etapa === 'ativando' ? 'convite' : etapa;
   const leadCadastro = ativacao
     ? (pedeNome ? 'Convite confirmado. Agora, como podemos chamar você?' : 'Convite confirmado. Só falta aceitar os termos do Clube.')
     : (pedeNome ? 'WhatsApp confirmado. Agora, como podemos chamar você?' : 'WhatsApp confirmado. Só falta confirmar os termos do Clube.');
+  const leadTelefone = pagina === 'landing' ? 'Informe seu WhatsApp para entrar ou fazer parte.'
+    : 'Informe seu WhatsApp para entrar ou fazer parte. Enviamos um código para confirmar que o número é seu.';
   const regulamento = cfg?.regulamento;
   const nota = `${px}-nota`;
+  const contaLink = <a class="btn btn--wine btn--block" href={ROTAS.conta}>Abrir minha conta <span class="ficha__seta" aria-hidden="true">→</span></a>;
 
+  // o cartão de acesso: título em frase, sem carimbo nem aviso técnico (a simulação local tem painel próprio, fora do
+  // cartão). O carimbo fica só no bilhete “em breve” do pré-lançamento.
   return (
-    <div class="ticket ficha" data-etapa={etapa} data-modo={demo ? 'demo' : modo}
-      aria-busy={etapa === 'carregando' || etapa === 'ativando' || etapa === 'enviando' || etapa === 'verificando' || etapa === 'salvando'}>
-      <div class="stamp ticket__stamp" data-state={carimbo.estado} aria-hidden="true">{carimbo.texto}</div>
+    <div class={etapa === 'fechado' ? 'ticket ficha' : 'ticket ficha ficha--acesso'} data-etapa={etapa} data-pagina={pagina} data-modo={demo ? 'demo' : modo}
+      aria-busy={etapa === 'carregando' || etapa === 'ativando' || etapa === 'enviando' || etapa === 'verificando' || etapa === 'salvando' || etapa === 'abrindo'}>
+      {etapa === 'fechado' && <div class="stamp ticket__stamp" aria-hidden="true">em breve</div>}
       <p class="ticket__title" ref={topo} tabIndex={-1}>{titulo}</p>
-      {simulado && <p class="ficha__simulado" role="note">Simulação local — nada é enviado. Final 0001 = membro · 0002 = incompleto · código 123456 · convite: /clube/ativar?c=demo-novo.</p>}
 
       <div class="ficha__etapa" key={grupo}>
         {/* pré-lançamento ou inscrições fechadas: SEM campos — nenhum dado é pedido antes da abertura */}
         {etapa === 'fechado' && (
           <>
             <p class="ficha__breve">Estamos preparando os detalhes. Quando as inscrições abrirem, é aqui mesmo que você entra.</p>
-            <a class="btn btn--wine btn--block" href="/">Voltar ao início</a>
+            <a class="btn btn--wine btn--block" href={pagina === 'landing' ? '/' : ROTAS.landing}>{pagina === 'landing' ? 'Voltar ao início' : 'Conhecer o Clube'}</a>
           </>
         )}
 
-        {etapa === 'carregando' && <p class="ficha__breve" role="status">Abrindo o Clube…</p>}
+        {(etapa === 'carregando' || etapa === 'abrindo') && (
+          <div class="ficha__espera" role="status">
+            <span class="ficha__pulso" aria-hidden="true" />
+            <span>{etapa === 'abrindo' ? anuncio || 'Abrindo…' : 'Abrindo o Clube…'}</span>
+          </div>
+        )}
 
-        {/* A · convite do caixa: o link só é usado neste toque */}
+        {/* A · convite do WhatsApp: o link só é usado neste toque */}
         {(etapa === 'convite' || etapa === 'ativando') && (
           <>
-            <p class="ficha__lead">Você pediu no Âmbar o link do Clube. Toque abaixo para ativar seu cadastro.</p>
+            <p class="ficha__lead">Você recebeu o convite do Clube no WhatsApp. Toque abaixo para ativar seu cadastro — sem senha e sem código.</p>
             {falha && <p class="ticket__status" data-tone="error" role="alert">{falha}</p>}
             <button class="btn btn--wine btn--block" type="button" disabled={etapa === 'ativando'} onClick={ativar}>
               {etapa === 'ativando' ? 'Ativando…' : 'Ativar meu Clube'}
@@ -391,7 +420,7 @@ export default function ClubeCadastro({ modo, apiUrl, privacidadeUrl, ids: px = 
         {/* 1 · a entrada única: só o WhatsApp */}
         {(etapa === 'telefone' || etapa === 'enviando') && (
           <form class="ficha__form" onSubmit={enviarTelefone} noValidate aria-describedby={nota}>
-            <p class="ficha__lead">Seu WhatsApp é a chave para suas vantagens.</p>
+            <p class="ficha__lead">{leadTelefone}</p>
             {aviso && <p class="ticket__status" role="status">{aviso}</p>}
             {falha && <p class="ticket__status" data-tone="error" role="alert">{falha}</p>}
             <label class="field" data-invalid={erros.telefone ? '' : undefined}>
@@ -401,8 +430,10 @@ export default function ClubeCadastro({ modo, apiUrl, privacidadeUrl, ids: px = 
                 onInput={(ev) => { setTelefone(mascaraTel((ev.currentTarget as HTMLInputElement).value)); limparErro('telefone'); }} />
               <span class="field__error" id={`${px}-telefone-erro`}>{erros.telefone}</span>
             </label>
-            <button class="btn btn--wine btn--block" type="submit" disabled={etapa === 'enviando'}>{etapa === 'enviando' ? 'Enviando…' : 'Continuar'}</button>
-            <p class="ficha__sem-app" id={nota}>Sem aplicativo. Sem senha.</p>
+            <button class="btn btn--wine btn--block" type="submit" disabled={etapa === 'enviando'}>
+              {etapa === 'enviando' ? 'Enviando…' : <>Continuar <span class="ficha__seta" aria-hidden="true">→</span></>}
+            </button>
+            <p class="ficha__sem-app" id={nota}>Um único acesso. Sem senha.</p>
           </form>
         )}
 
@@ -413,7 +444,7 @@ export default function ClubeCadastro({ modo, apiUrl, privacidadeUrl, ids: px = 
             semReenvio={envios >= MAX_ENVIOS}
             aoConfirmar={confirmar}
             aoReenviar={() => pedirCodigo(true)}
-            aoTrocarNumero={() => { setDesafio(null); setErroCodigo(''); setFalha(''); setEtapa('telefone'); }} />
+            aoTrocarNumero={() => { focoAuto.current = true; setDesafio(null); setErroCodigo(''); setFalha(''); setEtapa('telefone'); }} />
         )}
 
         {/* 3 · cadastro: só o que falta */}
@@ -455,7 +486,7 @@ export default function ClubeCadastro({ modo, apiUrl, privacidadeUrl, ids: px = 
                     {erros.aceite && <span class="field__error field__error--block" id={`${px}-aceite-erro`}>{erros.aceite}</span>}
                   </>
                 )}
-                {/* opcional e separado: novidades e ofertas pelo WhatsApp (revogável) */}
+                {/* opcional e separado: novidades e ofertas pelo WhatsApp (revogável), desmarcado por padrão */}
                 {pedeMarketing && (
                   <label class="check">
                     <input id={`${px}-marketing`} type="checkbox" checked={dados.marketing} onChange={mudar('marketing')} />
@@ -470,30 +501,34 @@ export default function ClubeCadastro({ modo, apiUrl, privacidadeUrl, ids: px = 
           </form>
         )}
 
-        {/* membro: confirmação só com a resposta da API. Carteira e saldo ainda não existem — nada de cartão de mentira */}
+        {/* landing com cadastro pela metade: o atalho para concluir */}
+        {etapa === 'pendente' && (
+          <>
+            <p class="ficha__lead">Seu WhatsApp já está confirmado. Conclua o cadastro para fazer parte do Clube.</p>
+            <a class="btn btn--wine btn--block" href={ROTAS.cadastro}>Concluir cadastro <span class="ficha__seta" aria-hidden="true">→</span></a>
+            <button class="ticket__link ficha__sair" type="button" onClick={sair}>Não é você? Sair</button>
+          </>
+        )}
+
+        {/* membro: só com a resposta da API. Na conclusão do cadastro, a celebração; na landing e no convite, o atalho */}
         {etapa === 'membro' && membro && (
           <>
-            <p class="ficha__boas-vindas" role="status">
-              {novo ? `Pronto, ${primeiroNome(membro.nome)}!` : `Olá, ${primeiroNome(membro.nome)}!`}
-              <span>{novo ? 'Agora você faz parte do Clube Âmbar.' : 'Você já faz parte do Clube Âmbar.'}</span>
-            </p>
-            <p class="ficha__breve">As vantagens do Clube começam em breve. Para entrar de novo, é só usar este mesmo WhatsApp.</p>
+            {novo
+              ? <p class="ficha__boas-vindas" role="status">Pronto, {nome1}! <span>Cadastro concluído. Sua conta já está aberta neste aparelho.</span></p>
+              : <p class="ficha__lead" role="status">Você já faz parte do Clube Âmbar. Sua conta está a um toque.</p>}
+            {/* pelo site, a confirmação é só esta tela: o backend não manda WhatsApp nesse caminho (só no convite) */}
             {falha && <p class="ticket__status" data-tone="error" role="alert">{falha}</p>}
-            <a class="btn btn--wine btn--block" href="/">Voltar ao início</a>
-            <button class="ticket__link ficha__sair" type="button" onClick={sair}>Não é você? Sair</button>
+            {contaLink}
+            {!novo && <button class="ticket__link ficha__sair" type="button" onClick={sair}>Não é você? Sair</button>}
             {convitePendente && <button class="ticket__link ficha__sair" type="button" onClick={ativar}>Ativar o convite recebido</button>}
           </>
         )}
 
-        {/* A · cadastro concluído pelo convite: a sessão de ativação acabou; a conta se abre pelo login normal. Com o
-            programa ligado, o botão fala de pontos; desligado, só “entrar” — nada de saldo ou recompensa de mentira */}
+        {/* A · cadastro concluído pelo convite: a sessão de ativação acabou; a conta se abre pelo login normal */}
         {etapa === 'ativado' && (
           <>
             <p class="ficha__boas-vindas" role="status">Cadastro concluído! <span>Você vai receber a confirmação no WhatsApp.</span></p>
-            <button class="btn btn--wine btn--block" type="button"
-              onClick={() => { focoAuto.current = true; setFalha(''); setAviso(''); setEtapa('telefone'); }}>
-              {cfg?.programaAtivo ? 'Ver meus pontos' : 'Entrar no Clube'}
-            </button>
+            <a class="btn btn--wine btn--block" href={urlEntrar()}>{cfg?.programaAtivo ? 'Ver meus pontos' : 'Entrar na minha conta'} <span class="ficha__seta" aria-hidden="true">→</span></a>
             <a class="ticket__link ficha__sair" href="/">Voltar ao início</a>
           </>
         )}

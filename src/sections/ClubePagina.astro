@@ -1,13 +1,17 @@
 ---
-// Corpo da página do Clube Âmbar — o mesmo em /clube e em /clube/ativar (o link do convite do caixa). Só muda o que a
-// comanda faz (islands/ClubeCadastro, prop `convite`). Curta, numa seção só:
-//  · apresentação: título, a frase, uma linha sobre o conceito e dois destaques em polaroide (.cut--polaroid, a mesma
-//    peça das colagens do site) — fotos de casa e de preparo, nunca de brinde ou de item que pareça recompensa — e os
-//    três passos de “como vai funcionar” (sem aplicativo; sem nenhuma regra de pontos até a mecânica ser aprovada);
-//  · a comanda logo abaixo (id “cadastro”, destino de “Quero fazer parte” na home):
-//      - com a API (PUBLIC_CLUBE_MODO=api) — ou a simulação local do `astro dev` (PUBLIC_CLUBE_MODO=simulado): a ENTRADA
-//        ÚNICA pelo WhatsApp (sessão existente → situação direto; senão telefone → código → o backend diz a situação);
-//        em /clube/ativar, primeiro o botão “Ativar meu Clube” (o convite só é usado no toque);
+// Corpo da landing do Clube Âmbar (/clube). Curta, numa seção só, com o ACESSO PRIMEIRO (2026-10-23). As telas de
+// acesso (/clube/entrar, /clube/cadastro, /clube/ativar) e a área do membro (/clube/conta…) têm composição própria.
+//  · cabeça: título e a frase;
+//  · o cartão de acesso logo abaixo (id “cadastro”, destino de “Quero fazer parte” na home) — no celular, o campo do
+//    WhatsApp e o botão cabem na primeira tela;
+//  · depois, os dois destaques em polaroide (.cut--polaroid, a mesma peça das colagens do site) — fotos de casa e de
+//    preparo, nunca de brinde ou de item que pareça recompensa — e os três passos de “como vai funcionar” (sem
+//    aplicativo; sem nenhuma regra de pontos até a mecânica ser aprovada). Com a sessão de membro aberta, somem: o
+//    cartão vira o atalho “Abrir minha conta”.
+//  · o que o cartão faz (islands/ClubeAcesso, pagina="landing"):
+//      - com a API (PUBLIC_CLUBE_MODO=api) — ou a simulação local do `astro dev` (PUBLIC_CLUBE_MODO=simulado): pede o
+//        WhatsApp e o código, e leva a pessoa à tela do código (/clube/entrar) sem digitar o número de novo. Com a
+//        sessão aberta: “Abrir minha conta” (ou “Concluir cadastro”). No topo, “Minha conta”;
 //      - pré-lançamento (sem a API): o bilhete “em breve”, SEM campos — nada é pedido nem enviado. A ilha é renderizada
 //        só no servidor (sem JavaScript na página).
 //  · fechamento mínimo (Footer `minimo`): “Âmbar Café · Política de Privacidade · © ano”.
@@ -15,35 +19,43 @@
 // cumprimento. Sem pontuação, desconto, brinde ou nível (data/clube.ts).
 import Foto from '../components/Foto.astro';
 import Footer from './Footer.astro';
-import ClubeCadastro from '../islands/ClubeCadastro';
+import PainelDev from '../components/clube/PainelDev.astro';
+import ClubeAcesso from '../islands/ClubeAcesso';
+import { ROTAS } from '../lib/clube-cliente';
 import { CLUBE_MODO, CLUBE_API_URL, CLUBE_ABERTO } from '../lib/clube-modo';
 import { clube } from '../data/clube';
 
-interface Props {
-  /** /clube/ativar: a comanda começa pelo convite do caixa */
-  convite?: boolean;
-}
-const { convite = false } = Astro.props;
 const aberto = CLUBE_ABERTO;
 const p = clube.pagina;
 ---
 <header class="page-bar">
   <a href="/" aria-label="Âmbar Café — voltar ao início"><span class="label"><Foto src="brand/logo-ambar.png" alt="Âmbar Café" sizes="122px" widths={[122, 244, 366]} prioridade qualidade={80} /></span></a>
-  <a class="page-back" href="/">← início</a>
+  <nav class="page-bar__links" aria-label="Clube">
+    {aberto && <a class="page-back page-back--conta" href={ROTAS.conta}>Minha conta</a>}
+    <a class="page-back" href="/">← início</a>
+  </nav>
 </header>
 <main class="clube">
   <section class="clube-pag" aria-labelledby="clube-h1">
     <p class="clube-chegada" data-chegada hidden></p>
 
-    <div class="clube-pag__convite">
+    <div class="clube-pag__cabeca">
       <h1 class="mega clube-pag__titulo" id="clube-h1">Clube Âmbar</h1>
       <p class="clube-pag__frase">{p.frase}</p>
-      <p class="clube-pag__texto">{p.texto}</p>
+    </div>
+
+    <div class="clube-pag__ficha" id="cadastro" tabindex="-1">
+      {aberto
+        ? <ClubeAcesso client:idle pagina="landing" modo={CLUBE_MODO} apiUrl={CLUBE_API_URL} privacidadeUrl="/privacidade/" />
+        : <ClubeAcesso pagina="landing" modo={CLUBE_MODO} privacidadeUrl="/privacidade/" />}
+    </div>
+
+    <div class="clube-pag__mais">
       <ul class="clube-pag__destaques" aria-label="No Clube">
         {p.destaques.map((d, i) => (
           <li>
             <figure class="cut cut--polaroid clube-pag__foto" style={`--i:${i}`}>
-              <Foto src={d.foto} alt={d.alt} sizes="(min-width: 960px) 200px, 44vw" widths={[180, 270, 360, 420]} eager />
+              <Foto src={d.foto} alt={d.alt} sizes="(min-width: 960px) 280px, 44vw" widths={[180, 270, 360, 420, 560]} />
               <figcaption>{d.titulo}</figcaption>
             </figure>
           </li>
@@ -53,15 +65,11 @@ const p = clube.pagina;
         {p.passos.map((t, i) => <li><span class="clube-pag__n" aria-hidden="true">{String(i + 1).padStart(2, '0')}</span>{t}</li>)}
       </ol>
     </div>
-
-    <div class="clube-pag__ficha" id="cadastro" tabindex="-1">
-      {aberto
-        ? <ClubeCadastro client:idle modo={CLUBE_MODO} apiUrl={CLUBE_API_URL} privacidadeUrl="/privacidade/" convite={convite} />
-        : <ClubeCadastro modo={CLUBE_MODO} privacidadeUrl="/privacidade/" />}
-    </div>
   </section>
 </main>
 <Footer minimo />
+
+<PainelDev />
 
 <script>
   import { origemDaVisita } from '../lib/clube-origem';

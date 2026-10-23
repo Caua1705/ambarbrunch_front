@@ -1,0 +1,31 @@
+---
+// Moldura das telas de acesso do Clube Âmbar (2026-10-23): /clube/entrar, /clube/cadastro e /clube/ativar. Diferente da
+// landing: nada de apresentação — a marca pequena, um título curto e o cartão no centro, rápido de usar. No desktop, uma
+// polaroide da casa acompanha o cartão (só ambiente, nunca item que pareça recompensa). O cartão é a ilha
+// islands/ClubeAcesso, a mesma da landing (`pagina` diz o papel dela em cada tela).
+import Foto from '../components/Foto.astro';
+import Footer from './Footer.astro';
+import PainelDev from '../components/clube/PainelDev.astro';
+import { ROTAS } from '../lib/clube-cliente';
+
+interface Props {
+  /** o que a pessoa veio fazer aqui, em uma linha (ex.: “Entrar”) */
+  rotulo: string;
+}
+const { rotulo } = Astro.props;
+---
+<header class="page-bar page-bar--foco">
+  <a href="/" aria-label="Âmbar Café — voltar ao início"><span class="label"><Foto src="brand/logo-ambar.png" alt="Âmbar Café" sizes="122px" widths={[122, 244, 366]} prioridade qualidade={80} /></span></a>
+  <a class="page-back" href={ROTAS.landing}>← clube</a>
+</header>
+<main class="clube clube-foco">
+  <section class="clube-foco__palco" aria-labelledby="foco-h1">
+    <h1 class="clube-foco__marca" id="foco-h1"><span>Clube Âmbar</span> <small>{rotulo}</small></h1>
+    <div class="clube-foco__ficha" id="cadastro" tabindex="-1"><slot /></div>
+  </section>
+  <figure class="cut cut--polaroid clube-foco__foto" aria-hidden="true">
+    <Foto src="ambientes/sala-04-jardim.webp" alt="" sizes="320px" widths={[320, 480, 640]} />
+  </figure>
+</main>
+<Footer minimo />
+<PainelDev />

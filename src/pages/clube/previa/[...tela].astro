@@ -1,0 +1,104 @@
+---
+// /clube/previa/ — PRÉVIA LOCAL de todas as telas do Clube Âmbar, com dados de exemplo (lib/clube-previa.ts): os
+// estados do acesso (código, reenvio, erros, sessão vencida, indisponível), do cadastro, da ativação, da conta (com e
+// sem pontos), do histórico, das recompensas e do resgate por QR Code. Nada é interativo nem enviado: os componentes
+// são renderizados no servidor com estado forçado. Só no `astro dev` e no build de testes (`--mode simulado`); nos
+// builds de produção e de revisão a página nem é gerada (getStaticPaths vazio — lib/clube-modo.ts → CLUBE_PREVIA).
+import { getImage } from 'astro:assets';
+import Base from '../../../layouts/Base.astro';
+import ClubeFoco from '../../../sections/ClubeFoco.astro';
+import ClubeAreaMolde from '../../../sections/ClubeAreaMolde.astro';
+import ClubeAcesso, { type DemoFicha } from '../../../islands/ClubeAcesso';
+import ClubeArea from '../../../islands/ClubeArea';
+import { ContaEsqueleto } from '../../../components/clube/Conta';
+import { ListaMovimentos } from '../../../components/clube/Historico';
+import { CatalogoRecompensas, ConfirmacaoResgate, DetalheRecompensa } from '../../../components/clube/Recompensas';
+import { ResgateQr } from '../../../components/clube/Resgate';
+import { CLUBE_PREVIA } from '../../../lib/clube-modo';
+import { imagem } from '../../../lib/media';
+import * as ex from '../../../lib/clube-previa';
+import { TELAS_PREVIA as TELAS } from '../../../lib/clube-previa';
+
+
+export function getStaticPaths() {
+  if (!CLUBE_PREVIA) return [];
+  return [{ params: { tela: undefined } }, ...TELAS.map((t) => ({ params: { tela: t.id } }))];
+}
+
+const { tela } = Astro.params;
+const t = TELAS.find((x) => x.id === tela);
+const foto = async (arquivo: string) => { const m = imagem(arquivo); return m ? (await getImage({ src: m, width: 560, format: 'webp' })).src : null; };
+const fotos = new Map<string, string | null>();
+for (const a of ['cardapio/cappuccino.webp', 'cardapio/roll-tradicional.webp', 'cardapio/brownies.webp']) fotos.set(a, await foto(a));
+const recompensas = ex.recompensasExemplo((a) => fotos.get(a) ?? null);
+const cfgPontos = { ...ex.cfgExemplo, programaAtivo: true };
+
+const ACESSO: Record<string, { pagina: 'entrar' | 'cadastro' | 'ativar'; demo: DemoFicha; rotulo: string }> = {
+  'entrar-telefone': { pagina: 'entrar', rotulo: 'Entrar', demo: { etapa: 'telefone' } },
+  'entrar-codigo': { pagina: 'entrar', rotulo: 'Entrar', demo: { etapa: 'codigo', desafio: ex.desafioExemplo } },
+  'entrar-codigo-incorreto': { pagina: 'entrar', rotulo: 'Entrar', demo: { etapa: 'codigo', desafio: ex.desafioExemplo, erros: { codigo: 'Código incorreto. Confira e tente de novo.' } } },
+  'entrar-codigo-expirado': { pagina: 'entrar', rotulo: 'Entrar', demo: { etapa: 'codigo', desafio: ex.desafioExemplo, erros: { codigo: 'Este código venceu ou já foi usado. Peça um novo.' } } },
+  'entrar-reenvio': { pagina: 'entrar', rotulo: 'Entrar', demo: { etapa: 'codigo', desafio: { ...ex.desafioExemplo, reenvioEm: 45 }, envios: 1 } },
+  'entrar-limite': { pagina: 'entrar', rotulo: 'Entrar', demo: { etapa: 'codigo', desafio: ex.desafioExemplo, envios: 3, erros: { codigo: 'Muitas tentativas. Aguarde alguns minutos e tente de novo.' } } },
+  'entrar-trocar': { pagina: 'entrar', rotulo: 'Entrar', demo: { etapa: 'telefone', telefone: '(85) 90000-0000' } },
+  'entrar-sessao': { pagina: 'entrar', rotulo: 'Entrar', demo: { etapa: 'telefone', aviso: 'Sua sessão terminou. Confirme seu WhatsApp para continuar.' } },
+  'entrar-carregando': { pagina: 'entrar', rotulo: 'Entrar', demo: { etapa: 'carregando' } },
+  'entrar-indisponivel': { pagina: 'entrar', rotulo: 'Entrar', demo: { etapa: 'falha', falha: 'O Clube está indisponível no momento. Tente mais tarde.' } },
+  'entrar-fechado': { pagina: 'entrar', rotulo: 'Entrar', demo: { etapa: 'fechado' } },
+  'cadastro-novo': { pagina: 'cadastro', rotulo: 'Cadastro', demo: { etapa: 'cadastro', cadastro: ex.cadastroNovo, cfg: ex.cfgExemplo } },
+  'cadastro-incompleto': { pagina: 'cadastro', rotulo: 'Cadastro', demo: { etapa: 'cadastro', cadastro: ex.cadastroIncompleto, dados: { nome: 'Marina Exemplo' }, cfg: ex.cfgExemplo } },
+  'cadastro-erros': { pagina: 'cadastro', rotulo: 'Cadastro', demo: { etapa: 'cadastro', cadastro: ex.cadastroNovo, cfg: ex.cfgExemplo, dados: { nome: 'M', aniversario: '31/02' }, erros: { nome: 'Diga como podemos chamar você.', aniversario: 'Use dia e mês, ex.: 25/12 — ou deixe em branco.', aceite: 'Para entrar no Clube, aceite a política de privacidade e o regulamento.' } } },
+  'cadastro-concluido': { pagina: 'cadastro', rotulo: 'Cadastro', demo: { etapa: 'membro', membro: ex.membroExemplo, novo: true } },
+  'ativar-convite': { pagina: 'ativar', rotulo: 'Ativação', demo: { etapa: 'convite' } },
+  'ativar-cadastro': { pagina: 'ativar', rotulo: 'Ativação', demo: { etapa: 'cadastro', ativacao: true, cadastro: ex.cadastroNovo, cfg: ex.cfgExemplo } },
+  'ativar-concluido': { pagina: 'ativar', rotulo: 'Ativação', demo: { etapa: 'ativado' } },
+  'ativar-vencido': { pagina: 'ativar', rotulo: 'Ativação', demo: { etapa: 'telefone', falha: 'Este link de ativação venceu ou já foi usado. Entre com seu WhatsApp aqui mesmo.' } },
+};
+const acesso = tela ? ACESSO[tela] : undefined;
+const area = tela && !acesso ? (tela.startsWith('historico') ? 'historico' : tela.startsWith('recompensa') || tela.startsWith('resgate') ? 'recompensas' : 'conta') : undefined;
+const TITULO_AREA = { conta: 'Minha conta', historico: 'Histórico', recompensas: 'Recompensas' } as const;
+const grupos = [...new Set(TELAS.map((x) => x.grupo))];
+---
+<Base titulo={`${t ? `${t.grupo} · ${t.titulo}` : 'Prévia'} — Clube Âmbar`} home={false} indexar={false}>
+  <p class="previa-faixa"><strong>Prévia local</strong> · dados de exemplo, nada é enviado · <a href="/clube/previa/">todas as telas</a></p>
+
+  {!tela && (
+    <main class="previa-indice">
+      <h1>Clube Âmbar · prévia das telas</h1>
+      <p>Cada tela com dados de exemplo, sem API. Para os fluxos de verdade (com a simulação do <code>astro dev</code>), use o painel “Simulação local” das páginas do Clube.</p>
+      {grupos.map((g) => (
+        <section>
+          <h2>{g}</h2>
+          <ul>{TELAS.filter((x) => x.grupo === g).map((x) => <li><a href={`/clube/previa/${x.id}/`}>{x.titulo}</a></li>)}</ul>
+        </section>
+      ))}
+    </main>
+  )}
+
+  {acesso && (
+    <ClubeFoco rotulo={acesso.rotulo}>
+      <ClubeAcesso pagina={acesso.pagina} modo="indisponivel" privacidadeUrl="/privacidade/" demo={acesso.demo} />
+    </ClubeFoco>
+  )}
+
+  {area && (
+    <ClubeAreaMolde atual={area} titulo={TITULO_AREA[area]} tituloVisivel={area !== 'conta'}>
+      {tela === 'conta' && <ClubeArea secao="conta" modo="indisponivel" demo={{ membro: ex.membroExemplo, cfg: ex.cfgExemplo }} />}
+      {tela === 'conta-pontos' && <ClubeArea secao="conta" modo="indisponivel" demo={{ membro: ex.membroComPontos, cfg: cfgPontos, recursosLigados: true }} />}
+      {tela === 'conta-carregando' && <ContaEsqueleto />}
+      {tela === 'historico' && <ClubeArea secao="historico" modo="indisponivel" demo={{ membro: ex.membroExemplo, cfg: ex.cfgExemplo }} />}
+      {tela === 'historico-lista' && <ListaMovimentos estado="ok" itens={ex.movimentosExemplo} />}
+      {tela === 'historico-vazio' && <ListaMovimentos estado="vazio" />}
+      {tela === 'historico-carregando' && <ListaMovimentos estado="carregando" />}
+      {tela === 'historico-erro' && <ListaMovimentos estado="erro" erro="Sem conexão com o Clube. Confira sua internet e tente de novo." aoTentar={() => {}} />}
+      {tela === 'recompensas' && <ClubeArea secao="recompensas" modo="indisponivel" demo={{ membro: ex.membroExemplo, cfg: ex.cfgExemplo }} />}
+      {tela === 'recompensas-catalogo' && <CatalogoRecompensas itens={recompensas} saldo={340} />}
+      {tela === 'recompensa-detalhe' && <DetalheRecompensa r={recompensas[0]} saldo={340} aoResgatar={() => {}} aoVoltar={() => {}} />}
+      {tela === 'recompensa-insuficiente' && <DetalheRecompensa r={recompensas[2]} saldo={340} aoResgatar={() => {}} aoVoltar={() => {}} />}
+      {tela === 'resgate-confirmacao' && <ConfirmacaoResgate r={recompensas[0]} saldo={340} />}
+      {tela?.startsWith('resgate-') && tela !== 'resgate-confirmacao' && (
+        <ResgateQr resgate={ex.resgateExemplo(fotos.get('cardapio/cappuccino.webp') ?? null, tela.replace('resgate-', '') as 'aguardando')} />
+      )}
+    </ClubeAreaMolde>
+  )}
+</Base>

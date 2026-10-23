@@ -2,11 +2,11 @@
 // Peças comuns às ilhas do Clube (ficha de inscrição e área de membro): confirmação do telefone por código.
 // O código é conferido SÓ pela API; o navegador não valida nada além do formato (dígitos e tamanho).
 import { useEffect, useRef, useState } from 'preact/hooks';
-import type { DesafioCodigo } from '../lib/api/clube-contrato';
+import type { DesafioAcesso } from '../lib/api/clube-acesso';
 
 interface CodigoProps {
   px: string;
-  desafio: DesafioCodigo;
+  desafio: DesafioAcesso;
   digitos: number;
   ocupado: boolean;
   erro?: string;
@@ -37,11 +37,10 @@ export function PassoCodigo({ px, desafio, digitos, ocupado, erro, aoConfirmar, 
     return () => clearTimeout(t);
   }, [espera]);
   const completo = codigo.length === digitos;
-  const canal = desafio.canal === 'whatsapp' ? 'no WhatsApp' : 'por SMS';
   return (
     <fieldset class="ficha__codigo">
       <legend>código de confirmação</legend>
-      <p class="ticket__slots">Enviamos um código de {digitos} dígitos {canal} para <strong class="ficha__destino">{desafio.destino}</strong>.</p>
+      <p class="ticket__slots">Enviamos um código de {digitos} dígitos no WhatsApp para <strong class="ficha__destino">{desafio.destino}</strong>.</p>
       <label class="field" data-invalid={erro ? '' : undefined}>
         <span class="field__label">Código</span>
         <input ref={campo} id={`${px}-codigo`} class="field__input ficha__digitos" inputMode="numeric" autocomplete="one-time-code"

@@ -11,3 +11,6 @@ export const CLUBE_MODO: ModoClube =
   : 'indisponivel';
 /** a ficha recebe gente (API real, ou a simulação local do `astro dev`) */
 export const CLUBE_ABERTO = CLUBE_MODO !== 'indisponivel';
+/** prévia local das telas do Clube (/clube/previa/, dados de exemplo): só no `astro dev` e no build de testes
+ *  (`--mode simulado`, dist-sim, nunca publicado). Nos builds de produção e de revisão, as páginas nem são geradas. */
+export const CLUBE_PREVIA = import.meta.env.DEV || import.meta.env.MODE === 'simulado';

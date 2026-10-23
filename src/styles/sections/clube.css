@@ -1,16 +1,7 @@
-/* CLUBE ÂMBAR (novo, 2026-10-20): convite na home (.clube-convite), página /clube, área de membro /clube/membro e a
-   página interna de estados. Mesma linguagem do site: mega títulos, papel creme e manteiga, vinho com grão, comanda
+/* CLUBE ÂMBAR (novo, 2026-10-20): convite na home (.clube-convite), a landing /clube e o cartão de acesso (.ficha). A
+   área do membro, as telas de acesso e a prévia moram em sections/clube-area.css. Mesma linguagem do site: mega
+   títulos, papel creme e manteiga, vinho com grão, comanda
    picotada, sombra deslocada cacau. A carteira em si mora em components/carteira.css; o movimento, em motion.css §6. */
-
-/* Título de bloco das páginas do Clube: o mega título num corpo menor (as páginas internas têm vários blocos) */
-.titulo {
-  font: var(--t-title);
-  font-variation-settings: var(--fvs-display); font-stretch: var(--stretch-mega);
-  letter-spacing: var(--track-mega); text-transform: uppercase;
-  color: var(--wine);
-}
-.titulo span { display: block; }
-.titulo--light { color: var(--butter); }
 
 /* 1 · Convite na home ------------------------------------------------------------------------------------------------
    2026-10-23: composição editorial sobre a foto do Clube (presente com laço vinho, roll e café) — título em duas
@@ -33,7 +24,9 @@
 /* micro-benefícios: as pílulas .clube-marcas, na versão miúda em itálico — as duas lado a lado já em 360 px */
 .clube-convite .clube-marcas { margin-top: var(--s-12); gap: var(--s-6); }
 .clube-convite .clube-marcas li { gap: 5px; padding: 4px var(--s-10) 5px; font: var(--t-tag); font-size: var(--fs-tag-s); letter-spacing: 0; text-transform: none; }
-.clube-convite .clube-convite__cta { margin-top: var(--s-18); }
+.clube-convite .clube-convite__acoes { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-10) var(--s-18); margin-top: var(--s-18); }
+/* quem já é membro: direto à conta, discreto ao lado do botão (só com o Clube aberto) */
+.clube-convite__conta { display: inline-flex; align-items: center; min-height: 44px; color: var(--wine); font: var(--t-link); letter-spacing: var(--track-caps); text-transform: uppercase; text-decoration: underline 2px; text-underline-offset: 5px; }
 /* palco: foto + selo. No celular, a foto corta bem o alto vazio (só a parede) e sobe só o bastante para o laço do
    presente começar logo abaixo do botão — mesma altura total de antes, com menos “parede” entre o botão e a mesa */
 .clube-convite__palco { position: relative; margin: -9vw calc(var(--gutter) * -1) 0; }
@@ -50,20 +43,6 @@
   width: clamp(76px, 22vw, 92px); color: var(--wine); rotate: -10deg; pointer-events: none;
   filter: drop-shadow(2px 2px 0 var(--cacao));
 }
-
-/* palco: a carteira vinho por cima de um verso manteiga, com uma anotação manuscrita */
-.clube-palco { position: relative; width: min(100%, 420px); margin: var(--s-34) auto 0; padding: var(--s-30) 0 var(--s-44); }
-.clube-palco__frente { position: relative; z-index: var(--z-2); width: 88%; rotate: -5deg; }
-.clube-palco__frente .carteira { width: 100%; }
-.clube-palco__verso {
-  position: absolute; z-index: var(--z-1); top: var(--s-6); right: -2%; width: 74%; aspect-ratio: 1.586;
-  border-radius: var(--radius-l); background: var(--butter) var(--paper-fibers);
-  box-shadow: var(--shadow-offset), var(--shadow-photo);
-  rotate: 8deg;
-}
-.clube-palco__verso::before { content: ""; position: absolute; inset: 9px; border: 1.5px dashed color-mix(in srgb, var(--wine) 30%, transparent); border-radius: calc(var(--radius-l) - 6px); }
-.clube-palco__nota { position: absolute; z-index: var(--z-3); right: 2%; bottom: 0; font: var(--t-note); color: var(--caramel-dk); text-align: right; rotate: -4deg; }
-.clube-palco__seta { position: absolute; z-index: var(--z-3); right: 26%; bottom: 4px; width: 62px; fill: none; stroke: var(--caramel-dk); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; rotate: 180deg; scale: -1 1; }
 
 .clube-marcas { display: flex; flex-wrap: wrap; gap: var(--s-8); }
 .clube-marcas li {
@@ -99,12 +78,11 @@
   }
 }
 
-/* 2 · Página /clube (2026-10-23, versão final) ----------------------------------------------------------------------
-   Uma seção curta sobre o papel: a apresentação (título, frase, uma linha e duas polaroides — a peça .cut--polaroid das
-   colagens) e a comanda logo abaixo: a ficha com a API, o bilhete “em breve” sem ela. Celular: tudo empilhado e
-   alinhado à esquerda; tablet: a coluna centralizada; desktop: apresentação à esquerda (acompanha a rolagem) e comanda
-   à direita. Saíram as duas etapas (convite ⇄ ficha) e a foto do convite da home. */
-.clube-pag { position: relative; display: grid; gap: var(--s-30); padding: var(--s-40) var(--gutter); }
+/* 2 · Página /clube (2026-10-23, “acesso primeiro”) -------------------------------------------------------------------
+   Uma seção curta sobre o papel, com o cartão de acesso como peça principal. Celular: título e frase, o cartão logo
+   abaixo (em 390 × 844 o campo do WhatsApp e o botão cabem sem rolar), depois as duas polaroides e os três passos.
+   Tablet: a mesma coluna, centralizada. Desktop: título, frase e cartão à esquerda; polaroides e passos à direita. */
+.clube-pag { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-22); padding: var(--s-30) var(--gutter) var(--s-44); }
 /* a página ocupa ao menos a tela: em telas altas (desktop) o conteúdo fica no meio e o fechamento mínimo na base — sem
    papel vazio embaixo dele. Os outros filhos do body (pular, progresso, botão fixo, menu) são fixos ou absolutos. */
 body:has(.clube-pag) { display: flex; flex-direction: column; min-height: 100svh; }
@@ -124,58 +102,66 @@ body:has(.clube-pag) > main::before {
 }
 .clube-chegada[hidden] { display: none; }
 
-/* apresentação: o título numa linha, a frase em serifa itálica e uma linha de apoio — depois as duas polaroides */
-.clube-pag__convite { display: grid; justify-items: start; gap: var(--s-10); min-width: 0; }
+/* cabeça: o título numa linha e a frase em serifa itálica */
+.clube-pag__cabeca { display: grid; justify-items: start; gap: var(--s-10); min-width: 0; }
 .clube-pag__titulo { font-size: var(--fs-mega-clube-ficha); line-height: .9; }
-.clube-pag__frase { margin-top: var(--s-6); font: var(--t-kicker); font-size: var(--fs-clube-frase); line-height: 1.15; color: var(--ink); text-wrap: balance; }
-.clube-pag__texto { max-width: 40ch; color: var(--text-soft); }
-.clube-pag__destaques { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-18); width: 100%; max-width: 420px; margin-top: var(--s-14); padding-inline: var(--s-6); }
-/* a polaroide das colagens, aqui no fluxo (sem palco): foto mais baixa, levemente girada, legenda em Fraunces */
+.clube-pag__frase { font: var(--t-kicker); font-size: var(--fs-clube-frase); line-height: 1.15; color: var(--ink); text-wrap: balance; }
+
+/* o cartão: a ficha com a API, o bilhete “em breve” sem ela. A sombra vai no invólucro: a máscara do picote cortaria
+   um box-shadow no próprio cartão */
+.clube-pag__ficha { min-width: 0; scroll-margin-top: var(--s-16); filter: var(--drop-ficha); }
+.clube-pag__ficha:focus { outline: none; }
+.clube-pag__ficha .ticket { width: 100%; margin: 0 auto; }
+
+/* depois do cartão: as duas polaroides (a peça .cut--polaroid das colagens, no fluxo, levemente giradas) e os passos */
+.clube-pag__mais { display: grid; justify-items: start; gap: var(--s-22); min-width: 0; margin-top: var(--s-12); }
+.clube-pag__destaques { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-18); width: 100%; max-width: 420px; padding-inline: var(--s-6); }
 .clube-pag .clube-pag__foto { position: relative; rotate: calc(-2deg + var(--i) * 4deg); }
 .clube-pag__foto img { aspect-ratio: 4 / 3.3; }
 .clube-pag__foto figcaption { color: var(--wine); }
-/* como vai funcionar: três passos lado a lado, sobre o picote tracejado da comanda — compacto até em 360 px */
+/* como vai funcionar: três passos lado a lado, curtos, sobre o picote tracejado da comanda */
 .clube-pag__passos {
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-12); width: 100%; max-width: 420px;
-  margin-top: var(--s-14); padding-top: var(--s-14); border-top: var(--border-control) dashed var(--rule);
+  padding-top: var(--s-12); border-top: var(--border-control) dashed var(--rule);
 }
 .clube-pag__passos li { display: grid; align-content: start; gap: var(--s-6); font: var(--t-body-s); line-height: 1.3; color: var(--ink); }
 .clube-pag__n { font: var(--t-legend); letter-spacing: var(--track-legend); color: var(--caramel-dk); }
-
-/* a comanda: a ficha ou o bilhete “em breve”; o atalho da carteira só aparece com a API */
-.clube-pag__ficha { display: grid; gap: var(--s-14); min-width: 0; scroll-margin-top: var(--s-16); }
-.clube-pag__ficha:focus { outline: none; }
-.clube-pag__ficha .ticket { width: 100%; margin: 0 auto; }
-.clube-pag__membro { text-align: center; font: var(--t-caption); color: var(--text-soft); }
-.clube-pag__membro a { margin-left: var(--s-6); color: var(--wine); font: var(--t-link); letter-spacing: var(--track-caps); text-transform: uppercase; text-decoration: underline 2px; text-underline-offset: 5px; }
-/* depois da adesão confirmada, a própria comanda já leva à carteira: sem o atalho repetido */
-.clube-pag__ficha:has(.ficha[data-etapa="bem-vindo"]) .clube-pag__membro { display: none; }
+/* sessão de membro aberta: a página vira só a área do membro — sem repetir a apresentação */
+.clube-pag:has(.ficha:is([data-etapa="membro"], [data-etapa="pendente"])) .clube-pag__mais { display: none; }
 
 @media (min-width: 600px) and (max-width: 959px) {
   .clube-pag { width: min(100%, calc(480px + 2 * var(--gutter))); margin-inline: auto; }
 }
 @media (min-width: 960px) {
   .clube-pag {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 440px); column-gap: var(--s-44); align-items: start;
-    padding: var(--s-44) max(var(--gutter), calc((100% - var(--container-m)) / 2));
+    grid-template-columns: minmax(0, 480px) minmax(0, 1fr); grid-template-rows: auto 1fr;
+    grid-template-areas: "cabeca mais" "ficha mais";
+    column-gap: clamp(56px, 7vw, 112px); row-gap: var(--s-26); align-items: start;
+    padding: var(--s-44) max(var(--gutter), calc((100% - var(--container-l)) / 2));
   }
-  .clube-pag__convite { position: sticky; top: var(--s-40); }
+  .clube-pag__cabeca { grid-area: cabeca; }
+  .clube-pag__titulo { font-size: var(--fs-mega-clube-pag); }
+  .clube-pag__ficha { grid-area: ficha; }
+  /* as polaroides crescem e ficam na altura do cartão; os passos logo abaixo delas */
+  .clube-pag__mais { grid-area: mais; align-self: center; justify-items: center; gap: var(--s-30); margin: 0; }
+  .clube-pag__destaques { max-width: 520px; gap: var(--s-30); }
+  .clube-pag__passos { max-width: 520px; gap: var(--s-18); }
+  .clube-pag:has(.ficha:is([data-etapa="membro"], [data-etapa="pendente"])) { grid-template-columns: minmax(0, 480px); grid-template-areas: "cabeca" "ficha"; justify-content: center; }
 }
 
-.clube-membro {
-  padding: 56px var(--gutter) calc(var(--rhythm-d) + var(--rhythm-tail));
-  background: var(--wine); color: var(--butter); overflow: hidden;
-}
-.clube-membro .membro { margin-top: var(--s-40); }
-@media (min-width: 960px) {
-  .clube-membro > .titulo { max-width: var(--container-m); margin-inline: auto; }
-}
+/* painel da simulação local (só no `astro dev`): uma pílula recolhida no canto, fora da composição */
+.clube-dev { position: fixed; z-index: var(--z-dock); left: var(--s-10); bottom: var(--s-10); max-width: calc(100vw - 2 * var(--s-10)); font: var(--t-body-s); }
+.clube-dev summary { width: max-content; padding: var(--s-6) var(--s-12); border-radius: var(--radius-pill); background: var(--ink); color: var(--cream); font: var(--t-pill); letter-spacing: var(--track-caps); text-transform: uppercase; opacity: .8; cursor: pointer; }
+.clube-dev[open] summary { opacity: 1; }
+.clube-dev__corpo { display: grid; gap: var(--s-8); width: min(340px, calc(100vw - 2 * var(--s-10))); margin-top: var(--s-6); padding: var(--s-12) var(--s-14); border-radius: var(--radius-control); background: var(--ink); color: var(--cream); }
+.clube-dev__corpo ul { display: grid; gap: var(--s-6); }
+.clube-dev__corpo a { color: var(--butter); text-decoration: underline; }
+.clube-dev__corpo button { justify-self: start; padding: var(--s-6) var(--s-12); border: var(--border-control) solid var(--butter); border-radius: var(--radius-pill); background: none; color: var(--butter); font: var(--t-pill); cursor: pointer; }
 
 /* 3 · Ficha de inscrição e acesso (dentro da comanda) --------------------------------------------------------------- */
 .ficha legend small { font: var(--t-chip-small); letter-spacing: 0; text-transform: none; color: var(--text-muted); }
 .ficha fieldset { display: grid; gap: var(--s-12); }
 .ficha fieldset:last-of-type { border-bottom: 0; padding-bottom: 0; }
-.ficha__origem { justify-self: start; margin-top: calc(var(--s-6) * -1); padding: 4px var(--s-10) 5px; border-radius: var(--radius-pill); background: var(--butter); color: var(--wine); font: var(--t-tag); rotate: -2deg; }
 /* ficha abrindo ou enviando (campos desligados por instantes): papel em branco, tracejado — legível, mas sem uso */
 .ficha fieldset:disabled .field__input { border-style: dashed; border-color: color-mix(in srgb, var(--ink) 40%, transparent); background: transparent; cursor: not-allowed; }
 .ficha fieldset:disabled .check { cursor: not-allowed; }
@@ -199,59 +185,21 @@ body:has(.clube-pag) > main::before {
 .ficha__sem-app { text-align: center; font: var(--t-caption); color: var(--text-muted); }
 /* sair deste aparelho: discreto, centrado, abaixo do botão principal */
 .ficha__sair { justify-self: center; }
-/* aviso da simulação local (só no `astro dev`) */
-.ficha__simulado { margin-right: var(--s-44); padding: var(--s-8) var(--s-10); border: var(--border-control) dashed var(--berry); border-radius: var(--radius-control); font: var(--t-status); color: var(--berry); }
 /* “opcional” ao lado do rótulo (aniversário, novidades): miúdo, em itálico, sem disputar com o campo */
 .ficha__opc { margin-left: var(--s-6); font: var(--t-chip-small); letter-spacing: 0; text-transform: none; color: var(--text-muted); }
 .ficha__opc--linha { display: block; margin: var(--s-6) 0 0; }
 /* confirmação (só com a resposta da API): a frase grande, em vinho, sobre a comanda carimbada “membro” */
 .ficha__boas-vindas { display: grid; gap: var(--s-6); font: var(--t-tagline); font-stretch: var(--stretch-tag); text-transform: uppercase; color: var(--wine); }
 .ficha__boas-vindas span { font: var(--t-kicker); text-transform: none; color: var(--ink); }
-.ficha__carregando { display: flex; gap: var(--s-10); }
-.ficha__carregando .chip--skeleton { width: 100%; height: 52px; }
-.ficha--acesso .ticket__title { max-width: 11ch; }
-
-/* 4 · Área de membro ------------------------------------------------------------------------------------------------- */
-.membro { display: grid; gap: var(--s-44); width: 100%; max-width: 520px; margin-inline: auto; }
-.carteira-area { display: grid; justify-items: center; gap: var(--s-12); text-align: center; }
-.carteira-area__ola { font: var(--t-tagline); font-stretch: var(--stretch-tag); text-transform: uppercase; color: var(--butter); }
-.carteira-area__ola:focus { outline: none; }
-.carteira-area__kicker { font: var(--t-kicker); color: var(--caramel-lt); }
-.carteira-area__cartao { rotate: -2deg; margin: var(--s-14) 0 var(--s-6); }
-.carteira-area__cartao .carteira__papel { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--butter) 35%, transparent); }
-.carteira-area__meta { font-size: var(--fs-fine); color: var(--text-on-dark-faint); }
-.carteira-area__paineis { display: grid; gap: var(--s-14); width: 100%; margin-top: var(--s-14); text-align: left; }
-.carteira-area__sair { color: var(--butter); margin-top: var(--s-10); }
-.carteira-area--previa { padding: var(--s-26) var(--s-16) var(--s-22); border: var(--border-control) dashed color-mix(in srgb, var(--butter) 40%, transparent); border-radius: var(--radius-xl); }
-
-.painel {
-  --focus-ring: var(--wine);
-  display: grid; gap: var(--s-12); padding: var(--s-18) var(--s-22) var(--s-22);
-  border-radius: var(--radius-l); background: var(--cream) var(--paper-fibers); color: var(--ink);
-  box-shadow: var(--shadow-offset);
-}
-.painel__titulo { font: var(--t-legend); letter-spacing: var(--track-legend); text-transform: uppercase; color: var(--caramel-dk); }
-.painel__vazio { font: var(--t-caption); line-height: 1.3; color: var(--text-soft); }
-.painel__nota { font-size: var(--fs-fine); color: var(--text-muted); }
-.painel__mais { justify-self: center; }
-
-.extrato li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: baseline; gap: var(--s-12); padding: var(--s-10) 0; border-bottom: var(--border-control) dashed var(--rule); }
-.extrato li:last-child { border-bottom: 0; }
-.extrato time { font: var(--t-legend); font-variant-numeric: tabular-nums; color: var(--caramel-dk); }
-.extrato__desc { font: var(--t-body-s); }
-.extrato__pts { font: var(--t-review); font-variant-numeric: tabular-nums; color: var(--wine); }
-.extrato__pts[data-sinal="neg"] { color: var(--berry); }
-.extrato--esqueleto li { grid-template-columns: 1fr 64px; }
-.extrato--esqueleto span { height: 16px; border-radius: var(--radius-2xs); background: linear-gradient(100deg, var(--glaze) 30%, var(--butter) 50%, var(--glaze) 70%) 0 0 / 300% 100%; animation: shimmer var(--dur-loop-busy) linear infinite; }
-
-.recompensas li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--s-6) var(--s-12); padding: var(--s-12) 0; border-bottom: var(--border-control) dashed var(--rule); }
-.recompensas li:last-child { border-bottom: 0; }
-.recompensas__nome { font: var(--t-review); color: var(--ink); }
-.recompensas__desc { font-size: var(--fs-small); color: var(--text-soft); }
-.recompensas__pts { font-size: var(--fs-small); color: var(--text-soft); text-align: right; }
-.recompensas__pts strong { font: var(--t-review); color: var(--wine); }
-.recompensas__estado { grid-column: 1 / -1; justify-self: start; padding: 3px var(--s-10) 4px; border-radius: var(--radius-pill); border: var(--border-control) dashed var(--rule); font: var(--t-pill); letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--text-muted); }
-.recompensas li[data-disponivel] .recompensas__estado { border-style: solid; border-color: var(--wine); background: var(--wine); color: var(--butter); }
+/* cartão de acesso (2026-10-23): papel claro com fibras, sem carimbo — o título em frase (uma ou duas linhas, não
+   a caixa alta quebrada), a linha de apoio em texto corrido e o botão cheio. O bilhete “em breve” segue como comanda. */
+.ficha--acesso { max-width: none; gap: var(--s-14); padding: var(--s-26) var(--s-26) var(--s-22); background: var(--glaze) var(--paper-fibers); }
+.ficha--acesso .ticket__title { max-width: none; font: var(--t-ficha-titulo); font-stretch: var(--stretch-tag); letter-spacing: var(--track-hero); text-transform: none; text-wrap: balance; }
+.ficha--acesso .ficha__lead { padding-right: 0; font: var(--t-body); color: var(--text-soft); text-wrap: pretty; }
+.ficha--acesso .ficha__etapa, .ficha--acesso .ficha__form { gap: var(--s-14); }
+.ficha--acesso .ficha__boas-vindas { font-size: var(--fs-tagline-s); }
+.ficha__seta { display: inline-block; transition: translate var(--dur-press) var(--ease); }
+.ficha--acesso .btn:hover .ficha__seta { translate: 3px 0; }
 
 /* interruptor (autorização de novidades): alvo de 44 px, tinta e papel */
 .interruptor { display: grid; grid-template-columns: 54px minmax(0, 1fr); align-items: center; gap: var(--s-12); min-height: 44px; font: var(--t-body-s); cursor: pointer; }
@@ -261,14 +209,3 @@ body:has(.clube-pag) > main::before {
 .interruptor input:checked::after { translate: 22px 0; background: var(--butter); }
 .interruptor input:disabled { opacity: .55; cursor: not-allowed; }
 
-/* 5 · Página interna de estados (só revisão) ------------------------------------------------------------------------ */
-.clube-estados { padding: 40px var(--gutter) 120px; background: var(--cacao); color: var(--cream); }
-.clube-estados__topo { max-width: 760px; margin: 0 auto var(--s-40); display: grid; gap: var(--s-12); }
-.clube-estados__topo h1 { font: var(--t-tagline); text-transform: uppercase; color: var(--butter); }
-.clube-estados__grade { display: grid; gap: var(--s-30); margin-bottom: var(--s-44); }
-.clube-estados__quadro { display: grid; gap: var(--s-14); align-content: start; padding: var(--s-22) var(--s-14) var(--s-26); border-radius: var(--radius-xl); background: var(--wine); color: var(--butter); }
-.clube-estados__quadro > h2 { justify-self: start; padding: 5px var(--s-12); border-radius: var(--radius-pill); background: var(--butter); color: var(--wine); font: var(--t-pill); letter-spacing: var(--track-caps); text-transform: uppercase; }
-.clube-estados__quadro .ticket { margin: 0; width: 100%; }
-@media (min-width: 960px) {
-  .clube-estados__grade { grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); }
-}

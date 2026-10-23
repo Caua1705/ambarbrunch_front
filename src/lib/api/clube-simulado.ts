@@ -7,7 +7,7 @@
 //   …0001 → membro ativo · …0002 → cadastro incompleto (já tem nome; falta aceitar os termos atuais) · outros → novo
 // Código: 123456 confere · 000000 = vencido · outro = incorreto (5 erros travam o código). Até 3 envios por número.
 // Convite do caixa (caminho A): /clube/ativar?c=demo-novo · demo-incompleto · demo-ativo · demo-vencido.
-import { ErroClube } from './clube-contrato';
+import { ErroClube } from './clube-erro';
 import type { AcessoClubeApi, CadastroPendente, ConfigClube, MembroClube, SituacaoClube } from './clube-acesso';
 
 const espera = (ms = 450) => new Promise((r) => setTimeout(r, ms));
@@ -16,11 +16,11 @@ const mascara = (t: string) => `(${t.slice(0, 2)}) •••••-${t.slice(-4)
 const CONVITES: Record<string, string> = { 'demo-novo': '85977770011', 'demo-incompleto': '85988880002', 'demo-ativo': '85988880001' };
 
 type Escopo = 'completa' | 'ativacao';
-interface Guardado { sessao: string | null; escopo: Escopo; cadastros: [string, CadastroPendente][]; usados: string[] }
+/** preferências de comunicação de cada número (final de 4 dígitos) */
+type Prefs = { marketing: boolean; mensagens: boolean };
+interface Guardado { sessao: string | null; escopo: Escopo; cadastros: [string, CadastroPendente][]; usados: string[]; prefs?: [string, Prefs][]; desafios?: [string, { telefone: string; erros: number }][]; envios?: [string, number][] }
 
 export function criarAcessoSimulado(): AcessoClubeApi {
-  const desafios = new Map<string, { telefone: string; erros: number }>();
-  const envios = new Map<string, number>();
   // estado de mentira na aba: o telefone da sessão (o “cookie”), o escopo dela e os cadastros feitos na prévia
   const CHAVE = 'ambar:clube:simulacao';
   const lido = (() => { try { return JSON.parse(sessionStorage.getItem(CHAVE) ?? 'null') as Guardado | null; } catch { return null; } })();
@@ -30,14 +30,19 @@ export function criarAcessoSimulado(): AcessoClubeApi {
   const cadastros = new Map<string, CadastroPendente>(lido?.cadastros ?? [
     ['0002', { nome: 'João Pedro', aniversario: '03-14', faltam: ['aceite'], marketing: { autorizado: false } }],
   ]);
+  const prefs = new Map<string, Prefs>(lido?.prefs ?? []);
+  // desafios e envios também ficam na aba: o código pedido na landing é digitado em /clube/entrar (outra página)
+  const desafios = new Map<string, { telefone: string; erros: number }>(lido?.desafios ?? []);
+  const envios = new Map<string, number>(lido?.envios ?? []);
   const guardar = () => {
-    try { sessionStorage.setItem(CHAVE, JSON.stringify({ sessao, escopo, cadastros: [...cadastros], usados: [...usados] } satisfies Guardado)); }
+    try { sessionStorage.setItem(CHAVE, JSON.stringify({ sessao, escopo, cadastros: [...cadastros], usados: [...usados], prefs: [...prefs], desafios: [...desafios], envios: [...envios] } satisfies Guardado)); }
     catch { /* aba sem armazenamento: vale só a memória */ }
   };
   const semSessao = () => new ErroClube('sessao', 'Sua confirmação expirou. Confirme o WhatsApp de novo.');
-  const membro = (telefone: string, nome: string, aniversario: string | null, autorizado: boolean): MembroClube => ({
-    nome, telefone: mascara(telefone), aniversario, membroDesde: '2026-10-23', marketing: { autorizado }, mensagens: { autorizado: true }, programa: { ativo: false, saldo: null },
-  });
+  const membro = (telefone: string, nome: string, aniversario: string | null, autorizado: boolean): MembroClube => {
+    const p = prefs.get(telefone.slice(-4)) ?? { marketing: autorizado, mensagens: true };
+    return { nome, telefone: mascara(telefone), aniversario, membroDesde: '2026-10-23', marketing: { autorizado: p.marketing }, mensagens: { autorizado: p.mensagens }, programa: { ativo: false, saldo: null } };
+  };
   const pendente = (telefone: string): CadastroPendente | null => {
     if (telefone.endsWith('0001')) return null;
     const c = cadastros.get(telefone.slice(-4)) ?? { nome: null, aniversario: null, faltam: ['nome', 'aceite'], marketing: { autorizado: false } };
@@ -64,7 +69,7 @@ export function criarAcessoSimulado(): AcessoClubeApi {
       envios.set(telefone, n);
       if (n > 3) throw new ErroClube('limite', 'Muitas tentativas. Aguarde alguns minutos e tente de novo.');
       const desafioId = `sim-${Date.now()}`;
-      desafios.set(desafioId, { telefone, erros: 0 });
+      desafios.set(desafioId, { telefone, erros: 0 }); guardar();
       return { desafioId, canal: 'whatsapp', destino: mascara(telefone), reenvioEm: 20, expiraEm: new Date(Date.now() + 600_000).toISOString() };
     },
     verificar: async (desafioId, codigo) => {
@@ -72,7 +77,7 @@ export function criarAcessoSimulado(): AcessoClubeApi {
       const d = desafios.get(desafioId);
       if (!d || codigo === '000000') throw new ErroClube('codigo', 'Este código venceu ou já foi usado. Peça um novo.');
       if (codigo !== '123456') {
-        d.erros += 1;
+        d.erros += 1; guardar();
         if (d.erros >= 5) { desafios.delete(desafioId); throw new ErroClube('limite', 'Muitas tentativas. Aguarde alguns minutos e tente de novo.'); }
         throw new ErroClube('validacao', 'Confira o código.', { codigo: 'Código incorreto. Confira e tente de novo.' });
       }
@@ -101,6 +106,20 @@ export function criarAcessoSimulado(): AcessoClubeApi {
       if (!c) { guardar(); return { situacao: 'entrar', membro: null, cadastro: null }; }   // já é membro: sem sessão
       sessao = telefone; escopo = 'ativacao'; guardar();
       return vistaAtivacao(c);
+    },
+    marketing: async (autorizado) => {
+      await espera(300);
+      if (!sessao || escopo !== 'completa') throw semSessao();
+      const s = situacao(sessao);
+      if (s.situacao !== 'membro') throw new ErroClube('validacao', 'Conclua o cadastro primeiro.');
+      prefs.set(sessao.slice(-4), { marketing: autorizado, mensagens: s.membro.mensagens.autorizado }); guardar();
+      return situacao(sessao);
+    },
+    pararMensagens: async () => {
+      await espera(300);
+      if (!sessao || escopo !== 'completa') throw semSessao();
+      const s = situacao(sessao);
+      if (s.situacao === 'membro') { prefs.set(sessao.slice(-4), { marketing: s.membro.marketing.autorizado, mensagens: false }); guardar(); }
     },
     concluir: async (c) => {
       await espera();

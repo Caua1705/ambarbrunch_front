@@ -1,0 +1,16 @@
+---
+// /clube/cadastro — conclusão do cadastro do Clube Âmbar (islands/ClubeAcesso, pagina="cadastro"): pede só o que falta
+// (nome, aceite dos termos atuais; aniversário e novidades opcionais). Membro que chega aqui vai para a conta; sem
+// sessão, confirma o WhatsApp ali mesmo. Concluído: “Você faz parte do Clube Âmbar!”. Fora dos buscadores.
+import Base from '../../layouts/Base.astro';
+import ClubeFoco from '../../sections/ClubeFoco.astro';
+import ClubeAcesso from '../../islands/ClubeAcesso';
+import { CLUBE_MODO, CLUBE_API_URL, CLUBE_ABERTO } from '../../lib/clube-modo';
+---
+<Base titulo="Cadastro — Clube Âmbar" descricao="Conclua seu cadastro no Clube Âmbar." home={false} indexar={false}>
+  <ClubeFoco rotulo="Cadastro">
+    {CLUBE_ABERTO
+      ? <ClubeAcesso client:load pagina="cadastro" modo={CLUBE_MODO} apiUrl={CLUBE_API_URL} privacidadeUrl="/privacidade/" />
+      : <ClubeAcesso pagina="cadastro" modo={CLUBE_MODO} privacidadeUrl="/privacidade/" />}
+  </ClubeFoco>
+</Base>

@@ -9,6 +9,9 @@
 //      Set-Cookie da sessão. É o BACKEND que diz se a pessoa é membro ou se falta cadastro; o navegador só exibe.
 //   3. POST /clube/adesoes (cookie; telefone vem da sessão) — envio parcial vale: devolve a situação de novo.
 //   4. POST /clube/sair → 204 sempre; o backend apaga o cookie.
+//   Conta (sessão completa): PUT /clube/me/marketing { autorizado, textoVersao } → estado · DELETE /clube/me/mensagens
+//   → 204 (desliga os avisos de serviço; não há rota para religar). Histórico, recompensas e resgates: sem rota pública
+//   ainda — ver clube-futuro.ts.
 // Sessão: cookie HttpOnly `__Secure-ambar_clube` (SameSite=Strict) — o site NÃO vê nem guarda token: toda chamada vai com
 // `credentials: "include"` e o navegador manda o cookie. Toda chamada que muda algo leva `X-Ambar-Csrf: 1` (o navegador
 // põe o Origin); sem ele, 403 `origem_invalida`. O cookie só funciona com site e API no MESMO site (ambarbrunch.com →
@@ -16,7 +19,7 @@
 // mostra o formulário do telefone.
 // Erros: { detail: "<texto em português, pode ir ao cliente>", codigo } ou, em campo inválido (422), o formato do FastAPI
 // { detail: [{ loc: ["body", "<campo>"], msg, type }], codigo? } — não há chave `campos`. → ErroClube.
-import { ErroClube } from './clube-contrato';
+import { ErroClube } from './clube-erro';
 
 /** GET /clube/config */
 export interface ConfigClube {
@@ -53,8 +56,11 @@ export interface MembroClube {
   /** avisos de serviço do Clube pelo WhatsApp (DELETE /clube/me/mensagens desliga) */
   mensagens: { autorizado: boolean };
   /** saldo só vem com o programa ativo — com ele desligado, null: não mostrar pontos */
-  programa: { ativo: boolean; saldo: { pendente: number; disponivel: number; reservado: number } | null };
+  programa: { ativo: boolean; saldo: SaldoPontos | null };
 }
+
+/** pendente = compras em liberação · disponivel = pode usar · reservado = preso num resgate em andamento */
+export interface SaldoPontos { pendente: number; disponivel: number; reservado: number }
 
 /** o que o backend já tem de quem confirmou o número e ainda não é membro completo */
 export interface CadastroPendente {
@@ -104,6 +110,10 @@ export interface AcessoClubeApi {
   ativarConvite(convite: string): Promise<SituacaoClube>;
   /** POST /clube/sair — 204 sempre; o backend apaga o cookie (o JavaScript não consegue) */
   sair(): Promise<void>;
+  /** PUT /clube/me/marketing — sessão completa; 409 “versao” = o texto do consentimento mudou */
+  marketing(autorizado: boolean, textoVersao: string): Promise<SituacaoClube>;
+  /** DELETE /clube/me/mensagens — desliga os avisos de serviço pelo WhatsApp (o código de acesso continua chegando) */
+  pararMensagens(): Promise<void>;
 }
 
 const TEMPO_LIMITE = 12_000;
@@ -159,5 +169,7 @@ export function criarAcessoHttp(base: string): AcessoClubeApi {
     concluir: (c, chave) => post<SituacaoClube>('clube/adesoes', c, { 'Idempotency-Key': chave }),
     sair: () => post<void>('clube/sair'),
     ativarConvite: (convite) => post<SituacaoClube>('clube/convites/ativar', { convite }),
+    marketing: (autorizado, textoVersao) => pedir<SituacaoClube>(base, 'clube/me/marketing', { method: 'PUT', body: JSON.stringify({ autorizado, textoVersao }) }),
+    pararMensagens: () => pedir<void>(base, 'clube/me/mensagens', { method: 'DELETE' }),
   };
 }

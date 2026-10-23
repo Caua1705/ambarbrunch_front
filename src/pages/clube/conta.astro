@@ -1,0 +1,15 @@
+---
+// /clube/conta — a conta do membro: cartão, programa, atalhos, dados e comunicação. Área do membro (sections/ClubeAreaMolde + islands/ClubeArea): a sessão é
+// conferida na ilha; sem sessão, vai para /clube/entrar/ e volta para cá. Fora dos buscadores.
+import Base from '../../layouts/Base.astro';
+import ClubeAreaMolde from '../../sections/ClubeAreaMolde.astro';
+import ClubeArea from '../../islands/ClubeArea';
+import { CLUBE_MODO, CLUBE_API_URL, CLUBE_ABERTO } from '../../lib/clube-modo';
+---
+<Base titulo="Minha conta — Clube Âmbar" descricao="Minha conta no Clube Âmbar." home={false} indexar={false}>
+  <ClubeAreaMolde atual="conta" titulo="Minha conta" tituloVisivel={false}>
+    {CLUBE_ABERTO
+      ? <ClubeArea client:load secao="conta" modo={CLUBE_MODO} apiUrl={CLUBE_API_URL} />
+      : <ClubeArea secao="conta" modo={CLUBE_MODO} />}
+  </ClubeAreaMolde>
+</Base>

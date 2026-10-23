@@ -1,0 +1,44 @@
+---
+// Moldura da área do membro do Clube Âmbar (2026-10-23): /clube/conta, /clube/historico e /clube/recompensas. Mais direta
+// que a landing, para uso recorrente: barra vinho compacta com a marca do Clube e a volta ao site; no celular, abas fixas
+// na base (Conta · Histórico · Recompensas), como num aplicativo — mas é só o site; no desktop, as abas sobem para a
+// barra. O conteúdo é a ilha islands/ClubeArea (a sessão é conferida nela; sem sessão, vai para /clube/entrar).
+import Footer from './Footer.astro';
+import PainelDev from '../components/clube/PainelDev.astro';
+import { Icone } from '../components/clube/icones';
+import { ROTAS } from '../lib/clube-cliente';
+
+interface Props {
+  atual: 'conta' | 'historico' | 'recompensas';
+  /** título da seção (a conta tem a saudação como título visível) */
+  titulo: string;
+  tituloVisivel?: boolean;
+}
+const { atual, titulo, tituloVisivel = true } = Astro.props;
+const ABAS = [
+  { id: 'conta', href: ROTAS.conta, texto: 'Conta', icone: 'cartao' },
+  { id: 'historico', href: ROTAS.historico, texto: 'Histórico', icone: 'historico' },
+  { id: 'recompensas', href: ROTAS.recompensas, texto: 'Recompensas', icone: 'presente' },
+] as const;
+---
+<header class="area-barra">
+  <a class="area-barra__marca" href={ROTAS.conta}><span>Clube</span> <strong>Âmbar</strong></a>
+  <nav class="area-abas area-abas--topo" aria-label="Área do membro">
+    {ABAS.map((a) => <a class="area-aba" href={a.href} aria-current={a.id === atual ? 'page' : undefined}>{a.texto}</a>)}
+  </nav>
+  <a class="area-barra__site" href="/">Âmbar Café <span aria-hidden="true">↗</span></a>
+</header>
+<main class="clube area" data-secao={atual}>
+  <h1 class={tituloVisivel ? 'area__titulo' : 'visually-hidden'}>{titulo}</h1>
+  <slot />
+</main>
+<nav class="area-abas area-abas--base" aria-label="Área do membro (atalhos)">
+  {ABAS.map((a) => (
+    <a class="area-aba" href={a.href} aria-current={a.id === atual ? 'page' : undefined}>
+      <Icone nome={a.icone} />
+      <span>{a.texto}</span>
+    </a>
+  ))}
+</nav>
+<Footer minimo />
+<PainelDev />
