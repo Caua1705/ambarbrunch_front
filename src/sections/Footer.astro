@@ -1,26 +1,64 @@
 ---
-// 10 · RODAPÉ — logo, assinatura da Roll, uma linha institucional, os contatos (WhatsApp, Instagram do Âmbar e da Roll)
-// e o essencial (endereço e horário). Ajuste de 2026-10-18: os três contatos ficam aqui, no fim da página; a Visite,
-// logo acima, fica só com o “como encontrar” (endereço, horário e “Como chegar”) — sem repetir os mesmos botões.
-// O botão fixo de reserva some quando o rodapé começa a aparecer, então não cobre os contatos.
-// Sem política de privacidade linkada por enquanto (decisão de 2026-10-17) e sem botão de pausar animações.
-// Compactação de 2026-10-22: logo menor, assinatura e linha institucional numa linha só, contatos na mesma fileira.
+// 10 · RODAPÉ — absorveu a antiga seção “Visite o Âmbar” (2026-10-23) e leva o id “visite”: o item “Visite” do menu cai
+// aqui. Versão compacta do mesmo dia: a marca (logo e a assinatura da Roll), depois endereço e horários à esquerda com o
+// minimapa desenhado da antiga Visite à direita (o mapa inteiro abre o endereço no Google Maps), e os três contatos numa
+// fileira, com ícone. Sem botão de reserva aqui: o botão fixo “Reservar mesa” fica na tela até o fim da página, e a base
+// do rodapé guarda o espaço dele (footer.css). Sem política de privacidade linkada por enquanto (decisão de 2026-10-17).
 import Foto from '../components/Foto.astro';
 import { visita as v } from '../data/visita';
 import { roll } from '../data/roll';
 const ano = new Date().getFullYear();
+// “Coutinho, 1580” nunca se separa: em coluna estreita a quebra cai antes, e o número não fica sozinho na linha
+const endereco = v.endereco.replace(', ', ', ');
+// ícones de traço no mesmo desenho dos marcos do Clube (components/ClubeJornada.astro): 24 × 24, traço 1,7
+const ICONES = {
+  whatsapp: 'M12 3.5a8.5 8.5 0 0 0-7.4 12.7L3.5 20.5l4.4-1.1A8.5 8.5 0 1 0 12 3.5zM9 8.2c.4-.5 1.2-.5 1.5 0l.8 1.5c.2.3.1.7-.2 1l-.5.5c.6 1.2 1.6 2.2 2.8 2.8l.5-.5c.3-.3.7-.4 1-.2l1.5.8c.5.3.5 1.1 0 1.5-.8.7-2 .9-3.4.2a9 9 0 0 1-4.2-4.2C8.1 10.2 8.3 9 9 8.2z',
+  instagram: 'M7.5 3.5h9a4 4 0 0 1 4 4v9a4 4 0 0 1-4 4h-9a4 4 0 0 1-4-4v-9a4 4 0 0 1 4-4zM12 8.3a3.7 3.7 0 1 0 0 7.4 3.7 3.7 0 0 0 0-7.4zM17.2 6.9v.01',
+};
 ---
-<footer class="footer">
-  <Foto src="brand/logo-ambar.png" alt="Âmbar Brunch" class="footer__logo" sizes="240px" widths={[240, 480, 720]} qualidade={80} />
-  <p class="footer__sig">café, brunch e cinnamon rolls em Fortaleza · com assinatura gastronômica <Foto src="brand/logo-roll.png" alt="Roll" sizes="56px" widths={[56, 112, 168]} qualidade={80} /></p>
-  <nav class="footer__contatos" aria-label="Contatos">
-    <a class="pill-link footer__whats" href={v.whatsapp.url} rel="noopener" target="_blank">WhatsApp {v.whatsapp.numero}</a>
-    <a class="pill-link" href={v.instagram.url} rel="noopener" target="_blank">{v.instagram.handle}</a>
-    <a class="pill-link" href={roll.instagram.url} rel="noopener" target="_blank">Roll {roll.instagram.handle}</a>
-  </nav>
-  <address class="footer__info">
-    {v.endereco} · {v.cidade}<br />
-    {v.horarioCurto}
-  </address>
-  <p class="footer__fine">Âmbar Brunch · {v.dominio} · {ano}</p>
+<footer class="footer" id="visite" tabindex="-1">
+  <div class="footer__marca">
+    <Foto src="brand/logo-ambar.png" alt="Âmbar Café" class="footer__logo" sizes="124px" widths={[124, 248, 372]} qualidade={80} />
+    <p class="footer__sig">com assinatura gastronômica <Foto src="brand/logo-roll.png" alt="Roll" sizes="40px" widths={[40, 80, 120]} qualidade={80} /></p>
+  </div>
+
+  <div class="footer__conteudo">
+    <div class="footer__visita">
+      <div class="footer__info">
+        <div class="footer__bloco">
+          <p class="footer__kicker">Endereço</p>
+          <address class="footer__texto">{endereco}<br />{v.cidade}</address>
+        </div>
+        <div class="footer__bloco">
+          <p class="footer__kicker">Horários</p>
+          {v.horarios.map((h) => <p class="footer__texto">{h.dias}<br /><span class="footer__horas">{h.horas}</span></p>)}
+        </div>
+      </div>
+      <!-- minimapa: o desenho da antiga Visite (quadras, ruas, trajeto e pino), recortado em volta do pino -->
+      <a class="footer__mapa" href={v.mapaUrl} rel="noopener" target="_blank" aria-label={`Como chegar: ${v.endereco}, ${v.cidade} (abre o Google Maps)`}>
+        <svg viewBox="146 0 180 170" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <rect width="340" height="200" class="mapa__fundo" />
+          <path class="mapa__quadra" d="M-10 30h96l14 52H-10zM120 -10h88l-10 70h-92zM228 -10h122v86H214zM-10 112h118l16 98H-10zM146 104h70l8 106h-92zM246 108h104v102H254z" />
+          <path class="mapa__rua mapa__rua--larga" d="M-10 96C80 92 180 96 350 92" />
+          <path class="mapa__rua" d="M112 -10L132 210M232 -10l10 220" />
+          <path class="mapa__trajeto" d="M30 170C70 150 100 120 126 104S196 92 236 96" />
+          <g class="mapa__pino" transform="translate(236 96)">
+            <path d="M0 0C-12-16-18-24-18-33a18 18 0 0 1 36 0c0 9-6 17-18 33z" />
+            <circle cy="-33" r="7" />
+          </g>
+        </svg>
+        <span class="footer__chegar" aria-hidden="true">Como chegar ↗</span>
+      </a>
+    </div>
+
+    <nav class="footer__redes" aria-label="Contatos">
+      <ul class="footer__contatos">
+        <li><a href={v.whatsapp.url} rel="noopener" target="_blank" aria-label={`WhatsApp ${v.whatsapp.numero}`}><svg viewBox="0 0 24 24" aria-hidden="true"><path d={ICONES.whatsapp} /></svg><span class="footer__rede-curta">WhatsApp</span><span class="footer__rede-longa">{v.whatsapp.numero}</span></a></li>
+        <li><a href={v.instagram.url} rel="noopener" target="_blank" aria-label={`Instagram do Âmbar Café ${v.instagram.handle}`}><svg viewBox="0 0 24 24" aria-hidden="true"><path d={ICONES.instagram} /></svg><span>{v.instagram.handle}</span></a></li>
+        <li><a href={roll.instagram.url} rel="noopener" target="_blank" aria-label={`Instagram da Roll ${roll.instagram.handle}`}><svg viewBox="0 0 24 24" aria-hidden="true"><path d={ICONES.instagram} /></svg><span>{roll.instagram.handle}</span></a></li>
+      </ul>
+    </nav>
+  </div>
+
+  <p class="footer__fine">Âmbar Café · {v.dominio} · {ano}</p>
 </footer>

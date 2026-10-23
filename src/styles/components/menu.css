@@ -93,3 +93,11 @@ html:has(.sheet[open]) { overflow: hidden; }
   @keyframes sheet-out { to { transform: translateX(100%); } }
 }
 .sheet__nav a { font-size: var(--fs-menu-fluid); }
+/* 7 itens desde 2026-10-23 (+ Clube Âmbar): em celular baixo (até 700 px de altura, ex.: 360 × 640) a folha passaria dos
+   88svh e “Reservar mesa” ficaria abaixo da dobra. Só o respiro encolhe — fonte, cores e ordem continuam as mesmas. */
+@media (max-width: 959px) and (max-height: 700px) {
+  .sheet { padding-top: var(--s-24); }
+  .sheet__nav { margin-top: var(--s-12); }
+  .sheet__nav a { min-height: 46px; padding: var(--s-8) 0 var(--s-6); }
+  .sheet__cta { margin-top: var(--s-16); }
+}

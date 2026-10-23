@@ -1,14 +1,113 @@
-/* RODAPÉ. Origem: .footer do v1. Fim da página: identidade, os três contatos (WhatsApp e os dois Instagrams — só aqui,
-   não na Visite) e o essencial. O botão fixo de reserva some ao chegar aqui, então a base guarda só a área segura. */
+/* RODAPÉ. Origem: .footer do v1. 2026-10-23: absorveu a antiga seção Visite. Versão compacta do mesmo dia: a marca, uma
+   linha fina, endereço e horários à esquerda com o minimapa desenhado à direita, e os três contatos numa fileira com
+   ícone. Celular: marca centralizada, duas colunas proporcionais (texto | mapa); 600 px: endereço e horários lado a lado;
+   960 px: a marca vira a 1ª coluna.
+   O botão fixo “Reservar mesa” fica na tela até o fim: a base do rodapé guarda o espaço dele, então no fim da rolagem
+   nada fica embaixo do botão (62 px de altura, a 12 px da base no celular/tablet e a 28 px à direita no desktop). */
 
-.footer { --focus-ring: var(--wine); padding: var(--s-40) var(--gutter) max(var(--s-26), env(safe-area-inset-bottom)); text-align: center; background: var(--cream); }
-.footer__logo { width: 170px; margin: 0 auto; }
-.footer__sig { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 0 var(--s-8); max-width: 34ch; margin: var(--s-12) auto 0; font: var(--t-sig); line-height: 1.4; color: var(--cacao); }
-.footer__sig img { width: 52px; }
-/* contatos: pílulas contornadas (.pill-link), em vinho sobre o creme; o WhatsApp (o canal de conversa) vai cheio */
-.footer__contatos { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--s-8); max-width: 640px; margin: var(--s-18) auto 0; }
-.footer__contatos .pill-link { color: var(--wine); }
-.footer__contatos .footer__whats { justify-content: center; border-color: var(--wine); background: var(--wine); color: var(--butter); box-shadow: var(--shadow-offset-xs); }
-.footer__contatos .pill-link:active { scale: var(--press-scale); }
-.footer__info { margin-top: var(--s-16); font-size: var(--fs-small); font-style: normal; line-height: 1.6; color: var(--text-muted); }
-.footer__fine { margin-top: var(--s-8); font-size: var(--fs-micro); color: var(--text-muted); }
+.footer {
+  --focus-ring: var(--wine);
+  --livre-dock: calc(62px + max(12px, env(safe-area-inset-bottom)) + var(--s-18));
+  padding: var(--s-34) var(--gutter) var(--livre-dock);
+  background: var(--cream); text-align: center;
+}
+
+/* marca */
+.footer__marca { display: grid; justify-items: center; gap: var(--s-6); }
+.footer__logo { width: 124px; }
+/* a frase não quebra ao meio; se a coluna for estreita, o selinho da Roll desce para a linha de baixo */
+.footer__sig { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--s-6) var(--s-8); white-space: nowrap; font: var(--t-sig); color: var(--text-muted); }
+.footer__sig img { width: 40px; }
+
+/* conteúdo: linha fina em cima; visita (texto | minimapa) e a fileira de contatos */
+.footer__conteudo {
+  max-width: 520px; margin: var(--s-22) auto 0; padding-top: var(--s-22);
+  border-top: 1px solid color-mix(in srgb, var(--wine) 16%, transparent);
+}
+.footer__visita { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .72fr); gap: var(--s-14); align-items: stretch; text-align: left; }
+.footer__info { display: grid; align-content: center; gap: var(--s-14); }
+.footer__bloco { display: grid; justify-items: start; align-content: start; gap: var(--s-6); }
+.footer__kicker { font: var(--t-legend); letter-spacing: var(--track-legend); text-transform: uppercase; color: var(--caramel-dk); }
+.footer__texto { font: var(--t-review); font-size: 15px; font-style: normal; line-height: 1.35; color: var(--ink); }
+.footer__horas { color: var(--wine); font-variant-numeric: tabular-nums; }
+
+/* minimapa: o desenho da antiga Visite num cartão pequeno, levemente girado como as outras peças de papel; o cartão
+   inteiro é o link para o Google Maps, com “Como chegar” na base */
+.footer__mapa {
+  position: relative; display: block; min-height: 132px; overflow: hidden;
+  border-radius: var(--radius-l); background: var(--butter);
+  box-shadow: var(--shadow-offset-s), var(--shadow-photo); rotate: 1.5deg;
+  transition: rotate var(--dur-s) var(--ease-paper);
+}
+.footer__mapa svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.footer__chegar {
+  position: absolute; left: 50%; bottom: var(--s-8); translate: -50% 0; white-space: nowrap;
+  padding: 4px var(--s-10) 5px; border-radius: var(--radius-pill);
+  background: var(--wine); color: var(--butter); font: var(--t-tag); font-size: 14px; box-shadow: var(--shadow-offset-xs);
+}
+.mapa__fundo { fill: var(--butter); }
+.mapa__quadra { fill: var(--glaze); stroke: var(--caramel-lt); stroke-width: 1.5; }
+.mapa__rua { fill: none; stroke: var(--cream); stroke-width: 9; stroke-linecap: round; }
+.mapa__rua--larga { stroke-width: 15; }
+.mapa__trajeto { fill: none; stroke: var(--wine); stroke-width: 3; stroke-dasharray: 2 7; stroke-linecap: round; }
+.mapa__pino { transition: translate var(--dur-s) var(--ease-paper); }
+.mapa__pino path { fill: var(--berry); stroke: var(--glaze); stroke-width: 3; }
+.mapa__pino circle { fill: var(--glaze); }
+@media (hover: hover) and (pointer: fine) {
+  .footer__mapa:hover { rotate: 0deg; }
+  .footer__mapa:hover .mapa__pino { translate: 0 -3px; }
+}
+.footer__mapa:active { scale: var(--press-scale); }
+
+/* contatos: uma fileira de links com ícone de traço — sem botões. Alvo de toque de 44 px. No celular o WhatsApp mostra
+   o nome da rede (o número completo não cabe na fileira em 360 px; fica no rótulo acessível); a partir de 600 px, o número. */
+.footer__redes { margin-top: var(--s-18); }
+/* corpo e intervalo encolhem só abaixo de ~390 px (13 px e 11 px em 360): a fileira cabe sem quebrar nem encostar */
+.footer__contatos { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 clamp(10px, 3vw, var(--s-16)); }
+.footer__contatos a {
+  display: inline-flex; align-items: center; gap: var(--s-6); min-height: 44px; white-space: nowrap;
+  font: var(--t-review); font-size: clamp(13px, 3.6vw, 14px); color: var(--wine); font-variant-numeric: tabular-nums; text-decoration: none;
+}
+.footer__contatos a span { text-decoration: underline 1.5px color-mix(in srgb, var(--wine) 30%, transparent); text-underline-offset: 4px; }
+.footer__contatos svg { flex: none; width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.footer__rede-longa { display: none; }
+@media (hover: hover) and (pointer: fine) {
+  .footer__contatos a:hover span { text-decoration-color: currentColor; }
+}
+.footer__contatos a:active { scale: var(--press-scale); }
+
+.footer__fine { margin-top: var(--s-14); font-size: var(--fs-micro); color: var(--text-muted); }
+
+/* link-pílula (contornada, na cor do texto): usada no Design System */
+.pill-link {
+  display: inline-flex; align-items: center; gap: var(--s-6); min-height: 44px; padding: 0 var(--s-16);
+  border: var(--border-control) solid currentColor; border-radius: var(--radius-pill);
+  color: var(--butter); text-decoration: none;
+  font: var(--t-pill); letter-spacing: var(--track-caps); text-transform: uppercase;
+}
+.pill-link[aria-disabled="true"] { border-style: dashed; opacity: .6; pointer-events: none; }
+
+/* tablet: endereço e horários lado a lado, minimapa maior; o WhatsApp mostra o número */
+@media (min-width: 600px) {
+  .footer__conteudo { max-width: 640px; }
+  .footer__visita { grid-template-columns: minmax(0, 1fr) 220px; gap: var(--s-22); }
+  .footer__info { grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); gap: var(--s-18); align-content: center; }
+  .footer__mapa { min-height: 140px; }
+  .footer__rede-curta { display: none; }
+  .footer__rede-longa { display: inline; }
+}
+
+/* desktop: a marca vira a 1ª coluna; o botão fixo fica à direita, então a linha final vai à esquerda e os contatos
+   (alinhados à esquerda) ficam fora da faixa dele */
+@media (min-width: 960px) {
+  .footer {
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 3fr); column-gap: var(--s-44); align-items: start;
+    padding: var(--s-40) max(var(--gutter), calc((100% - var(--container-m)) / 2)) var(--s-44); text-align: left;
+  }
+  .footer__marca { justify-items: start; padding-top: var(--s-22); }
+  .footer__conteudo { max-width: none; margin: 0; }
+  .footer__visita { grid-template-columns: minmax(0, 1fr) 260px; gap: var(--s-30); }
+  .footer__mapa { min-height: 150px; }
+  .footer__contatos { justify-content: start; gap: 0 var(--s-22); }
+  .footer__fine { grid-column: 1 / -1; margin-top: var(--s-30); }
+}

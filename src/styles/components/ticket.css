@@ -1,5 +1,5 @@
 /* Comanda: cartão de papel picotado com carimbo. Origem: .ticket e .ticket__stamp do v1.
-   Usada na reserva (passos) e, no futuro, na seção Visite (horários). */
+   Usada na reserva (passos) e nas páginas do Clube. */
 
 .ticket {
   position: relative;

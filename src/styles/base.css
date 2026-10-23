@@ -21,7 +21,7 @@ ul, ol { padding: 0; list-style: none; }
 
 /* Foco: vinho em superfícies claras, manteiga nas escuras (o caramelo do v1 dava 2,19:1 sobre manteiga). */
 :focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 3px; border-radius: var(--radius-2xs); }
-.surface-dark, .hero, .ticker, .roll, .provou, .reserva, .visite { --focus-ring: var(--butter); }
+.surface-dark, .hero, .ticker, .roll, .provou, .reserva { --focus-ring: var(--butter); }
 .surface-light, .ticket, .sheet { --focus-ring: var(--wine); }
 /* destinos de âncora e do menu recebem foco por script (tabindex=-1): sem anel na seção inteira */
 [tabindex="-1"]:focus { outline: none; }
@@ -38,7 +38,7 @@ html { -webkit-tap-highlight-color: transparent; }
 :focus:not(:focus-visible) { outline: none; }
 /* seleção de texto nas cores da marca (nada do azul do sistema) */
 ::selection { background: var(--caramel-lt); color: var(--ink); }
-:is(.hero, .roll, .provou, .reserva, .visite) ::selection { background: var(--butter); color: var(--wine); }
+:is(.hero, .roll, .provou, .reserva) ::selection { background: var(--butter); color: var(--wine); }
 :where(button, .btn, summary, label, [role="button"], [role="tab"], [role="radio"], .chip, .stories, .dupla, .sticker) {
   -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: manipulation;
 }
@@ -47,9 +47,9 @@ html { -webkit-tap-highlight-color: transparent; }
 :where(button, summary, [role="button"], a.chip, .menu-btn) { transition: scale var(--dur-xs) var(--ease-paper); }
 :where(button, summary, [role="button"], a.chip, .menu-btn):where(:not(:disabled, [aria-disabled="true"])):active { scale: var(--press-scale); }
 
-/* Grão de papel sobre as superfícies escuras (hero, Roll, reserva, Visite). */
-.surface-grain, .hero, .roll, .provou, .reserva, .visite { position: relative; isolation: isolate; }
-:is(.surface-grain, .hero, .roll, .provou, .reserva, .visite)::before {
+/* Grão de papel sobre as superfícies escuras (hero, Roll, reserva). */
+.surface-grain, .hero, .roll, .provou, .reserva { position: relative; isolation: isolate; }
+:is(.surface-grain, .hero, .roll, .provou, .reserva)::before {
   content: ""; position: absolute; inset: 0; z-index: -1;
   background: var(--grain); opacity: var(--grain-opacity); mix-blend-mode: soft-light; pointer-events: none;
 }

@@ -12,11 +12,44 @@
 .titulo span { display: block; }
 .titulo--light { color: var(--butter); }
 
-/* 1 · Convite na home ------------------------------------------------------------------------------------------------ */
-.clube-convite { padding: var(--rhythm-b) var(--gutter) calc(var(--rhythm-b) + var(--rhythm-tail)); overflow: hidden; }
-/* Passaporte Âmbar (2026-10-22): no lugar da carteira em camadas; o resto do palco antigo fica para /clube/membro */
-.clube-convite__jornada { width: min(100%, 460px); margin: var(--s-26) auto 0; }
-.clube-convite .clube-convite__texto { margin-top: var(--s-22); gap: var(--s-14); }
+/* 1 · Convite na home ------------------------------------------------------------------------------------------------
+   2026-10-23: composição editorial sobre a foto do Clube (presente com laço vinho, roll e café) — título em duas
+   linhas no mesmo eixo, frase curta, duas pílulas de benefício e o botão cheio, tudo alinhado à esquerda. O fundo da
+   seção é o papel do alto da foto (--clube-papel), então a foto entra sem emenda: no celular ela fica embaixo, com o
+   alto esmaecido por baixo do botão; a partir de 720 px ocupa a metade direita. */
+.clube-convite {
+  --clube-papel: #EFDABA;   /* tom medido no alto da foto (assets/media/clube/convite.webp) */
+  position: relative; isolation: isolate; overflow: hidden;
+  display: grid; grid-template-columns: minmax(0, 1fr); padding: var(--rhythm-a) var(--gutter) 0;
+  background: var(--clube-papel);
+}
+/* coluna travada na largura da tela: sem isso o subtítulo (max-content) alargava a coluna e o “ÂMBAR” saía pela direita */
+.clube-convite .clube-convite__texto { position: relative; z-index: var(--z-2); display: grid; grid-template-columns: minmax(0, 1fr); justify-items: start; min-width: 0; }
+/* título um pouco menor que o mega das outras seções (66 px em 360, 72 em 390): a foto é a protagonista. As duas linhas
+   no mesmo eixo à esquerda (MegaTitle com direita=[]) — o “ÂMBAR” jogado à direita deixava um vão no meio */
+.clube-convite .mega { width: 100%; font-size: clamp(60px, 18.5vw, 96px); }
+/* frase curta, firme: serifa itálica em tinta (contraste alto sobre o papel da foto) */
+.clube-convite__frase { margin-top: var(--s-12); font: var(--t-kicker); font-size: clamp(21px, 6vw, 24px); line-height: 1.15; color: var(--ink); text-wrap: balance; }
+/* micro-benefícios: as pílulas .clube-marcas, na versão miúda em itálico — as duas lado a lado já em 360 px */
+.clube-convite .clube-marcas { margin-top: var(--s-12); gap: var(--s-6); }
+.clube-convite .clube-marcas li { gap: 5px; padding: 4px var(--s-10) 5px; font: var(--t-tag); font-size: 14px; letter-spacing: 0; text-transform: none; }
+.clube-convite .clube-convite__cta { margin-top: var(--s-18); }
+/* palco: foto + selo. No celular, a foto corta bem o alto vazio (só a parede) e sobe só o bastante para o laço do
+   presente começar logo abaixo do botão — mesma altura total de antes, com menos “parede” entre o botão e a mesa */
+.clube-convite__palco { position: relative; margin: -9vw calc(var(--gutter) * -1) 0; }
+.clube-convite__foto {
+  display: block; width: 100%; max-width: none; height: auto; aspect-ratio: 1086 / 900;
+  object-fit: cover; object-position: 50% 100%;
+  -webkit-mask: linear-gradient(to bottom, transparent, #000 18%);
+          mask: linear-gradient(to bottom, transparent, #000 18%);
+}
+/* selo girando (o mesmo da página /clube, só com a marca): à direita do botão, montado na borda de cima da foto —
+   costura o texto à fotografia. Fica fora da máscara, então aparece inteiro */
+.clube-convite__selo {
+  position: absolute; z-index: var(--z-3); top: calc(-1 * var(--s-34)); right: var(--gutter);
+  width: clamp(76px, 22vw, 92px); color: var(--wine); rotate: -10deg; pointer-events: none;
+  filter: drop-shadow(2px 2px 0 var(--cacao));
+}
 
 /* palco: a carteira vinho por cima de um verso manteiga, com uma anotação manuscrita */
 .clube-palco { position: relative; width: min(100%, 420px); margin: var(--s-34) auto 0; padding: var(--s-30) 0 var(--s-44); }
@@ -32,8 +65,6 @@
 .clube-palco__nota { position: absolute; z-index: var(--z-3); right: 2%; bottom: 0; font: var(--t-note); color: var(--caramel-dk); text-align: right; rotate: -4deg; }
 .clube-palco__seta { position: absolute; z-index: var(--z-3); right: 26%; bottom: 4px; width: 62px; fill: none; stroke: var(--caramel-dk); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; rotate: 180deg; scale: -1 1; }
 
-.clube-convite__texto { display: grid; justify-items: start; gap: var(--s-18); max-width: 520px; }
-.clube-convite__lead { font-size: var(--fs-lead); max-width: 30ch; }
 .clube-marcas { display: flex; flex-wrap: wrap; gap: var(--s-8); }
 .clube-marcas li {
   display: inline-flex; align-items: center; gap: var(--s-6); padding: 8px var(--s-12) 7px; border-radius: var(--radius-pill);
@@ -42,17 +73,30 @@
   rotate: calc((var(--i) - 1) * -1.2deg);
 }
 .clube-marcas li::before { content: "✺"; color: var(--caramel); font-size: 1.05em; }
-.clube-convite__cta { margin-top: var(--s-6); }
 
-@media (min-width: 960px) {
+/* a partir de 720 px: texto à esquerda, foto na metade direita (presente, roll e café à vista) */
+@media (min-width: 720px) {
   .clube-convite {
-    display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); grid-template-areas: "titulo palco" "texto palco";
-    column-gap: var(--s-44); align-items: start; max-width: calc(var(--container-m) + 2 * var(--gutter)); margin-inline: auto;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: var(--s-30); align-items: center;
+    min-height: clamp(460px, 42vw, 600px);
+    padding: var(--rhythm-a) max(var(--gutter), calc((100% - var(--container-m)) / 2)) calc(var(--rhythm-a) + var(--rhythm-tail));
   }
-  .clube-convite > .mega { grid-area: titulo; }
-  .clube-palco, .clube-convite__jornada { grid-area: palco; align-self: center; margin-top: 0; }
-  .clube-convite__jornada { width: 100%; max-width: none; }
-  .clube-convite .clube-convite__texto { grid-area: texto; margin-top: var(--s-26); }
+  .clube-convite .clube-convite__texto { min-width: 0; }
+  .clube-convite .mega { font-size: clamp(72px, 7.6vw, 120px); }
+  .clube-convite__frase { font-size: clamp(21px, 2.3vw, 26px); }
+  .clube-convite .clube-marcas li { font-size: clamp(14px, 1.1vw, 16px); }
+  /* o palco ocupa a metade direita; a foto esmaece pela esquerda e pelo alto (some a curva vinho do canto da foto e
+     não fica emenda com o papel); o selo fica na divisa entre texto e foto, na altura do botão */
+  .clube-convite__palco { position: absolute; z-index: var(--z-1); top: 0; right: 0; width: 54%; height: 100%; margin: 0; }
+  .clube-convite__selo { top: auto; right: auto; bottom: 13%; left: 0; translate: -50% 0; width: clamp(88px, 8vw, 112px); }
+  .clube-convite__foto {
+    width: 100%; height: 100%; aspect-ratio: auto;
+    object-position: 50% 80%;
+    -webkit-mask: linear-gradient(to right, transparent, #000 22%), linear-gradient(to bottom, transparent, #000 24%);
+    -webkit-mask-composite: source-in;
+            mask: linear-gradient(to right, transparent, #000 22%), linear-gradient(to bottom, transparent, #000 24%);
+            mask-composite: intersect;
+  }
 }
 
 /* 2 · Página /clube ------------------------------------------------------------------------------------------------- */

@@ -1,7 +1,7 @@
 /* CTA fixo “Reservar mesa”. Origem: .sticky-cta do v1.
    Rodada final: UM botão grande, sozinho na base da tela (o menu saiu da barra e foi para o alto) — creme, texto vinho,
-   sombra cacau, espiral e seta dentro do mesmo botão. Aparece a partir de “Direto da fornada” e some na reserva e no
-   rodapé (regra em src/lib/sticky-cta.js, pela posição das seções). */
+   sombra cacau, espiral e seta dentro do mesmo botão. Aparece a partir de “Direto da fornada”, some na reserva e fica
+   até o fim da página — o rodapé guarda o espaço dele (regra em src/lib/sticky-cta.js, pela posição das seções). */
 
 .sticky-cta {
   position: fixed; z-index: var(--z-dock);

@@ -11,10 +11,10 @@ test('sem avisos internos na experiência (“a confirmar”, “crédito a conf
 test('ordem final das seções e títulos aprovados', async ({ page }) => {
   await page.goto('/');
   const ids = await page.$$eval('main > section', (ss) => ss.map((x) => x.id));
-  // 2026-10-20: convite ao Clube Âmbar entre a reserva e a Visite
-  expect(ids).toEqual(['novo', 'gastronomia', 'roll', 'cafe-roll', 'quem-provou', 'ambientes', 'reservar', 'clube', 'visite']);
+  // 2026-10-20: convite ao Clube Âmbar depois da reserva; 2026-10-23: a Visite foi absorvida pelo rodapé
+  expect(ids).toEqual(['novo', 'gastronomia', 'roll', 'cafe-roll', 'quem-provou', 'ambientes', 'reservar', 'clube']);
   const titulos = await page.$$eval('main > section .mega', (ms) => ms.map((m) => [...m.querySelectorAll(':scope > span')].map((s) => s.textContent).join(' ').toUpperCase()));
-  expect(titulos).toEqual(['O ÂMBAR AGORA É BRUNCH.', 'PARA SUA MESA', 'DIRETO DA FORNADA', 'CAFÉ + ROLL', 'REAÇÕES REAIS', 'ESCOLHA SEU LUGAR', 'RESERVE SUA MESA', 'CLUBE ÂMBAR', 'VISITE O ÂMBAR']);
+  expect(titulos).toEqual(['O ÂMBAR AGORA É BRUNCH.', 'PARA SUA MESA', 'DIRETO DA FORNADA', 'CAFÉ + ROLL', 'REAÇÕES REAIS', 'ESCOLHA SEU LUGAR', 'RESERVE SUA MESA', 'CLUBE ÂMBAR']);
   await expect(page.locator('.hero .cut--polaroid figcaption')).toHaveCount(0);
   // Direto da fornada enxuta (2026-10-20): termina nos vídeos — sem bandejas, frase e pílulas de sabores
   const fornada = page.locator('#roll');

@@ -14,5 +14,4 @@ export const secoes = {
   reserva: { id: 'reservar', linhas: ['Reserve', 'sua mesa'], sub: 'Seu próximo encontro começa aqui.' },
   // 2026-10-20: convite curto ao Clube Âmbar (a página completa é /clube/)
   clube: { id: 'clube', linhas: ['Clube', 'Âmbar'], sub: 'pra quem faz do Âmbar um hábito' },
-  visite: { id: 'visite', linhas: ['Visite', 'o Âmbar'], sub: 'a gente te espera por aqui' },
 } as const;

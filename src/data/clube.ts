@@ -11,8 +11,15 @@ export interface Marco { id: string; titulo: string; texto: string; icone: 'tele
 
 export const clube = {
   nome: 'Clube Âmbar',
-  /** frase curta da home e do topo da página */
-  lead: 'O clube de pontos do Âmbar, direto no navegador: sem aplicativo, só com o seu telefone.',
+  /** convite da home (sections/ClubeConvite, 2026-10-23): uma frase e dois micro-benefícios genéricos — o espírito do
+   *  Clube, não itens aprovados (nada de número, desconto ou recompensa específica) */
+  convite: {
+    frase: 'Feito para quem volta sempre.',
+    marcas: ['vantagens especiais', 'mimos da casa'],
+    botao: 'Quero fazer parte',
+  },
+  /** frase curta do topo da página /clube */
+  lead:'O clube de pontos do Âmbar, direto no navegador: sem aplicativo, só com o seu telefone.',
   /** três marcas curtas (todas são regras já decididas, não benefícios inventados) */
   marcas: ['sem aplicativo', 'pontos em compras identificadas', 'entrada opcional'],
   passos: [

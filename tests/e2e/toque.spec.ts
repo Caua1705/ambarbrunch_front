@@ -30,7 +30,7 @@ test('controles não selecionam texto; textos e campos seguem selecionáveis', a
   for (const s of ['.hero__foot .btn', '.menu-btn', '.bands__tap', '[data-trilho]', '.provou__seta']) {
     if (await page.locator(s).count()) expect(await sel(s), s).toBe('none');
   }
-  for (const s of ['.hero__note', '.provou__lead', '.visite p']) {
+  for (const s of ['.hero__note', '.provou__lead', '.footer__texto']) {
     if (await page.locator(s).count()) expect(await sel(s), s).not.toBe('none');
   }
   const campo = page.locator('input:not([type="hidden"]), textarea').first();

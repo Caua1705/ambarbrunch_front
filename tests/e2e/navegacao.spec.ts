@@ -5,14 +5,15 @@ import { test, expect, type Page } from '@playwright/test';
 const visivel = (page: Page, sel: string) => page.locator(sel).evaluate((el) => el.classList.contains('is-visible') && el.getAttribute('aria-hidden') === 'false');
 const rolarAte = (page: Page, sel: string, dy = 60) => page.locator(sel).first().evaluate((el, d) => scrollTo({ top: el.getBoundingClientRect().top + scrollY + d, behavior: 'instant' }), dy);
 
-test('CTA fixo: escondido no hero, em Novo capítulo e Para sua mesa; aparece em Direto da fornada; some na reserva e no rodapé', async ({ page }) => {
+test('CTA fixo: escondido no hero, em Novo capítulo e Para sua mesa; aparece em Direto da fornada; some na reserva; volta no Clube e fica até o fim', async ({ page }) => {
   await page.goto('/');
-  for (const [sel, esperado] of [['#novo', false], ['#gastronomia', false], ['#roll', true], ['#cafe-roll', true], ['#quem-provou', true], ['#ambientes', true], ['#reservar', false], ['#visite', true]] as const) {
+  for (const [sel, esperado] of [['#novo', false], ['#gastronomia', false], ['#roll', true], ['#cafe-roll', true], ['#quem-provou', true], ['#ambientes', true], ['#reservar', false], ['#clube', true]] as const) {
     await rolarAte(page, sel);
     await expect.poll(() => visivel(page, '[data-sticky-cta]'), { message: sel }).toBe(esperado);
   }
+  // 2026-10-23: o rodapé não tem botão de reserva — o fixo continua sendo o acesso até o fim da página
   await page.evaluate(() => scrollTo({ top: document.body.scrollHeight, behavior: 'instant' }));
-  await expect.poll(() => visivel(page, '[data-sticky-cta]')).toBe(false);
+  await expect.poll(() => visivel(page, '[data-sticky-cta]')).toBe(true);
   await page.evaluate(() => scrollTo({ top: 0, behavior: 'instant' }));
   await expect.poll(() => visivel(page, '[data-sticky-cta]')).toBe(false);
 });
@@ -65,7 +66,12 @@ test('menu: só logo, seções, “Reservar mesa” e fechar — sem endereço, 
   const folha = page.locator('dialog#menu');
   await expect(folha).toBeVisible();
   await expect(folha.locator('.sheet__logo')).toBeVisible();
-  await expect(folha.locator('.sheet__nav a')).toHaveCount(6);   // sem “Saladas & bowls” desde 2026-10-20
+  // sem “Saladas & bowls” desde 2026-10-20; “Clube Âmbar” entre Ambientes e Visite desde 2026-10-23
+  await expect(folha.locator('.sheet__nav a')).toHaveText(['Cardápio', 'Fornada', 'Café + Roll', 'Reações reais', 'Ambientes', 'Clube Âmbar', 'Visite']);
+  // numeração sequencial 01 … 07: todos os itens numa só lista, cada um com o contador do CSS
+  await expect(folha.locator('ol.sheet__nav > li > a')).toHaveCount(7);
+  const numeros = await folha.locator('.sheet__nav a').evaluateAll((as) => as.map((a) => getComputedStyle(a, '::before').content));
+  for (const n of numeros) expect(n).toContain('counter(nav');
   await expect(folha.locator('.btn.btn--wine')).toHaveText(/Reservar mesa/);
   await expect(folha.locator('[data-menu-close]')).toBeVisible();
   const texto = await folha.innerText();
@@ -172,6 +178,20 @@ test('menu: item leva à seção e fecha a folha; “Reservar mesa” chega à r
   await expect.poll(() => page.locator('#reservar').evaluate((el) => Math.abs(el.getBoundingClientRect().top))).toBeLessThan(40);
 });
 
+test('menu: “Clube Âmbar” fecha a folha e leva à seção do Clube; fora da home, volta à home já na seção', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('.menu-btn--hero').click();
+  await page.locator('.sheet__nav a', { hasText: 'Clube Âmbar' }).click();
+  await expect(page.locator('dialog#menu')).toBeHidden();
+  await expect.poll(() => page.locator('#clube').evaluate((el) => Math.abs(el.getBoundingClientRect().top))).toBeLessThan(40);
+  await expect(page).not.toHaveURL(/#clube/);   // rolagem pelo script, sem deixar âncora na URL
+
+  await page.goto('/privacidade/');
+  await expect(page.locator('#menu .sheet__nav a', { hasText: 'Clube Âmbar' })).toHaveAttribute('href', '/#clube');
+  await page.goto('/#clube');
+  await expect.poll(() => page.locator('#clube').evaluate((el) => Math.abs(el.getBoundingClientRect().top))).toBeLessThan(40);
+});
+
 test('selo fixo do menu abre a mesma folha depois de rolar; com o menu aberto, CTA e selo somem', async ({ page }) => {
   await page.goto('/');
   await rolarAte(page, '#roll');
@@ -224,36 +244,77 @@ test('pular para a reserva: primeiro elemento focável', async ({ page, browserN
   expect((await link.boundingBox())!.width).toBeGreaterThan(100);
 });
 
-test('Visite: endereço, horário e “Como chegar”, sem os botões de contato — eles ficam só no rodapé', async ({ page }) => {
+test('rodapé absorve a Visite (2026-10-23): endereço 1580 no Meireles, horário e o minimapa que leva ao Google Maps, sem botão de reserva', async ({ page }) => {
   await page.goto('/');
-  const maps = page.locator('#visite a', { hasText: /como chegar/i });
-  await expect(maps).toHaveAttribute('href', 'https://www.google.com/maps/search/?api=1&query=Rua%20Tavares%20Coutinho%2C%20180%2C%20Fortaleza%2C%20CE');
+  await expect(page.locator('section.visite')).toHaveCount(0);
+  const rodape = page.locator('footer.footer');
+  await expect(rodape).toHaveAttribute('id', 'visite');
+  const maps = rodape.getByRole('link', { name: /como chegar/i });
+  await expect(maps).toHaveCount(1);
+  await expect(maps).toHaveAttribute('href', 'https://www.google.com/maps/search/?api=1&query=Rua%20Tavares%20Coutinho%2C%201580%2C%20Meireles%2C%20Fortaleza%2C%20CE');
   await expect(maps).toHaveAttribute('target', '_blank');
-  await expect(page.locator('#visite')).toContainText('Rua Tavares Coutinho, 180');
-  await expect(page.locator('#visite')).toContainText('07h às 19h');
-  await expect(page.locator('#visite iframe')).toHaveCount(0);
-  await expect(page.locator('#visite a[href*="wa.me"], #visite a[href*="instagram.com"]')).toHaveCount(0);
+  expect((await maps.boundingBox())!.height, 'alvo de toque').toBeGreaterThanOrEqual(44);
+  await expect(rodape).toContainText('Rua Tavares Coutinho, 1580');
+  await expect(rodape).toContainText('Meireles, Fortaleza - CE');
+  await expect(rodape).toContainText('07h às 19h');
+  await expect(rodape.locator('iframe, .selo')).toHaveCount(0);
+  // o minimapa desenhado é o link “Como chegar” (sem mapa embutido de terceiros)
+  await expect(maps.locator('svg .mapa__pino')).toHaveCount(1);
+  await expect(rodape.getByRole('link', { name: /reservar mesa/i })).toHaveCount(0);
+  // o número antigo não aparece em nenhum ponto da página
+  expect(await page.locator('body').innerText()).not.toMatch(/Coutinho,?\s*180\b/);
+  // o item “Visite” do menu continua existindo e aponta para o rodapé
+  await expect(page.locator('#menu a[href="#visite"]')).toHaveCount(1);
 });
 
 test('rodapé: logo, assinatura da Roll e os três contatos funcionais (WhatsApp, Instagram do Âmbar e da Roll), uma vez só', async ({ page }) => {
   await page.goto('/');
   const rodape = page.locator('footer.footer');
-  await expect(rodape.locator('img[alt="Âmbar Brunch"]')).toBeVisible();
+  await expect(rodape.locator('img[alt="Âmbar Café"]')).toBeVisible();
+  await expect(rodape).toContainText('Âmbar Café');
+  await expect(rodape).not.toContainText('Âmbar Brunch');
   await expect(rodape.locator('.footer__sig img[alt="Roll"]')).toBeVisible();
   const contatos = rodape.locator('nav[aria-label="Contatos"] a');
   await expect(contatos).toHaveCount(3);
-  await expect(rodape.locator('a[href="https://wa.me/5585994452724"]')).toContainText('(85) 99445-2724');
+  await expect(rodape.locator('a[href="https://wa.me/5585994452724"]')).toHaveAttribute('aria-label', 'WhatsApp (85) 99445-2724');
   await expect(rodape.locator('a[href="https://www.instagram.com/ambarbrunch/"]')).toHaveText('@ambarbrunch');
   await expect(rodape.locator('a[href="https://www.instagram.com/roll.ofc/"]')).toContainText('@roll.ofc');
   for (const a of await contatos.all()) {
     await expect(a).toHaveAttribute('target', '_blank');
     expect((await a.boundingBox())!.height, 'alvo de toque').toBeGreaterThanOrEqual(44);
   }
-  // em toda a página, cada contato aparece uma vez (o menu e a Visite não repetem)
+  // em toda a página, cada contato aparece uma vez (o menu não repete)
   for (const href of ['https://wa.me/5585994452724', 'https://www.instagram.com/ambarbrunch/', 'https://www.instagram.com/roll.ofc/']) {
     await expect(page.locator(`a[href="${href}"]`)).toHaveCount(1);
   }
-  // o botão fixo some antes de cobrir os contatos
-  await rodape.locator('nav[aria-label="Contatos"]').evaluate((el) => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
-  await expect.poll(() => visivel(page, '[data-sticky-cta]')).toBe(false);
+  // no fim da rolagem o botão fixo continua na tela, mas nada do rodapé fica embaixo dele
+  await page.evaluate(() => scrollTo({ top: document.body.scrollHeight, behavior: 'instant' }));
+  await expect.poll(() => visivel(page, '[data-sticky-cta]')).toBe(true);
+  await page.waitForTimeout(700);   // o botão termina de subir
+  const cta = (await page.locator('[data-sticky-cta]').boundingBox())!;
+  for (const peca of await rodape.locator('a, .footer__fine, .footer__texto').all()) {
+    const b = (await peca.boundingBox())!;
+    const cruza = b.x < cta.x + cta.width && cta.x < b.x + b.width && b.y < cta.y + cta.height && cta.y < b.y + b.height;
+    expect(cruza, `botão fixo por cima de “${(await peca.innerText()).trim()}”`).toBe(false);
+  }
 });
+
+for (const largura of [360, 390]) {
+  test(`rodapé compacto em ${largura} px: endereço e horário à esquerda, minimapa à direita, contatos numa fileira com ícone`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 800 });
+    await page.goto('/');
+    const rodape = page.locator('footer.footer');
+    await rodape.scrollIntoViewIfNeeded();
+    const info = (await rodape.locator('.footer__info').boundingBox())!;
+    const mapa = (await rodape.locator('.footer__mapa').boundingBox())!;
+    expect(mapa.x, 'mapa à direita do texto').toBeGreaterThanOrEqual(info.x + info.width - 1);
+    expect(mapa.width, 'mapa visível, não um ícone').toBeGreaterThan(100);
+    const linhas = await rodape.locator('.footer__contatos a').evaluateAll((as) => as.map((a) => Math.round(a.getBoundingClientRect().top)));
+    expect(new Set(linhas).size, 'os três contatos na mesma linha').toBe(1);
+    await expect(rodape.locator('.footer__contatos a svg')).toHaveCount(3);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth), 'sem rolagem horizontal').toBeLessThanOrEqual(largura);
+    // nenhum texto do rodapé estoura a própria caixa
+    const estouro = await rodape.locator('.footer__texto, .footer__contatos a, .footer__sig').evaluateAll((es) => es.filter((e) => e.scrollWidth > e.clientWidth + 1).length);
+    expect(estouro).toBe(0);
+  });
+}

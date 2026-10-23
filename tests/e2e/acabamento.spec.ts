@@ -1,5 +1,6 @@
 // Ajustes finais de 2026-10-18: fio da abertura da fornada desenhado com a rolagem até o fim, cartões do cardápio fechando
-// com animação (sem salto), subtítulo de “Visite o Âmbar”. (A ficha nutricional saiu com a seção Saladas & bowls.)
+// com animação (sem salto). (A ficha nutricional saiu com a seção Saladas & bowls; o subtítulo da Visite, com a seção,
+// em 2026-10-23.)
 import { test, expect, type Page, type Locator } from '@playwright/test';
 
 type Amostra = { t: number; h: number };
@@ -33,13 +34,6 @@ const continua = (as: Amostra[], de: number, para: number, minMs = 150) => {
   }
   expect(Math.abs(as.at(-1)!.h - para), `terminou no destino (${txt})`).toBeLessThan(total * 0.02 + 1);
 };
-
-test('Visite o Âmbar: subtítulo “a gente te espera por aqui”', async ({ page }) => {
-  await page.goto('/');
-  const sec = page.locator('#visite');
-  await expect(sec.locator('.scribble')).toHaveText(/a gente te espera por aqui/i);
-  expect((await sec.innerText()).toLowerCase()).not.toContain('a mesa tá posta');
-});
 
 test.describe('com movimento', () => {
   test.use({ reducedMotion: 'no-preference' });

@@ -7,13 +7,14 @@
    O corpo carrega o papel das seções transparentes (Mesa cheia, páginas internas). As escuras já têm o grão (base.css). */
 body { background-image: var(--paper-doodles), var(--paper-fibers); }
 :is(.novo, .climas) { background-image: var(--paper-fibers); }
-.footer { background-image: var(--paper-doodles), var(--paper-fibers); }
+/* rodapé só com as fibras (2026-10-23): os rabiscos competiam com endereço, horários e contatos */
+.footer { background-image: var(--paper-fibers); }
 
 /* 2 · Costura de papel rasgado ---------------------------------------------------------------------------------------
    No topo de cada seção que troca de cor, a borda da folha de cima avança 14 px rasgada (na cor dela), dentro do respiro
    da seção. --costura = cor da seção anterior (ordem da home em pages/index.astro). Só na home. */
 .climas, .clube-convite, .footer { position: relative; }
-:is(.roll, .cafe-roll, .provou, .climas, .reserva, .clube-convite, .visite, .footer)::after {
+:is(.roll, .cafe-roll, .provou, .climas, .reserva, .clube-convite, .footer)::after {
   content: ""; position: absolute; z-index: var(--z-1); top: -1px; left: 0; right: 0; height: 15px;
   background: var(--costura); pointer-events: none;
   -webkit-mask: var(--mask-torn);
@@ -25,16 +26,18 @@ body { background-image: var(--paper-doodles), var(--paper-fibers); }
 .provou { --costura: var(--caramel); }
 .climas { --costura: var(--wine); }
 .reserva { --costura: var(--butter); }
-/* Clube Âmbar entre a reserva e a Visite (2026-10-20): rasgo vinho sobre o creme; a Visite passa a receber o creme */
+/* Clube Âmbar entre a reserva e o rodapé: rasgo vinho sobre o papel da foto */
 .clube-convite { --costura: var(--wine); }
-.visite { --costura: var(--cream); }
-.footer { --costura: var(--cacao); }
+/* 2026-10-23: o rodapé vem logo depois da foto do Clube (a Visite saiu). A foto não tem uma cor só, então o rasgo
+   inverte: a folha creme do rodapé sobe 14 px, rasgada, por cima da base da foto */
+.footer { --costura: var(--cream); }
+.footer::after { top: -14px; scale: 1 -1; }
 /* variações do rasgo, para as costuras não repetirem o mesmo desenho */
-:is(.cafe-roll, .climas, .visite)::after { -webkit-mask-position: -97px 0; mask-position: -97px 0; }
+:is(.cafe-roll, .climas, .footer)::after { -webkit-mask-position: -97px 0; mask-position: -97px 0; }
 :is(.provou, .reserva)::after { -webkit-mask-position: -173px 0; mask-position: -173px 0; }
 .clube-convite::after { -webkit-mask-position: -51px 0; mask-position: -51px 0; }
 /* páginas internas não têm a sequência de cores da home */
-main:not(:has(.visite)) ~ .footer::after { content: none; }
+main:not(:has(.clube-convite)) ~ .footer::after { content: none; }
 
 /* 3 · Fio de leitura: uma linha de caramelo no topo da tela que cresce com a rolagem (só onde há scroll-timeline) */
 .progresso { display: none; }

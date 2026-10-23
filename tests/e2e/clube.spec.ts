@@ -8,22 +8,35 @@ const externos = (page: Page) => {
   return lista;
 };
 
-test('home: convite curto ao Clube entre a reserva e a Visite, com “Conhecer o Clube” → /clube/', async ({ page }) => {
+test('home: convite curto ao Clube logo depois da reserva, com “Quero fazer parte” → /clube/', async ({ page }) => {
   await page.goto('/');
   const ordem = await page.locator('main > section').evaluateAll((s) => s.map((e) => e.id));
   expect(ordem.indexOf('clube')).toBe(ordem.indexOf('reservar') + 1);
-  expect(ordem.indexOf('visite')).toBe(ordem.indexOf('clube') + 1);
   const secao = page.locator('#clube');
   await expect(secao.getByRole('heading', { level: 2 })).toContainText('Clube');
-  await expect(secao).not.toContainText(/\d+\s*pontos|desconto|R\$/i);
+  await expect(secao).not.toContainText(/\d+\s*pontos|desconto|R\$|grátis|%/i);
   const altura = await secao.evaluate((e) => e.getBoundingClientRect().height);
-  expect(altura, 'seção curta: pouco mais de uma tela').toBeLessThan(1150);
-  // Passaporte Âmbar (2026-10-22): nada de cartão; prévia sem dados de cliente; aniversário e recompensas em definição
-  await expect(secao.locator('.carteira')).toHaveCount(0);
-  await expect(secao.locator('.jornada')).toContainText('prévia');
-  await expect(secao.locator('.jornada')).not.toContainText(/\d/);
-  await expect(secao.locator('.marco--definicao')).toContainText(['em definição', 'em definição']);
-  await secao.getByRole('link', { name: /Conhecer o Clube/ }).click();
+  expect(altura, 'seção compacta: não maior que a versão anterior (647 px em 390)').toBeLessThanOrEqual(650);
+  // 2026-10-23 (refino): foto, título em duas linhas no mesmo eixo, frase curta, dois micro-benefícios e o botão
+  await expect(secao.locator('img.clube-convite__foto')).toBeVisible();
+  const linhas = await secao.locator('.mega > span').evaluateAll((ss) => ss.map((s) => Math.round(s.getBoundingClientRect().left)));
+  expect(new Set(linhas).size, '“CLUBE” e “ÂMBAR” alinhados à esquerda').toBe(1);
+  await expect(secao.locator('.clube-convite__frase')).toHaveText('Feito para quem volta sempre.');
+  await expect(secao.locator('.clube-marcas li')).toHaveText(['vantagens especiais', 'mimos da casa']);
+  const pilulas = await secao.locator('.clube-marcas li').evaluateAll((ls) => ls.map((l) => Math.round(l.getBoundingClientRect().top / 10)));
+  expect(new Set(pilulas).size, 'as duas pílulas na mesma linha').toBe(1);
+  await expect(secao.locator('.jornada, .carteira')).toHaveCount(0);
+  // selo girando sobre a foto: decorativo, só com a marca (lido por leitor de tela? não)
+  const selo = secao.locator('.clube-convite__selo');
+  await expect(selo).toHaveAttribute('aria-hidden', 'true');
+  await expect(selo).toContainText('clube âmbar');
+  // a foto começa logo abaixo do botão (sem faixa vazia de parede entre os dois)
+  const vao = await secao.evaluate((s) => s.querySelector('.clube-convite__palco')!.getBoundingClientRect().top - s.querySelector('.clube-convite__cta')!.getBoundingClientRect().bottom);
+  expect(vao, 'foto encostada no botão').toBeLessThan(0);
+  await expect(secao).not.toContainText(/prévia|passaporte|navegador|aplicativo|cadastro|telefone/i);
+  const cta = secao.getByRole('link', { name: /Quero fazer parte/ });
+  await expect(cta).toHaveClass(/btn--wine/);
+  await cta.click();
   await expect(page).toHaveURL(/\/clube\/$/);
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Clube');
 });

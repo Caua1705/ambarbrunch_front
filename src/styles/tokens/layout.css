@@ -6,14 +6,14 @@
   --gutter: 16px;
 
   /* Containers do desktop (≥ 960 px) */
-  --container-m: 980px;    /* quadro, faixas, reserva, Novo capítulo, Visite */
+  --container-m: 980px;    /* quadro, faixas, reserva, Novo capítulo, rodapé */
   --container-l: 1100px;   /* ambientes */
   --container-xl: 1240px;  /* Mesa cheia, cabeçalho da Roll */
 
   /* Ritmo vertical das seções: a base é sempre o topo + 8 px */
   --rhythm-a: 76px;   /* mesa */
   --rhythm-b: 84px;   /* climas */
-  --rhythm-c: 88px;   /* roll, visite */
+  --rhythm-c: 88px;   /* roll */
   --rhythm-d: 92px;   /* reserva */
   --rhythm-tail: 8px;
   /* exceção documentada: o Novo capítulo abre com 132 px para o carimbo e fecha com 94 px sobre a borda recortada */
