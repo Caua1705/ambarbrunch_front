@@ -10,6 +10,7 @@ import { ErroReserva, type ReservaConfig, type ReservaCriada, type ReservasApi }
 import { criarApiSimulada } from '../lib/api/simulado';
 import { criarApiHttp } from '../lib/api/http';
 import { visita } from '../data/visita';
+import { conferirTelefone, mascaraTel, telefoneNacional, uuid } from '../lib/telefone';
 
 type Modo = 'indisponivel' | 'simulado' | 'api';
 export type Etapa = 'escolha' | 'revisao' | 'enviando' | 'confirmada' | 'falha';
@@ -52,21 +53,12 @@ const mesAno = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric'
 const SEMANA = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
 const SEMANA_LONGA = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
 const dataLonga = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
-const soDigitos = (s: string) => s.replace(/\D/g, '');
-const mascaraTel = (s: string) => {
-  const d = soDigitos(s).slice(0, 11);
-  if (d.length <= 2) return d.length ? `(${d}` : '';
-  if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
-  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
-  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
-};
-const uuid = () => (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`);
-
 function validar(d: Dados, exigeEmail: boolean): Record<string, string> {
   const e: Record<string, string> = {};
   if (d.nome.trim().length < 2) e.nome = 'Diga como podemos chamar você.';
-  const tel = soDigitos(d.telefone);
-  if (tel.length < 10 || tel.length > 11) e.telefone = 'Confira o número com DDD (10 ou 11 dígitos).';
+  // as regras do backend (lib/telefone.ts): celular sem o nono dígito é recusado com a explicação, nunca completado
+  const tel = conferirTelefone(d.telefone);
+  if (!tel.ok) e.telefone = tel.mensagem;
   if (exigeEmail && !d.email.trim()) e.email = 'Informe o e-mail.';
   else if (d.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email.trim())) e.email = 'Confira o e-mail.';
   if (!d.consentimento) e.consentimento = 'Para reservar, é preciso concordar com o uso dos dados.';
@@ -270,7 +262,7 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
     try {
       const r = await api.criar({
         ambienteId: ambiente, pessoas, data, hora,
-        nome: dados.nome.trim(), telefone: soDigitos(dados.telefone),
+        nome: dados.nome.trim(), telefone: telefoneNacional(dados.telefone),
         email: dados.email.trim() || undefined, observacoes: dados.observacoes.trim() || undefined,
         consentimentoPrivacidade: true, origem: 'site',
       }, chave.current);

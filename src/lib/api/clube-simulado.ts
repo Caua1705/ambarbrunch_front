@@ -4,16 +4,21 @@
 // situação, pelo GET /clube/me), a sessão de MENTIRA e os cadastros de mentira ficam no sessionStorage desta aba
 // (chave “ambar:clube:simulacao”; somem ao fechar a aba). Isso é só da simulação: o site real nunca guarda sessão.
 // Roteiro pelo final do número (qualquer DDD, celular com 9):
-//   …0001 → membro ativo · …0002 → cadastro incompleto (já tem nome; falta aceitar os termos atuais) · outros → novo
+//   …0001 → membro ativo · …0002 → cadastro incompleto (já tem nome; falta aceitar os termos atuais) · …0003 → conta
+//   suspensa pela gerência (o código certo gasta o desafio e responde 403 conta_suspensa) · outros → novo
 // Código: 123456 confere · 000000 = vencido · outro = incorreto (5 erros travam o código). Até 3 envios por número.
-// Convite do caixa (caminho A): /clube/ativar?c=demo-novo · demo-incompleto · demo-ativo · demo-vencido.
-import { ErroClube } from './clube-erro';
+// Convite do caixa (caminho A): /clube/ativar?c=demo-novo · demo-incompleto · demo-ativo · demo-suspenso · demo-vencido.
+// Histórico (GET /clube/me/movimentos): o programa está desligado na simulação — lista vazia, como o backend.
+import { ErroClube, TEXTO_SUSPENSA } from './clube-erro';
 import type { AcessoClubeApi, CadastroPendente, ConfigClube, MembroClube, SituacaoClube } from './clube-acesso';
 
 const espera = (ms = 450) => new Promise((r) => setTimeout(r, ms));
 const mascara = (t: string) => `(${t.slice(0, 2)}) •••••-${t.slice(-4)}`;
 /** número de mentira de cada convite de demonstração */
-const CONVITES: Record<string, string> = { 'demo-novo': '85977770011', 'demo-incompleto': '85988880002', 'demo-ativo': '85988880001' };
+const CONVITES: Record<string, string> = { 'demo-novo': '85977770011', 'demo-incompleto': '85988880002', 'demo-ativo': '85988880001', 'demo-suspenso': '85988880003' };
+/** a gerência suspendeu este número: código, link e sessão respondem 403 conta_suspensa */
+const suspenso = (telefone: string) => telefone.endsWith('0003');
+const contaSuspensa = () => new ErroClube('suspensa', TEXTO_SUSPENSA);
 
 type Escopo = 'completa' | 'ativacao';
 /** preferências de comunicação de cada número (final de 4 dígitos) */
@@ -82,6 +87,7 @@ export function criarAcessoSimulado(): AcessoClubeApi {
         throw new ErroClube('validacao', 'Confira o código.', { codigo: 'Código incorreto. Confira e tente de novo.' });
       }
       desafios.delete(desafioId);
+      if (suspenso(d.telefone)) { guardar(); throw contaSuspensa(); }   // o código vale uma vez, mesmo assim
       sessao = d.telefone; escopo = 'completa'; guardar();
       const s = situacao(d.telefone);
       return { ...(s as Extract<SituacaoClube, { situacao: 'membro' | 'cadastro' }>), sessao: { expiraEm: new Date(Date.now() + 3_600_000).toISOString() } };
@@ -96,12 +102,18 @@ export function criarAcessoSimulado(): AcessoClubeApi {
       }
       return situacao(sessao);
     },
+    movimentos: async () => {
+      await espera(250);
+      if (!sessao || escopo !== 'completa') throw semSessao();
+      return { programaAtivo: false, saldo: null, itens: [], proximo: null };
+    },
     sair: async () => { await espera(200); sessao = null; guardar(); },
     ativarConvite: async (token) => {
       await espera();
       const telefone = CONVITES[token];
       if (!telefone || usados.has(token)) throw new ErroClube('codigo', 'Este link venceu ou já foi usado.');
       usados.add(token);
+      if (suspenso(telefone)) { guardar(); throw contaSuspensa(); }
       const c = pendente(telefone);
       if (!c) { guardar(); return { situacao: 'entrar', membro: null, cadastro: null }; }   // já é membro: sem sessão
       sessao = telefone; escopo = 'ativacao'; guardar();

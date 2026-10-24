@@ -10,8 +10,11 @@
 //   3. POST /clube/adesoes (cookie; telefone vem da sessão) — envio parcial vale: devolve a situação de novo.
 //   4. POST /clube/sair → 204 sempre; o backend apaga o cookie.
 //   Conta (sessão completa): PUT /clube/me/marketing { autorizado, textoVersao } → estado · DELETE /clube/me/mensagens
-//   → 204 (desliga os avisos de serviço; não há rota para religar). Histórico, recompensas e resgates: sem rota pública
-//   ainda — ver clube-futuro.ts.
+//   → 204 (desliga os avisos de serviço; não há rota para religar) · GET /clube/me/movimentos?antesDe=&limite= → o
+//   histórico real do livro de pontos (commit b0b0553; com o programa desligado, lista vazia e saldo null).
+//   Recompensas e resgates: sem rota pública ainda — ver clube-futuro.ts.
+// Conta suspensa pela gerência (b0b0553): 403 `conta_suspensa` no código (/acesso/verificar), no link do convite
+// (/convites/ativar) e em toda rota com sessão (o backend revoga a sessão). → ErroClube “suspensa”, com o `detail`.
 // Sessão: cookie HttpOnly `__Secure-ambar_clube` (SameSite=Strict) — o site NÃO vê nem guarda token: toda chamada vai com
 // `credentials: "include"` e o navegador manda o cookie. Toda chamada que muda algo leva `X-Ambar-Csrf: 1` (o navegador
 // põe o Origin); sem ele, 403 `origem_invalida`. O cookie só funciona com site e API no MESMO site (ambarbrunch.com →
@@ -19,7 +22,7 @@
 // mostra o formulário do telefone.
 // Erros: { detail: "<texto em português, pode ir ao cliente>", codigo } ou, em campo inválido (422), o formato do FastAPI
 // { detail: [{ loc: ["body", "<campo>"], msg, type }], codigo? } — não há chave `campos`. → ErroClube.
-import { ErroClube } from './clube-erro';
+import { ErroClube, TEXTO_SUSPENSA } from './clube-erro';
 
 /** GET /clube/config */
 export interface ConfigClube {
@@ -98,6 +101,30 @@ export interface ConclusaoCadastro {
   marketing?: { autorizado: boolean; textoVersao: string };
 }
 
+/** uma linha real do livro de pontos (GET /clube/me/movimentos). `pontos` é a variação do que é do cliente: negativa
+ *  em estorno, resgate reservado e expiração. Em compra, `situacao` diz se os pontos ainda estão em liberação (com
+ *  `liberarEm`) ou já disponíveis; nos outros tipos vem null. */
+export interface MovimentoClube {
+  id: number;
+  tipo: 'compra' | 'estorno' | 'resgate_reservado' | 'resgate' | 'resgate_cancelado' | 'expiracao' | 'ajuste';
+  /** ISO 8601 */
+  em: string;
+  pontos: number;
+  situacao: 'pendente' | 'disponivel' | null;
+  liberarEm: string | null;
+  expiraEm: string | null;
+  /** a compra que gerou a linha: dia (“AAAA-MM-DD”) e valor (“22.99”) */
+  compra: { data: string; valor: string } | null;
+}
+
+/** GET /clube/me/movimentos → mais novo primeiro; `proximo` = cursor para `antesDe` (null = acabou) */
+export interface MovimentosClube {
+  programaAtivo: boolean;
+  saldo: SaldoPontos | null;
+  itens: MovimentoClube[];
+  proximo: number | null;
+}
+
 export interface AcessoClubeApi {
   config(): Promise<ConfigClube>;
   /** GET /clube/me — restaura a sessão do cookie; 401 (ErroClube “sessao”) = sem sessão válida */
@@ -114,6 +141,8 @@ export interface AcessoClubeApi {
   marketing(autorizado: boolean, textoVersao: string): Promise<SituacaoClube>;
   /** DELETE /clube/me/mensagens — desliga os avisos de serviço pelo WhatsApp (o código de acesso continua chegando) */
   pararMensagens(): Promise<void>;
+  /** GET /clube/me/movimentos — sessão completa (a de ativação recebe 401) */
+  movimentos(antesDe?: number): Promise<MovimentosClube>;
 }
 
 const TEMPO_LIMITE = 12_000;
@@ -148,6 +177,9 @@ async function pedir<T>(base: string, caminho: string, init: RequestInit = {}): 
   // regra ou estado: `detail` é texto em português, feito para o cliente
   const msg = typeof corpo.detail === 'string' && corpo.detail.trim() ? corpo.detail : undefined;
   if (res.status === 401) throw new ErroClube('sessao', 'Sua confirmação expirou. Confirme o WhatsApp de novo.');
+  // conta suspensa pela gerência (403; o backend usa o mesmo código num 409 do convite do caixa): o texto do backend vai
+  // para a pessoa — não é erro genérico nem “indisponível”, e não adianta tentar de novo
+  if (corpo.codigo === 'conta_suspensa') throw new ErroClube('suspensa', msg ?? TEXTO_SUSPENSA);
   // 403 origem_invalida: o site não está numa origem do Clube (ou faltou o cabeçalho) — nada que a pessoa resolva
   if (res.status === 403) throw new ErroClube('indisponivel', 'O Clube não está disponível por este endereço. Acesse pelo site do Âmbar.');
   if (res.status === 409 && corpo.codigo === 'versao_desatualizada') throw new ErroClube('versao', 'Os termos do Clube foram atualizados. Confira e aceite de novo.');
@@ -171,5 +203,6 @@ export function criarAcessoHttp(base: string): AcessoClubeApi {
     ativarConvite: (convite) => post<SituacaoClube>('clube/convites/ativar', { convite }),
     marketing: (autorizado, textoVersao) => pedir<SituacaoClube>(base, 'clube/me/marketing', { method: 'PUT', body: JSON.stringify({ autorizado, textoVersao }) }),
     pararMensagens: () => pedir<void>(base, 'clube/me/mensagens', { method: 'DELETE' }),
+    movimentos: (antesDe) => pedir<MovimentosClube>(base, `clube/me/movimentos${antesDe ? `?antesDe=${antesDe}` : ''}`),
   };
 }

@@ -188,6 +188,7 @@ body:has(.area-abas--base) .rodape-min { padding-bottom: calc(60px + env(safe-ar
 .historico__titulo { padding: var(--s-12) 0 var(--s-6); font: var(--t-legend); letter-spacing: var(--track-legend); text-transform: uppercase; color: var(--caramel-dk); }
 .extrato__desc small { display: block; margin-top: 3px; font-size: var(--fs-small); color: var(--text-soft); }
 .extrato li[data-situacao="pendente"] .extrato__pts { color: var(--text-soft); font-style: italic; }
+.historico__mais { justify-self: center; }
 
 /* 5 · Recompensas ---------------------------------------------------------------------------------------------------- */
 .catalogo { display: grid; gap: var(--s-14); }

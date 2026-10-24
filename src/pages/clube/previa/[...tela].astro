@@ -44,6 +44,7 @@ const ACESSO: Record<string, { pagina: 'entrar' | 'cadastro' | 'ativar'; demo: D
   'entrar-sessao': { pagina: 'entrar', rotulo: 'Entrar', demo: { etapa: 'telefone', aviso: 'Sua sessão terminou. Confirme seu WhatsApp para continuar.' } },
   'entrar-carregando': { pagina: 'entrar', rotulo: 'Entrar', demo: { etapa: 'carregando' } },
   'entrar-indisponivel': { pagina: 'entrar', rotulo: 'Entrar', demo: { etapa: 'falha', falha: 'O Clube está indisponível no momento. Tente mais tarde.' } },
+  'entrar-suspensa': { pagina: 'entrar', rotulo: 'Entrar', demo: { etapa: 'suspensa', falha: ex.suspensaExemplo } },
   'entrar-fechado': { pagina: 'entrar', rotulo: 'Entrar', demo: { etapa: 'fechado' } },
   'cadastro-novo': { pagina: 'cadastro', rotulo: 'Cadastro', demo: { etapa: 'cadastro', cadastro: ex.cadastroNovo, cfg: ex.cfgExemplo } },
   'cadastro-incompleto': { pagina: 'cadastro', rotulo: 'Cadastro', demo: { etapa: 'cadastro', cadastro: ex.cadastroIncompleto, dados: { nome: 'Marina Exemplo' }, cfg: ex.cfgExemplo } },
@@ -86,8 +87,9 @@ const grupos = [...new Set(TELAS.map((x) => x.grupo))];
       {tela === 'conta' && <ClubeArea secao="conta" modo="indisponivel" demo={{ membro: ex.membroExemplo, cfg: ex.cfgExemplo }} />}
       {tela === 'conta-pontos' && <ClubeArea secao="conta" modo="indisponivel" demo={{ membro: ex.membroComPontos, cfg: cfgPontos, recursosLigados: true }} />}
       {tela === 'conta-carregando' && <ContaEsqueleto />}
+      {tela === 'conta-suspensa' && <ClubeArea secao="conta" modo="indisponivel" demo={{ membro: ex.membroExemplo, suspensa: ex.suspensaExemplo }} />}
       {tela === 'historico' && <ClubeArea secao="historico" modo="indisponivel" demo={{ membro: ex.membroExemplo, cfg: ex.cfgExemplo }} />}
-      {tela === 'historico-lista' && <ListaMovimentos estado="ok" itens={ex.movimentosExemplo} />}
+      {tela === 'historico-lista' && <ListaMovimentos estado="ok" itens={ex.movimentosExemplo} aoVerMais={() => {}} />}
       {tela === 'historico-vazio' && <ListaMovimentos estado="vazio" />}
       {tela === 'historico-carregando' && <ListaMovimentos estado="carregando" />}
       {tela === 'historico-erro' && <ListaMovimentos estado="erro" erro="Sem conexão com o Clube. Confira sua internet e tente de novo." aoTentar={() => {}} />}

@@ -6,7 +6,9 @@
 // erros no formato do FastAPI, campo desconhecido = 422 (extra=forbid), nome obrigatório no 1º envio.
 // Um script de teste registra como cada fetch foi chamado, para conferir o `credentials: "include"`.
 // Nada sai da máquina e nada disso existe no site publicado.
-// Cenários pelo final do número: …0001 membro ativo · …0002 cadastro incompleto (falta só o aceite) · outros, novo.
+// Cenários pelo final do número: …0001 membro ativo · …0002 cadastro incompleto (falta só o aceite) · …0003 conta
+// suspensa pela gerência (403 conta_suspensa no código, no convite e em toda rota com sessão — b0b0553) · outros, novo.
+// GET /clube/me/movimentos imita o livro real (cursor `antesDe`, 20 por página; vazio com o programa desligado).
 import { test, expect, type Page, type Route } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
@@ -17,11 +19,11 @@ const CORS = {
   'access-control-allow-headers': 'content-type, idempotency-key, x-ambar-csrf', 'access-control-allow-methods': 'GET, POST, PUT, DELETE, OPTIONS',
 };
 
-interface Registro { rota: string; metodo: string; corpo: Record<string, unknown> | null; auth?: string; csrf?: string; chave?: string }
+interface Registro { rota: string; busca: string; metodo: string; corpo: Record<string, unknown> | null; auth?: string; csrf?: string; chave?: string }
 type Pendente = { nome: string | null; aniversario: string | null; faltam: string[]; marketing: { autorizado: boolean } };
 
 /** API falsa com o formato do contrato real. Devolve o registro das chamadas. */
-async function apiFalsa(page: Page, opcoes: { inscricoesAbertas?: boolean; versaoNova?: boolean; sessaoVenceAntesDeConcluir?: number; reenvioEm?: number; foraDoAr?: boolean } = {}) {
+async function apiFalsa(page: Page, opcoes: { inscricoesAbertas?: boolean; versaoNova?: boolean; sessaoVenceAntesDeConcluir?: number; reenvioEm?: number; foraDoAr?: boolean; programaAtivo?: boolean; movimentos?: number } = {}) {
   let vencerSessao = opcoes.sessaoVenceAntesDeConcluir ?? 0;
   /** preferências de comunicação de cada número (final de 4 dígitos) */
   const prefs = new Map<string, { marketing: boolean; mensagens: boolean }>();
@@ -31,18 +33,23 @@ async function apiFalsa(page: Page, opcoes: { inscricoesAbertas?: boolean; versa
   /** “ativacao” = sessão limitada do convite (só concluir o cadastro) */
   let escopo: 'completa' | 'ativacao' = 'completa';
   /** convites do caixa (caminho A): token → telefone; usados viram 410 */
-  const CONVITES: Record<string, string> = { 'conv-novo': '85977770011', 'conv-incompleto': '85988880002', 'conv-ativo': '85988880001' };
+  const CONVITES: Record<string, string> = { 'conv-novo': '85977770011', 'conv-incompleto': '85988880002', 'conv-ativo': '85988880001', 'conv-suspenso': '85988880003' };
+  /** contas suspensas pela gerência (final de 4 dígitos) */
+  const suspensos = new Set<string>(['0003']);
   const usados = new Set<string>();
   /** a sessão de ativação nunca mostra dados já gravados */
   const vistaAtivacao = (c: Pendente) => ({ situacao: 'ativacao', cadastro: { nome: null, aniversario: null, faltam: c.faltam, marketing: { autorizado: false } }, membro: null });
   const pendentes = new Map<string, Pendente>();
-  const membros = new Map<string, string>([['0001', 'Maria Clara']]);
+  const membros = new Map<string, string>([['0001', 'Maria Clara'], ['0003', 'Conta Suspensa']]);
   let versaoRecusada = false;
   const json = (r: Route, status: number, body?: unknown) => r.fulfill({ status, headers: CORS, contentType: 'application/json', body: body === undefined ? '' : JSON.stringify(body) });
+  const suspensa = (r: Route) => json(r, 403, { detail: 'Sua conta do Clube Âmbar está suspensa. Fale com a equipe do Âmbar.', codigo: 'conta_suspensa' });
   const membro = (fim: string, nome: string, autorizado: boolean) => {
     const p = prefs.get(fim) ?? { marketing: autorizado, mensagens: true };
-    return { nome, telefone: `(85) •••••-${fim}`, aniversario: fim === '0001' ? '02-07' : null, membroDesde: '2026-10-23', marketing: { autorizado: p.marketing }, mensagens: { autorizado: p.mensagens }, programa: { ativo: false, saldo: null } };
+    return { nome, telefone: `(85) •••••-${fim}`, aniversario: fim === '0001' ? '02-07' : null, membroDesde: '2026-10-23', marketing: { autorizado: p.marketing }, mensagens: { autorizado: p.mensagens }, programa: opcoes.programaAtivo ? { ativo: true, saldo: { pendente: 12, disponivel: 80, reservado: 0 } } : { ativo: false, saldo: null } };
   };
+  /** o livro de pontos de mentira: ids N..1, do mais novo */
+  const linha = (id: number) => ({ id, tipo: id % 4 === 0 ? 'estorno' : 'compra', em: new Date(Date.UTC(2026, 10, 1 + (id % 28), 12)).toISOString(), pontos: id % 4 === 0 ? -5 : 10 + id, situacao: id % 4 === 0 ? null : id > 20 ? 'pendente' : 'disponivel', liberarEm: id > 20 && id % 4 ? '2026-12-05T12:00:00Z' : null, expiraEm: null, compra: { data: '2026-11-01', valor: '45.90' } });
   /** 422 no formato do FastAPI (sem chave `campos`) */
   const campo = (r: Route, nome: string, msg: string, codigo?: string) => json(r, 422, { detail: [{ loc: ['body', nome], msg, type: codigo ?? 'value_error' }], ...(codigo ? { codigo } : {}) });
   const ADESAO = ['nome', 'aniversario', 'aceiteRegulamento', 'regulamentoVersao', 'privacidadeVersao', 'marketing', 'origem'];
@@ -64,12 +71,14 @@ async function apiFalsa(page: Page, opcoes: { inscricoesAbertas?: boolean; versa
     const rota = new URL(req.url()).pathname;
     const corpo = req.postDataJSON?.() ?? null;
     const h = req.headers();
-    chamadas.push({ rota, metodo: req.method(), corpo, auth: h.authorization, csrf: h['x-ambar-csrf'], chave: h['idempotency-key'] });
+    chamadas.push({ rota, busca: new URL(req.url()).search, metodo: req.method(), corpo, auth: h.authorization, csrf: h['x-ambar-csrf'], chave: h['idempotency-key'] });
     // como o backend: o token antigo no cabeçalho é recusado; mudança sem o cabeçalho anti-CSRF também
     if (h.authorization) return json(r, 401, { detail: 'Entre de novo.', codigo: 'sessao_invalida' });
     if (req.method() !== 'GET' && h['x-ambar-csrf'] !== '1') return json(r, 403, { detail: 'Origem inválida.', codigo: 'origem_invalida' });
     if (opcoes.foraDoAr) return json(r, 503, { detail: 'O Clube está indisponível no momento. Tente mais tarde.', codigo: 'indisponivel' });
-    if (rota === '/clube/config') return json(r, 200, { inscricoesAbertas: opcoes.inscricoesAbertas ?? true, programaAtivo: false, regulamento: { versao: 'r1', url: 'https://ambar.teste/regulamento' }, privacidade: { versao: 'p1', url: 'https://ambar.teste/privacidade' }, marketing: { textoVersao: 'm1' }, codigo: { digitos: 6, validadeS: 600 } });
+    // conta suspensa: toda rota com sessão responde 403 e o backend revoga a sessão (a próxima chamada é 401)
+    if (sessao && suspensos.has(sessao.slice(-4)) && (rota.startsWith('/clube/me') || rota === '/clube/adesoes')) { sessao = null; return suspensa(r); }
+    if (rota === '/clube/config') return json(r, 200, { inscricoesAbertas: opcoes.inscricoesAbertas ?? true, programaAtivo: !!opcoes.programaAtivo, regulamento: { versao: 'r1', url: 'https://ambar.teste/regulamento' }, privacidade: { versao: 'p1', url: 'https://ambar.teste/privacidade' }, marketing: { textoVersao: 'm1' }, codigo: { digitos: 6, validadeS: 600 } });
     if (rota === '/clube/me') {
       if (!sessao) return json(r, 401, { detail: 'Entre de novo.', codigo: 'sessao_invalida' });
       if (escopo === 'ativacao') {
@@ -84,6 +93,7 @@ async function apiFalsa(page: Page, opcoes: { inscricoesAbertas?: boolean; versa
       const tel = CONVITES[token];
       if (!tel || usados.has(token)) return json(r, 410, { detail: 'Este link venceu ou já foi usado.', codigo: 'link_expirado' });
       usados.add(token);
+      if (suspensos.has(tel.slice(-4))) return suspensa(r);
       const s = situacao(tel);
       if (s.situacao === 'membro') return json(r, 200, { situacao: 'entrar', membro: null, cadastro: null });   // sem cookie
       sessao = tel; escopo = 'ativacao';   // Set-Cookie de ativação (30 min)
@@ -104,6 +114,14 @@ async function apiFalsa(page: Page, opcoes: { inscricoesAbertas?: boolean; versa
       prefs.set(sessao.slice(-4), { marketing: s.membro.marketing.autorizado, mensagens: false });
       return r.fulfill({ status: 204, headers: CORS });
     }
+    if (rota === '/clube/me/movimentos') {
+      if (!sessao || escopo !== 'completa') return json(r, 401, { detail: 'Entre com o código.', codigo: 'entrar_com_codigo' });
+      if (!opcoes.programaAtivo) return json(r, 200, { programaAtivo: false, saldo: null, itens: [], proximo: null });
+      const antes = Number(new URL(req.url()).searchParams.get('antesDe') ?? Infinity);
+      const ids = Array.from({ length: opcoes.movimentos ?? 0 }, (_, i) => (opcoes.movimentos ?? 0) - i).filter((id) => id < antes);
+      const pagina = ids.slice(0, 20);
+      return json(r, 200, { programaAtivo: true, saldo: { pendente: 12, disponivel: 80, reservado: 0 }, itens: pagina.map(linha), proximo: ids.length > 20 ? pagina.at(-1) : null });
+    }
     if (rota === '/clube/sair') { sessao = null; return r.fulfill({ status: 204, headers: CORS }); }
     if (rota === '/clube/acesso') {
       const tel = String(corpo?.telefone ?? '');
@@ -113,6 +131,7 @@ async function apiFalsa(page: Page, opcoes: { inscricoesAbertas?: boolean; versa
       const tel = String(corpo?.desafioId ?? '').slice(2);
       if (corpo?.codigo === '000000') return json(r, 410, { detail: 'Este código venceu. Peça um novo.', codigo: 'codigo_expirado' });
       if (corpo?.codigo !== '123456') return campo(r, 'codigo', 'Código incorreto. Confira e tente de novo.', 'codigo_incorreto');
+      if (suspensos.has(tel.slice(-4))) return suspensa(r);   // o código é gasto; nenhuma sessão
       sessao = tel; escopo = 'completa';   // Set-Cookie
       return json(r, 200, { ...situacao(tel), sessao: { expiraEm: '2026-11-22T23:00:00Z' } });
     }
@@ -139,7 +158,7 @@ async function apiFalsa(page: Page, opcoes: { inscricoesAbertas?: boolean; versa
     return json(r, 404, { detail: 'rota' });
   });
   /** a sessão vence do lado do servidor (o cookie para de valer) */
-  return { chamadas, derrubarSessao: () => { sessao = null; } };
+  return { chamadas, derrubarSessao: () => { sessao = null; }, suspender: (fim: string) => { suspensos.add(fim); } };
 }
 
 /** todas as chamadas à API do Clube saíram com credentials: "include" */
@@ -182,10 +201,10 @@ test('entrada única: só o WhatsApp, um botão “Continuar”, sem aplicativo 
   await expect(f.getByRole('button')).toHaveText([/^Continuar/]);
   await expect(f.getByRole('button', { name: 'Continuar', exact: true })).toHaveCount(1);   // a seta não entra no nome
   await expect(f.getByRole('button', { name: /cadastrar|entrar/i })).toHaveCount(0);
-  // telefone inválido: erro claro, nada enviado
+  // telefone inválido (fixo, sem WhatsApp): erro claro, nada enviado
   await f.getByLabel('WhatsApp').fill('8533334444');
   await f.getByRole('button', { name: 'Continuar' }).click();
-  await expect(f.locator('#cf-telefone-erro')).toHaveText(/Confira o WhatsApp com DDD/);
+  await expect(f.locator('#cf-telefone-erro')).toHaveText(/Informe um celular com WhatsApp: DDD e 9 dígitos/);
   await expect(f.getByLabel('WhatsApp')).toBeFocused();
   expect(api.chamadas.filter((c) => c.rota === '/clube/acesso')).toHaveLength(0);
   // membro e não membro veem exatamente a mesma tela do código
@@ -468,7 +487,7 @@ test('landing com sessão: “Olá” e “Abrir minha conta”, sem repetir a a
 });
 
 test('histórico e recompensas: “em preparação”, sem lista, saldo, produto ou botão de resgate', async ({ page }) => {
-  await apiFalsa(page);
+  const api = await apiFalsa(page);
   await entrarNaConta(page);
   for (const [rota, titulo] of [['historico', 'Histórico'], ['recompensas', 'Recompensas']]) {
     await page.goto(`${SITE}/clube/${rota}/`);
@@ -479,6 +498,25 @@ test('histórico e recompensas: “em preparação”, sem lista, saldo, produto
     await expect(page.locator('main')).not.toContainText(/\d+\s*pontos/i);
     await expect(page.locator(`.area-abas--base .area-aba[aria-current="page"]`)).toHaveText(titulo);
   }
+  // programa desligado: o histórico nem é pedido
+  expect(api.chamadas.filter((c) => c.rota === '/clube/me/movimentos')).toHaveLength(0);
+});
+
+test('histórico com o programa ativo: GET /clube/me/movimentos, agrupado por mês, com “ver anteriores” pelo cursor', async ({ page }) => {
+  const api = await apiFalsa(page, { programaAtivo: true, movimentos: 25 });
+  await entrarNaConta(page);
+  await page.goto(`${SITE}/clube/historico/`);
+  await expect(page.locator('.extrato li')).toHaveCount(20);
+  await expect(page.locator('.extrato li').first()).toContainText('Compra no Âmbar');
+  await expect(page.locator('.extrato li').first()).toContainText('R$ 45,90');
+  await expect(page.locator('.extrato li[data-situacao="pendente"]').first()).toContainText('em liberação');
+  await expect(page.locator('.extrato li[data-tipo="estorno"]').first()).toContainText('Compra cancelada');
+  await page.getByRole('button', { name: 'Ver movimentações anteriores' }).click();
+  await expect(page.locator('.extrato li')).toHaveCount(25);
+  await expect(page.getByRole('button', { name: 'Ver movimentações anteriores' })).toHaveCount(0);
+  const pedidos = api.chamadas.filter((c) => c.rota === '/clube/me/movimentos');
+  expect(pedidos.map((c) => c.busca)).toEqual(['', '?antesDe=6']);
+  expect(await tudoComCookie(page)).toBe(true);
 });
 
 for (const largura of [360, 390]) {
@@ -749,4 +787,107 @@ test('prévia local: todas as telas com dados de exemplo marcados, sem chamar a 
   // o QR Code do exemplo vem pronto como imagem (o componente nunca gera QR a partir do id)
   await page.goto(`${SITE}/clube/previa/resgate-aguardando/`);
   await expect(page.locator('.resgate__qr img')).toHaveAttribute('src', /^data:image\/svg\+xml/);
+});
+
+// ── Conta suspensa (403 conta_suspensa, b0b0553) ─────────────────────────────────────────────────────────────────────
+
+const TEXTO_SUSPENSA = /Sua conta do Clube Âmbar está suspensa\. Fale com a equipe do Âmbar\./;
+
+test('conta suspensa: o código certo mostra “Conta suspensa” com o texto do backend — sem erro genérico, sem tentar de novo, sem abrir a conta', async ({ page }) => {
+  const api = await apiFalsa(page);
+  const f = await entrar(page, '85988880003');
+  const antes = api.chamadas.length;
+  await confirmarCodigo(page);
+  await expect(f.locator('.ticket__title')).toHaveText('Conta suspensa');
+  await expect(f.getByRole('alert')).toHaveText(TEXTO_SUSPENSA);
+  await expect(f.getByRole('link', { name: 'Falar com a equipe no WhatsApp' })).toHaveAttribute('href', /^https:\/\/wa\.me\//);
+  await expect(f.getByRole('button', { name: /tentar de novo|confirmar/i })).toHaveCount(0);
+  await expect(f.locator('input')).toHaveCount(0);
+  await expect(f).not.toContainText(/não está disponível|Não foi possível/);
+  await page.waitForTimeout(400);
+  expect(page.url()).toBe(`${SITE}/clube/entrar/`);
+  expect(api.chamadas.filter((c) => c.rota === '/clube/acesso/verificar')).toHaveLength(1);
+  // depois do 403, nada mais é pedido: nem a conta, nem outra verificação
+  expect(api.chamadas.slice(antes).map((c) => c.rota)).toEqual(['/clube/acesso/verificar']);
+});
+
+test('conta suspensa durante o uso: a conta some — sem cartão, pontos ou preferências, sem nova tentativa — e a carteira não abre de novo', async ({ page }) => {
+  const api = await apiFalsa(page, { programaAtivo: true, movimentos: 3 });
+  await entrarNaConta(page);
+  await expect(page.locator('.conta')).toBeVisible();
+  api.suspender('0001');
+  const antes = api.chamadas.length;
+  await page.reload();
+  const tela = page.locator('[data-estado="suspensa"]');
+  await expect(tela).toBeVisible();
+  await expect(tela).toContainText('Conta suspensa');
+  await expect(tela).toContainText(TEXTO_SUSPENSA);
+  await expect(page.locator('.conta, .conta-topo, .conta-programa, .extrato')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /tentar de novo/i })).toHaveCount(0);
+  await page.waitForTimeout(400);
+  expect(api.chamadas.slice(antes).filter((c) => c.rota === '/clube/me')).toHaveLength(1);
+  // a sessão foi revogada pelo backend: o histórico não abre — vai para a entrada pelo WhatsApp
+  await page.goto(`${SITE}/clube/historico/`);
+  await page.waitForURL(`${SITE}/clube/entrar/?volta=historico`);
+  await expect(page.locator('.extrato')).toHaveCount(0);
+  expect(api.chamadas.filter((c) => c.rota === '/clube/me/movimentos')).toHaveLength(0);
+});
+
+test('conta suspensa na landing (sessão restaurada) e no convite: “Conta suspensa”, sem cadastro nem convite pendente', async ({ page }) => {
+  const api = await apiFalsa(page);
+  await entrarNaConta(page);
+  api.suspender('0001');
+  await page.goto(`${SITE}/clube/#cadastro`);
+  await expect(ficha(page).locator('.ticket__title')).toHaveText('Conta suspensa');
+  await expect(ficha(page).getByRole('alert')).toHaveText(TEXTO_SUSPENSA);
+  await expect(ficha(page).locator('input')).toHaveCount(0);
+
+  const { ficha: f } = await abrirConvite(page, 'conv-suspenso');
+  await f.getByRole('button', { name: 'Ativar meu Clube' }).click();
+  await expect(f.locator('.ticket__title')).toHaveText('Conta suspensa');
+  await expect(f.getByRole('alert')).toHaveText(TEXTO_SUSPENSA);
+  await expect(f.getByRole('button', { name: /Ativar|tentar de novo/i })).toHaveCount(0);
+  await expect(f.getByLabel('Nome')).toHaveCount(0);
+  await page.waitForTimeout(400);
+  expect(api.chamadas.filter((c) => c.rota === '/clube/convites/ativar')).toHaveLength(1);
+});
+
+test('aparelho compartilhado: a sessão guardada é de uma conta suspensa — o convite de OUTRO número continua valendo', async ({ page }) => {
+  const api = await apiFalsa(page);
+  await entrarNaConta(page);
+  api.suspender('0001');
+  const { ficha: f } = await abrirConvite(page, 'conv-novo');
+  await expect(f.getByRole('button', { name: 'Ativar meu Clube' })).toBeVisible();
+  await expect(f).not.toContainText('Conta suspensa');
+  await f.getByRole('button', { name: 'Ativar meu Clube' }).click();
+  await expect(f.getByLabel('Nome')).toBeVisible();
+  expect(api.chamadas.filter((c) => c.rota === '/clube/convites/ativar')).toHaveLength(1);
+});
+
+// ── Telefone (regras do backend; o nono dígito nunca é posto nem tirado) ────────────────────────────────────────────
+
+test('WhatsApp: sem o nono dígito, dígitos a mais, DDD inexistente ou fixo — o site explica e não envia; nada é completado nem cortado', async ({ page }) => {
+  const api = await apiFalsa(page);
+  await page.goto(`${SITE}/clube/entrar/`);
+  const f = ficha(page);
+  const campo = f.getByLabel('WhatsApp');
+  const tentar = async (digitado: string, mostrado: string, erro: RegExp) => {
+    await campo.fill(digitado);
+    await expect(campo).toHaveValue(mostrado);
+    await f.getByRole('button', { name: 'Continuar' }).click();
+    await expect(f.locator('#cf-telefone-erro')).toHaveText(erro);
+    await expect(campo).toHaveValue(mostrado);
+  };
+  await tentar('8591439014', '(85) 9143-9014', /Celular tem 9 dígitos depois do DDD/);
+  await tentar('859991439014', '(85) 99914-39014', /dígitos a mais/);
+  await tentar('20991439014', '(20) 99143-9014', /DDD 20 não existe/);
+  await tentar('8532345678', '(85) 3234-5678', /celular com WhatsApp/);
+  await tentar('85991439', '(85) 9914-39', /Faltam dígitos/);
+  expect(api.chamadas.filter((c) => c.rota === '/clube/acesso')).toHaveLength(0);
+  // número colado com o código do país: a máscara mostra o +55 e envia DDD + número, sem tirar nem pôr o 9
+  await campo.fill('+55 85 99143-9014');
+  await expect(campo).toHaveValue('+55 (85) 99143-9014');
+  await f.getByRole('button', { name: 'Continuar' }).click();
+  await expect(f.locator('.ticket__title')).toHaveText(/Confirme seu WhatsApp/i);
+  expect(api.chamadas.filter((c) => c.rota === '/clube/acesso').map((c) => c.corpo)).toEqual([{ telefone: '85991439014' }]);
 });

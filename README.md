@@ -48,10 +48,11 @@ Nada sai do computador. O painel **“Simulação local”** (canto inferior esq
 | --- | --- |
 | termina em `0001` | **membro ativo** → `/clube/conta/` |
 | termina em `0002` | **cadastro incompleto** → `/clube/cadastro/`, só o aceite dos termos |
+| termina em `0003` | **conta suspensa** → o código certo mostra “Conta suspensa” (403 `conta_suspensa`), sem abrir a conta |
 | qualquer outro, ex. `(85) 97777-1234` | **cliente novo** → `/clube/cadastro/` → “Você faz parte do Clube Âmbar!” |
 
 Código: `123456` confere · `000000` = vencido · outro = incorreto. Convites: `/clube/ativar?c=demo-novo` ·
-`demo-incompleto` · `demo-ativo` · `demo-vencido`. Recarregar mantém a sessão de mentira; “Zerar simulação” recomeça.
+`demo-incompleto` · `demo-ativo` · `demo-suspenso` · `demo-vencido`. Recarregar mantém a sessão de mentira; “Zerar simulação” recomeça.
 
 Telas: `/clube/` (landing) · `/clube/entrar/` · `/clube/cadastro/` · `/clube/ativar/` · `/clube/conta/` ·
 `/clube/historico/` · `/clube/recompensas/`. **Prévia de todos os estados** com dados de exemplo (inclusive conta com

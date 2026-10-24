@@ -1,8 +1,9 @@
 // DADOS DE EXEMPLO da prévia local do Clube (/clube/previa/) — SÓ para ver as telas. Importado apenas por
 // pages/clube/previa, que não é gerada nos builds de produção e de revisão (lib/clube-modo.ts → CLUBE_PREVIA). Nomes,
 // pontos e situações são marcações de exemplo: NÃO são recompensas, valores ou regras do Clube.
-import type { CadastroPendente, ConfigClube, DesafioAcesso, MembroClube } from './api/clube-acesso';
-import type { Movimento, Recompensa, Resgate } from './api/clube-futuro';
+import type { CadastroPendente, ConfigClube, DesafioAcesso, MembroClube, MovimentoClube } from './api/clube-acesso';
+import type { Recompensa, Resgate } from './api/clube-futuro';
+import { TEXTO_SUSPENSA } from './api/clube-erro';
 
 export const cfgExemplo: ConfigClube = {
   inscricoesAbertas: true, programaAtivo: false,
@@ -20,13 +21,17 @@ export const membroComPontos: MembroClube = { ...membroExemplo, marketing: { aut
 export const cadastroNovo: CadastroPendente = { nome: null, aniversario: null, faltam: ['nome', 'aceite'], marketing: { autorizado: false } };
 export const cadastroIncompleto: CadastroPendente = { nome: 'Marina Exemplo', aniversario: '03-14', faltam: ['aceite'], marketing: { autorizado: true } };
 
-export const movimentosExemplo: Movimento[] = [
-  { id: 'm1', data: '2026-11-21T19:20:00Z', tipo: 'ganho', situacao: 'pendente', descricao: 'Compra no Âmbar (exemplo)', pontos: 42 },
-  { id: 'm2', data: '2026-11-14T12:05:00Z', tipo: 'uso', situacao: 'disponivel', descricao: 'Resgate de exemplo', pontos: -150 },
-  { id: 'm3', data: '2026-11-09T10:40:00Z', tipo: 'ganho', situacao: 'disponivel', descricao: 'Compra no Âmbar (exemplo)', pontos: 78 },
-  { id: 'm4', data: '2026-11-02T16:10:00Z', tipo: 'estorno', situacao: 'disponivel', descricao: 'Compra cancelada (exemplo)', pontos: -18 },
-  { id: 'm5', data: '2026-10-28T09:30:00Z', tipo: 'ganho', situacao: 'disponivel', descricao: 'Compra no Âmbar (exemplo)', pontos: 56 },
+/** no formato real de GET /clube/me/movimentos (mais novo primeiro) */
+export const movimentosExemplo: MovimentoClube[] = [
+  { id: 5, tipo: 'compra', em: '2026-11-21T19:20:00Z', pontos: 42, situacao: 'pendente', liberarEm: '2026-11-28T19:20:00Z', expiraEm: null, compra: { data: '2026-11-21', valor: '42.90' } },
+  { id: 4, tipo: 'resgate_reservado', em: '2026-11-14T12:05:00Z', pontos: -150, situacao: null, liberarEm: null, expiraEm: null, compra: null },
+  { id: 3, tipo: 'compra', em: '2026-11-09T10:40:00Z', pontos: 78, situacao: 'disponivel', liberarEm: null, expiraEm: '2027-11-09T10:40:00Z', compra: { data: '2026-11-09', valor: '78.50' } },
+  { id: 2, tipo: 'estorno', em: '2026-11-02T16:10:00Z', pontos: -18, situacao: null, liberarEm: null, expiraEm: null, compra: { data: '2026-10-30', valor: '18.00' } },
+  { id: 1, tipo: 'compra', em: '2026-10-28T09:30:00Z', pontos: 56, situacao: 'disponivel', liberarEm: null, expiraEm: '2027-10-28T09:30:00Z', compra: { data: '2026-10-28', valor: '56.20' } },
 ];
+
+/** o texto que o backend manda no 403 conta_suspensa */
+export const suspensaExemplo = TEXTO_SUSPENSA;
 
 /** fotos: arquivos do próprio site, resolvidos pela página da prévia */
 export const recompensasExemplo = (foto: (arquivo: string) => string | null): Recompensa[] => [
@@ -68,6 +73,7 @@ export const TELAS_PREVIA: TelaPrevia[] = [
   { id: 'entrar-sessao', grupo: 'Acesso', titulo: 'Sessão expirada' },
   { id: 'entrar-carregando', grupo: 'Acesso', titulo: 'Carregando' },
   { id: 'entrar-indisponivel', grupo: 'Acesso', titulo: 'Indisponível' },
+  { id: 'entrar-suspensa', grupo: 'Acesso', titulo: 'Conta suspensa' },
   { id: 'entrar-fechado', grupo: 'Acesso', titulo: 'Pré-lançamento (produção hoje)' },
   { id: 'cadastro-novo', grupo: 'Cadastro', titulo: 'Cliente novo' },
   { id: 'cadastro-incompleto', grupo: 'Cadastro', titulo: 'Cadastro incompleto' },
@@ -80,8 +86,9 @@ export const TELAS_PREVIA: TelaPrevia[] = [
   { id: 'conta', grupo: 'Conta', titulo: 'Conta (programa em preparação — hoje)' },
   { id: 'conta-pontos', grupo: 'Conta', titulo: 'Conta com pontos (futuro)' },
   { id: 'conta-carregando', grupo: 'Conta', titulo: 'Carregando' },
+  { id: 'conta-suspensa', grupo: 'Conta', titulo: 'Conta suspensa' },
   { id: 'historico', grupo: 'Histórico', titulo: 'Em preparação (hoje)' },
-  { id: 'historico-lista', grupo: 'Histórico', titulo: 'Movimentações (futuro)' },
+  { id: 'historico-lista', grupo: 'Histórico', titulo: 'Movimentações (programa ativo)' },
   { id: 'historico-vazio', grupo: 'Histórico', titulo: 'Vazio' },
   { id: 'historico-carregando', grupo: 'Histórico', titulo: 'Carregando' },
   { id: 'historico-erro', grupo: 'Histórico', titulo: 'Erro' },

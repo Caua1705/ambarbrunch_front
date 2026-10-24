@@ -125,6 +125,29 @@ test.describe('modo simulado (só testes)', () => {
     await expect(page.locator('.ticket__sim')).toBeVisible();
   });
 
+  test('telefone: celular sem o nono dígito ou com dígito a mais é recusado com a explicação — nada é completado nem cortado', async ({ page }) => {
+    await irParaComanda(page, SIM);
+    await escolherHorario(page);
+    await page.locator('#rf-nome').fill('Cliente de Teste');
+    await page.locator('#rf-consentimento').click();
+    const tel = page.locator('#rf-telefone');
+    for (const [digitado, mostrado, erro] of [
+      ['8599990000', '(85) 9999-0000', /Celular tem 9 dígitos depois do DDD/],
+      ['859999900001', '(85) 99999-00001', /dígitos a mais/],
+      ['10999990000', '(10) 99999-0000', /DDD 10 não existe/],
+    ] as const) {
+      await tel.fill(digitado);
+      await expect(tel).toHaveValue(mostrado);
+      await page.getByRole('button', { name: 'Continuar' }).click();
+      await expect(page.locator('#rf-telefone-erro')).toHaveText(erro);
+      await expect(tel).toHaveValue(mostrado);
+    }
+    // fixo com DDD continua valendo na reserva
+    await tel.fill('8532345678');
+    await page.getByRole('button', { name: 'Continuar' }).click();
+    await expect(page.locator('#reservar .ticket__title')).toHaveText('Confira sua reserva');
+  });
+
   test('falha de envio: mensagem, carimbo de erro e nova tentativa', async ({ page }) => {
     await irParaComanda(page, SIM);
     await escolherHorario(page);

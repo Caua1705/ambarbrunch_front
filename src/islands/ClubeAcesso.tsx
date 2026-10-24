@@ -13,6 +13,10 @@
 //    memória e só é usado no toque em “Ativar meu Clube” → sessão de ATIVAÇÃO (30 min, só o que falta, sem dados da
 //    conta) ou “entrar” (já é membro: login normal) · 410 link vencido → entrar pelo WhatsApp. Concluído → “ativado”: a
 //    sessão de ativação acaba (o backend manda a confirmação no WhatsApp; o site não dispara mensagem).
+// Conta suspensa pela gerência (403 `conta_suspensa`, b0b0553): ao restaurar a sessão, no código, no convite ou no
+// cadastro, a ficha mostra “Conta suspensa” com o texto do backend — nunca o erro genérico, sem “tentar de novo” e sem
+// abrir a conta. Pedir o código não revela nada (o backend responde igual para qualquer número).
+// Telefone: máscara e validação de lib/telefone.ts (regras do backend; o nono dígito nunca é posto nem tirado).
 // Modos (lib/clube-modo.ts): “indisponivel” (pré-lançamento: bilhete “em breve”, sem campos), “api” e “simulado” (só no
 // `astro dev`). Sessão: cookie HttpOnly da API — o site não vê nem guarda token.
 import { useEffect, useRef, useState } from 'preact/hooks';
@@ -20,12 +24,13 @@ import { PassoCodigo } from './clube-partes';
 import { ErroClube } from '../lib/api/clube-erro';
 import type { CadastroPendente, ConclusaoCadastro, ConfigClube, DesafioAcesso, MembroClube, SituacaoClube } from '../lib/api/clube-acesso';
 import { ROTAS, destinoSeguro, levarDesafio, primeiroNome, trazerDesafio, urlEntrar, useApiClube } from '../lib/clube-cliente';
-import { mascaraTel, soDigitos, uuid } from '../lib/telefone';
+import { conferirTelefone, mascaraTel, soDigitos, telefoneNacional, uuid } from '../lib/telefone';
+import { visita } from '../data/visita';
 import type { ModoClube } from '../lib/clube-modo';
 
 export type PaginaAcesso = 'landing' | 'entrar' | 'cadastro' | 'ativar';
 export type EtapaFicha = 'carregando' | 'fechado' | 'falha' | 'convite' | 'ativando' | 'telefone' | 'enviando' | 'codigo' | 'verificando'
-  | 'cadastro' | 'salvando' | 'pendente' | 'membro' | 'ativado' | 'abrindo';
+  | 'cadastro' | 'salvando' | 'pendente' | 'membro' | 'ativado' | 'abrindo' | 'suspensa';
 interface Dados { nome: string; aniversario: string; aceite: boolean; marketing: boolean }
 /** Estado forçado — SÓ para a prévia local (/clube/previa/, fora do build de produção). Nada é enviado. */
 export interface DemoFicha {
@@ -61,8 +66,6 @@ const MAX_ENVIOS = 3;
 const TEXTO_FALHA = 'Não foi possível concluir. Tente de novo em instantes.';
 const AVISO_CONVITE = 'Para ativar pelo convite, toque de novo no botão da mensagem do WhatsApp — ou entre com seu WhatsApp aqui.';
 
-/** WhatsApp é celular: DDD + 9 + 8 dígitos (11 no total). */
-const whatsappValido = (s: string) => /^[1-9]{2}9\d{8}$/.test(soDigitos(s));
 /** Aniversário “DD/MM” enquanto digita (só dia e mês; o ano não é pedido). */
 const mascaraDia = (s: string) => { const d = soDigitos(s).slice(0, 4); return d.length > 2 ? `${d.slice(0, 2)}/${d.slice(2)}` : d; };
 /** “DD/MM” válido → “MM-DD” (como vai para a API); vazio → null; inválido → undefined. 29/02 vale. */
@@ -140,8 +143,11 @@ export default function ClubeAcesso({ modo, apiUrl, privacidadeUrl, pagina, ids:
         if (pagina === 'ativar' && tokenConvite.current) setConvitePendente(true);
         return;
       }
-      // 401 = sem sessão (o normal, e sempre fora de ambarbrunch.com); outro erro também segue: dá para entrar pelo código
-      catch { /* segue */ }
+      // 401 = sem sessão (o normal, e sempre fora de ambarbrunch.com); outro erro também segue: dá para entrar pelo código.
+      // Conta suspensa, não: o backend revogou a sessão e diz o porquê — a ficha mostra isso e para. Com um convite em
+      // mãos, segue para ele: a sessão suspensa pode ser de OUTRO número (aparelho compartilhado); se o convite for do
+      // mesmo número, o toque recebe o mesmo 403.
+      catch (e) { if (!(pagina === 'ativar' && tokenConvite.current) && suspender(e)) return; }
       if (pagina === 'ativar' && tokenConvite.current) { setEtapa('convite'); return; }
       // /clube/ativar sem o token (recarregou depois de ele sair da URL, ou link incompleto): entrada normal
       if (pagina === 'ativar') setAviso(AVISO_CONVITE);
@@ -155,7 +161,7 @@ export default function ClubeAcesso({ modo, apiUrl, privacidadeUrl, pagina, ids:
   useEffect(() => {
     if (!focoAuto.current) return;
     if (etapa === 'telefone') document.getElementById(`${px}-telefone`)?.focus();
-    else if (etapa === 'cadastro' || etapa === 'membro' || etapa === 'ativado' || etapa === 'falha') topo.current?.focus();
+    else if (etapa === 'cadastro' || etapa === 'membro' || etapa === 'ativado' || etapa === 'falha' || etapa === 'suspensa') topo.current?.focus();
   }, [etapa]);
 
   const digitos = cfg?.codigo?.digitos ?? DIGITOS_PADRAO;
@@ -169,6 +175,14 @@ export default function ClubeAcesso({ modo, apiUrl, privacidadeUrl, pagina, ids:
   const focar = (campo: string) => requestAnimationFrame(() => document.getElementById(`${px}-${campo}`)?.focus());
   const comoErro = (e: unknown) => (e instanceof ErroClube ? e : new ErroClube('servidor', TEXTO_FALHA));
   const abrir = (url: string, texto: string) => { setEtapa('abrindo'); setAnuncio(texto); ir(url); };
+  /** 403 conta_suspensa: nada da conta fica na tela, nenhum convite pendente; a mensagem é a do backend */
+  const suspender = (e: unknown) => {
+    if (!(e instanceof ErroClube) || e.tipo !== 'suspensa') return false;
+    tokenConvite.current = null; setConvitePendente(false);
+    setMembro(null); setCadastro(null); setDesafio(null); setAtivacao(false); setAviso(''); setErroCodigo('');
+    setFalha(e.message); setAnuncio(e.message); setEtapa('suspensa');
+    return true;
+  };
 
   /** a situação vem SEMPRE do backend (sessão restaurada, convite, verificação ou conclusão) */
   const aplicar = (s: SituacaoClube, concluiuAgora: boolean) => {
@@ -221,6 +235,7 @@ export default function ClubeAcesso({ modo, apiUrl, privacidadeUrl, pagina, ids:
       setConvitePendente(false);
       aplicar(s, false);
     } catch (e) {
+      if (suspender(e)) return;
       const erro = comoErro(e);
       if (erro.tipo === 'codigo') {
         // 410: vencido, já usado, substituído por um link mais novo ou inválido
@@ -244,7 +259,7 @@ export default function ClubeAcesso({ modo, apiUrl, privacidadeUrl, pagina, ids:
     if (!reenvio) setEtapa('enviando');
     setFalha('');
     try {
-      const d = await api.pedirCodigo(soDigitos(telefone));
+      const d = await api.pedirCodigo(telefoneNacional(telefone));
       // na landing, o código é digitado na tela própria de acesso
       if (pagina === 'landing' && !reenvio) { levarDesafio(d, envios + 1); abrir(ROTAS.entrar, `Enviamos um código para ${d.destino}.`); return; }
       setEnvios((n) => n + 1);
@@ -264,9 +279,11 @@ export default function ClubeAcesso({ modo, apiUrl, privacidadeUrl, pagina, ids:
     if (etapa !== 'telefone') return;
     focoAuto.current = true;
     setAviso('');
-    if (!whatsappValido(telefone)) {
-      setErros({ telefone: 'Confira o WhatsApp com DDD, ex.: (85) 99999-9999.' });
-      setAnuncio('Confira o WhatsApp.'); focar('telefone');
+    // WhatsApp é celular: DDD + 9 dígitos. Sem o nono dígito, o site explica — não completa nem corta nada
+    const conferido = conferirTelefone(telefone, { celular: true });
+    if (!conferido.ok) {
+      setErros({ telefone: conferido.mensagem });
+      setAnuncio(conferido.mensagem); focar('telefone');
       return;
     }
     setErros({}); setEnvios(0);
@@ -285,6 +302,8 @@ export default function ClubeAcesso({ modo, apiUrl, privacidadeUrl, pagina, ids:
       if (s.situacao === 'membro' && pagina === 'ativar') { abrir(destino.current, 'Abrindo sua conta…'); return; }
       aplicar(s, false);
     } catch (e) {
+      // código certo de conta suspensa: o backend gasta o código e não abre sessão
+      if (suspender(e)) return;
       const erro = comoErro(e);
       setEtapa('codigo');
       setErroCodigo(erro.tipo === 'validacao' ? (erro.campos.codigo ?? 'Código incorreto. Confira e tente de novo.') : erro.message);
@@ -325,6 +344,7 @@ export default function ClubeAcesso({ modo, apiUrl, privacidadeUrl, pagina, ids:
     try {
       aplicar(await api.concluir(c, chave.current), true);
     } catch (err) {
+      if (suspender(err)) return;
       const erro = comoErro(err);
       setAnuncio(erro.message);
       if (erro.tipo === 'sessao') {
@@ -368,6 +388,7 @@ export default function ClubeAcesso({ modo, apiUrl, privacidadeUrl, pagina, ids:
     : etapa === 'ativado' ? 'Você faz parte do Clube Âmbar!'
     : etapa === 'abrindo' ? 'Um instante…'
     : etapa === 'falha' ? 'Não deu certo agora'
+    : etapa === 'suspensa' ? 'Conta suspensa'
     : pagina === 'landing' ? 'Seu lugar no Clube começa aqui.'
     : pagina === 'cadastro' ? 'Continue seu cadastro'
     : 'Acesse o Clube Âmbar';
@@ -529,6 +550,15 @@ export default function ClubeAcesso({ modo, apiUrl, privacidadeUrl, pagina, ids:
           <>
             <p class="ficha__boas-vindas" role="status">Cadastro concluído! <span>Você vai receber a confirmação no WhatsApp.</span></p>
             <a class="btn btn--wine btn--block" href={urlEntrar()}>{cfg?.programaAtivo ? 'Ver meus pontos' : 'Entrar na minha conta'} <span class="ficha__seta" aria-hidden="true">→</span></a>
+            <a class="ticket__link ficha__sair" href="/">Voltar ao início</a>
+          </>
+        )}
+
+        {/* conta suspensa: o texto do backend, o caminho para a equipe — sem “tentar de novo” e sem nada da conta */}
+        {etapa === 'suspensa' && (
+          <>
+            <p class="ticket__status" data-tone="error" role="alert">{falha}</p>
+            <a class="btn btn--wine btn--block" href={visita.whatsapp.url} target="_blank" rel="noopener">Falar com a equipe no WhatsApp</a>
             <a class="ticket__link ficha__sair" href="/">Voltar ao início</a>
           </>
         )}
