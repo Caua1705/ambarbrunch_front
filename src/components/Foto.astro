@@ -1,10 +1,11 @@
 ---
 // Foto responsiva: AVIF + WebP em várias larguras, a partir do original aprovado em src/assets/media.
 // O <picture> usa `display: contents` para não criar caixa: o CSS do v1 (que estiliza o <img>) continua valendo.
-// Enquanto a imagem baixa, o <img> mostra a COR DOMINANTE da foto (calculada no build, sem requisição a mais): nada
-// aparece como um retângulo branco em rede lenta. Imagens com transparência (logos) ficam sem fundo.
+// Enquanto a imagem baixa, o <img> mostra uma PRÉVIA DESFOCADA da própria foto sobre a cor dominante (as duas calculadas
+// no build, sem requisição a mais): nada aparece como um retângulo branco ou preto em rede lenta (2026-10-27: só a cor
+// dava quase preto nas fotos com sombra, como o jardim). Imagens com transparência (logos) ficam sem fundo.
 import { Picture } from 'astro:assets';
-import { imagem, corDominante } from '../lib/media';
+import { imagem, corDominante, previa } from '../lib/media';
 
 interface Props {
   src: string;               // caminho dentro de src/assets/media
@@ -20,6 +21,8 @@ const { src, alt, sizes, widths = [240, 360, 540, 720, 1080], class: cls, priori
 const meta = imagem(src);
 const larguras = meta ? [...new Set(widths.map((w) => Math.min(w, meta.width)))] : [];
 const cor = meta ? await corDominante(src) : undefined;
+const borrada = cor ? await previa(src) : undefined;
+const fundo = cor && (borrada ? `background:${borrada} center/cover no-repeat ${cor}` : `background-color:${cor}`);
 ---
 {meta && (
   <Picture
@@ -31,7 +34,7 @@ const cor = meta ? await corDominante(src) : undefined;
     fallbackFormat="webp"
     quality={qualidade}
     class={cls}
-    style={cor ? `background-color:${cor}` : undefined}
+    style={fundo || undefined}
     loading={prioridade || eager ? 'eager' : 'lazy'}
     decoding="async"
     fetchpriority={prioridade ? 'high' : undefined}

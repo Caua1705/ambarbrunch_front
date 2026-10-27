@@ -20,7 +20,8 @@
 /* novo · vídeo de criador: moldura creme e etiqueta própria — nunca confundido com vídeo da Roll nem com avaliação do Âmbar */
 .story[data-tipo="criador"] { box-shadow: var(--ring-media) var(--cream); }
 .story[data-tipo="criador"] .story__tag { background: var(--cream); }
-.story__janela { position: absolute; inset: 0; }
+/* prévia desfocada da capa (--previa, components/Story.astro) por baixo do vídeo: o card não fica preto enquanto baixa */
+.story__janela { position: absolute; inset: 0; background: var(--previa, none) center / cover no-repeat; }
 .story video, .story__poster { width: 100%; height: 100%; object-fit: cover; }
 /* carrossel: o vídeo é criado por cima da capa quando o card fica ativo */
 .story__poster + video { position: absolute; inset: 0; }
@@ -85,7 +86,7 @@
   position: relative; inset: auto;
   padding: 6px; background: var(--glaze); border-radius: var(--radius-s); box-shadow: var(--shadow-photo); rotate: -1.5deg;
 }
-.story--wide :is(video, .story__poster) { display: block; height: auto; aspect-ratio: 478 / 266; object-fit: contain; border-radius: 4px; background: var(--media-bg); }
+.story--wide :is(video, .story__poster) { display: block; height: auto; aspect-ratio: 478 / 266; object-fit: contain; border-radius: 4px; background: var(--previa, none) center / cover no-repeat var(--media-bg); }
 .story--wide .story__poster + video { inset: 6px; width: calc(100% - 12px); }
 
 /* novo · card de feed (Reações reais): sem etiqueta, sem @, sem legenda: só o vídeo e o som (ícone). Alvo de 44 px.

@@ -11,7 +11,7 @@
 // Sem barra de progresso: com dois vídeos tocando ela custava ~13% da thread principal num celular intermediário.
 // Formato horizontal: janela emoldurada dentro do card, sem zoom.
 import { getImage } from 'astro:assets';
-import { imagem, video } from '../lib/media';
+import { imagem, previa, video } from '../lib/media';
 import { isPendente, type Pendente } from '../lib/conteudo';
 
 interface Props {
@@ -23,6 +23,9 @@ const { arquivo, poster, tag, descricao, autor, tipo, formato = 'vertical', audi
 const src = video(arquivo);
 const meta = imagem(poster);
 const posterUrl = meta ? (await getImage({ src: meta, width: formato === 'horizontal' ? 640 : 480, format: 'webp', quality: 64 })).src : undefined;
+// prévia desfocada da capa (2026-10-27), embutida no HTML: o card nunca aparece preto enquanto a capa e o vídeo baixam
+const borrada = meta ? await previa(poster) : undefined;
+const estilo = borrada ? `--previa:${borrada}` : undefined;
 // sem @ identificado (ou ainda pendente): o card não mostra nome — nunca um aviso no lugar
 const quem = !autor || isPendente(autor) ? undefined : autor;
 const [w, h] = formato === 'horizontal' ? [480, 268] : [540, 960];
@@ -32,7 +35,7 @@ const deQuem = carrossel || !quem ? `(${descricao})` : `de ${quem}`;
 ---
 {src && carrossel && (
   <li class:list={['story', 'story--feed', formato === 'horizontal' && 'story--wide']} data-tipo={tipo} data-audio={audio ? '' : undefined}
-    data-pos={Math.max(-2, Math.min(2, pos))} data-ativo={pos === 0 ? '' : undefined} inert={Math.abs(pos) > 1}>
+    data-pos={Math.max(-2, Math.min(2, pos))} data-ativo={pos === 0 ? '' : undefined} inert={Math.abs(pos) > 1} style={estilo}>
     <div class="story__janela">
       <!-- capa leve (img lazy) e o <video> num <template>, criado só quando o card vai tocar —
            cada <video> custa caro no carregamento do WebKit, mesmo com preload="none" -->
@@ -54,7 +57,7 @@ const deQuem = carrossel || !quem ? `(${descricao})` : `de ${quem}`;
   </li>
 )}
 {src && !carrossel && (
-  <li class:list={['story', formato === 'horizontal' && 'story--wide']} data-tipo={tipo} data-audio={audio ? '' : undefined}>
+  <li class:list={['story', formato === 'horizontal' && 'story--wide']} data-tipo={tipo} data-audio={audio ? '' : undefined} style={estilo}>
     <i class="story__progress" aria-hidden="true"></i>
     <div class="story__janela">
       <video muted playsinline loop preload="none" data-autoplay data-poster={posterUrl} aria-label={`Vídeo: ${descricao}`} width={w} height={h}>
