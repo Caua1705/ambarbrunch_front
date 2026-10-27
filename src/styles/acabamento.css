@@ -38,6 +38,8 @@ body { background-image: var(--paper-doodles), var(--paper-fibers); }
 .clube-convite::after { -webkit-mask-position: -51px 0; mask-position: -51px 0; }
 /* páginas internas não têm a sequência de cores da home */
 main:not(:has(.clube-convite)) ~ .footer::after { content: none; }
+/* home sem o Clube (PUBLIC_CLUBE_HOME desligado, 2026-10-27): o rodapé vem logo depois da reserva — rasgo vinho comum */
+main:has(.novo):not(:has(.clube-convite)) ~ .footer::after { content: ""; --costura: var(--wine); top: -1px; scale: none; }
 
 /* 3 · Fio de leitura: uma linha de caramelo no topo da tela que cresce com a rolagem (só onde há scroll-timeline) */
 .progresso { display: none; }

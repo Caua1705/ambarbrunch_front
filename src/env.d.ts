@@ -12,5 +12,7 @@ interface ImportMetaEnv {
   readonly PUBLIC_CLUBE_MODO?: 'indisponivel' | 'api' | 'simulado';   // “simulado” só vale no `astro dev` (lib/clube-modo.ts)
   /** URL base da API do Clube (FastAPI do Âmbar; staging antes de validar). */
   readonly PUBLIC_CLUBE_API_URL?: string;
+  /** "1" = mostra o Clube na home e no menu (lib/clube-modo.ts). Desligado por padrão até o lançamento do Clube. */
+  readonly PUBLIC_CLUBE_HOME?: string;
 }
 interface ImportMeta { readonly env: ImportMetaEnv; }

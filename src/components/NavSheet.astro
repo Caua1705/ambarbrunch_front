@@ -3,6 +3,7 @@
 // Rodada final: sem endereço, horário e contatos (endereço, horário, WhatsApp e Instagrams ficam no rodapé, que leva o id “visite”). Entrada e saída animadas em lib/nav-sheet.js.
 import Foto from './Foto.astro';
 import MenuButton from './MenuButton.astro';
+import { CLUBE_NA_HOME } from '../lib/clube-modo';
 
 interface Props { base?: string }
 const { base = '' } = Astro.props;   // '' na home (âncoras locais), '/' nas páginas internas
@@ -12,7 +13,7 @@ const itens = [
   { href: `${base}#cafe-roll`, texto: 'Café + Roll' },
   { href: `${base}#quem-provou`, texto: 'Reações reais' },
   { href: `${base}#ambientes`, texto: 'Ambientes' },
-  { href: `${base}#clube`, texto: 'Clube Âmbar' },   // 2026-10-23: a seção do Clube na home
+  ...(CLUBE_NA_HOME ? [{ href: `${base}#clube`, texto: 'Clube Âmbar' }] : []),   // só com a seção do Clube na home
   { href: `${base}#visite`, texto: 'Visite' },
 ];
 ---
