@@ -2,7 +2,7 @@
 // O navegador nunca vê o token nem fala direto com a API. No modo demo, responde com os dados de demonstração.
 import type { APIRoute } from 'astro';
 import { modoPainel } from '../../servidor/config';
-import { lerSessao, apagarSessao, COOKIE_UNIDADE } from '../../servidor/sessao';
+import { lerSessao, apagarSessao, COOKIE_UNIDADE, requisicaoDoPainel } from '../../servidor/sessao';
 import { chamarBackend, BackendForaDoAr } from '../../servidor/backend';
 import { responderDemo } from '../../servidor/demo/roteador';
 
@@ -23,10 +23,7 @@ export const ALL: APIRoute = async ({ params, request, cookies, url }) => {
   const metodo = request.method.toUpperCase();
   if (!['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].includes(metodo)) return erro(405, 'Método não permitido.', 'metodo');
   // Proteção contra requisição forjada: cookie SameSite=Strict + cabeçalho próprio + mesma origem.
-  if (metodo !== 'GET') {
-    const origem = request.headers.get('origin');
-    if (request.headers.get('x-painel') !== '1' || (origem && origem !== url.origin)) return erro(403, 'Requisição recusada.', 'origem_invalida');
-  }
+  if (metodo !== 'GET' && !requisicaoDoPainel(request)) return erro(403, 'Requisição recusada.', 'origem_invalida');
 
   const sessao = lerSessao(cookies);
   if (!sessao) return erro(401, 'Sua sessão terminou. Entre de novo.', 'nao_autenticado');

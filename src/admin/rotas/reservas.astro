@@ -12,5 +12,11 @@ const pode = podeVer(contexto.usuario.papel, 'reservas');
 ---
 
 <Painel titulo="Reservas" modulo="reservas" contexto={contexto}>
-  {pode ? <Reservas client:load contexto={contexto} /> : <SemAcesso />}
+  {pode ? (
+    <Reservas client:only="preact" contexto={contexto}>
+      <div slot="fallback" class="carregando-modulo" aria-busy="true" aria-label="Carregando"><span class="esqueleto" style="height:28px;width:40%"></span><span class="esqueleto" style="height:110px"></span><span class="esqueleto" style="height:320px"></span></div>
+    </Reservas>
+  ) : (
+    <SemAcesso />
+  )}
 </Painel>

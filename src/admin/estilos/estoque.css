@@ -1,0 +1,319 @@
+/* Estoque — só o que o design system do painel ainda não tem: conferência de compra (documento + itens), cartões de item,
+   leitura em andamento e o quadro do Cardápio Inteligente. Tokens de tokens.css. */
+
+/* Conferência: documento à esquerda, dados à direita; no celular, tudo em coluna e o documento recolhível. */
+.conferencia {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.8fr) minmax(0, 1.4fr);
+  gap: var(--e-5);
+  align-items: start;
+}
+.conferencia__doc {
+  position: sticky;
+  top: 0;
+}
+.conferencia__doc > summary {
+  display: none;
+}
+.conferencia__dados {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e-4);
+  min-width: 0;
+}
+@media (max-width: 900px) {
+  .conferencia {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .conferencia__doc {
+    position: static;
+    border: 1px solid var(--borda);
+    border-radius: var(--r-l);
+    background: var(--superficie-2);
+  }
+  .conferencia__doc > summary {
+    display: flex;
+    align-items: center;
+    gap: var(--e-2);
+    padding: var(--e-3) var(--e-4);
+    min-height: var(--alvo-toque);
+    cursor: pointer;
+    font-weight: 500;
+    list-style: none;
+  }
+  .conferencia__doc > summary::-webkit-details-marker {
+    display: none;
+  }
+  .conferencia__doc[open] > summary {
+    border-bottom: 1px solid var(--borda);
+  }
+  .conferencia__doc > .documento {
+    border: 0;
+    border-radius: 0 0 var(--r-l) var(--r-l);
+  }
+}
+.documento--nota {
+  max-height: calc(100dvh - 180px);
+  overflow: auto;
+  align-items: flex-start;
+}
+.documento--nota img {
+  height: auto;
+}
+.documento--nota iframe {
+  height: calc(100dvh - 200px);
+}
+
+/* Resumo da nota (fornecedor, número, totais) */
+.nota-cabeca {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--e-3) var(--e-5);
+  padding: var(--e-4);
+  border: 1px solid var(--borda);
+  border-radius: var(--r-l);
+  background: var(--superficie-2);
+}
+.nota-cabeca dt {
+  font-size: var(--t-xs);
+  color: var(--texto-3);
+}
+.nota-cabeca dd {
+  margin: 2px 0 0;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+/* Item da compra: um cartão por linha da nota */
+.itens-compra {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--e-2);
+}
+.item-compra {
+  border: 1px solid var(--borda);
+  border-radius: var(--r-l);
+  background: var(--superficie);
+  padding: var(--e-3) var(--e-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--e-2);
+}
+.item-compra[data-situacao='pendente'] {
+  border-color: color-mix(in srgb, var(--caramelo) 55%, var(--borda));
+  box-shadow: inset 3px 0 0 var(--caramelo);
+}
+.item-compra[data-situacao='confirmado'] {
+  box-shadow: inset 3px 0 0 var(--ok);
+}
+.item-compra[data-situacao='ignorado'],
+.item-compra[data-situacao='nao_estoque'] {
+  background: var(--superficie-2);
+}
+.item-compra__topo {
+  display: flex;
+  gap: var(--e-3);
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.item-compra__nome {
+  font-weight: 600;
+  font-size: var(--t-s);
+  letter-spacing: 0.01em;
+  overflow-wrap: anywhere;
+}
+.item-compra__meta {
+  font-size: var(--t-s);
+  color: var(--texto-2);
+}
+.item-compra__assoc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-2) var(--e-3);
+  align-items: center;
+  padding: var(--e-2) var(--e-3);
+  border-radius: var(--r-m);
+  background: var(--afundado);
+  font-size: var(--t-s);
+}
+.item-compra__assoc strong {
+  font-weight: 600;
+}
+.item-compra__acoes {
+  display: flex;
+  gap: var(--e-2);
+  flex-wrap: wrap;
+  align-items: center;
+}
+.item-compra__acoes .auto {
+  flex: 1 1 240px;
+}
+
+/* Leitura em andamento */
+.leitura {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e-4);
+  align-items: center;
+  text-align: center;
+  padding: var(--e-8) var(--e-4);
+}
+.leitura__barra {
+  width: min(360px, 100%);
+  height: 6px;
+  border-radius: var(--r-pilula);
+  background: var(--afundado);
+  overflow: hidden;
+}
+.leitura__barra > i {
+  display: block;
+  height: 100%;
+  background: var(--caramelo);
+  border-radius: inherit;
+  transition: width 600ms ease;
+}
+.passos--vertical {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--e-2);
+}
+.passos--vertical li + li::before {
+  display: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .passos [aria-current='step'] b {
+    animation: pulsar 1.2s ease-in-out infinite;
+  }
+}
+@keyframes pulsar {
+  50% {
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--marca) 22%, transparent);
+  }
+}
+
+/* Escolha da conta da compra (opções em cartões) */
+.opcoes-despesa {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e-2);
+}
+.opcao {
+  display: flex;
+  gap: var(--e-3);
+  align-items: flex-start;
+  padding: var(--e-3) var(--e-4);
+  border: 1px solid var(--borda-forte);
+  border-radius: var(--r-l);
+  cursor: pointer;
+  background: var(--superficie);
+}
+.opcao:has(input:checked) {
+  border-color: var(--marca);
+  box-shadow: 0 0 0 1px var(--marca);
+  background: var(--marca-suave);
+}
+.opcao input {
+  margin-top: 3px;
+  accent-color: var(--marca);
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+.opcao__texto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.opcao__texto span {
+  font-size: var(--t-s);
+  color: var(--texto-2);
+}
+
+/* Linhas editáveis (itens digitados, ingredientes da ficha) */
+.linhas-edicao {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e-2);
+}
+.linha-edicao {
+  display: grid;
+  grid-template-columns: minmax(0, 2.4fr) minmax(70px, 0.8fr) minmax(70px, 0.7fr) minmax(90px, 1fr) auto;
+  gap: var(--e-2);
+  align-items: end;
+}
+.linha-edicao--ficha {
+  grid-template-columns: minmax(0, 2.6fr) minmax(90px, 1fr) minmax(70px, 0.7fr) auto;
+}
+@media (max-width: 640px) {
+  .linha-edicao,
+  .linha-edicao--ficha {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    padding: var(--e-3);
+    border: 1px solid var(--borda);
+    border-radius: var(--r-l);
+  }
+  .linha-edicao > :first-child,
+  .linha-edicao--ficha > :first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Cardápio Inteligente: quatro quadrantes contados */
+.quadrantes {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--e-3);
+}
+@media (max-width: 900px) {
+  .quadrantes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.quadrante {
+  padding: var(--e-3) var(--e-4);
+  border: 1px solid var(--borda);
+  border-radius: var(--r-l);
+  background: var(--superficie-2);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.quadrante strong {
+  font-size: var(--t-2xl);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.quadrante span {
+  font-size: var(--t-s);
+  color: var(--texto-2);
+}
+
+/* Contagem: campo de quantidade por insumo */
+.contagem-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 150px;
+  gap: var(--e-3);
+  align-items: center;
+  padding: var(--e-3) 0;
+  border-bottom: 1px solid var(--borda);
+}
+.contagem-item:last-child {
+  border-bottom: 0;
+}
+@media (max-width: 480px) {
+  .contagem-item {
+    grid-template-columns: minmax(0, 1fr) 120px;
+  }
+}
+
+/* Alertas longos do item quebram linha no celular (a etiqueta padrão não quebra). */
+.item-compra .etiqueta {
+  white-space: normal;
+  line-height: 1.35;
+  padding-top: 3px;
+  padding-bottom: 3px;
+}

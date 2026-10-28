@@ -66,7 +66,7 @@ export default function Atendimento({ contexto }: { contexto: ContextoPainel }) 
           icone={<MessageSquareOff aria-hidden="true" />}
           carregando={resumo.carregando}
           valor={r ? inteiro(r.falhas_de_envio_24h) : '—'}
-          rodape={r?.falhas_de_envio_24h ? <button class="btn btn--p btn--fantasma" style={{ margin: '-6px -8px' }} onClick={() => setVerFalhas(true)}>Ver mensagens que não saíram</button> : 'Tudo entregue'}
+          rodape={r?.falhas_de_envio_24h ? <button class="btn btn--p btn--fantasma" style={{ margin: '-6px -8px', whiteSpace: 'normal', textAlign: 'left' }} onClick={() => setVerFalhas(true)}>Ver quais</button> : 'Tudo entregue'}
         />
       </section>
 

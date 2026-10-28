@@ -31,7 +31,7 @@ test('gerência não reativa membro suspenso do Clube; administrador sim', async
   await expect(page.getByRole('button', { name: 'Reativar' })).toHaveCount(0);
 
   await entrarDemo(page, 'admin');
-  await page.reload();
+  await page.goto(`${DEMO}/admin/clube?secao=membros`);
   await page.getByRole('row', { name: /Lívia Bastos/ }).click();
   await expect(page.getByRole('button', { name: 'Reativar' })).toBeVisible();
 });

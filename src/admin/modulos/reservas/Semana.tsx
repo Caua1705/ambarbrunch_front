@@ -3,7 +3,8 @@ import { useConsulta } from '../../lib/consulta';
 import { reservas } from '../../lib/api/reservas';
 import { somarDias, dataCurta, hora, hojeISO, plural } from '../../lib/formato';
 import { Dados, Esqueleto } from '../../ui/estados';
-import { statusDe, SituacaoReserva } from './comum';
+import { Etiqueta } from '../../ui/base';
+import { statusDe } from './comum';
 
 /** Segunda-feira da semana de `d`. */
 function segunda(d: string) {
@@ -40,7 +41,7 @@ export function Semana({ inicio, aoEscolherDia, aoAbrir }: { inicio: string; aoE
                       <button class="lista__item" style={{ minHeight: '40px', padding: '6px 14px', gap: '8px' }} onClick={() => aoAbrir(r.id)} aria-label={`${r.contato_nome}, ${hora(r.hora)}, ${r.pessoas} pessoas`}>
                         <span class="num forte" style={{ width: '40px' }}>{hora(r.hora)}</span>
                         <span class="lista__texto"><span style={{ color: 'var(--texto)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.contato_nome.split(' ')[0]} · {r.pessoas}</span></span>
-                        {statusDe(r) === 'pendente' && <SituacaoReserva r={r} />}
+                        {statusDe(r) === 'pendente' && <Etiqueta tom="atencao">pendente</Etiqueta>}
                       </button>
                     </li>
                   ))}

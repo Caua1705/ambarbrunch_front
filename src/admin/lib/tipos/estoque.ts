@@ -147,6 +147,8 @@ export interface CompraDetalhe {
   despesa: { despesa_id: Uuid | null; candidatas: CandidataDespesa[] };
   despesa_origem_id: Uuid | null;
   aviso: string | null;
+  /** Não documentado no contrato: id da compra original quando a etapa falhou com nota_ja_registrada (se o backend mandar). */
+  compra_original_id?: Uuid | null;
   pendencias: string[];
   pode_confirmar: boolean;
   versao: number;
@@ -325,4 +327,26 @@ export interface Inventario {
   fechado_em: Instante | null;
   versao: number;
   itens: { insumo_id: Uuid; insumo: string; unidade_base: UnidadeBase; quantidade_contada: Dec | null; quantidade_sistema: Dec | null; diferenca: Dec | null; valor_diferenca: Dec | null; contado_em: Instante | null }[];
+}
+
+/** Venda cancelada (ou corrigida para menos) depois da baixa: a operação diz se o produto chegou a ser preparado (§3.5). */
+export interface CancelamentoEstoque {
+  id: Uuid;
+  venda_id: Uuid;
+  dia: Data;
+  motivo: 'venda_cancelada' | 'venda_corrigida';
+  baixa_lancada: boolean;
+  situacao: 'pendente' | 'nao_produzido' | 'produzido_descartado' | 'produzido_aproveitado' | 'nao_apurado' | 'sem_efeito';
+  versao: number;
+  itens: { insumo_id: Uuid; insumo?: string; unidade_base?: UnidadeBase; quantidade: Dec; custo_unitario: Dec | null }[];
+}
+
+export interface ItemReposicao {
+  insumo: string;
+  unidade_base: UnidadeBase;
+  quantidade_sugerida: Dec | null;
+  prazo_conhecido: boolean;
+  ultimo_fornecedor: string | null;
+  ultimo_preco_base: Dec | null;
+  custo_estimado: Dec | null;
 }

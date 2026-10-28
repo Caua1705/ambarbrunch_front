@@ -4,7 +4,7 @@ import type { Pagina, Cursor } from '../tipos/comum';
 import type {
   CompraDetalhe, CompraLista, DespesaDaCompra, FichaDetalhe, FichaLista, Insumo, InsumoDetalhe, ItemManual, MovimentoEstoque,
   ResolucaoItem, ResumoEstoque, SugestaoInsumo, ProdutoAnalise, Ruptura, Cardapio, FornecedoresAnalise, CmvAnalise,
-  SugestaoInventario, Inventario, UnidadeBase, EtapaCompra,
+  SugestaoInventario, Inventario, UnidadeBase, EtapaCompra, CancelamentoEstoque, ItemReposicao,
 } from '../tipos/estoque';
 import type { VisaoGeral, RadarInsight } from '../tipos/visao-geral';
 
@@ -48,12 +48,16 @@ export const estoque = {
   ficha: (alvo: 'produto' | 'preparo', id: string) => pedir<FichaDetalhe>(`estoque/fichas/${alvo}/${id}`),
   salvarFicha: (alvo: 'produto' | 'preparo', id: string, f: { rendimento: string; itens: { insumo_id: string; quantidade: string; perda_percentual?: string }[]; observacao?: string }) =>
     pedir<FichaDetalhe>(`estoque/fichas/${alvo}/${id}`, { metodo: 'PUT', corpo: f }),
+  // Vendas canceladas depois da baixa (§3.5)
+  cancelamentos: (situacao = 'pendente') => pedir<Pagina<CancelamentoEstoque>>('estoque/cancelamentos', { query: { situacao, limite: 50 } }),
+  resolverCancelamento: (id: string, versao: number, decisao: 'nao_produzido' | 'produzido_descartado') => pedir<CancelamentoEstoque>(`estoque/cancelamentos/${id}/resolver`, { metodo: 'POST', corpo: { versao, decisao } }),
   // Análises
   produtos: (de: string, ate: string, ordenar = 'receita') => pedir<ProdutoAnalise[]>('estoque/analises/produtos', { query: { de, ate, ordenar } }),
   cmv: (mes: string) => pedir<CmvAnalise>('estoque/analises/cmv', { query: { mes } }),
   cardapio: (de: string, ate: string) => pedir<Cardapio>('estoque/analises/cardapio', { query: { de, ate } }),
   fornecedores: (de: string, ate: string) => pedir<FornecedoresAnalise>('estoque/analises/fornecedores', { query: { de, ate } }),
   ruptura: () => pedir<Ruptura>('estoque/analises/ruptura'),
+  reposicao: (dias_cobertura = 7) => pedir<{ disponivel?: boolean; motivos?: { codigo: string; texto: string }[]; itens: ItemReposicao[]; aviso?: string }>('estoque/analises/reposicao', { query: { dias_cobertura } }),
 };
 
 export const visaoGeral = {

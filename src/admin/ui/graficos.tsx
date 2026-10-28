@@ -1,6 +1,22 @@
 // Gráficos em SVG puro (linhas e barras), sem biblioteca: leves, com as cores do tema e dica ao passar o mouse/tocar.
 // Só para responder perguntas operacionais (evolução, comparação). Valores nulos não viram zero: a linha é interrompida.
-import { useMemo, useRef, useState } from 'preact/hooks';
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+
+/** Largura real do gráfico: o desenho usa pixels de verdade, então o texto dos eixos fica legível no celular. */
+function useLargura() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [largura, setLargura] = useState(720);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const medir = () => setLargura(Math.max(280, Math.round(el.clientWidth)));
+    medir();
+    const ro = new ResizeObserver(medir);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return [ref, largura] as const;
+}
 
 export interface Serie {
   nome: string;
@@ -23,7 +39,7 @@ function escala(max: number) {
 const curta = (v: number) => (Math.abs(v) >= 1000 ? `${(v / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} mil` : v.toLocaleString('pt-BR', { maximumFractionDigits: 0 }));
 
 export function GraficoLinhas({ rotulos, series, formatar, altura = 240, rotulo }: { rotulos: string[]; series: Serie[]; formatar: (v: number) => string; altura?: number; rotulo: string }) {
-  const L = 720;
+  const [caixa, L] = useLargura();
   const M = { e: 52, d: 12, t: 12, b: 28 };
   const [foco, setFoco] = useState<number | null>(null);
   const ref = useRef<SVGSVGElement>(null);
@@ -54,10 +70,10 @@ export function GraficoLinhas({ rotulos, series, formatar, altura = 240, rotulo 
     const i = Math.round(((px - M.e) / (L - M.e - M.d)) * (n - 1));
     setFoco(Math.max(0, Math.min(n - 1, i)));
   };
-  const passoRotulo = Math.ceil(n / 8);
+  const passoRotulo = Math.ceil(n / Math.max(3, Math.floor(L / 80)));
 
   return (
-    <div class="grafico">
+    <div class="grafico" ref={caixa}>
       <svg ref={ref} viewBox={`0 0 ${L} ${altura}`} role="img" aria-label={rotulo} onPointerMove={mover} onPointerLeave={() => setFoco(null)}>
         {passos.map((p) => (
           <g key={p}>
@@ -88,7 +104,8 @@ export function GraficoLinhas({ rotulos, series, formatar, altura = 240, rotulo 
         </div>
       )}
       {/* Mesmos números em tabela para leitores de tela */}
-      <table class="sr">
+      <div class="sr">
+      <table>
         <caption>{rotulo}</caption>
         <thead>
           <tr>
@@ -105,13 +122,14 @@ export function GraficoLinhas({ rotulos, series, formatar, altura = 240, rotulo 
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }
 
 /** Barras agrupadas (ex.: receitas × despesas por mês). */
 export function GraficoBarras({ rotulos, series, formatar, altura = 240, rotulo }: { rotulos: string[]; series: Serie[]; formatar: (v: number) => string; altura?: number; rotulo: string }) {
-  const L = 720;
+  const [caixa, L] = useLargura();
   const M = { e: 52, d: 8, t: 12, b: 28 };
   const [foco, setFoco] = useState<number | null>(null);
   const todos = series.flatMap((s) => s.valores.filter((v): v is number => v !== null));
@@ -120,8 +138,9 @@ export function GraficoBarras({ rotulos, series, formatar, altura = 240, rotulo 
   const grupo = (L - M.e - M.d) / Math.max(1, n);
   const largura = Math.min(28, (grupo * 0.7) / series.length);
   const y = (v: number) => M.t + (altura - M.t - M.b) * (1 - v / max);
+  const passoRotulo = Math.ceil(n / Math.max(3, Math.floor(L / 56)));
   return (
-    <div class="grafico">
+    <div class="grafico" ref={caixa}>
       <svg viewBox={`0 0 ${L} ${altura}`} role="img" aria-label={rotulo} onPointerLeave={() => setFoco(null)}>
         {passos.map((p) => (
           <g key={p}>
@@ -140,7 +159,7 @@ export function GraficoBarras({ rotulos, series, formatar, altura = 240, rotulo 
                 const bx = cx - (largura * series.length) / 2 + j * largura + 1;
                 return <rect key={s.nome} x={bx} y={y(v)} width={largura - 2} height={Math.max(0, y(0) - y(v))} rx={3} fill={s.cor} />;
               })}
-              <text x={cx} y={altura - 8} text-anchor="middle">{r}</text>
+              {(i % passoRotulo === 0 || i === n - 1) && <text x={cx} y={altura - 8} text-anchor="middle">{r}</text>}
             </g>
           );
         })}
@@ -156,7 +175,8 @@ export function GraficoBarras({ rotulos, series, formatar, altura = 240, rotulo 
           ))}
         </div>
       )}
-      <table class="sr">
+      <div class="sr">
+      <table>
         <caption>{rotulo}</caption>
         <tbody>
           {rotulos.map((r, i) => (
@@ -167,6 +187,7 @@ export function GraficoBarras({ rotulos, series, formatar, altura = 240, rotulo 
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

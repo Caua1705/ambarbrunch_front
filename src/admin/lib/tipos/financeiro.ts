@@ -455,6 +455,27 @@ export interface ItemFechamento {
   rota: string | null;
 }
 
+export interface MovimentoDetalhe extends MovimentoBancario {
+  vinculos?: { id: Uuid; tipo: string; acao: string; valor: Dec; situacao: 'ativa' | 'desfeita'; descricao?: string | null; criado_em: Instante; desfeito_em?: Instante | null; motivo?: string | null }[];
+  arquivos?: { importacao_id: Uuid; linha: number | null; criado_em?: Instante }[];
+  historico?: { em: Instante; acao: string; ator: string | null; dados?: unknown }[];
+}
+
+export interface Repasses {
+  periodo: { de: Data; ate: Data };
+  meios: { meio: string; vendido: Dec; liquidado_vinculado: Dec; diferenca_a_conferir: Dec; vendido_por_tipo?: Record<string, Dec> }[];
+  aviso: string;
+}
+
+export interface Apuracao {
+  mes: Data;
+  status: 'rascunho' | 'conferida' | 'fechada' | string;
+  congelada?: boolean;
+  qualidade?: NivelQualidade | Qualidade;
+  excecao_conciliacao?: { motivo: string; por: string } | null;
+  [k: string]: unknown;
+}
+
 export interface Fechamento {
   mes: Data;
   concluido: boolean;

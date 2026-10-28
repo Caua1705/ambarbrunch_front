@@ -4,7 +4,7 @@ import type { Pagina } from '../tipos/comum';
 import type {
   Categoria, ContaBancaria, ConciliacaoMes, DespesaEntrada, DespesaSaida, DespesasPorCategoria, Fechamento, FilaRevisao,
   Importacao, ListaContas, ListaLancamentos, MapeamentoCsv, MesEvolucao, MovimentoBancario, PagamentoEntrada, ParcelaSaida,
-  Recorrencia, ResultadoMes, ResumoFinanceiro, NivelConciliacao,
+  Recorrencia, ResultadoMes, ResumoFinanceiro, NivelConciliacao, Repasses, Apuracao, MovimentoDetalhe,
 } from '../tipos/financeiro';
 
 export const financeiro = {
@@ -52,12 +52,20 @@ export const financeiro = {
   cobertura: (id: string, de: string, ate: string) => pedir<Importacao>(`financeiro/extratos/${id}/cobertura`, { metodo: 'POST', corpo: { de, ate } }),
   movimentos: (q: { de: string; ate: string; conta_id?: string; nivel?: NivelConciliacao; situacao?: string; importacao_id?: string; direcao?: string; limite?: number }) =>
     pedir<Pagina<MovimentoBancario>>('financeiro/conciliacao/movimentos', { query: { limite: 100, ...q } }),
-  movimento: (id: string) => pedir<MovimentoBancario & { vinculos?: unknown[]; historico?: unknown[] }>(`financeiro/conciliacao/movimentos/${id}`),
+  movimento: (id: string) => pedir<MovimentoDetalhe>(`financeiro/conciliacao/movimentos/${id}`),
   acaoMovimento: (id: string, a: Record<string, unknown> & { versao: number; acao: string }) =>
     pedir<MovimentoBancario & { conciliacao_id: string }>(`financeiro/conciliacao/movimentos/${id}/acoes`, { metodo: 'POST', corpo: a }),
   identidade: (id: string, versao: number, decisao: 'distinto' | 'duplicado') => pedir<MovimentoBancario>(`financeiro/conciliacao/movimentos/${id}/identidade`, { metodo: 'POST', corpo: { versao, decisao } }),
   conciliacaoMes: (mes: string) => pedir<ConciliacaoMes>(`financeiro/conciliacao/meses/${mes}`),
   conciliarMes: (mes: string, contaId: string) => pedir<unknown>(`financeiro/conciliacao/meses/${mes}/contas/${contaId}/conciliar`, { metodo: 'POST' }),
+  reabrirMes: (mes: string, contaId: string, motivo: string) => pedir<unknown>(`financeiro/conciliacao/meses/${mes}/contas/${contaId}/reabrir`, { metodo: 'POST', corpo: { motivo } }),
+  desfazerVinculo: (conciliacaoId: string, motivo: string) => pedir<unknown>(`financeiro/conciliacao/vinculos/${conciliacaoId}/desfazer`, { metodo: 'POST', corpo: { motivo } }),
+  repasses: (de: string, ate: string) => pedir<Repasses>('financeiro/conciliacao/repasses', { query: { de, ate } }),
+  // Apuração mensal (conferir: gerente; fechar e reabrir: admin)
+  apuracao: (mes: string) => pedir<Apuracao>(`financeiro/apuracoes/${mes}`),
+  conferirApuracao: (mes: string) => pedir<Apuracao>(`financeiro/apuracoes/${mes}/conferir`, { metodo: 'POST' }),
+  fecharApuracao: (mes: string, excecao_conciliacao?: string) => pedir<Apuracao>(`financeiro/apuracoes/${mes}/fechar`, { metodo: 'POST', corpo: excecao_conciliacao ? { excecao_conciliacao } : null }),
+  reabrirApuracao: (mes: string, motivo: string) => pedir<Apuracao>(`financeiro/apuracoes/${mes}/reabrir`, { metodo: 'POST', corpo: { motivo } }),
   // Documentos (URL assinada de 5 min)
   enviarArquivo: (arquivo: File, tipo: 'comprovante' | 'nota' | 'documento') => {
     const f = new FormData();

@@ -1,0 +1,262 @@
+/* Financeiro — estilos próprios do módulo (usa só os tokens de tokens.css). */
+
+.fin-totais {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-1) var(--e-6);
+  padding: var(--e-3) var(--e-5);
+  border-bottom: 1px solid var(--borda);
+  background: var(--superficie-2);
+}
+.fin-totais > div,
+.fin-valores > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.fin-totais span,
+.fin-valores span {
+  font-size: var(--t-xs);
+  color: var(--texto-3);
+}
+.fin-totais strong {
+  font-size: var(--t-m);
+  font-weight: 600;
+}
+.fin-valores {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--e-3);
+  padding: var(--e-3) var(--e-4);
+  border: 1px solid var(--borda);
+  border-radius: var(--r-l);
+  background: var(--superficie-2);
+}
+.fin-valores strong {
+  font-size: var(--t-l);
+  font-weight: 600;
+}
+.fin-valores small {
+  font-size: var(--t-xs);
+  color: var(--texto-3);
+}
+
+.fin-faixa {
+  width: 100%;
+  align-items: center;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+.fin-faixa:hover {
+  filter: brightness(0.985);
+}
+.fin-faixa .btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.fin-borda {
+  border: 1px solid var(--borda);
+  border-radius: var(--r-l);
+  overflow: hidden;
+}
+.fin-destaque {
+  padding: var(--e-3) var(--e-4);
+  border-radius: var(--r-m);
+  background: var(--afundado);
+  border: 1px solid var(--borda);
+}
+
+/* Parcelas e pagamentos no detalhe da despesa */
+.fin-parcela {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--e-3) var(--e-4);
+  border: 1px solid var(--borda);
+  border-radius: var(--r-m);
+}
+.fin-pagamento {
+  padding-top: 6px;
+  border-top: 1px dashed var(--borda);
+  font-size: var(--t-s);
+  flex-wrap: nowrap;
+  align-items: flex-start;
+}
+.fin-parcelas {
+  border: 1px solid var(--borda);
+  border-radius: var(--r-m);
+  max-height: 220px;
+  overflow-y: auto;
+}
+.fin-parcelas > li {
+  padding: 8px var(--e-3);
+  font-size: var(--t-s);
+}
+
+/* Candidatas (revisão e conciliação): escolha explícita, nunca pré-marcada quando ambígua */
+.fin-candidata {
+  display: flex;
+  gap: var(--e-3);
+  align-items: flex-start;
+  padding: var(--e-3) var(--e-4);
+  border: 1px solid var(--borda-forte);
+  border-radius: var(--r-l);
+  cursor: pointer;
+  background: var(--superficie);
+  transition: border-color var(--anim), background var(--anim);
+}
+.fin-candidata:hover {
+  border-color: var(--borda-controle);
+}
+.fin-candidata input {
+  margin-top: 3px;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--marca);
+  flex: none;
+}
+.fin-candidata--sel {
+  border-color: var(--marca);
+  background: var(--marca-suave);
+}
+.fin-evidencias {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: var(--t-xs);
+}
+.fin-ev {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--texto-3);
+}
+.fin-ev svg {
+  width: 13px;
+  height: 13px;
+  flex: none;
+}
+.fin-ev--ok {
+  color: var(--ok);
+}
+.fin-ev--alerta {
+  color: var(--atencao);
+}
+
+/* Revisão de documento: documento à esquerda, dados e decisão à direita */
+.fin-revisao {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: var(--e-6);
+  align-items: start;
+}
+.fin-revisao__doc {
+  position: sticky;
+  top: 0;
+}
+@media (max-width: 900px) {
+  .fin-revisao {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .fin-revisao__doc {
+    position: static;
+  }
+}
+
+/* Demonstrativo de resultado */
+.fin-dre {
+  display: flex;
+  flex-direction: column;
+}
+.fin-dre__linha {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--e-3);
+  padding: 8px 0;
+  border-bottom: 1px solid var(--borda);
+  font-size: var(--t-m);
+}
+.fin-dre__linha > span:last-child {
+  white-space: nowrap;
+}
+.fin-dre__linha--recuo {
+  padding-left: var(--e-4);
+  color: var(--texto-2);
+  font-size: var(--t-s);
+}
+.fin-dre__linha--forte {
+  font-weight: 600;
+}
+.fin-dre__total {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--e-3);
+  padding: var(--e-3) var(--e-4);
+  margin-top: var(--e-3);
+  border-radius: var(--r-m);
+  background: var(--marca-suave);
+  color: var(--marca-texto);
+  font-weight: 650;
+  font-size: var(--t-l);
+}
+.fin-detalhes {
+  margin-top: var(--e-4);
+}
+.fin-detalhes summary {
+  cursor: pointer;
+  font-size: var(--t-s);
+  font-weight: 500;
+  color: var(--texto-2);
+  padding: 6px 0;
+}
+.fin-categoria {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 0;
+}
+@media (max-width: 560px) {
+  .fin-dre__linha--recuo {
+    padding-left: var(--e-2);
+  }
+  .fin-totais {
+    padding: var(--e-3) var(--e-4);
+    gap: var(--e-2) var(--e-4);
+  }
+}
+
+/* Botão pequeno só com ícone: em painel.css, .btn--p (depois de .btn--icone) devolve o padding lateral e esmaga o
+   ícone para 6 px. Correção local; o lugar certo é painel.css (.btn--p.btn--icone { padding: 0 }). */
+.btn--p.btn--icone {
+  padding: 0;
+}
+
+/* No celular (uma coluna), o que pede ação vem antes dos gráficos. */
+@media (max-width: 1100px) {
+  .fin-primeiro-no-celular {
+    order: -1;
+  }
+}
+
+/* Informação que, no celular, entra na linha principal porque a coluna dela some. */
+.fin-so-celular {
+  display: none;
+}
+@media (max-width: 560px) {
+  .fin-so-celular {
+    display: inline;
+  }
+}
+
+/* Celular: o documento não empurra os dados e a decisão para longe. */
+@media (max-width: 900px) {
+  .fin-revisao__doc .documento {
+    min-height: 0 !important;
+    max-height: 46vh !important;
+  }
+  .fin-revisao__doc .documento img {
+    max-height: 46vh;
+  }
+}

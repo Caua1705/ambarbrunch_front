@@ -79,7 +79,7 @@ test.describe('modo api (backend falso)', () => {
     await page.getByLabel('Senha', { exact: true }).fill('senha-certa');
     await page.getByRole('button', { name: 'Entrar' }).click();
     await page.waitForURL(`${API}/admin/reservas`);
-    await expect(page.getByText('Cliente Real de Teste')).toBeVisible();
+    await expect(page.getByText('Cliente Real de Teste').filter({ visible: true })).toBeVisible();
 
     const cookie = (await page.context().cookies()).find((c) => c.name === 'ambar_painel')!;
     expect(cookie.httpOnly).toBe(true);

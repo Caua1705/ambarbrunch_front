@@ -2083,7 +2083,7 @@ button.lista__item {
 
 @media (max-width: 560px) {
   /* Em listas estreitas a situação quebra linha em vez de espremer o nome */
-  .lista__fim {
+  .lista__fim:has(> .situacao) {
     max-width: 42%;
     text-align: right;
   }
@@ -2091,4 +2091,16 @@ button.lista__item {
     white-space: normal;
     font-size: var(--t-xs);
   }
+}
+
+/* Enquanto o JavaScript do módulo carrega (ilhas só no navegador) */
+.carregando-modulo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e-4);
+}
+
+/* .btn--p vem depois de .btn--icone e devolvia o padding lateral ao botão só de ícone (o "⋯" ficava esmagado) */
+.btn--p.btn--icone {
+  padding: 0;
 }

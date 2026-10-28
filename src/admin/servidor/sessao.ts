@@ -19,12 +19,12 @@ export function lerSessao(cookies: AstroCookies): Sessao | null {
   return { token, demoPapel: demo ? (demo[1] as Papel) : null };
 }
 
-export function gravarSessao(cookies: AstroCookies, url: URL, token: string, expiraEm: Date) {
+export function gravarSessao(cookies: AstroCookies, seguro: boolean, token: string, expiraEm: Date) {
   const segundos = Math.max(60, Math.floor((expiraEm.getTime() - Date.now()) / 1000));
   cookies.set(COOKIE_SESSAO, token, {
     path: '/admin',
     httpOnly: true,
-    secure: url.protocol === 'https:',
+    secure: seguro,
     sameSite: 'strict',
     maxAge: segundos,
   });
@@ -32,4 +32,26 @@ export function gravarSessao(cookies: AstroCookies, url: URL, token: string, exp
 
 export function apagarSessao(cookies: AstroCookies) {
   cookies.delete(COOKIE_SESSAO, { path: '/admin' });
+}
+
+/**
+ * Escrita só da própria origem: cabeçalho `X-Painel: 1` (formulário de outro site não consegue mandar) e, quando o
+ * navegador informa `Origin`, o host dele igual ao `Host` da requisição. (O `url.origin` do Astro no servidor não
+ * confia no Host e pode dizer "localhost"; por isso a comparação é com o cabeçalho.)
+ */
+export function requisicaoDoPainel(request: Request): boolean {
+  if (request.headers.get('x-painel') !== '1') return false;
+  const origem = request.headers.get('origin');
+  if (!origem) return true;
+  try {
+    const host = request.headers.get('x-forwarded-host') ?? request.headers.get('host');
+    return new URL(origem).host === host;
+  } catch {
+    return false;
+  }
+}
+
+/** https de verdade (direto ou atrás do proxy da Vercel): só então o cookie leva `Secure`. */
+export function ehHttps(request: Request, url: URL): boolean {
+  return url.protocol === 'https:' || request.headers.get('x-forwarded-proto') === 'https';
 }

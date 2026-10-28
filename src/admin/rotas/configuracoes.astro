@@ -11,5 +11,11 @@ const pode = true;
 ---
 
 <Painel titulo="Configurações" modulo="configuracoes" contexto={contexto}>
-  {pode ? <Configuracoes client:load contexto={contexto} /> : <SemAcesso />}
+  {pode ? (
+    <Configuracoes client:only="preact" contexto={contexto}>
+      <div slot="fallback" class="carregando-modulo" aria-busy="true" aria-label="Carregando"><span class="esqueleto" style="height:28px;width:40%"></span><span class="esqueleto" style="height:110px"></span><span class="esqueleto" style="height:320px"></span></div>
+    </Configuracoes>
+  ) : (
+    <SemAcesso />
+  )}
 </Painel>
