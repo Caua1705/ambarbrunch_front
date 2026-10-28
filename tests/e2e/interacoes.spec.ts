@@ -1,5 +1,6 @@
 // Interações da homepage: cardápio tátil, Café + Roll, espiral da fornada e experiência sem avisos internos.
 import { test, expect } from '@playwright/test';
+import { CLUBE_NA_HOME } from '../clube-home';
 
 test('sem avisos internos na experiência (“a confirmar”, “crédito a confirmar”, marcador de revisão)', async ({ page }) => {
   await page.goto('/');
@@ -12,9 +13,11 @@ test('ordem final das seções e títulos aprovados', async ({ page }) => {
   await page.goto('/');
   const ids = await page.$$eval('main > section', (ss) => ss.map((x) => x.id));
   // 2026-10-20: convite ao Clube Âmbar depois da reserva; 2026-10-23: a Visite foi absorvida pelo rodapé
-  expect(ids).toEqual(['novo', 'gastronomia', 'roll', 'cafe-roll', 'quem-provou', 'ambientes', 'reservar', 'clube']);
+  // 2026-10-27: o convite ao Clube saiu da home até o lançamento (PUBLIC_CLUBE_HOME)
+  const comClube = (lista: string[], clube: string) => (CLUBE_NA_HOME ? [...lista, clube] : lista);
+  expect(ids).toEqual(comClube(['novo', 'gastronomia', 'roll', 'cafe-roll', 'quem-provou', 'ambientes', 'reservar'], 'clube'));
   const titulos = await page.$$eval('main > section .mega', (ms) => ms.map((m) => [...m.querySelectorAll(':scope > span')].map((s) => s.textContent).join(' ').toUpperCase()));
-  expect(titulos).toEqual(['O ÂMBAR AGORA É BRUNCH.', 'PARA SUA MESA', 'DIRETO DA FORNADA', 'CAFÉ + ROLL', 'REAÇÕES REAIS', 'ESCOLHA SEU LUGAR', 'RESERVE SUA MESA', 'CLUBE ÂMBAR']);
+  expect(titulos).toEqual(comClube(['O ÂMBAR AGORA É BRUNCH.', 'PARA SUA MESA', 'DIRETO DA FORNADA', 'CAFÉ + ROLL', 'REAÇÕES REAIS', 'ESCOLHA SEU LUGAR', 'RESERVE SUA MESA'], 'CLUBE ÂMBAR'));
   await expect(page.locator('.hero .cut--polaroid figcaption')).toHaveCount(0);
   // Direto da fornada enxuta (2026-10-20): termina nos vídeos — sem bandejas, frase e pílulas de sabores
   const fornada = page.locator('#roll');

@@ -1,19 +1,23 @@
 // Menu, CTA fixo e navegação (regras da rodada final): um único botão fixo “Reservar mesa”, pela posição das seções;
 // selo do menu fixo no alto; folha do menu com entrada e saída animadas, sem contatos.
 import { test, expect, type Page } from '@playwright/test';
+import { CLUBE_NA_HOME, MOTIVO_CLUBE_OCULTO } from '../clube-home';
 
 const visivel = (page: Page, sel: string) => page.locator(sel).evaluate((el) => el.classList.contains('is-visible') && el.getAttribute('aria-hidden') === 'false');
 const rolarAte = (page: Page, sel: string, dy = 60) => page.locator(sel).first().evaluate((el, d) => scrollTo({ top: el.getBoundingClientRect().top + scrollY + d, behavior: 'instant' }), dy);
 
-test('CTA fixo: escondido no hero, em Novo capítulo e Para sua mesa; aparece em Direto da fornada; some na reserva; volta no Clube e fica até o fim', async ({ page }) => {
+test('CTA fixo: escondido no hero, em Novo capítulo e Para sua mesa; aparece em Direto da fornada; some na reserva; com o Clube na home, volta no Clube e fica até o fim', async ({ page }) => {
   await page.goto('/');
-  for (const [sel, esperado] of [['#novo', false], ['#gastronomia', false], ['#roll', true], ['#cafe-roll', true], ['#quem-provou', true], ['#ambientes', true], ['#reservar', false], ['#clube', true]] as const) {
+  const secoes: (readonly [string, boolean])[] = [['#novo', false], ['#gastronomia', false], ['#roll', true], ['#cafe-roll', true], ['#quem-provou', true], ['#ambientes', true], ['#reservar', false]];
+  if (CLUBE_NA_HOME) secoes.push(['#clube', true]);
+  for (const [sel, esperado] of secoes) {
     await rolarAte(page, sel);
     await expect.poll(() => visivel(page, '[data-sticky-cta]'), { message: sel }).toBe(esperado);
   }
-  // 2026-10-23: o rodapé não tem botão de reserva — o fixo continua sendo o acesso até o fim da página
+  // 2026-10-23: o rodapé não tem botão de reserva — com o Clube na home, o fixo continua sendo o acesso até o fim.
+  // Sem o Clube, o fim da página ainda mostra a reserva: o fixo fica oculto (não repete o botão sobre o formulário).
   await page.evaluate(() => scrollTo({ top: document.body.scrollHeight, behavior: 'instant' }));
-  await expect.poll(() => visivel(page, '[data-sticky-cta]')).toBe(true);
+  await expect.poll(() => visivel(page, '[data-sticky-cta]')).toBe(CLUBE_NA_HOME);
   await page.evaluate(() => scrollTo({ top: 0, behavior: 'instant' }));
   await expect.poll(() => visivel(page, '[data-sticky-cta]')).toBe(false);
 });
@@ -66,10 +70,11 @@ test('menu: só logo, seções, “Reservar mesa” e fechar — sem endereço, 
   const folha = page.locator('dialog#menu');
   await expect(folha).toBeVisible();
   await expect(folha.locator('.sheet__logo')).toBeVisible();
-  // sem “Saladas & bowls” desde 2026-10-20; “Clube Âmbar” entre Ambientes e Visite desde 2026-10-23
-  await expect(folha.locator('.sheet__nav a')).toHaveText(['Cardápio', 'Fornada', 'Café + Roll', 'Reações reais', 'Ambientes', 'Clube Âmbar', 'Visite']);
-  // numeração sequencial 01 … 07: todos os itens numa só lista, cada um com o contador do CSS
-  await expect(folha.locator('ol.sheet__nav > li > a')).toHaveCount(7);
+  // sem “Saladas & bowls” desde 2026-10-20; “Clube Âmbar” entre Ambientes e Visite só com o Clube na home (2026-10-27)
+  const itens = ['Cardápio', 'Fornada', 'Café + Roll', 'Reações reais', 'Ambientes', ...(CLUBE_NA_HOME ? ['Clube Âmbar'] : []), 'Visite'];
+  await expect(folha.locator('.sheet__nav a')).toHaveText(itens);
+  // numeração sequencial 01 … 0N: todos os itens numa só lista, cada um com o contador do CSS
+  await expect(folha.locator('ol.sheet__nav > li > a')).toHaveCount(itens.length);
   const numeros = await folha.locator('.sheet__nav a').evaluateAll((as) => as.map((a) => getComputedStyle(a, '::before').content));
   for (const n of numeros) expect(n).toContain('counter(nav');
   await expect(folha.locator('.btn.btn--wine')).toHaveText(/Reservar mesa/);
@@ -178,7 +183,21 @@ test('menu: item leva à seção e fecha a folha; “Reservar mesa” chega à r
   await expect.poll(() => page.locator('#reservar').evaluate((el) => Math.abs(el.getBoundingClientRect().top))).toBeLessThan(40);
 });
 
+test('menu sem o Clube enquanto ele está oculto, na home e nas páginas internas; /#clube antigo abre a home normalmente', async ({ page }) => {
+  test.skip(CLUBE_NA_HOME, 'build com o Clube na home');
+  for (const url of ['/', '/privacidade/', '/reservar/']) {
+    await page.goto(url);
+    await expect(page.locator('#menu .sheet__nav a', { hasText: 'Clube' }), url).toHaveCount(0);
+  }
+  const erros: string[] = [];
+  page.on('pageerror', (e) => erros.push(String(e)));
+  await page.goto('/#clube');
+  await expect(page.locator('#novo')).toBeVisible();
+  expect(erros).toEqual([]);
+});
+
 test('menu: “Clube Âmbar” fecha a folha e leva à seção do Clube; fora da home, volta à home já na seção', async ({ page }) => {
+  test.skip(!CLUBE_NA_HOME, MOTIVO_CLUBE_OCULTO);
   await page.goto('/');
   await page.locator('.menu-btn--hero').click();
   await page.locator('.sheet__nav a', { hasText: 'Clube Âmbar' }).click();
@@ -287,9 +306,10 @@ test('rodapé: logo, assinatura da Roll e os três contatos funcionais (WhatsApp
   for (const href of ['https://wa.me/5585994452724', 'https://www.instagram.com/ambarbrunch/', 'https://www.instagram.com/roll.ofc/']) {
     await expect(page.locator(`a[href="${href}"]`)).toHaveCount(1);
   }
-  // no fim da rolagem o botão fixo continua na tela, mas nada do rodapé fica embaixo dele
+  // no fim da rolagem o botão fixo (quando aparece: só com o Clube na home) não cobre nada do rodapé
   await page.evaluate(() => scrollTo({ top: document.body.scrollHeight, behavior: 'instant' }));
-  await expect.poll(() => visivel(page, '[data-sticky-cta]')).toBe(true);
+  await expect.poll(() => visivel(page, '[data-sticky-cta]')).toBe(CLUBE_NA_HOME);
+  if (!CLUBE_NA_HOME) return;
   await page.waitForTimeout(700);   // o botão termina de subir
   const cta = (await page.locator('[data-sticky-cta]').boundingBox())!;
   for (const peca of await rodape.locator('a, .footer__fine, .footer__texto').all()) {

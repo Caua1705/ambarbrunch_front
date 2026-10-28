@@ -10,6 +10,7 @@
 // suspensa pela gerência (403 conta_suspensa no código, no convite e em toda rota com sessão — b0b0553) · outros, novo.
 // GET /clube/me/movimentos imita o livro real (cursor `antesDe`, 20 por página; vazio com o programa desligado).
 import { test, expect, type Page, type Route } from '@playwright/test';
+import { CLUBE_NA_HOME, MOTIVO_CLUBE_OCULTO } from '../clube-home';
 import AxeBuilder from '@axe-core/playwright';
 
 const SITE = 'http://127.0.0.1:4322';
@@ -454,6 +455,7 @@ test('cadastro pela metade que abre a conta vai para /clube/cadastro; sair encer
 });
 
 test('da home à conta: “Minha conta” ao lado do botão do Clube leva o membro direto à conta, sem a apresentação', async ({ page }) => {
+  test.skip(!CLUBE_NA_HOME, `${MOTIVO_CLUBE_OCULTO}: com o Clube oculto, a conta segue em /clube/conta/ (testes acima)`);
   await apiFalsa(page);
   await entrarNaConta(page);
   await page.goto(`${SITE}/`);

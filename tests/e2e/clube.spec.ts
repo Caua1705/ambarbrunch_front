@@ -6,6 +6,7 @@
 // duplicado, erros, inscrições fechadas na API) depende da API real: foi conferido contra respostas interceptadas num
 // build em modo api, fora desta suíte.
 import { test, expect, type Page } from '@playwright/test';
+import { CLUBE_NA_HOME, MOTIVO_CLUBE_OCULTO } from '../clube-home';
 
 const externos = (page: Page) => {
   const lista: string[] = [];
@@ -13,7 +14,21 @@ const externos = (page: Page) => {
   return lista;
 };
 
+test('home com o Clube oculto (pré-lançamento): sem convite, sem item no menu e sem link para o Clube; /clube/ continua no ar', async ({ page }) => {
+  test.skip(CLUBE_NA_HOME, 'build com o Clube na home');
+  await page.goto('/');
+  await expect(page.locator('#clube, .clube-convite')).toHaveCount(0);
+  const ids = await page.locator('main > section').evaluateAll((s) => s.map((e) => e.id));
+  expect(ids.at(-1), 'a reserva fecha a home').toBe('reservar');
+  await expect(page.locator('a[href^="/clube"], a[href*="#clube"]')).toHaveCount(0);
+  await expect(page.locator('#menu .sheet__nav a', { hasText: 'Clube' })).toHaveCount(0);
+  // a página do Clube não foi apagada: segue acessível pelo endereço direto, em pré-lançamento
+  await page.goto('/clube/');
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Clube Âmbar');
+});
+
 test('home: convite curto ao Clube logo depois da reserva; em pré-lançamento, “Conheça o Clube” → /clube/', async ({ page }) => {
+  test.skip(!CLUBE_NA_HOME, MOTIVO_CLUBE_OCULTO);
   await page.goto('/');
   const ordem = await page.locator('main > section').evaluateAll((s) => s.map((e) => e.id));
   expect(ordem.indexOf('clube')).toBe(ordem.indexOf('reservar') + 1);
