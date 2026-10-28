@@ -25,7 +25,6 @@ const TIPO_DOC: Record<DocumentoRevisao['tipo_documento'], string> = {
 
 export function Revisao({ aberta, aoFechar, aoAbrirDespesa, confirmar }: { aberta: boolean; aoFechar: () => void; aoAbrirDespesa: (id: string) => void; confirmar: (p: PedidoConfirmacao) => void }) {
   const consulta = useConsulta(aberta ? 'financeiro/revisao' : null, () => financeiro.revisao());
-  const cats = useCategorias();
   const [docId, setDocId] = useState<string | null>(null);
   useEffect(() => {
     if (!aberta) setDocId(null);
