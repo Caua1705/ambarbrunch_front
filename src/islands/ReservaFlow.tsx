@@ -515,7 +515,7 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
       <p class="ticket__note" id={nota}>
         {modo === 'indisponivel' && 'As reservas pelo site ainda não estão ativas. Nada é enviado.'}
         {modo === 'simulado' && 'Simulação: nenhum dado sai deste navegador.'}
-        {modo === 'api' && etapa === 'escolha' && (estadoCfg === 'fechado' ? 'Nada é enviado por esta comanda enquanto as reservas estão fechadas.' : 'Você confere tudo antes de confirmar.')}
+        {modo === 'api' && etapa === 'escolha' && estadoCfg !== 'erro' && (estadoCfg === 'fechado' ? 'Nada é enviado por esta comanda enquanto as reservas estão fechadas.' : 'Você confere tudo antes de confirmar.')}
       </p>
       <p class="visually-hidden" aria-live="polite">{anuncio}</p>
     </form>
