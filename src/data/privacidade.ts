@@ -1,7 +1,7 @@
 import { pendente, type Pendente } from '../lib/conteudo';
 
 // Política de privacidade (LGPD) — ESTRUTURA. O texto jurídico é do controlador e passa por validação.
-// Só entra aqui o que o sistema de fato faz (backend do Âmbar, 20/10/2026). Identificação do controlador,
+// Só entra aqui o que o sistema de fato faz (backend do Âmbar; revisto no go-live de 28/10/2026). Identificação do controlador,
 // encarregado, bases legais, operadores e prazos de retenção: `pendente(...)` até a validação — nunca inventar.
 // Enquanto `aprovada` for false, a página mostra este rascunho só no modo de revisão; no build de produção,
 // continua o aviso de que a política está sendo preparada. A versão aprovada vai também para o backend
@@ -35,7 +35,8 @@ export const privacidade = {
       itens: [
         'Para registrar, confirmar, alterar ou cancelar a reserva e preparar o atendimento no café.',
         'Para falar com você sobre essa reserva.',
-        pendente('Canais de contato sobre a reserva (ex.: WhatsApp), quando a automação estiver ativa'),
+        'Pelo WhatsApp oficial do Âmbar, você recebe mensagens só sobre a sua reserva: o aviso de que ela foi registrada e lembretes antes do horário (o lembrete mais próximo leva a localização do café). Se responder a essas mensagens, a resposta fica registrada para a equipe atender.',
+        'A equipe do café recebe, num grupo interno de WhatsApp, um aviso curto de cada reserva nova, alterada ou cancelada: primeiro nome, data, horário, ambiente, número de pessoas e, se houver, as observações. O telefone não vai nesse aviso, a não ser quando a mensagem para você não puder ser entregue e a equipe precisar falar com você diretamente.',
         pendente('Base legal de cada finalidade (validação jurídica)'),
       ],
     },
@@ -63,7 +64,13 @@ export const privacidade = {
     {
       id: 'compartilhamento', titulo: 'Com quem os dados são compartilhados',
       itens: [
-        pendente('Operadores que tratam os dados em nome do controlador (ex.: hospedagem e banco de dados, envio de mensagens) e eventual transferência internacional'),
+        'Não vendemos nem cedemos seus dados. Eles são tratados, em nosso nome, por prestadores de serviço necessários para o sistema funcionar:',
+        'Banco de dados: Supabase, com o banco hospedado em São Paulo (Brasil).',
+        'Servidor do sistema de reservas e das automações (n8n): servidor virtual contratado pelo Âmbar.',
+        'WhatsApp oficial para falar com você: WhatsApp Business Platform (Meta).',
+        'Aviso interno à equipe: Z-API, ligada ao WhatsApp da equipe.',
+        'Site: Vercel (hospedagem das páginas); o formulário de reserva envia os dados direto ao sistema do Âmbar.',
+        pendente('Confirmação jurídica da lista de operadores, do provedor do servidor e da transferência internacional (Meta e Vercel)'),
       ],
     },
     {
