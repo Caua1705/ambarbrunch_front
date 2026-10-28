@@ -11,7 +11,7 @@ const servidor = (porta: number, env: Record<string, string>) => ({
   url: `http://127.0.0.1:${porta}/admin/login`,
   reuseExistingServer: false,
   timeout: 60_000,
-  env: { HOST: '127.0.0.1', PORT: String(porta), PAINEL_MODO: '', PAINEL_API_URL: '', ...env },
+  env: { HOST: '127.0.0.1', PORT: String(porta), PAINEL_MODO: '', PAINEL_API_URL: '', PAINEL_MODULOS: '', ...env },
 });
 
 export default defineConfig({
@@ -24,7 +24,8 @@ export default defineConfig({
   webServer: [
     { command: 'node tests-painel/backend-falso.mjs 4491', url: 'http://127.0.0.1:4491/saude', reuseExistingServer: false },
     servidor(4490, { PAINEL_MODO: 'demo' }),
-    servidor(4492, { PAINEL_MODO: 'api', PAINEL_API_URL: 'http://127.0.0.1:4491' }),
+    // como o preview: só Visão Geral e Reservas liberados
+    servidor(4492, { PAINEL_MODO: 'api', PAINEL_API_URL: 'http://127.0.0.1:4491', PAINEL_MODULOS: 'visao-geral,reservas' }),
     servidor(4493, {}),
   ],
   projects: [

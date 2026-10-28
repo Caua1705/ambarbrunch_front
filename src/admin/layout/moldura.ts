@@ -1,3 +1,5 @@
+import { sair } from './sair';
+
 // Comportamento da moldura do painel (sem framework): menu no celular, recolher a lateral, tema, unidade, perfil, sair e o
 // contador de reservas pendentes (uma consulta leve por página; nada de polling).
 const raiz = document.documentElement;
@@ -75,13 +77,7 @@ menuPerfil?.addEventListener('keydown', (e) => {
   }
 });
 
-document.getElementById('sair')?.addEventListener('click', async () => {
-  try {
-    await fetch('/admin/api/sessao', { method: 'DELETE', headers: { 'X-Painel': '1' }, credentials: 'same-origin' });
-  } finally {
-    location.assign('/admin/login');
-  }
-});
+document.getElementById('sair')?.addEventListener('click', () => void sair());
 
 // Reservas pendentes de aprovação (de hoje em diante) -------------------------------------------------------------------
 (async () => {

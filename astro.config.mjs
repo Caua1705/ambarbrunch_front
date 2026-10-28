@@ -87,6 +87,8 @@ export default defineConfig({
       PAINEL_MODO: envField.enum({ context: 'server', access: 'secret', values: ['api', 'demo', 'indisponivel'], optional: true }),
       PAINEL_API_URL: envField.string({ context: 'server', access: 'secret', optional: true }),
       PAINEL_CLUBE_CONVITES: envField.boolean({ context: 'server', access: 'secret', optional: true }),
+      // Liberação controlada: módulos visíveis e acessíveis (ex.: "visao-geral,reservas"). Vazia = todos.
+      PAINEL_MODULOS: envField.string({ context: 'server', access: 'secret', optional: true }),
     },
   },
   build: { inlineStylesheets: 'auto', assets: '_astro' },

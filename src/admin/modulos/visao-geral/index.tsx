@@ -4,7 +4,7 @@
 import { useState } from 'preact/hooks';
 import { CalendarCheck, Users, Wallet, Scale, BellRing, ChevronRight, CalendarClock, Receipt, PackageCheck, Landmark, MessagesSquare, UserCheck, Radar, FileWarning, ArrowRight, Sparkles } from 'lucide-preact';
 import type { ContextoPainel } from '../../lib/sessao';
-import { pode } from '../../lib/permissoes';
+import { pode, type Modulo } from '../../lib/permissoes';
 import { useConsulta } from '../../lib/consulta';
 import { reservas } from '../../lib/api/reservas';
 import { financeiro } from '../../lib/api/financeiro';
@@ -28,22 +28,26 @@ export const QUALIDADE: Record<NivelQualidade, { rotulo: string; tom: 'ok' | 'at
 
 export default function VisaoGeral({ contexto }: { contexto: ContextoPainel }) {
   const papel = contexto.usuario.papel;
-  const gerencia = pode(papel, 'visao.financeiro');
+  // Só consulta e mostra o que está liberado neste ambiente (PAINEL_MODULOS) e permitido ao papel.
+  const liberado = (m: Modulo) => contexto.modulos.includes(m);
+  const comReservas = liberado('reservas');
+  const gerencia = pode(papel, 'visao.financeiro') && liberado('financeiro');
   const hoje = hojeISO();
   const [periodo, setPeriodo] = useState<'hoje' | 'mes'>('mes');
 
-  const operacao = useConsulta(`reservas/operacao:${hoje}`, () => reservas.operacao(hoje));
-  const pendentesAprov = useConsulta(`reservas?pendentes:${hoje}`, () => reservas.listar({ data_de: hoje, status: ['pendente'], limite: 50 }));
+  const operacao = useConsulta(comReservas ? `reservas/operacao:${hoje}` : null, () => reservas.operacao(hoje));
+  const pendentesAprov = useConsulta(comReservas ? `reservas?pendentes:${hoje}` : null, () => reservas.listar({ data_de: hoje, status: ['pendente'], limite: 50 }));
   const visao = useConsulta('visao-geral', () => visaoGeral.obter());
   const resumoFin = useConsulta(gerencia ? 'financeiro/resumo' : null, () => financeiro.resumo());
   const evolucao = useConsulta(gerencia ? 'financeiro/evolucao:6' : null, () => financeiro.evolucao(6));
-  const compras = useConsulta('estoque/compras?conferir', () => estoque.compras({ etapa: 'aguardando_conferencia', limite: 20 }));
-  const comparecimento = useConsulta(`reservas/comparecimento:${hoje}`, () => reservas.pendentesComparecimento({ data_de: hoje, data_ate: hoje }));
-  const atend = useConsulta('atendimento/resumo', () => atendimento.resumo());
+  const compras = useConsulta(liberado('estoque') ? 'estoque/compras?conferir' : null, () => estoque.compras({ etapa: 'aguardando_conferencia', limite: 20 }));
+  const comparecimento = useConsulta(comReservas ? `reservas/comparecimento:${hoje}` : null, () => reservas.pendentesComparecimento({ data_de: hoje, data_ate: hoje }));
+  const atend = useConsulta(liberado('atendimento') ? 'atendimento/resumo' : null, () => atendimento.resumo());
 
   const ativas = operacao.dados?.filter((r) => r.status_reserva !== 'cancelada') ?? [];
   const pessoas = ativas.reduce((s, r) => s + r.pessoas, 0);
-  const fin = visao.dados?.financeiro ?? null;
+  // o bloco financeiro da Visão Geral só aparece com o Financeiro liberado, mesmo que o backend o envie
+  const fin = gerencia ? visao.dados?.financeiro ?? null : null;
 
   // Atenção necessária: só o que tem tela para resolver, do mais urgente para o menos.
   type Item = { id: string; icone: preact.ComponentChildren; tom: 'perigo' | 'atencao' | 'marca' | 'info'; titulo: string; detalhe: string; href: string };
@@ -64,7 +68,7 @@ export default function VisaoGeral({ contexto }: { contexto: ContextoPainel }) {
   if (nAtend) itens.push({ id: 'atendimento', icone: <MessagesSquare />, tom: 'marca', titulo: plural(nAtend, 'conversa esperando a equipe', 'conversas esperando a equipe'), detalhe: 'Clientes no WhatsApp aguardando resposta', href: '/admin/atendimento?filtro=aguardando' });
 
   const carregandoAtencao = operacao.carregando || pendentesAprov.carregando;
-  const foraDoAr = [visao, compras, atend].filter((c) => c.erro?.tipo === 'nao_implantado').length;
+  const foraDoAr = [gerencia ? visao : null, compras, atend].filter((c) => c?.erro?.tipo === 'nao_implantado').length;
 
   return (
     <Raiz>
@@ -107,7 +111,11 @@ export default function VisaoGeral({ contexto }: { contexto: ContextoPainel }) {
         ) : (
           <>
             <Indicador rotulo="Pessoas esperadas hoje" icone={<Users aria-hidden="true" />} href="/admin/reservas" carregando={operacao.carregando} valor={operacao.dados ? inteiro(pessoas) : '—'} rodape={operacao.dados ? `${plural(ativas.length, 'reserva', 'reservas')}` : 'Indisponível'} />
-            <Indicador rotulo="Compras para conferir" icone={<PackageCheck aria-hidden="true" />} href="/admin/estoque?aba=compras" carregando={compras.carregando} valor={compras.dados ? inteiro(nCompras) : '—'} rodape={compras.dados ? 'Notas e pagamentos de insumos' : compras.erro?.tipo === 'nao_implantado' ? 'Estoque ainda não está no ar' : 'Indisponível'} />
+            {liberado('estoque') ? (
+              <Indicador rotulo="Compras para conferir" icone={<PackageCheck aria-hidden="true" />} href="/admin/estoque?aba=compras" carregando={compras.carregando} valor={compras.dados ? inteiro(nCompras) : '—'} rodape={compras.dados ? 'Notas e pagamentos de insumos' : compras.erro?.tipo === 'nao_implantado' ? 'Estoque ainda não está no ar' : 'Indisponível'} />
+            ) : (
+              <Indicador rotulo="Aguardando aprovação" icone={<CalendarClock aria-hidden="true" />} href="/admin/reservas?status=pendente" carregando={pendentesAprov.carregando} valor={pendentesAprov.dados ? inteiro(nPend) : '—'} rodape="Hoje e próximos dias" />
+            )}
           </>
         )}
         <Indicador
@@ -210,12 +218,12 @@ export default function VisaoGeral({ contexto }: { contexto: ContextoPainel }) {
             ) : (
               <Vazio compacto icone={<Sparkles aria-hidden="true" />} titulo="Tudo em dia">Nenhuma pendência nas áreas disponíveis.</Vazio>
             )}
-            {foraDoAr > 0 && <div class="cartao__rodape">Algumas áreas (Financeiro, Estoque, Atendimento) ainda não estão no ar e não entram nesta lista.</div>}
+            {foraDoAr > 0 && <div class="cartao__rodape">Algumas áreas liberadas ainda não estão no ar no sistema do Âmbar e não entram nesta lista.</div>}
           </Cartao>
 
-          {pode(papel, 'visao.radar') && <RadarLucro consulta={visao} />}
+          {pode(papel, 'visao.radar') && (liberado('financeiro') || liberado('estoque')) && <RadarLucro consulta={visao} />}
 
-          <AtividadeRecente />
+          <AtividadeRecente reservasLiberadas={comReservas} estoqueLiberado={liberado('estoque')} />
         </div>
       </div>
     </Raiz>
@@ -269,10 +277,10 @@ function RadarLucro({ consulta }: { consulta: ReturnType<typeof useConsulta<impo
 }
 
 /** Não há rota de auditoria geral no backend: a atividade vem dos próprios registros (reservas criadas e compras recebidas). */
-function AtividadeRecente() {
+function AtividadeRecente({ reservasLiberadas, estoqueLiberado }: { reservasLiberadas: boolean; estoqueLiberado: boolean }) {
   const hoje = hojeISO();
-  const recentes = useConsulta(`reservas?recentes:${hoje}`, () => reservas.listar({ data_de: hoje, limite: 200 }));
-  const compras = useConsulta('estoque/compras?recentes', () => estoque.compras({ limite: 5 }));
+  const recentes = useConsulta(reservasLiberadas ? `reservas?recentes:${hoje}` : null, () => reservas.listar({ data_de: hoje, limite: 200 }));
+  const compras = useConsulta(estoqueLiberado ? 'estoque/compras?recentes' : null, () => estoque.compras({ limite: 5 }));
   type Ev = { id: string; em: string; texto: string; detalhe: string; href: string; icone: preact.ComponentChildren };
   const ev: Ev[] = [];
   for (const r of recentes.dados?.itens ?? []) ev.push({ id: r.id, em: r.criado_em, texto: `Reserva de ${r.contato_nome}`, detalhe: `${plural(r.pessoas, 'pessoa', 'pessoas')} · ${r.data.split('-').reverse().slice(0, 2).join('/')} às ${hora(r.hora)}`, href: `/admin/reservas?reserva=${r.id}`, icone: <CalendarCheck /> });

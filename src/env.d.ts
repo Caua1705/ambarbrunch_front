@@ -14,6 +14,8 @@ interface ImportMetaEnv {
   readonly PUBLIC_CLUBE_API_URL?: string;
   /** "1" = mostra o Clube na home e no menu (lib/clube-modo.ts). Desligado por padrão até o lançamento do Clube. */
   readonly PUBLIC_CLUBE_HOME?: string;
+  /** Definida na compilação pelo painel (src/admin/integracao.mjs): `false` em build da Vercel — sem código de demonstração. */
+  readonly PAINEL_DEMO_PERMITIDO?: boolean;
 }
 interface ImportMeta { readonly env: ImportMetaEnv; }
 

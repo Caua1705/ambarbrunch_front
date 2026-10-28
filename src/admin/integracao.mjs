@@ -17,20 +17,52 @@ const ROTAS = [
   ['/admin/api/[...caminho]', 'api/[...caminho].ts'],
 ];
 
+const SEM_DEMO = '\0ambar-painel-sem-demonstracao';
+
+/** Troca `servidor/demo/roteador` e `servidor/demo/sessao` (os únicos importados de fora da pasta) por um módulo vazio. */
+function semDemonstracao() {
+  return {
+    name: 'ambar:painel-sem-demonstracao',
+    enforce: 'pre',
+    resolveId(id) {
+      return /servidor\/demo\/(roteador|sessao)(\.ts)?$/.test(id.replaceAll('\\', '/')) ? SEM_DEMO : null;
+    },
+    load(id) {
+      if (id !== SEM_DEMO) return null;
+      return [
+        "const indisponivel = () => { throw new Error('Demonstração não existe neste build.'); };",
+        'export const responderDemo = indisponivel;',
+        'export const usuarioDemo = indisponivel;',
+        'export const UNIDADES_DEMO = [];',
+      ].join('\n');
+    },
+  };
+}
+
 export default function painel() {
   return {
     name: 'ambar:painel',
     hooks: {
-      'astro:config:setup': ({ injectRoute, addMiddleware, logger }) => {
-        // Demonstração nunca vai para a produção da Vercel (ver também servidor/config.ts, que confere de novo em execução).
-        if (process.env.PAINEL_MODO === 'demo' && process.env.VERCEL_ENV === 'production') {
-          throw new Error('PAINEL_MODO=demo não é permitido no build de produção.');
+      'astro:config:setup': ({ injectRoute, addMiddleware, updateConfig, logger }) => {
+        // Demonstração: só existe em build feito fora da Vercel (computador e testes). No build da Vercel — preview ou
+        // produção — o código e os dados de demonstração nem entram no pacote: `PAINEL_DEMO_PERMITIDO` vira `false` na
+        // compilação e os `import()` da demo são removidos (servidor/config.ts também recusa o modo em execução).
+        const demoPermitido = !process.env.VERCEL;
+        if (!demoPermitido && process.env.PAINEL_MODO === 'demo') {
+          throw new Error('PAINEL_MODO=demo não é permitido em build da Vercel.');
         }
+        updateConfig({
+          vite: {
+            define: { 'import.meta.env.PAINEL_DEMO_PERMITIDO': JSON.stringify(demoPermitido) },
+            // Na Vercel, os pontos de entrada da demonstração viram um módulo vazio: nenhum dado fictício é compilado.
+            plugins: demoPermitido ? [] : [semDemonstracao()],
+          },
+        });
         for (const [pattern, arquivo] of ROTAS) {
           injectRoute({ pattern, entrypoint: new URL(`./rotas/${arquivo}`, import.meta.url), prerender: false });
         }
         addMiddleware({ entrypoint: new URL('./middleware.ts', import.meta.url), order: 'pre' });
-        logger.info('painel administrativo ligado em /admin');
+        logger.info(`painel administrativo ligado em /admin${demoPermitido ? '' : ' (sem código de demonstração)'}`);
       },
     },
   };

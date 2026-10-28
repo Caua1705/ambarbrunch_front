@@ -6,6 +6,7 @@ import http from 'node:http';
 const porta = Number(process.argv[2] ?? 4491);
 const TOKEN = 'token-de-teste-nao-secreto';
 let ultimo = null;
+let ipDoLogin = null;
 const usuario = { id: '11111111-1111-4111-8111-111111111111', nome: 'Gerente Teste', email: 'gerente@teste.invalid', papel: 'gerente', unidades: [1] };
 const hoje = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Fortaleza' }).format(new Date());
 
@@ -19,8 +20,9 @@ http.createServer(async (req, res) => {
   let corpo = '';
   for await (const parte of req) corpo += parte;
   if (url.pathname === '/saude') return json(res, 200, { status: 'ok' });
-  if (url.pathname === '/__ultimo') return json(res, 200, { authorization: ultimo });
+  if (url.pathname === '/__ultimo') return json(res, 200, { authorization: ultimo, ip_do_login: ipDoLogin });
   if (url.pathname === '/admin/auth/login' && req.method === 'POST') {
+    ipDoLogin = req.headers['x-forwarded-for'] ?? null;
     const { email, senha } = JSON.parse(corpo || '{}');
     if (email === 'gerente@teste.invalid' && senha === 'senha-certa') return json(res, 200, { token: TOKEN, tipo: 'bearer', expira_em: new Date(Date.now() + 3600_000).toISOString(), usuario });
     return json(res, 401, { detail: 'Credenciais inválidas', codigo: 'nao_autenticado' });

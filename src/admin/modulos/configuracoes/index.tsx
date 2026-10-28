@@ -9,6 +9,7 @@ import { useConsulta, invalidar } from '../../lib/consulta';
 import { reservas } from '../../lib/api/reservas';
 import { ErroApi } from '../../lib/api/cliente';
 import { Raiz, Gaveta, avisar, avisarErro } from '../../ui/camadas';
+import { sair } from '../../layout/sair';
 import { Botao, Cabecalho, Cartao, Segmentado, Campo, Aviso, Situacao } from '../../ui/base';
 import { Dados, EsqueletoTabela } from '../../ui/estados';
 import { Tabela } from '../../ui/tabela';
@@ -38,10 +39,6 @@ export default function Configuracoes({ contexto }: { contexto: ContextoPainel }
       /* vale só nesta página */
     }
   };
-  const sair = async () => {
-    await fetch('/admin/api/sessao', { method: 'DELETE', headers: { 'X-Painel': '1' } }).catch(() => null);
-    location.assign('/admin/login');
-  };
 
   return (
     <Raiz>
@@ -60,7 +57,8 @@ export default function Configuracoes({ contexto }: { contexto: ContextoPainel }
               <dd>{usuario.papel === 'admin' ? 'Todas' : unidades.map((u) => u.nome).join(', ') || '—'}</dd>
             </dl>
             <p class="fraco">Para trocar a senha ou o perfil, fale com o administrador do sistema.</p>
-            <Botao icone={<LogOut aria-hidden="true" />} onClick={sair} style={{ alignSelf: 'flex-start' }}>Sair do painel</Botao>
+            <p class="fraco">Sair apaga o acesso deste navegador. Em computador compartilhado, sempre saia ao terminar. Se achar que alguém usou o seu acesso, peça ao administrador para encerrar as suas sessões no sistema.</p>
+            <Botao icone={<LogOut aria-hidden="true" />} onClick={() => void sair()} style={{ alignSelf: 'flex-start' }}>Sair do painel</Botao>
           </div>
         </Cartao>
         <Cartao titulo="Aparência" descricao="Vale para este aparelho">
@@ -68,7 +66,7 @@ export default function Configuracoes({ contexto }: { contexto: ContextoPainel }
         </Cartao>
       </div>
 
-      {pode(usuario.papel, 'reservas.configurar') && unidade && <RegrasReserva unidade={unidade.codigo} />}
+      {pode(usuario.papel, 'reservas.configurar') && contexto.modulos.includes('reservas') && unidade && <RegrasReserva unidade={unidade.codigo} />}
 
       <Cartao titulo={<span class="linha"><ShieldCheck size={16} aria-hidden="true" /> Perfis de acesso</span>} descricao="Quem vê o quê. O sistema do Âmbar confere o perfil a cada ação." justo>
         <Tabela<{ papel: Papel; ve: string; nao: string }>

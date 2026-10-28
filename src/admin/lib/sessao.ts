@@ -31,6 +31,8 @@ export interface ContextoPainel {
   unidade: Unidade | null;
   /** Convites do Clube pelo WhatsApp (só no lançamento do Clube). */
   clubeConvites: boolean;
+  /** Módulos liberados neste ambiente (PAINEL_MODULOS). O papel ainda decide o que cada pessoa vê dentro deles. */
+  modulos: import('./permissoes').Modulo[];
 }
 
 export const NOME_PAPEL: Record<Papel, string> = { admin: 'Administrador', gerente: 'Gerente', operador: 'Operação' };

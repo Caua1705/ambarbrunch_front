@@ -27,7 +27,7 @@ const MODULOS: { id: Modulo; rotulo: string; href: string; icone: typeof LayoutD
   { id: 'financeiro', rotulo: 'Financeiro', href: '/admin/financeiro', icone: Wallet },
   { id: 'estoque', rotulo: 'Estoque', href: '/admin/estoque', icone: Package },
 ];
-const visiveis = MODULOS.filter((m) => podeVer(usuario.papel, m.id));
+const visiveis = MODULOS.filter((m) => podeVer(usuario.papel, m.id) && contexto.modulos.includes(m.id));
 const sub = unidade ? unidade.nome : 'Sem unidade atribuída';
 ---
 

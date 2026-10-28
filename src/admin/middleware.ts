@@ -2,10 +2,9 @@
 // papel, unidades e `ativo` do usuário em toda requisição: desativar alguém vale na hora).
 import { defineMiddleware } from 'astro:middleware';
 import { createHash } from 'node:crypto';
-import { modoPainel, clubeConvites } from './servidor/config';
-import { lerSessao, apagarSessao, COOKIE_UNIDADE } from './servidor/sessao';
+import { modoPainel, clubeConvites, modulosLiberados, DEMO_PERMITIDO } from './servidor/config';
+import { lerSessao, apagarSessao, COOKIE_UNIDADE, ehHttps } from './servidor/sessao';
 import { chamarBackend, lerJson, BackendForaDoAr } from './servidor/backend';
-import { usuarioDemo, UNIDADES_DEMO } from './servidor/demo/sessao';
 import type { ContextoPainel, Unidade, Usuario } from './lib/sessao';
 
 const PUBLICAS = new Set(['/admin/login', '/admin/api/sessao']);
@@ -17,6 +16,7 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
   const api = caminho.startsWith('/admin/api/');
   const modo = modoPainel();
   ctx.locals.painelModo = modo;
+  const https = ehHttps(ctx.request, ctx.url);
 
   if (!PUBLICAS.has(caminho)) {
     const sessao = lerSessao(ctx.cookies);
@@ -27,17 +27,17 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
       return ctx.redirect(`/admin/login${volta}`, 303);
     };
     // Sessão de demonstração só vale no modo demo (e vice-versa).
-    if (!sessao || modo === 'indisponivel' || (modo === 'demo') !== (sessao.demoPapel !== null)) return seguro(negar(), modo);
+    if (!sessao || modo === 'indisponivel' || (modo === 'demo') !== (sessao.demoPapel !== null)) return seguro(negar(), modo, https);
 
     // As rotas de API não conferem /me: o backend valida o token em cada chamada repassada.
     if (!api) {
       const carregado = await carregarContexto(sessao.token, sessao.demoPapel, ctx.cookies.get(COOKIE_UNIDADE)?.value);
-      if (carregado === 'sessao') return seguro(negar(), modo);
-      if (carregado === 'backend') return seguro(paginaForaDoAr(), modo);
+      if (carregado === 'sessao') return seguro(negar(), modo, https);
+      if (carregado === 'backend') return seguro(paginaForaDoAr(), modo, https);
       ctx.locals.painel = { ...carregado, modo };
     }
   }
-  return seguro(await next(), modo);
+  return seguro(await next(), modo, https);
 });
 
 type Carregado = Omit<ContextoPainel, 'modo'>;
@@ -46,8 +46,11 @@ async function carregarContexto(token: string, demoPapel: ContextoPainel['usuari
   let usuario: Usuario;
   let unidades: Unidade[];
   if (demoPapel) {
-    usuario = usuarioDemo(demoPapel);
-    unidades = UNIDADES_DEMO;
+    // Só em build local: no build da Vercel este ramo e o módulo de demonstração saem do pacote.
+    if (!DEMO_PERMITIDO) return 'sessao';
+    const demo = await import('./servidor/demo/sessao');
+    usuario = demo.usuarioDemo(demoPapel);
+    unidades = demo.UNIDADES_DEMO;
   } else {
     try {
       const [me, un] = await Promise.all([chamarBackend(token, 'auth/me'), chamarBackend(token, 'unidades')]);
@@ -64,7 +67,7 @@ async function carregarContexto(token: string, demoPapel: ContextoPainel['usuari
   }
   const ativas = unidades.filter((u) => u.ativo);
   const unidade = ativas.find((u) => u.codigo === unidadeCookie) ?? ativas.find((u) => u.codigo === 'ambar_cafe') ?? ativas[0] ?? null;
-  return { usuario, unidades: ativas, unidade, clubeConvites: clubeConvites() };
+  return { usuario, unidades: ativas, unidade, clubeConvites: clubeConvites(), modulos: modulosLiberados() };
 }
 
 function json(status: number, corpo: unknown) {
@@ -82,8 +85,12 @@ function paginaForaDoAr() {
  * Cabeçalhos de segurança do painel. A CSP libera só os scripts inline que estão NESTA resposta (hash sha256 de cada um:
  * o tema antes da pintura e o carregador das ilhas do Astro) — nada de 'unsafe-inline' para scripts.
  */
-async function seguro(res: Response, modo: string): Promise<Response> {
+async function seguro(res: Response, modo: string, https = false): Promise<Response> {
   const headers = new Headers(res.headers);
+  // https: o navegador não volta a tentar http neste host (sem includeSubDomains: não mexe em outros subdomínios)
+  if (https) headers.set('Strict-Transport-Security', 'max-age=31536000');
+  headers.set('Cross-Origin-Opener-Policy', 'same-origin');
+  headers.set('Cross-Origin-Resource-Policy', 'same-origin');
   headers.set('Cache-Control', 'no-store');
   headers.set('X-Robots-Tag', 'noindex, nofollow');
   headers.set('X-Frame-Options', 'DENY');

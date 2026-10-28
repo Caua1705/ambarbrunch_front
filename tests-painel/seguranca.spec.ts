@@ -1,6 +1,15 @@
 // Autenticação e proteção das rotas do painel nos três modos (demo, api com backend falso, indisponível).
 import { test, expect } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { DEMO, API, INDISPONIVEL, BACKEND_FALSO, entrarDemo, post } from './apoio';
+
+async function entrarApi(page: Page) {
+  await page.goto(`${API}/admin/login`);
+  await page.getByLabel('E-mail').fill('gerente@teste.invalid');
+  await page.getByLabel('Senha', { exact: true }).fill('senha-certa');
+  await page.getByRole('button', { name: 'Entrar' }).click();
+  await page.waitForURL(`${API}/admin`);
+}
 
 test.describe('rotas protegidas', () => {
   for (const base of [DEMO, API, INDISPONIVEL]) {
@@ -95,14 +104,23 @@ test.describe('modo api (backend falso)', () => {
     expect(ultimo.authorization).toBe('Bearer token-de-teste-nao-secreto');
   });
 
-  test('rota que o backend publicado ainda não tem aparece como "ainda não está no ar"', async ({ page }) => {
-    await page.goto(`${API}/admin/login`);
-    await page.getByLabel('E-mail').fill('gerente@teste.invalid');
-    await page.getByLabel('Senha', { exact: true }).fill('senha-certa');
-    await page.getByRole('button', { name: 'Entrar' }).click();
-    await page.waitForURL(`${API}/admin`);
-    await page.goto(`${API}/admin/atendimento`);
-    await expect(page.getByText(/ainda não está no ar/)).toBeVisible();
+  test('liberação controlada: só Visão Geral e Reservas; o resto bloqueado no menu, na página e na API', async ({ page }) => {
+    await entrarApi(page);
+    const nav = page.getByRole('navigation', { name: 'Módulos' });
+    await expect(nav.getByRole('listitem')).toHaveCount(2);
+    await expect(nav.getByRole('link', { name: 'Reservas' })).toBeVisible();
+    for (const m of ['Atendimento', 'Clube', 'Financeiro', 'Estoque']) await expect(nav.getByRole('link', { name: new RegExp(m) })).toHaveCount(0);
+    for (const p of ['/admin/atendimento', '/admin/clube', '/admin/financeiro', '/admin/estoque']) {
+      await page.goto(API + p);
+      await expect(page.getByText('Este módulo ainda não foi liberado'), p).toBeVisible();
+    }
+    // a ponte recusa antes de chegar ao backend (o falso responderia 404)
+    for (const r of ['financeiro/resumo', 'estoque/resumo', 'clube/resumo', 'atendimento/conversas', 'arquivos/x/url']) {
+      const res = await page.request.get(`${API}/admin/api/${r}`);
+      expect(res.status(), r).toBe(403);
+      expect((await res.json()).codigo).toBe('modulo_nao_liberado');
+    }
+    expect((await page.request.get(`${API}/admin/api/reservas/ambientes`)).status()).toBe(200);
     // e nada de R$ 0,00 inventado na Visão Geral
     await page.goto(`${API}/admin`);
     await expect(page.getByText('Reservas de hoje')).toBeVisible();
@@ -117,16 +135,35 @@ test.describe('modo api (backend falso)', () => {
     await page.waitForURL(`${API}/admin`);
   });
 
-  test('sair apaga a sessão', async ({ page }) => {
-    await page.goto(`${API}/admin/login`);
-    await page.getByLabel('E-mail').fill('gerente@teste.invalid');
-    await page.getByLabel('Senha', { exact: true }).fill('senha-certa');
-    await page.getByRole('button', { name: 'Entrar' }).click();
-    await page.waitForURL(`${API}/admin`);
+  test('sair apaga a sessão deste navegador e diz o que isso significa', async ({ page }) => {
+    await entrarApi(page);
     await page.getByRole('button', { name: /Gerente Teste/ }).click();
     await page.getByRole('menuitem', { name: 'Sair' }).click();
-    await page.waitForURL(`${API}/admin/login`);
+    await page.waitForURL(`${API}/admin/login?saiu=1`);
+    await expect(page.getByText('Você saiu do painel neste navegador.')).toBeVisible();
+    expect((await page.context().cookies()).find((c) => c.name === 'ambar_painel')).toBeUndefined();
     const r = await page.request.get(`${API}/admin`, { maxRedirects: 0 });
     expect(r.status()).toBe(303);
+  });
+
+  test('login com sessão já aberta oferece encerrar (saída que falhou antes não deixa acesso esquecido)', async ({ page }) => {
+    await entrarApi(page);
+    await page.goto(`${API}/admin/login`);
+    await expect(page.getByText('Há uma sessão aberta neste navegador')).toBeVisible();
+    await page.getByRole('button', { name: 'Encerrar sessão' }).click();
+    await page.waitForURL(`${API}/admin/login?saiu=1`);
+    expect((await page.context().cookies()).find((c) => c.name === 'ambar_painel')).toBeUndefined();
+  });
+
+  test('o login repassa ao backend o IP de quem entrou (limite de tentativas por pessoa, não pelo servidor)', async ({ page, request }) => {
+    await entrarApi(page);
+    const ultimo = await (await request.get(`${BACKEND_FALSO}/__ultimo`)).json();
+    expect(ultimo.ip_do_login).toBe('127.0.0.1');
+  });
+
+  test('isolamento entre origens nos cabeçalhos', async ({ request }) => {
+    const h = (await request.get(`${API}/admin/login`)).headers();
+    expect(h['cross-origin-opener-policy']).toBe('same-origin');
+    expect(h['cross-origin-resource-policy']).toBe('same-origin');
   });
 });

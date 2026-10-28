@@ -5,11 +5,14 @@ import '../estilos/painel.css';
 import logo from '../../assets/media/brand/logo-ambar.png?url';
 import TemaInicial from '../layout/TemaInicial.astro';
 import Login from '../modulos/Login';
+import { lerSessao } from '../servidor/sessao';
 
 export const prerender = false;
 const modo = Astro.locals.painelModo ?? 'indisponivel';
 const pedida = Astro.url.searchParams.get('volta') ?? '';
 // Só volta para dentro do painel (nada de redirecionamento aberto).
+const sessaoAberta = modo !== 'indisponivel' && lerSessao(Astro.cookies) !== null;
+const saiu = Astro.url.searchParams.get('saiu') === '1' && !sessaoAberta;
 const volta = /^\/admin(\/[\w\-/]*)?(\?[\w=&%\-.]*)?$/.test(pedida) && !pedida.startsWith('/admin/api') ? pedida : '/admin';
 ---
 
@@ -31,7 +34,7 @@ const volta = /^\/admin(\/[\w\-/]*)?(\?[\w=&%\-.]*)?$/.test(pedida) && !pedida.s
           <span class="marca-logo" role="img" aria-label="Âmbar Café & Brunch"></span>
           <p>Painel da equipe</p>
         </div>
-        <Login client:load modo={modo} volta={volta} />
+        <Login client:load modo={modo} volta={volta} sessaoAberta={sessaoAberta} saiu={saiu} />
         <p class="login__rodape">Acesso restrito à equipe do Âmbar.</p>
       </div>
     </main>

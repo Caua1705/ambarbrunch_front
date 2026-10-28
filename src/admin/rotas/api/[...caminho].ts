@@ -1,10 +1,9 @@
 // Ponte do navegador para o backend: /admin/api/<caminho> → <PAINEL_API_URL>/admin/<caminho>, com o token da sessão.
 // O navegador nunca vê o token nem fala direto com a API. No modo demo, responde com os dados de demonstração.
 import type { APIRoute } from 'astro';
-import { modoPainel } from '../../servidor/config';
+import { modoPainel, modulosLiberados, rotaLiberada, DEMO_PERMITIDO } from '../../servidor/config';
 import { lerSessao, apagarSessao, COOKIE_UNIDADE, requisicaoDoPainel } from '../../servidor/sessao';
 import { chamarBackend, BackendForaDoAr } from '../../servidor/backend';
-import { responderDemo } from '../../servidor/demo/roteador';
 
 export const prerender = false;
 
@@ -27,6 +26,8 @@ export const ALL: APIRoute = async ({ params, request, cookies, url }) => {
 
   const sessao = lerSessao(cookies);
   if (!sessao) return erro(401, 'Sua sessão terminou. Entre de novo.', 'nao_autenticado');
+  // Liberação controlada (PAINEL_MODULOS): rota de módulo não liberado nem chega ao backend.
+  if (!rotaLiberada(caminho, modulosLiberados())) return erro(403, 'Este módulo ainda não foi liberado no painel.', 'modulo_nao_liberado');
 
   // A unidade de negócio escolhida no topo vale para toda consulta que não disser outra.
   const query = new URLSearchParams(url.search);
@@ -34,8 +35,10 @@ export const ALL: APIRoute = async ({ params, request, cookies, url }) => {
   if (unidade && !query.has('unidade') && /^[a-z0-9_]+$/.test(unidade)) query.set('unidade', unidade);
   const alvo = query.size ? `${caminho}?${query}` : caminho;
 
-  if (modoPainel() === 'demo') {
+  if (DEMO_PERMITIDO && modoPainel() === 'demo') {
+    // Só em build local; no build da Vercel este ramo e todo o servidor/demo/ saem do pacote.
     if (!sessao.demoPapel) return erro(401, 'Sua sessão terminou. Entre de novo.', 'nao_autenticado');
+    const { responderDemo } = await import('../../servidor/demo/roteador');
     return responderDemo({ metodo, caminho, query, papel: sessao.demoPapel, request });
   }
   if (sessao.demoPapel) {

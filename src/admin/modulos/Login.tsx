@@ -1,10 +1,10 @@
 // Formulário de entrada. Recuperação de senha não existe no backend (usuários são criados pela CLI): a tela diz isso.
 import { useState } from 'preact/hooks';
-import { LogIn, AlertCircle, Eye, EyeOff, PlugZap } from 'lucide-preact';
+import { LogIn, AlertCircle, Eye, EyeOff, PlugZap, LogOut, CheckCircle2 } from 'lucide-preact';
 import { Botao, Campo, Aviso } from '../ui/base';
 import { NOME_PAPEL, type ModoPainel, type Papel } from '../lib/sessao';
 
-export default function Login({ modo, volta }: { modo: ModoPainel; volta: string }) {
+export default function Login({ modo, volta, sessaoAberta = false, saiu = false }: { modo: ModoPainel; volta: string; sessaoAberta?: boolean; saiu?: boolean }) {
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [ver, setVer] = useState(false);
@@ -27,6 +27,40 @@ export default function Login({ modo, volta }: { modo: ModoPainel; volta: string
       setErro('Sem conexão. Confira a internet e tente de novo.');
     }
     setEnviando(null);
+  }
+
+  // Cookie de sessão ainda neste navegador (ex.: a saída anterior falhou por falta de conexão): oferece encerrar.
+  if (sessaoAberta) {
+    return (
+      <div class="cartao">
+        <div class="cartao__corpo">
+          <h1 style={{ fontSize: '18px' }}>Há uma sessão aberta neste navegador</h1>
+          <p class="suave pequeno">Se você quer sair, encerre a sessão. Se não, continue de onde parou.</p>
+          {erro && <Aviso tom="perigo" icone={<AlertCircle aria-hidden="true" />}>{erro}</Aviso>}
+          <Botao
+            variante="primario"
+            bloco
+            icone={<LogOut aria-hidden="true" />}
+            carregando={enviando === 'sair'}
+            onClick={async () => {
+              setEnviando('sair');
+              setErro(null);
+              try {
+                const r = await fetch('/admin/api/sessao', { method: 'DELETE', headers: { 'X-Painel': '1' }, credentials: 'same-origin' });
+                if (r.ok) return location.assign('/admin/login?saiu=1');
+                setErro('Não foi possível encerrar agora. Tente de novo.');
+              } catch {
+                setErro('Sem conexão. Confira a internet e tente de novo.');
+              }
+              setEnviando(null);
+            }}
+          >
+            Encerrar sessão
+          </Botao>
+          <a class="btn btn--bloco" href={volta}>Continuar no painel</a>
+        </div>
+      </div>
+    );
   }
 
   if (modo === 'indisponivel') {
@@ -76,6 +110,11 @@ export default function Login({ modo, volta }: { modo: ModoPainel; volta: string
       }}
     >
       <div class="cartao__corpo">
+        {saiu && (
+          <Aviso tom="ok" icone={<CheckCircle2 aria-hidden="true" />}>
+            <strong>Você saiu do painel neste navegador.</strong> O acesso foi apagado daqui. Se achar que alguém usou a sua conta, peça ao administrador para encerrar as suas sessões no sistema.
+          </Aviso>
+        )}
         <h1 style={{ fontSize: '18px' }}>Entrar</h1>
         <Campo rotulo="E-mail">
           {(id) => <input id={id} class="entrada" type="email" autocomplete="username" inputMode="email" required value={email} onInput={(e) => setEmail(e.currentTarget.value)} autoFocus />}
