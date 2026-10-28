@@ -1,0 +1,15 @@
+---
+// Configurações — sessão conferida no middleware; o módulo só aparece para quem tem o papel (o backend confere de novo).
+import Painel from '../layout/Painel.astro';
+import SemAcesso from '../layout/SemAcesso.astro';
+import Configuracoes from '../modulos/configuracoes';
+
+export const prerender = false;
+const contexto = Astro.locals.painel;
+if (!contexto) return Astro.redirect('/admin/login', 303);
+const pode = true;
+---
+
+<Painel titulo="Configurações" modulo="configuracoes" contexto={contexto}>
+  {pode ? <Configuracoes client:load contexto={contexto} /> : <SemAcesso />}
+</Painel>

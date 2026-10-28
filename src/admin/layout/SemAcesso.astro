@@ -1,0 +1,13 @@
+---
+// Página de módulo que o papel não pode ver (o backend também recusa: 403). Sem dados, sem detalhes.
+import { Lock } from 'lucide-preact';
+---
+
+<div class="cartao">
+  <div class="estado">
+    <span class="estado__icone"><Lock aria-hidden="true" /></span>
+    <h3>Sem acesso a esta área</h3>
+    <p>Seu perfil não tem permissão para abrir este módulo. Se você precisa dele no seu trabalho, fale com o administrador.</p>
+    <a class="btn btn--p" href="/admin">Ir para a Visão Geral</a>
+  </div>
+</div>

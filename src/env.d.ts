@@ -16,3 +16,11 @@ interface ImportMetaEnv {
   readonly PUBLIC_CLUBE_HOME?: string;
 }
 interface ImportMeta { readonly env: ImportMetaEnv; }
+
+// Painel administrativo (src/admin/middleware.ts): sessão conferida no servidor, repassada às páginas do /admin.
+declare namespace App {
+  interface Locals {
+    painel?: import('./admin/lib/sessao').ContextoPainel;
+    painelModo?: import('./admin/lib/sessao').ModoPainel;
+  }
+}

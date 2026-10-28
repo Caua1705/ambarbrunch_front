@@ -1,0 +1,16 @@
+---
+// Visão Geral — sessão conferida no middleware; o módulo só aparece para quem tem o papel (o backend confere de novo).
+import Painel from '../layout/Painel.astro';
+import SemAcesso from '../layout/SemAcesso.astro';
+import VisaoGeral from '../modulos/visao-geral';
+import { podeVer } from '../lib/permissoes';
+
+export const prerender = false;
+const contexto = Astro.locals.painel;
+if (!contexto) return Astro.redirect('/admin/login', 303);
+const pode = podeVer(contexto.usuario.papel, 'visao-geral');
+---
+
+<Painel titulo="Visão Geral" modulo="visao-geral" contexto={contexto}>
+  {pode ? <VisaoGeral client:load contexto={contexto} /> : <SemAcesso />}
+</Painel>

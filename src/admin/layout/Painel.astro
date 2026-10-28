@@ -1,0 +1,143 @@
+---
+// Moldura de todas as páginas autenticadas do painel: lateral com os seis módulos, topo com contexto da operação, tema,
+// unidade e perfil. A sessão já foi conferida no middleware; aqui só se desenha o que o papel pode ver.
+import '@fontsource-variable/inter/wght.css';
+import '../estilos/painel.css';
+import logo from '../../assets/media/brand/logo-ambar.png?url';
+import { LayoutDashboard, CalendarCheck, MessagesSquare, Award, Wallet, Package, Settings, Menu, Sun, Moon, PanelLeftClose, LogOut, ChevronDown, Bell } from 'lucide-preact';
+import { podeVer, type Modulo } from '../lib/permissoes';
+import { NOME_PAPEL, type ContextoPainel } from '../lib/sessao';
+import TemaInicial from './TemaInicial.astro';
+
+interface Props {
+  titulo: string;
+  modulo: Modulo | 'configuracoes';
+  contexto: ContextoPainel;
+}
+const { titulo, modulo, contexto } = Astro.props;
+const { usuario, unidade, unidades, modo } = contexto;
+const iniciais = usuario.nome.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]!.toUpperCase()).join('');
+
+const MODULOS: { id: Modulo; rotulo: string; href: string; icone: typeof LayoutDashboard; selo?: string }[] = [
+  { id: 'visao-geral', rotulo: 'Visão Geral', href: '/admin', icone: LayoutDashboard },
+  { id: 'reservas', rotulo: 'Reservas', href: '/admin/reservas', icone: CalendarCheck },
+  { id: 'atendimento', rotulo: 'Atendimento', href: '/admin/atendimento', icone: MessagesSquare },
+  // O Clube ainda não foi lançado ao público: a área existe, discreta, sem destaque.
+  { id: 'clube', rotulo: 'Clube Âmbar', href: '/admin/clube', icone: Award, selo: 'em breve' },
+  { id: 'financeiro', rotulo: 'Financeiro', href: '/admin/financeiro', icone: Wallet },
+  { id: 'estoque', rotulo: 'Estoque', href: '/admin/estoque', icone: Package },
+];
+const visiveis = MODULOS.filter((m) => podeVer(usuario.papel, m.id));
+const sub = unidade ? unidade.nome : 'Sem unidade atribuída';
+---
+
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#f7f5f2" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#141110" media="(prefers-color-scheme: dark)" />
+    <title>{titulo} · Painel Âmbar</title>
+    <link rel="icon" href="/favicon-48.png" type="image/png" sizes="48x48" />
+    <TemaInicial />
+  </head>
+  <body style={`--logo:url(${logo})`}>
+    <a class="pular" href="#conteudo">Pular para o conteúdo</a>
+    {modo === 'demo' && <div class="faixa-demo" role="note">DEMONSTRAÇÃO — dados fictícios, nada é enviado ao sistema do Âmbar</div>}
+    <div class="app" id="app">
+      <aside class="lateral" id="lateral" aria-label="Navegação do painel">
+        <a class="lateral__marca" href="/admin" aria-label="Âmbar — Visão Geral">
+          <span class="marca-logo" aria-hidden="true"></span>
+          <span class="lateral__op">
+            <strong>Painel</strong>
+            <span>{sub}</span>
+          </span>
+        </a>
+        <nav aria-label="Módulos">
+          <ul class="nav">
+            {visiveis.map((m) => (
+              <li>
+                <a class="nav__item" href={m.href} aria-current={m.id === modulo ? 'page' : undefined} title={m.rotulo} data-modulo={m.id}>
+                  <m.icone aria-hidden="true" />
+                  <span class="nav__rotulo">{m.rotulo}</span>
+                  {m.selo && <span class="nav__selo">{m.selo}</span>}
+                  {m.id === 'reservas' && <span class="nav__conta" data-pendentes hidden></span>}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        <div class="lateral__base">
+          <a class="nav__item" href="/admin/configuracoes" aria-current={modulo === 'configuracoes' ? 'page' : undefined} title="Configurações">
+            <Settings aria-hidden="true" />
+            <span class="nav__rotulo">Configurações</span>
+          </a>
+          <button type="button" class="nav__item btn--fantasma recolher" id="recolher" style="border:0;background:none;cursor:pointer;width:100%" aria-label="Recolher o menu" title="Recolher o menu">
+            <PanelLeftClose aria-hidden="true" />
+            <span class="nav__rotulo">Recolher menu</span>
+          </button>
+        </div>
+      </aside>
+      <div class="veu-lateral" id="veu-lateral" aria-hidden="true"></div>
+
+      <div class="principal">
+        <header class="topo">
+          <button type="button" class="btn btn--fantasma btn--icone menu-movel" id="abrir-menu" aria-controls="lateral" aria-expanded="false" aria-label="Abrir menu">
+            <Menu aria-hidden="true" />
+          </button>
+          <div class="topo__titulo">
+            <h1>{titulo}</h1>
+            <span>{sub}</span>
+          </div>
+          <div class="topo__acoes">
+            {unidades.length > 1 && (
+              <label class="sr" for="unidade">Unidade de negócio</label>
+              <select class="selecao" id="unidade" style="width:auto;min-width:0;min-height:36px" data-unidade>
+                {unidades.map((u) => <option value={u.codigo} selected={u.codigo === unidade?.codigo}>{u.nome}</option>)}
+              </select>
+            )}
+            <a class="btn btn--fantasma btn--icone" href="/admin#atencao" aria-label="Pendências" title="Pendências" style="position:relative">
+              <Bell aria-hidden="true" />
+              <span data-sino hidden style="position:absolute;top:9px;right:10px;width:8px;height:8px;border-radius:50%;background:var(--marca);box-shadow:0 0 0 2px var(--fundo)"></span>
+            </a>
+            <button type="button" class="btn btn--fantasma btn--icone" id="tema" aria-label="Alternar tema claro/escuro" title="Tema claro/escuro">
+              <Sun aria-hidden="true" data-icone-claro />
+              <Moon aria-hidden="true" data-icone-escuro />
+            </button>
+            <div class="suspenso" id="perfil">
+              <button type="button" class="perfil" aria-haspopup="menu" aria-expanded="false" aria-controls="perfil-menu">
+                <span class="avatar" aria-hidden="true">{iniciais}</span>
+                <span class="perfil__nome">{usuario.nome}</span>
+                <ChevronDown size={14} aria-hidden="true" />
+              </button>
+              <div class="suspenso__painel" id="perfil-menu" role="menu" hidden>
+                <div class="suspenso__cabeca">
+                  <strong>{usuario.nome}</strong>
+                  <span>{usuario.email}</span>
+                  <span>{NOME_PAPEL[usuario.papel]}</span>
+                </div>
+                <div class="suspenso__sep"></div>
+                <a class="suspenso__item" role="menuitem" href="/admin/configuracoes"><Settings aria-hidden="true" /> Configurações</a>
+                <button type="button" class="suspenso__item suspenso__item--perigo" role="menuitem" id="sair"><LogOut aria-hidden="true" /> Sair</button>
+              </div>
+            </div>
+          </div>
+        </header>
+        <main class="conteudo" id="conteudo" tabindex="-1">
+          <slot />
+        </main>
+      </div>
+    </div>
+    <style>
+      :root[data-tema='escuro'] [data-icone-escuro],
+      :root:not([data-tema='escuro']) [data-icone-claro] {
+        display: none;
+      }
+    </style>
+    <script>
+      import './moldura';
+    </script>
+  </body>
+</html>

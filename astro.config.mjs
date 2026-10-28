@@ -1,6 +1,9 @@
 // @ts-check
-import { defineConfig } from 'astro/config';
+import { defineConfig, envField } from 'astro/config';
 import preact from '@astrojs/preact';
+import node from '@astrojs/node';
+import vercel from '@astrojs/vercel';
+import painel from './src/admin/integracao.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,7 +13,7 @@ import { fileURLToPath } from 'node:url';
  * ficam fora das páginas de produção; este passo também os tira da PASTA do build, para que nenhum
  * arquivo não referenciado vá parar num deploy. Remove também os .gitkeep de estrutura.
  */
-function podarMidiaNaoReferenciada() {
+function podarMidiaNaoReferenciada({ podarCodigo = true } = {}) {
   return {
     name: 'ambar:podar-midia',
     hooks: {
@@ -37,8 +40,10 @@ function podarMidiaNaoReferenciada() {
         for (const sub of ['brand', 'graphics', 'photography']) { const g = path.join(raiz, 'media', sub, '.gitkeep'); if (fs.existsSync(g)) fs.rmSync(g); }
         // Imagens emitidas pelo bundler e não usadas por nenhuma página, folha de estilo ou script
         // (ex.: originais importados pelo glob de mídia, inclusive os de autorização pendente).
+        // Com o painel (/admin) ligado, as páginas do painel são renderizadas no servidor e não deixam HTML no build:
+        // os scripts, estilos e imagens delas pareceriam órfãos. Nesse build, _astro/ fica intacto.
         const assets = path.join(raiz, '_astro');
-        if (fs.existsSync(assets)) {
+        if (podarCodigo && fs.existsSync(assets)) {
           const textos = [todo, ...fs.readdirSync(assets).filter((f) => /\.(css|js)$/.test(f)).map((f) => fs.readFileSync(path.join(assets, f), 'utf8'))].join('\n');
           let n = 0;
           for (const f of fs.readdirSync(assets)) if (/\.(png|jpe?g|webp|avif|mp4)$/.test(f) && !textos.includes(f)) { fs.rmSync(path.join(assets, f)); n++; }
@@ -63,13 +68,27 @@ function podarMidiaNaoReferenciada() {
   };
 }
 
-// Site estático. Preact só na ilha da reserva (src/islands).
+// Painel administrativo (/admin, src/admin/): só entra no build com PAINEL_ADMIN=1 (scripts/painel.mjs). Desligado, o
+// build é o do site público de sempre — estático, sem adaptador e sem nenhuma rota /admin.
+const PAINEL = process.env.PAINEL_ADMIN === '1';
+
+// Site estático. Preact só nas ilhas (src/islands; o painel tem as próprias em src/admin/).
 export default defineConfig({
   site: 'https://ambarbrunch.com',
   output: 'static',
+  // Com o painel: as páginas públicas continuam pré-geradas; só as do /admin rodam no servidor.
+  ...(PAINEL ? { adapter: process.env.VERCEL ? vercel() : node({ mode: 'standalone' }) } : {}),
   // a carteira antiga (/clube/membro) virou a área do membro: o endereço velho continua funcionando
   redirects: { '/clube/membro': '/clube/conta/' },
-  integrations: [preact(), podarMidiaNaoReferenciada()],
+  integrations: [preact(), podarMidiaNaoReferenciada({ podarCodigo: !PAINEL }), ...(PAINEL ? [painel()] : [])],
+  // Lidas pelo servidor do painel em tempo de execução (nunca chegam ao navegador). Ver src/admin/servidor/config.ts.
+  env: {
+    schema: {
+      PAINEL_MODO: envField.enum({ context: 'server', access: 'secret', values: ['api', 'demo', 'indisponivel'], optional: true }),
+      PAINEL_API_URL: envField.string({ context: 'server', access: 'secret', optional: true }),
+      PAINEL_CLUBE_CONVITES: envField.boolean({ context: 'server', access: 'secret', optional: true }),
+    },
+  },
   build: { inlineStylesheets: 'auto', assets: '_astro' },
   image: { responsiveStyles: false },
   devToolbar: { enabled: false },

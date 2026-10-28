@@ -210,3 +210,7 @@ reports/
 # nunca versionada. O build de produção não a referencia e o podador do astro.config a remove do dist.
 public/media/revisao/
 src/assets/media/revisao/
+
+# Painel administrativo: build com o painel ligado (scripts/painel.mjs) e saída do adaptador da Vercel
+dist-painel/
+.vercel/

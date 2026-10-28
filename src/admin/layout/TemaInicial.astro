@@ -1,0 +1,3 @@
+<!-- Tema e menu recolhido ANTES da primeira pintura (sem piscar o tema errado). Preferência salva > tema do sistema.
+     A CSP do painel libera este script pelo hash (middleware.ts). -->
+<script is:inline>(function(d){var t,r;try{t=localStorage.getItem('painel-tema');r=localStorage.getItem('painel-recolhida')}catch(e){}if(t!=='claro'&&t!=='escuro')t=matchMedia('(prefers-color-scheme: dark)').matches?'escuro':'claro';d.setAttribute('data-tema',t);if(r==='1')d.setAttribute('data-recolhida','1')})(document.documentElement)</script>

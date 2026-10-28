@@ -1,0 +1,39 @@
+---
+// Entrada do painel. Login real no backend (POST /admin/auth/login) pelo servidor do painel; o token vira cookie HttpOnly.
+import '@fontsource-variable/inter/wght.css';
+import '../estilos/painel.css';
+import logo from '../../assets/media/brand/logo-ambar.png?url';
+import TemaInicial from '../layout/TemaInicial.astro';
+import Login from '../modulos/Login';
+
+export const prerender = false;
+const modo = Astro.locals.painelModo ?? 'indisponivel';
+const pedida = Astro.url.searchParams.get('volta') ?? '';
+// Só volta para dentro do painel (nada de redirecionamento aberto).
+const volta = /^\/admin(\/[\w\-/]*)?(\?[\w=&%\-.]*)?$/.test(pedida) && !pedida.startsWith('/admin/api') ? pedida : '/admin';
+---
+
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Entrar · Painel Âmbar</title>
+    <link rel="icon" href="/favicon-48.png" type="image/png" sizes="48x48" />
+    <TemaInicial />
+  </head>
+  <body style={`--logo:url(${logo})`}>
+    {modo === 'demo' && <div class="faixa-demo" role="note">DEMONSTRAÇÃO — dados fictícios, nada é enviado ao sistema do Âmbar</div>}
+    <main class="login">
+      <div class="login__caixa">
+        <div class="login__marca">
+          <span class="marca-logo" role="img" aria-label="Âmbar Café & Brunch"></span>
+          <p>Painel da equipe</p>
+        </div>
+        <Login client:load modo={modo} volta={volta} />
+        <p class="login__rodape">Acesso restrito à equipe do Âmbar.</p>
+      </div>
+    </main>
+  </body>
+</html>

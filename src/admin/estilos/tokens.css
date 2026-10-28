@@ -1,0 +1,140 @@
+/* Painel Âmbar — TOKENS. Só as páginas do /admin carregam esta folha (src/admin/layout/Painel.astro): nada vaza para o
+   site público. Base neutra levemente quente; a marca aparece no vinho do logo (#670D27) e no caramelo (#C98A45).
+   Tema: <html data-tema="claro|escuro">, definido antes da pintura (layout/tema-inicial.js). Contrastes conferidos para
+   WCAG 2.2 AA: texto ≥ 4,5:1, texto secundário ≥ 4,5:1, bordas de controle e foco ≥ 3:1. */
+
+:root,
+:root[data-tema='claro'] {
+  color-scheme: light;
+  --fundo: #f7f5f2;
+  --superficie: #ffffff;
+  --superficie-2: #fbfaf8;
+  --afundado: #f2efeb;
+  --sobre-hover: #f4f1ed;
+  --borda: #e6e1da;
+  --borda-forte: #d5cdc4;
+  --borda-controle: #8f857c; /* 3,6:1 sobre branco */
+  --texto: #1d1815;
+  --texto-2: #5b524c; /* 7,3:1 */
+  --texto-3: #6f665f; /* 5,6:1 — rótulos e metadados */
+  --texto-inverso: #ffffff;
+
+  --marca: #670d27;
+  --marca-hover: #540a1f;
+  --marca-suave: #f6e9ec;
+  --marca-texto: #670d27;
+  --marca-contraste: #ffffff;
+  --caramelo: #c98a45;
+  --caramelo-suave: #f8eddf;
+  --foco: #9a5f25;
+
+  --ok: #2e6b3c;
+  --ok-suave: #e7f2ea;
+  --atencao: #8a5414;
+  --atencao-suave: #fbf0df;
+  --perigo: #b42318;
+  --perigo-suave: #fdecea;
+  --info: #2b5a8a;
+  --info-suave: #e9f0f8;
+  --neutro: #5b524c;
+  --neutro-suave: #efebe6;
+
+  --grafico-1: #670d27;
+  --grafico-2: #c98a45;
+  --grafico-3: #8f857c;
+  --grafico-grade: #ece7e1;
+
+  --sombra-1: 0 1px 2px rgba(36, 21, 15, 0.06);
+  --sombra-2: 0 1px 2px rgba(36, 21, 15, 0.05), 0 4px 12px rgba(36, 21, 15, 0.06);
+  --sombra-3: 0 8px 28px rgba(36, 21, 15, 0.16), 0 2px 6px rgba(36, 21, 15, 0.08);
+  --veu: rgba(29, 24, 21, 0.38);
+  --demo: #8a5414;
+}
+
+:root[data-tema='escuro'] {
+  color-scheme: dark;
+  --fundo: #141110;
+  --superficie: #1c1816;
+  --superficie-2: #211c1a;
+  --afundado: #110e0d;
+  --sobre-hover: #26201d;
+  --borda: #2f2825;
+  --borda-forte: #3e3531;
+  --borda-controle: #7a6f68;
+  --texto: #eee8e3;
+  --texto-2: #bcb2ab;
+  --texto-3: #a39891;
+  --texto-inverso: #1c1816;
+
+  --marca: #e7b676;
+  --marca-hover: #f0c68e;
+  --marca-suave: #3a2a1e;
+  --marca-texto: #e9bd84;
+  --marca-contraste: #1c1816;
+  --caramelo: #e7b676;
+  --caramelo-suave: #33271c;
+  --foco: #e7b676;
+
+  --ok: #7cc58e;
+  --ok-suave: #1b2d20;
+  --atencao: #e6b26a;
+  --atencao-suave: #33271a;
+  --perigo: #f2867b;
+  --perigo-suave: #3a1d1a;
+  --info: #8db8e6;
+  --info-suave: #1a2633;
+  --neutro: #bcb2ab;
+  --neutro-suave: #2a2421;
+
+  --grafico-1: #e7b676;
+  --grafico-2: #c97a8e;
+  --grafico-3: #7a6f68;
+  --grafico-grade: #2c2522;
+
+  --sombra-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --sombra-2: 0 1px 2px rgba(0, 0, 0, 0.35), 0 4px 12px rgba(0, 0, 0, 0.3);
+  --sombra-3: 0 10px 32px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.35);
+  --veu: rgba(0, 0, 0, 0.6);
+  --demo: #e6b26a;
+}
+
+:root {
+  --fonte: 'Inter Variable', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --fonte-marca: 'Bricolage Grotesque', 'Inter Variable', system-ui, sans-serif;
+
+  --t-xs: 0.75rem; /* 12 */
+  --t-s: 0.8125rem; /* 13 */
+  --t-m: 0.875rem; /* 14 — corpo */
+  --t-l: 1rem; /* 16 */
+  --t-xl: 1.25rem; /* 20 */
+  --t-2xl: 1.5rem; /* 24 */
+  --t-3xl: 1.875rem; /* 30 — números dos indicadores */
+
+  --e-1: 4px;
+  --e-2: 8px;
+  --e-3: 12px;
+  --e-4: 16px;
+  --e-5: 20px;
+  --e-6: 24px;
+  --e-8: 32px;
+  --e-10: 40px;
+
+  --r-s: 6px;
+  --r-m: 8px;
+  --r-l: 12px;
+  --r-xl: 16px;
+  --r-pilula: 999px;
+
+  --alvo: 40px; /* altura de controle no desktop */
+  --alvo-toque: 44px; /* WCAG 2.5.8 com folga, no celular */
+  --lateral: 248px;
+  --lateral-recolhida: 68px;
+  --topo: 60px;
+  --anim: 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --anim: 0ms linear;
+  }
+}

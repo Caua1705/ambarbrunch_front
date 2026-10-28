@@ -23,13 +23,21 @@
     "test:fidelity": "playwright test --project=fidelity",
     "test:e2e": "playwright test --project=chromium --project=webkit",
     "shots": "node scripts/shots.mjs",
-    "perf": "node scripts/lighthouse.mjs"
+    "perf": "node scripts/lighthouse.mjs",
+    "painel:demo": "node scripts/painel.mjs demo",
+    "painel:dev": "node scripts/painel.mjs dev",
+    "painel:build": "node scripts/painel.mjs build",
+    "painel:serve": "node scripts/painel.mjs serve"
   },
   "dependencies": {
+    "@astrojs/node": "11.1.9",
     "@astrojs/preact": "6.1.0",
+    "@astrojs/vercel": "11.0.17",
     "@fontsource-variable/bricolage-grotesque": "5.3.0",
     "@fontsource-variable/fraunces": "5.3.0",
+    "@fontsource-variable/inter": "5.3.0",
     "astro": "7.4.0",
+    "lucide-preact": "1.63.0",
     "preact": "11.0.1",
     "sharp": "0.35.5"
   },

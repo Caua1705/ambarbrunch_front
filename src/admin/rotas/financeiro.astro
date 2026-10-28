@@ -1,0 +1,16 @@
+---
+// Financeiro — sessão conferida no middleware; o módulo só aparece para quem tem o papel (o backend confere de novo).
+import Painel from '../layout/Painel.astro';
+import SemAcesso from '../layout/SemAcesso.astro';
+import Financeiro from '../modulos/financeiro';
+import { podeVer } from '../lib/permissoes';
+
+export const prerender = false;
+const contexto = Astro.locals.painel;
+if (!contexto) return Astro.redirect('/admin/login', 303);
+const pode = podeVer(contexto.usuario.papel, 'financeiro');
+---
+
+<Painel titulo="Financeiro" modulo="financeiro" contexto={contexto}>
+  {pode ? <Financeiro client:load contexto={contexto} /> : <SemAcesso />}
+</Painel>
