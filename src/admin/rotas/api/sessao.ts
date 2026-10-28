@@ -43,8 +43,9 @@ export const POST: APIRoute = async (ctx) => {
 
   let res: Response;
   try {
-    // O backend limita as tentativas de login por IP. Sem isto, todo login chegaria com o IP do servidor do painel e
-    // os erros de uma pessoa bloqueariam a equipe inteira. O IP vem do provedor (Vercel), não de cabeçalho do navegador.
+    // O backend limita as tentativas de login por IP. Repassamos o IP de quem entrou (vindo do provedor, não de um
+    // cabeçalho do navegador). Atenção: o Traefik da API de produção tende a descartar este cabeçalho — então o limite
+    // por IP pode valer para o painel inteiro (docs/technical/PAINEL-ADMIN.md, seção 8, pendência 6).
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     const ip = ipDoCliente(ctx);
     if (ip) headers['X-Forwarded-For'] = ip;
