@@ -50,10 +50,13 @@ export interface ReservaCriada {
   clube?: ConviteClube;
 }
 
-/** Erros normalizados para a interface. */
-export type TipoErro = 'rede' | 'tempo' | 'validacao' | 'conflito' | 'limite' | 'indisponivel' | 'servidor';
+/** Erros normalizados para a interface.
+ *  `fechado`: a API respondeu que as reservas online estão fechadas (503 `reservas_indisponiveis`: política da unidade
+ *  com aceita_reservas desligado). Não é falha técnica: a comanda mostra o estado fechado, sem horários.
+ *  `indisponivel`: a API está fora do ar (outro 503). */
+export type TipoErro = 'rede' | 'tempo' | 'validacao' | 'conflito' | 'limite' | 'fechado' | 'indisponivel' | 'servidor';
 export class ErroReserva extends Error {
-  constructor(public tipo: TipoErro, mensagem: string, public campos: Record<string, string> = {}) { super(mensagem); }
+  constructor(public tipo: TipoErro, mensagem: string, public campos: Record<string, string> = {}, public codigo?: string) { super(mensagem); }
 }
 
 export interface ReservasApi {

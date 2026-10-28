@@ -1,7 +1,8 @@
 ---
 // 9 · RESERVE SUA MESA — comanda (ilha Preact, carregada quando chega perto da tela).
-// O modo vem do ambiente de build: por padrão “indisponível” — a comanda é ilustrativa, não coleta dados, não simula
-// disponibilidade nem confirmação; o próprio botão diz “Reservas online em breve”. Ver docs/technical/CONTRATO-API-RESERVAS.md.
+// O modo vem do ambiente de build. Produção: PUBLIC_RESERVAS_MODO=api + PUBLIC_RESERVAS_API_URL — a API decide datas,
+// horários e se as reservas estão abertas (fechadas, a comanda mostra um aviso discreto). Sem API configurada,
+// “indisponível”: comanda ilustrativa, nada é coletado. Ver docs/technical/RESERVAS-LANCAMENTO.md.
 import MegaTitle from '../components/MegaTitle.astro';
 import ReservaFlow from '../islands/ReservaFlow';
 import { reservaveis } from '../data/ambientes';

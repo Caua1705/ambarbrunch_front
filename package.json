@@ -27,7 +27,9 @@
     "painel:demo": "node scripts/painel.mjs demo",
     "painel:dev": "node scripts/painel.mjs dev",
     "painel:build": "node scripts/painel.mjs build",
-    "painel:serve": "node scripts/painel.mjs serve"
+    "painel:serve": "node scripts/painel.mjs serve",
+    "build:reservas-api": "astro build --mode reservas-api --outDir dist-reservas-api",
+    "test:reservas-api": "playwright test -c playwright.reservas.config.ts"
   },
   "dependencies": {
     "@astrojs/node": "11.1.9",

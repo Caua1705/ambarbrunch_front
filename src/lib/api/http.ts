@@ -16,18 +16,21 @@ async function pedir<T>(base: string, caminho: string, init: RequestInit = {}, s
     throw new ErroReserva('rede', 'Sem conexão com o sistema de reservas.');
   }
   if (res.ok) return res.json() as Promise<T>;
-  const corpo = await res.json().catch(() => ({})) as { detail?: unknown; mensagem?: string; campos?: Record<string, string> };
+  const corpo = await res.json().catch(() => ({})) as { detail?: unknown; mensagem?: string; campos?: Record<string, string>; codigo?: string };
   // FastAPI devolve 422 com `detail: [{ loc: [...], msg }]` — mapeado para campos do formulário.
   const campos: Record<string, string> = { ...(corpo.campos ?? {}) };
   if (Array.isArray(corpo.detail)) for (const d of corpo.detail as { loc?: unknown[]; msg?: string }[]) {
     const campo = String(d.loc?.at(-1) ?? ''); if (campo) campos[campo] = d.msg ?? 'Valor inválido';
   }
   const msg = corpo.mensagem ?? (typeof corpo.detail === 'string' ? corpo.detail : undefined);
-  if (res.status === 409) throw new ErroReserva('conflito', msg ?? 'Este horário acabou de ser reservado. Escolha outro.');
-  if (res.status === 422 || res.status === 400) throw new ErroReserva('validacao', msg ?? 'Confira os dados da reserva.', campos);
-  if (res.status === 429) throw new ErroReserva('limite', 'Muitas tentativas. Aguarde um instante.');
-  if (res.status === 503) throw new ErroReserva('indisponivel', 'O sistema de reservas está indisponível no momento.');
-  throw new ErroReserva('servidor', 'Não foi possível concluir. Tente de novo em instantes.');
+  const codigo = corpo.codigo;
+  if (res.status === 409) throw new ErroReserva('conflito', msg ?? 'Este horário acabou de ser reservado. Escolha outro.', {}, codigo);
+  if (res.status === 422 || res.status === 400) throw new ErroReserva('validacao', msg ?? 'Confira os dados da reserva.', campos, codigo);
+  if (res.status === 429) throw new ErroReserva('limite', 'Muitas tentativas. Aguarde um instante.', {}, codigo);
+  // Reservas fechadas pela unidade (aceita_reservas desligado): estado da comanda, não erro técnico.
+  if (res.status === 503 && codigo === 'reservas_indisponiveis') throw new ErroReserva('fechado', 'As reservas pelo site estão fechadas no momento.', {}, codigo);
+  if (res.status === 503) throw new ErroReserva('indisponivel', 'O sistema de reservas está indisponível no momento.', {}, codigo);
+  throw new ErroReserva('servidor', 'Não foi possível concluir. Tente de novo em instantes.', {}, codigo);
 }
 
 export function criarApiHttp(base: string): ReservasApi {

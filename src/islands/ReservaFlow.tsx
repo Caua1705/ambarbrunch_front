@@ -3,7 +3,9 @@
 // Modos:
 //  - "indisponivel" (padrão): mostra a comanda, mas deixa claro que as reservas online ainda não estão ativas. Nada é enviado.
 //  - "simulado": só para testes e demonstração interna, com aviso visível de simulação. Nada sai do navegador.
-//  - "api": usa a API FastAPI (staging) segundo o contrato — só depois de o contrato ser validado.
+//  - "api" (produção): a API do Âmbar é a fonte de tudo — ambientes, limites, janela de 60 dias, dias fechados (inclusive
+//    os anteriores à abertura, AMBAR_RESERVAS_ABERTURA) e horários. Reservas fechadas na API (503 reservas_indisponiveis):
+//    a comanda diz isso, sem datas nem horários, e confere de novo quando a pessoa volta à aba.
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
 import { ErroReserva, type ReservaConfig, type ReservaCriada, type ReservasApi } from '../lib/api/contrato';
@@ -166,6 +168,15 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
     return null;
   }, [modoPedido, apiUrl]);
   const modo: Modo = api ? api.modo : 'indisponivel';
+  /** Na API real, calendário e horários só existem com a configuração vinda dela (ambientes, janela, dias fechados —
+   *  inclusive os dias antes da abertura). Até lá, nada de janela padrão: nenhuma data ou horário é oferecido por conta
+   *  própria. `fechado` = a API respondeu que as reservas online estão fechadas (503 reservas_indisponiveis). */
+  const precisaCfg = modo === 'api' && !demo;
+  const [estadoCfg, setEstadoCfg] = useState<'carregando' | 'ok' | 'fechado' | 'erro'>(precisaCfg ? 'carregando' : 'ok');
+  const [cfgTentativa, setCfgTentativa] = useState(0);
+  const pronto = estadoCfg === 'ok';
+  /** Um envio por vez: o clique duplo não manda dois pedidos (a mesma Idempotency-Key já protege no servidor). */
+  const enviandoAgora = useRef(false);
 
   const [cfg, setCfg] = useState<ReservaConfig>({ ambientes, pessoas: { min: 1, max: 20 }, antecedencia: { diasMax: DIAS_PADRAO }, exigeEmail: false });
   const [hoje, setHoje] = useState<Date | null>(null);
@@ -205,6 +216,7 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
   const fechadas = useMemo(() => new Set(amb?.datasFechadas ?? []), [amb]);
   /** Acima do máximo online: atendimento de grupos (a equipe lança pelo painel). */
   const grupo = pessoas > maxPessoas;
+  const linkEquipe = `${visita.whatsapp.url}?text=${encodeURIComponent('Olá! Quero reservar uma mesa no Âmbar.')}`;
   const linkGrupo = `${visita.whatsapp.url}?text=${encodeURIComponent(`Olá! Quero reservar para um grupo de mais de ${maxPessoas} pessoas (${nomeAmbiente}).`)}`;
 
   // Datas só no navegador (o HTML estático foi gerado em outro dia). Nenhuma data vem escolhida (2026-10-22): o campo
@@ -219,18 +231,35 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
     window.addEventListener('ambar:ambiente', ouvir);
     return () => window.removeEventListener('ambar:ambiente', ouvir);
   }, []);
-  // Configuração vinda da API (ambientes, limites, antecedência).
+  // Configuração vinda da API (ambientes, limites, antecedência, dias fechados). Fechada ou com erro, a comanda diz isso
+  // e confere de novo quando a pessoa volta para a aba — abrir as reservas no backend não exige novo build do site.
   useEffect(() => {
     if (!api) return;
-    api.config().then((c) => { setCfg(c); if (!c.ambientes.some((a) => a.id === ambiente)) setAmbiente(c.ambientes[0]?.id ?? ''); }).catch(() => {});
-  }, [api]);
+    let vivo = true;
+    if (precisaCfg) setEstadoCfg('carregando');
+    api.config()
+      .then((c) => {
+        if (!vivo) return;
+        setCfg(c);
+        setEstadoCfg('ok');
+        setAmbiente((atual) => (c.ambientes.some((a) => a.id === atual) ? atual : c.ambientes[0]?.id ?? ''));
+      })
+      .catch((e) => { if (vivo && precisaCfg) setEstadoCfg(e instanceof ErroReserva && e.tipo === 'fechado' ? 'fechado' : 'erro'); });
+    return () => { vivo = false; };
+  }, [api, cfgTentativa]);
+  useEffect(() => {
+    if (estadoCfg !== 'fechado' && estadoCfg !== 'erro') return;
+    const conferir = () => { if (document.visibilityState === 'visible') setCfgTentativa((t) => t + 1); };
+    document.addEventListener('visibilitychange', conferir);
+    return () => document.removeEventListener('visibilitychange', conferir);
+  }, [estadoCfg]);
   // Ao trocar de ambiente, o número de pessoas entra na faixa dele (o grupo continua grupo).
   useEffect(() => { setPessoas((n) => (n < minPessoas ? minPessoas : n > maxPessoas + 1 ? maxPessoas + 1 : n)); }, [minPessoas, maxPessoas]);
   // A data escolhida deixou de valer (outro ambiente fechado nesse dia): volta a “Escolher uma data”.
   useEffect(() => { if (data && fechadas.has(data)) { setData(null); setHora(null); } }, [fechadas, data]);
   // Horários: buscados a cada mudança de ambiente, pessoas ou data. Requisições antigas são canceladas.
   useEffect(() => {
-    if (!api || !data || !ambiente || demo?.horarios) return;
+    if (!api || !pronto || !data || !ambiente || demo?.horarios) return;
     if (pessoas < minPessoas || pessoas > maxPessoas) { setHora(null); setHorarios({ estado: 'ocioso', lista: [] }); return; }
     const ctrl = new AbortController();
     setHora(null);
@@ -241,9 +270,13 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
         setHorarios({ estado: livres ? 'ok' : 'vazio', lista: d.horarios });
         setAnuncio(livres ? `${livres} horários disponíveis.` : 'Sem horários nesta data.');
       })
-      .catch((e) => { if (e?.name !== 'AbortError') setHorarios({ estado: 'erro', lista: [], msg: e instanceof ErroReserva ? e.message : 'Não foi possível carregar os horários.' }); });
+      .catch((e) => {
+        if (e?.name === 'AbortError') return;
+        if (e instanceof ErroReserva && e.tipo === 'fechado') { setEstadoCfg('fechado'); return; }
+        setHorarios({ estado: 'erro', lista: [], msg: e instanceof ErroReserva ? e.message : 'Não foi possível carregar os horários.' });
+      });
     return () => ctrl.abort();
-  }, [api, data, pessoas, ambiente, tentativa, minPessoas, maxPessoas]);
+  }, [api, pronto, data, pessoas, ambiente, tentativa, minPessoas, maxPessoas]);
   // Foco no topo da comanda a cada TROCA de etapa (leitor de tela e teclado); não na montagem.
   const montou = useRef(false);
   useEffect(() => { if (!montou.current) { montou.current = true; return; } if (etapa !== 'escolha') topo.current?.focus(); }, [etapa]);
@@ -273,7 +306,8 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
   };
 
   const enviar = async () => {
-    if (!api || !data || !hora) return;
+    if (!api || !data || !hora || enviandoAgora.current) return;
+    enviandoAgora.current = true;
     setEtapa('enviando');
     setAnuncio('Enviando a reserva…');
     try {
@@ -288,6 +322,8 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
       setAnuncio(`Reserva ${r.status === 'confirmada' ? 'confirmada' : 'recebida'}. Código ${r.codigo}.`);
     } catch (e) {
       const erro = e instanceof ErroReserva ? e : new ErroReserva('servidor', 'Não foi possível concluir. Tente de novo em instantes.');
+      // As reservas foram fechadas enquanto a pessoa preenchia: nada foi registrado; a comanda passa ao estado fechado.
+      if (erro.tipo === 'fechado') { setEtapa('escolha'); setHora(null); setEstadoCfg('fechado'); setAnuncio(erro.message); return; }
       if (erro.tipo === 'conflito') { setEtapa('escolha'); setHora(null); setTentativa((t) => t + 1); setAnuncio(erro.message); setFalha(erro.message); return; }
       if (erro.tipo === 'validacao' && Object.keys(erro.campos).length) {
         // Erro de um campo que não fica no formulário de dados (pessoas, data, hora…): mostrar no topo da comanda.
@@ -300,6 +336,8 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
       setFalha(erro.message);
       setEtapa('falha');
       setAnuncio(erro.message);
+    } finally {
+      enviandoAgora.current = false;
     }
   };
 
@@ -308,7 +346,7 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
     const [y, m, d] = resultado.data.split('-'); const [h, min] = resultado.hora.split(':');
     const inicio = `${y}${m}${d}T${h}${min}00`;
     const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Ambar Brunch//Reserva//PT', 'BEGIN:VEVENT', `UID:${resultado.codigo}@ambarbrunch`,
-      `DTSTART:${inicio}`, `DURATION:PT${resultado.duracaoMin ?? 90}M`, `SUMMARY:Reserva no Âmbar Brunch (${resultado.pessoas} pessoas)`,
+      `DTSTART:${inicio}`, `DURATION:PT${resultado.duracaoMin ?? 180}M`, `SUMMARY:Reserva no Âmbar Brunch (${resultado.pessoas} pessoas)`,
       `DESCRIPTION:Código ${resultado.codigo} · ${nomeAmbiente}`, 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
     return `data:text/calendar;charset=utf-8,${encodeURIComponent(ics)}`;
   };
@@ -316,7 +354,7 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
   const carimbo = etapa === 'confirmada'
     ? { estado: 'reservado', texto: modo === 'simulado' ? 'simulado' : 'reservado' }
     : etapa === 'falha' ? { estado: 'erro', texto: 'tente de novo' }
-    : { estado: undefined, texto: modo === 'indisponivel' ? 'em breve' : modo === 'simulado' ? 'simulação' : 'prévia' };
+    : { estado: undefined, texto: modo === 'indisponivel' || estadoCfg === 'fechado' ? 'em breve' : modo === 'simulado' ? 'simulação' : 'reserva' };
 
   const resumo = (
     <dl class="ticket__review">
@@ -338,7 +376,18 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
       </p>
       {modo === 'simulado' && <p class="ticket__sim" role="note">Simulação para testes — nenhuma reserva é feita e nada é enviado.</p>}
 
-      {etapa === 'escolha' && (
+      {etapa === 'escolha' && estadoCfg === 'fechado' && (
+        <>
+          <p class="ticket__status" role="status">As reservas pelo site não estão abertas no momento.</p>
+          <p class="ticket__slots">Para reservar agora, a equipe atende você. <a class="ticket__link" href={linkEquipe} target="_blank" rel="noopener">Falar com a equipe no WhatsApp</a></p>
+        </>
+      )}
+      {etapa === 'escolha' && estadoCfg === 'erro' && (
+        <p class="ticket__status" data-tone="error" role="alert">
+          Não foi possível carregar as reservas agora. <button type="button" class="ticket__link" onClick={() => setCfgTentativa((t) => t + 1)}>Tentar de novo</button>
+        </p>
+      )}
+      {etapa === 'escolha' && (estadoCfg === 'ok' || estadoCfg === 'carregando') && (
         <>
           {falha && <p class="ticket__status" data-tone="error" role="alert">{falha}</p>}
           <fieldset key={`amb-${destaque}`} data-destaque={destaque ? '' : undefined}>
@@ -372,7 +421,7 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
             </button>
             <div class="data-painel" id={`${px}-cal`} data-aberto={calAberto ? '' : undefined}
               onKeyDown={(ev) => { if (ev.key === 'Escape' && calAberto) { ev.stopPropagation(); fecharCal(); } }}>
-              {hoje
+              {hoje && pronto
                 ? <Calendario id={`${px}-l3`} hoje={hoje} diasMax={cfg.antecedencia.diasMax} fechadas={fechadas} valor={data}
                     aoEscolher={(v) => { setData(v); setFalha(''); }} aoConfirmar={fecharCal} />
                 : <div class="cal cal--esqueleto" aria-hidden="true"><div class="cal__grade">{Array.from({ length: 35 }, () => <span class="cal__dia chip--skeleton" />)}</div></div>}
@@ -381,7 +430,8 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
           {!grupo && <fieldset>
             <legend id={`${px}-l4`} ref={passo4} data-done={hora ? '' : undefined}>04 · horário</legend>
             {!api && <p class="ticket__slots">Os horários aparecem aqui quando as reservas pelo site forem ativadas.</p>}
-            {api && !data && !demo?.horarios && <p class="ticket__slots">Escolha uma data para ver os horários.</p>}
+            {api && !pronto && <p class="ticket__slots">Carregando a agenda…</p>}
+            {api && pronto && !data && !demo?.horarios && <p class="ticket__slots">Escolha uma data para ver os horários.</p>}
             {api && horarios.estado === 'carregando' && <><div class="chips" aria-hidden="true">{[0, 1, 2, 3].map(() => <span class="chip chip--skeleton" />)}</div><p class="ticket__slots ticket__slots--after">Carregando horários…</p></>}
             {api && horarios.estado === 'vazio' && <p class="ticket__slots">Sem horários nesta data. Escolha outro dia.</p>}
             {api && horarios.estado === 'erro' && <p class="ticket__status" data-tone="error" role="alert">{horarios.msg} <button type="button" class="ticket__link" onClick={() => setTentativa((t) => t + 1)}>Tentar de novo</button></p>}
@@ -424,7 +474,7 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
             </fieldset>
           )}
           {api
-            ? <button class="btn btn--wine btn--block" type="submit" disabled={grupo}>Continuar</button>
+            ? <button class="btn btn--wine btn--block" type="submit" disabled={grupo || !pronto}>Continuar</button>
             : <button class="btn btn--wine btn--block" type="button" disabled>Reservas online em breve</button>}
         </>
       )}
@@ -465,7 +515,7 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
       <p class="ticket__note" id={nota}>
         {modo === 'indisponivel' && 'As reservas pelo site ainda não estão ativas. Nada é enviado.'}
         {modo === 'simulado' && 'Simulação: nenhum dado sai deste navegador.'}
-        {modo === 'api' && etapa === 'escolha' && 'Você confere tudo antes de confirmar.'}
+        {modo === 'api' && etapa === 'escolha' && (estadoCfg === 'fechado' ? 'Nada é enviado por esta comanda enquanto as reservas estão fechadas.' : 'Você confere tudo antes de confirmar.')}
       </p>
       <p class="visually-hidden" aria-live="polite">{anuncio}</p>
     </form>

@@ -10,6 +10,7 @@
 !.env.example
 !.env.revisao
 !.env.simulado
+!.env.reservas-api
 !.env.development
 *.pem
 *.key
@@ -214,3 +215,6 @@ src/assets/media/revisao/
 # Painel administrativo: build com o painel ligado (scripts/painel.mjs) e saída do adaptador da Vercel
 dist-painel/
 .vercel/
+
+# Build de teste da reserva em modo API (tests-reservas/)
+dist-reservas-api/
