@@ -32,8 +32,10 @@ export function SituacaoReserva({ r, atrasoMin, passou }: { r: Pick<ReservaPaine
   return <Situacao tom={s.tom} destaque={s.destaque}>{s.rotulo}</Situacao>;
 }
 
-export const emAberto = (r: ReservaPainel) => (r.comparecimento ?? 'nao_registrado') === 'nao_registrado' && r.status_reserva !== 'cancelada';
-export const confirmadaBase = (r: ReservaPainel) => ['confirmada', 'lembrada', 'reconfirmada'].includes(r.status_reserva);
+// O backend publicado antes da 0007 não manda `status_reserva` nem `comparecimento`: o status da reserva vem só em `status`.
+export const statusBase = (r: Pick<ReservaPainel, 'status' | 'status_reserva'>) => r.status_reserva ?? r.status;
+export const emAberto = (r: ReservaPainel) => (r.comparecimento ?? 'nao_registrado') === 'nao_registrado' && statusBase(r) !== 'cancelada';
+export const confirmadaBase = (r: ReservaPainel) => ['confirmada', 'lembrada', 'reconfirmada'].includes(statusBase(r));
 export const comecou = (r: ReservaPainel) => new Date(`${r.data}T${r.hora.slice(0, 5)}:00-03:00`).getTime() <= Date.now();
 
 export function atualizarReservas() {

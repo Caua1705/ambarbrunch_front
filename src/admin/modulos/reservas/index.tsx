@@ -12,7 +12,7 @@ import { Botao, Cabecalho, Indicador, Segmentado, Cartao, Aviso } from '../../ui
 import { Dados, EsqueletoTabela, Vazio } from '../../ui/estados';
 import { Tabela, type Coluna } from '../../ui/tabela';
 import type { OperacaoReserva, ReservaPainel } from '../../lib/tipos/reservas';
-import { SituacaoReserva, statusDe, emAberto, confirmadaBase, comecou, atualizarReservas, registrarComparecimento, CANAL } from './comum';
+import { statusBase, SituacaoReserva, statusDe, emAberto, confirmadaBase, comecou, atualizarReservas, registrarComparecimento, CANAL } from './comum';
 import { DetalheReserva } from './Detalhe';
 import { pode } from '../../lib/permissoes';
 import { NovaReserva } from './NovaReserva';
@@ -41,14 +41,14 @@ export default function Reservas({ contexto }: { contexto: ContextoPainel }) {
   const pendentes = useConsulta(`reservas?pendentes:${hoje}`, () => reservas.listar({ data_de: hoje, status: ['pendente'], limite: 100 }));
 
   const lista = dia.dados ?? [];
-  const ativas = lista.filter((r) => r.status_reserva !== 'cancelada');
+  const ativas = lista.filter((r) => statusBase(r) !== 'cancelada');
   const resumo = {
     reservas: ativas.length,
     pessoas: ativas.reduce((s, r) => s + r.pessoas, 0),
     pendentes: lista.filter((r) => statusDe(r) === 'pendente').length,
     confirmadas: lista.filter((r) => confirmadaBase(r) && emAberto(r)).length,
     chegaram: lista.filter((r) => r.comparecimento === 'compareceu').length,
-    canceladas: lista.filter((r) => r.status_reserva === 'cancelada').length,
+    canceladas: lista.filter((r) => statusBase(r) === 'cancelada').length,
   };
 
   const filtradas = useMemo(() => {
@@ -223,7 +223,7 @@ export default function Reservas({ contexto }: { contexto: ContextoPainel }) {
                   chave={(r) => r.id}
                   aoAbrir={(r) => setAberta(r.id)}
                   destaque={(r) => statusDe(r) === 'pendente'}
-                  apagada={(r) => r.status_reserva === 'cancelada'}
+                  apagada={(r) => statusBase(r) === 'cancelada'}
                   porPagina={100}
                   movel={(r) => (
                     <>

@@ -1,6 +1,7 @@
 // Visão Geral: "o que está acontecendo no Âmbar e o que exige minha atenção agora?"
 // Fontes: /admin/reservas/operacao (no ar) + /admin/visao-geral, /financeiro/resumo, /financeiro/relatorios/evolucao e
 // /estoque/compras (código pronto, ainda não publicados). Cada bloco cai sozinho no estado "ainda não está no ar".
+import { statusBase } from '../reservas/comum';
 import { useState } from 'preact/hooks';
 import { CalendarCheck, Users, Wallet, Scale, BellRing, ChevronRight, CalendarClock, Receipt, PackageCheck, Landmark, MessagesSquare, UserCheck, Radar, FileWarning, ArrowRight, Sparkles } from 'lucide-preact';
 import type { ContextoPainel } from '../../lib/sessao';
@@ -44,7 +45,7 @@ export default function VisaoGeral({ contexto }: { contexto: ContextoPainel }) {
   const comparecimento = useConsulta(comReservas ? `reservas/comparecimento:${hoje}` : null, () => reservas.pendentesComparecimento({ data_de: hoje, data_ate: hoje }));
   const atend = useConsulta(liberado('atendimento') ? 'atendimento/resumo' : null, () => atendimento.resumo());
 
-  const ativas = operacao.dados?.filter((r) => r.status_reserva !== 'cancelada') ?? [];
+  const ativas = operacao.dados?.filter((r) => statusBase(r) !== 'cancelada') ?? [];
   const pessoas = ativas.reduce((s, r) => s + r.pessoas, 0);
   // o bloco financeiro da Visão Geral só aparece com o Financeiro liberado, mesmo que o backend o envie
   const fin = gerencia ? visao.dados?.financeiro ?? null : null;
@@ -124,7 +125,7 @@ export default function VisaoGeral({ contexto }: { contexto: ContextoPainel }) {
           href="/admin/reservas"
           carregando={operacao.carregando}
           valor={operacao.dados ? inteiro(ativas.length) : '—'}
-          rodape={operacao.dados ? `${plural(pessoas, 'pessoa', 'pessoas')} · ${plural(ativas.filter((r) => r.status_reserva === 'pendente').length, 'pendente', 'pendentes')}` : operacao.erro?.message}
+          rodape={operacao.dados ? `${plural(pessoas, 'pessoa', 'pessoas')} · ${plural(ativas.filter((r) => statusBase(r) === 'pendente').length, 'pendente', 'pendentes')}` : operacao.erro?.message}
         />
         <Indicador
           rotulo="Pendências"
@@ -170,7 +171,7 @@ export default function VisaoGeral({ contexto }: { contexto: ContextoPainel }) {
             <Dados consulta={operacao} recurso="A agenda" compacto esqueleto={<div class="cartao__corpo"><Esqueleto linhas={4} /></div>}>
               {(lista) => {
                 const agora = Date.now();
-                const proximas = lista.filter((r) => r.status_reserva !== 'cancelada' && r.comparecimento === 'nao_registrado' && new Date(r.fim).getTime() > agora).slice(0, 6);
+                const proximas = lista.filter((r) => statusBase(r) !== 'cancelada' && (r.comparecimento ?? 'nao_registrado') === 'nao_registrado' && !['compareceu', 'nao_compareceu'].includes(r.status) && new Date(r.fim).getTime() > agora).slice(0, 6);
                 return proximas.length ? (
                   <ul class="lista">
                     {proximas.map((r) => (
@@ -182,7 +183,7 @@ export default function VisaoGeral({ contexto }: { contexto: ContextoPainel }) {
                             <span>{plural(r.pessoas, 'pessoa', 'pessoas')} · {r.ambiente}</span>
                           </span>
                           <span class="lista__fim">
-                            {r.status_reserva === 'pendente' ? <Situacao tom="atencao" destaque>Aguardando aprovação</Situacao> : r.atrasada ? <Situacao tom="perigo">Atrasada</Situacao> : <Situacao tom="ok">Confirmada</Situacao>}
+                            {statusBase(r) === 'pendente' ? <Situacao tom="atencao" destaque>Aguardando aprovação</Situacao> : r.atrasada ? <Situacao tom="perigo">Atrasada</Situacao> : <Situacao tom="ok">Confirmada</Situacao>}
                           </span>
                         </a>
                       </li>
