@@ -66,6 +66,17 @@ pré-lançamento no `astro dev`, crie `.env.development.local` com `PUBLIC_CLUBE
 local, `PUBLIC_CLUBE_MODO=api` e `PUBLIC_CLUBE_API_URL=http://localhost:8000/` (a origem do site em
 `AMBAR_CLUBE_ORIGENS` do backend). Arquitetura e contrato: [`docs/technical/CONTRATO-API-CLUBE.md`](docs/technical/CONTRATO-API-CLUBE.md).
 
+### Painel administrativo (`/admin`)
+
+```bash
+npm run painel:demo     # http://127.0.0.1:4480/admin — dados fictícios (DEMONSTRAÇÃO), entrada por perfil
+npm run painel:build    # build com o painel (dist-painel/); testes: npx playwright test -c playwright.painel.config.ts
+```
+
+O painel só entra no build com `PAINEL_ADMIN=1` (os scripts acima já ligam): `npm run build` continua gerando só o site
+público. Login real, segurança, modos e o que cada tela usa do backend:
+[`docs/technical/PAINEL-ADMIN.md`](docs/technical/PAINEL-ADMIN.md).
+
 ## Como trabalhamos
 
 O projeto avança por etapas. A direção visual é aprovada **antes** do desenvolvimento do site:

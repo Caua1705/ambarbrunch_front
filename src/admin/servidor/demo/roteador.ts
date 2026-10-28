@@ -2,10 +2,6 @@
 // Mesmos formatos, mesmos papéis exigidos (403 igual ao backend) e mesmos códigos de erro principais, para que a tela
 // seja exercitada pelo MESMO caminho do modo real. Nunca usado em build publicado.
 import type { Papel } from '../../lib/sessao';
-import { ROTAS_RESERVAS } from './reservas';
-import { ROTAS_ATENDIMENTO_CLUBE } from './atendimento-clube';
-import { ROTAS_FINANCEIRO } from './financeiro';
-import { ROTAS_ESTOQUE } from './estoque';
 
 export interface PedidoDemo {
   metodo: string;
@@ -38,7 +34,16 @@ export class ErroDemo extends Error {
   }
 }
 
-const ROTAS: Rota[] = [...ROTAS_RESERVAS, ...ROTAS_ATENDIMENTO_CLUBE, ...ROTAS_FINANCEIRO, ...ROTAS_ESTOQUE];
+// Carregadas na primeira chamada: os módulos de dados usam os utilitários deste arquivo ao serem avaliados, então
+// importá-los no topo daqui criaria um ciclo (utilitário ainda não inicializado).
+let rotas: Rota[] | null = null;
+async function todasAsRotas(): Promise<Rota[]> {
+  if (!rotas) {
+    const [r, a, f, e, v] = await Promise.all([import('./reservas'), import('./atendimento-clube'), import('./financeiro'), import('./estoque'), import('./visao')]);
+    rotas = [...r.ROTAS_RESERVAS, ...a.ROTAS_ATENDIMENTO_CLUBE, ...f.ROTAS_FINANCEIRO, ...e.ROTAS_ESTOQUE, ...v.ROTAS_VISAO];
+  }
+  return rotas;
+}
 
 function json(status: number, corpo: unknown) {
   return new Response(corpo === undefined ? null : JSON.stringify(corpo), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'X-Painel-Modo': 'demonstracao' } });
@@ -47,7 +52,7 @@ function json(status: number, corpo: unknown) {
 export async function responderDemo(p: PedidoDemo): Promise<Response> {
   // pequena espera para os estados de carregamento serem vistos como no uso real
   await new Promise((r) => setTimeout(r, 120 + Math.random() * 180));
-  for (const [metodo, padrao, papeis, fn] of ROTAS) {
+  for (const [metodo, padrao, papeis, fn] of await todasAsRotas()) {
     if (metodo !== p.metodo) continue;
     const m = padrao.exec(p.caminho);
     if (!m) continue;

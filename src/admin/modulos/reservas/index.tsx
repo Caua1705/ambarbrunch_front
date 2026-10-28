@@ -223,6 +223,21 @@ export default function Reservas({ contexto }: { contexto: ContextoPainel }) {
                   destaque={(r) => statusDe(r) === 'pendente'}
                   apagada={(r) => r.status_reserva === 'cancelada'}
                   porPagina={100}
+                  movel={(r) => (
+                    <>
+                      <span class="num forte" style={{ width: '46px', flex: 'none', paddingTop: '1px' }}>{hora(r.hora)}</span>
+                      <span class="pilha" style={{ gap: '2px', flex: 1, minWidth: 0 }}>
+                        <span class="principal-celula">{r.contato_nome}</span>
+                        <span class="fraco">{plural(r.pessoas, 'pessoa', 'pessoas')} · {r.ambiente}</span>
+                        <SituacaoReserva r={r} atrasoMin={r.atrasada ? r.minutos_de_atraso : null} passou={emAberto(r) && confirmadaBase(r) && new Date(r.fim).getTime() < Date.now()} />
+                      </span>
+                      {statusDe(r) === 'pendente' ? (
+                        <Botao tamanho="p" variante="primario" icone={<Check aria-hidden="true" />} onClick={() => aprovar(r)} aria-label={`Aprovar a reserva de ${r.contato_nome}`}>Aprovar</Botao>
+                      ) : confirmadaBase(r) && emAberto(r) && comecou(r) ? (
+                        <Botao tamanho="p" icone={<UserCheck aria-hidden="true" />} onClick={() => chegou(r)} aria-label={`Registrar que ${r.contato_nome} chegou`}>Chegou</Botao>
+                      ) : null}
+                    </>
+                  )}
                   vazio={
                     lista.length ? (
                       <Vazio compacto titulo="Nenhuma reserva com esses filtros" acao={<Botao tamanho="p" onClick={() => { setFiltro('todas'); setAmbiente(''); setBusca(''); }}>Limpar filtros</Botao>} />

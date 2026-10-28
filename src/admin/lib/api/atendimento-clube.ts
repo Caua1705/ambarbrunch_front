@@ -29,6 +29,8 @@ export const clube = {
   revogarSessoes: (id: string, motivo: string) => pedir<unknown>(`clube/membros/${id}/sessoes/revogar`, { metodo: 'POST', corpo: { motivo } }),
   vendas: (q: { situacao?: 'todas' | 'sem_cliente' | 'conferir_telefone' | 'ligadas'; data_de?: string; limite?: number }) => pedir<Pagina<VendaClube>>('clube/vendas', { query: { limite: 50, ...q } }),
   confirmarTelefone: (vendaId: string, motivo: string) => pedir<unknown>(`clube/vendas/${vendaId}/confirmar-telefone`, { metodo: 'POST', corpo: { motivo } }),
+  /** Só com PAINEL_CLUBE_CONVITES ligado (lançamento do Clube): o backend envia o link pelo WhatsApp. */
+  convidarPorVenda: (venda_id: string, texto_versao: string) => pedir<{ id: string; expira_em: string; mensagem_status: string }>('clube/convites/por-venda', { metodo: 'POST', corpo: { venda_id, autorizacao_confirmada: true, texto_versao } }),
   convites: (q: { situacao?: 'aguardando' | 'expirado' | 'usado'; limite?: number }) => pedir<Pagina<ConviteClube>>('clube/convites', { query: { limite: 50, ...q } }),
   mensagens: (q: { status?: string; limite?: number }) => pedir<Pagina<MensagemClube>>('clube/mensagens', { query: { limite: 50, ...q } }),
 };

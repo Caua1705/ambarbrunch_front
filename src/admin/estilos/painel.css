@@ -767,6 +767,9 @@ img, svg {
   .cartao__corpo {
     padding: var(--e-4);
   }
+  .cartao__corpo--justo {
+    padding: 0;
+  }
 }
 
 .cabecalho {
@@ -2025,4 +2028,67 @@ button.lista__item {
   text-align: center;
   font-size: var(--t-s);
   color: var(--texto-3);
+}
+
+/* Utilitários de largura: botão "voltar" só no celular; rótulos longos só no desktop */
+.caixa .menu-voltar {
+  display: none;
+}
+@media (max-width: 860px) {
+  .caixa .menu-voltar {
+    display: inline-flex;
+  }
+}
+@media (max-width: 560px) {
+  .so-desktop {
+    display: none;
+  }
+}
+
+/* Tabela em cartões no celular (quando a tela passa a função movel para a Tabela) */
+.tabela-movel {
+  display: none;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+@media (max-width: 640px) {
+  .tabela-rolagem--com-movel {
+    display: none;
+  }
+  .tabela-movel {
+    display: block;
+  }
+}
+.tabela-movel > li + li {
+  border-top: 1px solid var(--borda);
+}
+.tabela-movel__item {
+  display: flex;
+  gap: var(--e-3);
+  align-items: flex-start;
+  padding: var(--e-3) var(--e-4);
+  min-height: 64px;
+  cursor: pointer;
+}
+.tabela-movel__item[data-destaque] {
+  box-shadow: inset 3px 0 0 var(--caramelo);
+}
+.tabela-movel__item[data-apagado] {
+  color: var(--texto-3);
+}
+.tabela-movel__item:active {
+  background: var(--sobre-hover);
+}
+
+@media (max-width: 560px) {
+  /* Em listas estreitas a situação quebra linha em vez de espremer o nome */
+  .lista__fim {
+    max-width: 42%;
+    text-align: right;
+  }
+  .lista__fim .situacao {
+    white-space: normal;
+    font-size: var(--t-xs);
+  }
 }

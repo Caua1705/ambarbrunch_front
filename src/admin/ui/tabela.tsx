@@ -17,7 +17,7 @@ export interface Coluna<T> {
   oculta?: boolean;
 }
 
-export function Tabela<T>({ colunas, linhas, chave, aoAbrir, destaque, apagada, rotulo, porPagina = 50, ordemInicial, vazio }: {
+export function Tabela<T>({ colunas, linhas, chave, aoAbrir, destaque, apagada, rotulo, porPagina = 50, ordemInicial, vazio, movel }: {
   colunas: Coluna<T>[];
   linhas: T[];
   chave: (l: T) => string;
@@ -28,6 +28,8 @@ export function Tabela<T>({ colunas, linhas, chave, aoAbrir, destaque, apagada, 
   porPagina?: number;
   ordemInicial?: { coluna: string; desc?: boolean };
   vazio?: ComponentChildren;
+  /** No celular (≤ 640 px) mostra cada linha como cartão em vez de colunas espremidas. */
+  movel?: (l: T) => ComponentChildren;
 }) {
   const [ordem, setOrdem] = useState(ordemInicial ?? null);
   const [pagina, setPagina] = useState(0);
@@ -56,7 +58,34 @@ export function Tabela<T>({ colunas, linhas, chave, aoAbrir, destaque, apagada, 
 
   return (
     <>
-      <div class="tabela-rolagem">
+      {movel && (
+        <ul class="tabela-movel" aria-label={rotulo}>
+          {fatia.map((l) => (
+            <li key={chave(l)}>
+              <div
+                class="tabela-movel__item"
+                data-linha=""
+                data-destaque={destaque?.(l) ? '' : undefined}
+                data-apagado={apagada?.(l) ? '' : undefined}
+                tabIndex={aoAbrir ? 0 : undefined}
+                onClick={aoAbrir ? (e) => {
+                  if ((e.target as HTMLElement).closest('button,a,input,select,label')) return;
+                  aoAbrir(l);
+                } : undefined}
+                onKeyDown={aoAbrir ? (e) => {
+                  if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) {
+                    e.preventDefault();
+                    aoAbrir(l);
+                  }
+                } : undefined}
+              >
+                {movel(l)}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div class={`tabela-rolagem${movel ? ' tabela-rolagem--com-movel' : ''}`}>
         <table class="tabela" aria-label={rotulo}>
           <thead>
             <tr>
@@ -81,6 +110,7 @@ export function Tabela<T>({ colunas, linhas, chave, aoAbrir, destaque, apagada, 
             {fatia.map((l) => (
               <tr
                 key={chave(l)}
+                data-linha=""
                 data-clicavel={aoAbrir ? '' : undefined}
                 data-destaque={destaque?.(l) ? '' : undefined}
                 data-apagado={apagada?.(l) ? '' : undefined}
