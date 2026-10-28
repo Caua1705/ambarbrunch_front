@@ -176,8 +176,19 @@ Observações:
 
 ## 8. Antes de liberar o acesso real em produção (pendências)
 
-1. **Contas da equipe:** criar pela CLI do backend os usuários reais, com papel e unidades certos (operador da
-   recepção, gerente, admin). O painel não cria usuários.
+1. **Contas da equipe** (nenhuma existe ainda em 28/10): criar pela CLI do backend, no servidor da API — a senha é
+   pedida no terminal, sem eco (`giardini_back/ops/DEPLOY.md`). O painel não cria usuários.
+
+   ```bash
+   docker exec -it ambar-api python -m app.cli listar-usuarios        # conferir antes (sem senha)
+   docker exec -it ambar-api python -m app.cli criar-usuario --nome "<seu nome>" --email <e-mail> --papel admin
+   docker exec -it ambar-api python -m app.cli criar-usuario --nome "<gerente>" --email <e-mail> --papel gerente --unidade ambar_cafe
+   docker exec -it ambar-api python -m app.cli criar-usuario --nome "<recepção>" --email <e-mail> --papel operador --unidade ambar_cafe
+   ```
+
+   Gerente e operador só enxergam as unidades atribuídas: confira antes que a unidade `ambar_cafe` existe (o
+   seletor do painel mostra as unidades que `GET /admin/unidades` devolve). **Não** rode `abrir-reservas` nem outros
+   comandos da lista: eles mudam o site público.
 2. **Verificar no preview, com essas contas:** login de admin, gerente e operador; Reservas do dia; aprovar/recusar;
    o que cada papel vê (o operador não vê regras de reserva em Configurações).
 3. **Variáveis no projeto da Vercel (Production):** `PAINEL_ADMIN=1` (build), `PAINEL_MODO=api`,
