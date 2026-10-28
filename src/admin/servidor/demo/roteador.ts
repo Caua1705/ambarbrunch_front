@@ -39,8 +39,8 @@ export class ErroDemo extends Error {
 let rotas: Rota[] | null = null;
 async function todasAsRotas(): Promise<Rota[]> {
   if (!rotas) {
-    const [r, a, f, e, v] = await Promise.all([import('./reservas'), import('./atendimento-clube'), import('./financeiro'), import('./estoque'), import('./visao')]);
-    rotas = [...r.ROTAS_RESERVAS, ...a.ROTAS_ATENDIMENTO_CLUBE, ...f.ROTAS_FINANCEIRO, ...e.ROTAS_ESTOQUE, ...v.ROTAS_VISAO];
+    const [r, a, f, e, v, q] = await Promise.all([import('./reservas'), import('./atendimento-clube'), import('./financeiro'), import('./estoque'), import('./visao'), import('./equipe')]);
+    rotas = [...r.ROTAS_RESERVAS, ...a.ROTAS_ATENDIMENTO_CLUBE, ...f.ROTAS_FINANCEIRO, ...e.ROTAS_ESTOQUE, ...v.ROTAS_VISAO, ...q.ROTAS_EQUIPE];
   }
   return rotas;
 }

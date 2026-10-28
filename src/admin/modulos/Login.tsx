@@ -112,7 +112,7 @@ export default function Login({ modo, volta, sessaoAberta = false, saiu = false 
       <div class="cartao__corpo">
         {saiu && (
           <Aviso tom="ok" icone={<CheckCircle2 aria-hidden="true" />}>
-            <strong>Você saiu do painel neste navegador.</strong> O acesso foi apagado daqui. Se achar que alguém usou a sua conta, peça ao administrador para encerrar as suas sessões no sistema.
+            <strong>Você saiu do painel.</strong> A sessão foi encerrada no sistema do Âmbar, em todos os aparelhos desta conta.
           </Aviso>
         )}
         <h1 style={{ fontSize: '18px' }}>Entrar</h1>

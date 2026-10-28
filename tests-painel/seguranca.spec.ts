@@ -135,12 +135,13 @@ test.describe('modo api (backend falso)', () => {
     await page.waitForURL(`${API}/admin`);
   });
 
-  test('sair apaga a sessão deste navegador e diz o que isso significa', async ({ page }) => {
+  test('sair revoga o token no backend, apaga a sessão e diz o que isso significa', async ({ page, request }) => {
     await entrarApi(page);
     await page.getByRole('button', { name: /Gerente Teste/ }).click();
     await page.getByRole('menuitem', { name: 'Sair' }).click();
     await page.waitForURL(`${API}/admin/login?saiu=1`);
-    await expect(page.getByText('Você saiu do painel neste navegador.')).toBeVisible();
+    await expect(page.getByText('Você saiu do painel.')).toBeVisible();
+    expect((await (await request.get(`${BACKEND_FALSO}/__ultimo`)).json()).revogado).toBe(true);
     expect((await page.context().cookies()).find((c) => c.name === 'ambar_painel')).toBeUndefined();
     const r = await page.request.get(`${API}/admin`, { maxRedirects: 0 });
     expect(r.status()).toBe(303);
@@ -155,7 +156,7 @@ test.describe('modo api (backend falso)', () => {
     expect((await page.context().cookies()).find((c) => c.name === 'ambar_painel')).toBeUndefined();
   });
 
-  test('o login repassa ao backend o IP de quem entrou (limite de tentativas por pessoa, não pelo servidor)', async ({ page, request }) => {
+  test('o login repassa ao backend o IP de quem entrou, assinado com a chave do painel (limite por pessoa)', async ({ page, request }) => {
     await entrarApi(page);
     const ultimo = await (await request.get(`${BACKEND_FALSO}/__ultimo`)).json();
     expect(ultimo.ip_do_login).toBe('127.0.0.1');

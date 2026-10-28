@@ -1,26 +1,36 @@
-// Permissões do painel: ESPELHO das regras do backend (que é quem decide — toda rota confere o papel e devolve 403).
-// O painel só usa isto para não mostrar o que a pessoa não pode usar. Papéis reais do backend: admin, gerente, operador
-// (CONTRATO-PAINEL-ADMIN.md §2; H7 em CONTRATO-PAINEL-FINANCEIRO-ESTOQUE.md §1). Não existe papel "sócio" no backend.
+// Permissões do painel: ESPELHO da matriz do backend (app/modulos/usuarios/permissoes.py — quem decide: toda rota
+// confere e devolve 403). O painel só usa isto para não mostrar o que a pessoa não pode usar.
+// Três perfis: Proprietário (admin), Gerente (gerente), Atendente (operador). Docs: PERFIS-E-PERMISSOES.md no backend.
 import type { Papel } from './sessao';
 
 export type Modulo = 'visao-geral' | 'reservas' | 'atendimento' | 'clube' | 'financeiro' | 'estoque';
+export type Area = Modulo | 'configuracoes';
 
 const TODOS: Papel[] = ['admin', 'gerente', 'operador'];
 const GERENCIA: Papel[] = ['admin', 'gerente'];
 const ADMIN: Papel[] = ['admin'];
 
-const MODULOS: Record<Modulo, Papel[]> = {
-  'visao-geral': TODOS,
+// O Atendente vê só Reservas e Atendimento (e entra direto em Reservas).
+const MODULOS: Record<Area, Papel[]> = {
+  'visao-geral': GERENCIA,
   reservas: TODOS,
   atendimento: TODOS,
-  clube: TODOS,
-  // Financeiro: gerente e admin (o operador só lê categorias e fornecedores, para conferir compras).
+  clube: GERENCIA,
   financeiro: GERENCIA,
-  estoque: TODOS,
+  estoque: GERENCIA,
+  configuracoes: GERENCIA,
 };
 
 const ACOES = {
-  'reservas.configurar': GERENCIA,
+  // Reservas: o Atendente consulta a agenda (sem contato do cliente) e registra a chegada no dia.
+  'reservas.criar': GERENCIA,
+  'reservas.alterar': GERENCIA,
+  'reservas.mudar_status': GERENCIA,
+  'reservas.registrar_chegada': TODOS,
+  'reservas.ver_contato': GERENCIA,
+  // Capacidade, política e grade semanal: regra da casa (Proprietário).
+  'reservas.configurar': ADMIN,
+  'usuarios.gerenciar': ADMIN,
   'clientes.editar': GERENCIA,
   'clube.suspender': GERENCIA,
   'clube.revogar_sessoes': GERENCIA,
@@ -43,5 +53,7 @@ const ACOES = {
 
 export type Acao = keyof typeof ACOES;
 
-export const podeVer = (papel: Papel, modulo: Modulo) => MODULOS[modulo].includes(papel);
+export const podeVer = (papel: Papel, area: Area) => MODULOS[area].includes(papel);
+/** Primeira tela de cada perfil: o Atendente abre direto em Reservas. */
+export const inicioDo = (papel: Papel) => (podeVer(papel, 'visao-geral') ? '/admin' : '/admin/reservas');
 export const pode = (papel: Papel, acao: Acao) => (ACOES[acao] as Papel[]).includes(papel);

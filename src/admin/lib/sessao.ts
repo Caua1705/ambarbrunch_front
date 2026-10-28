@@ -9,8 +9,11 @@ export interface Usuario {
   nome: string;
   email: string;
   papel: Papel;
-  /** Unidades atribuídas (vazio para o admin, que vê todas). */
+  /** Unidades atribuídas (vazio só para a conta técnica que vê todas). */
   unidades: number[];
+  /** Nome visível do perfil e permissões, como o backend decide (GET /admin/auth/me). */
+  perfil?: string;
+  permissoes?: string[];
 }
 
 export interface Unidade {
@@ -35,4 +38,4 @@ export interface ContextoPainel {
   modulos: import('./permissoes').Modulo[];
 }
 
-export const NOME_PAPEL: Record<Papel, string> = { admin: 'Administrador', gerente: 'Gerente', operador: 'Operação' };
+export const NOME_PAPEL: Record<Papel, string> = { admin: 'Proprietário', gerente: 'Gerente', operador: 'Atendente' };

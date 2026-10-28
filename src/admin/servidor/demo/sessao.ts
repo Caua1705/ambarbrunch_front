@@ -5,11 +5,11 @@ import type { Papel, Unidade, Usuario } from '../../lib/sessao';
 const NOMES: Record<Papel, string> = {
   admin: 'Ana Administradora (demo)',
   gerente: 'Gabriela Gerente (demo)',
-  operador: 'Otávio Operação (demo)',
+  operador: 'Atendimento (demo)',
 };
 
 export function usuarioDemo(papel: Papel): Usuario {
-  return { id: `00000000-0000-4000-8000-00000000000${papel === 'admin' ? 1 : papel === 'gerente' ? 2 : 3}`, nome: NOMES[papel], email: `${papel}@demo.invalid`, papel, unidades: papel === 'admin' ? [] : [1] };
+  return { id: `00000000-0000-4000-8000-00000000000${papel === 'admin' ? 1 : papel === 'gerente' ? 2 : 3}`, nome: NOMES[papel], email: `${papel}@demo.invalid`, papel, unidades: [1] };
 }
 
 export const UNIDADES_DEMO: Unidade[] = [

@@ -14,6 +14,7 @@ import { Tabela, type Coluna } from '../../ui/tabela';
 import type { OperacaoReserva, ReservaPainel } from '../../lib/tipos/reservas';
 import { SituacaoReserva, statusDe, emAberto, confirmadaBase, comecou, atualizarReservas, registrarComparecimento, CANAL } from './comum';
 import { DetalheReserva } from './Detalhe';
+import { pode } from '../../lib/permissoes';
 import { NovaReserva } from './NovaReserva';
 import { Pendentes } from './Pendentes';
 import { Semana } from './Semana';
@@ -31,6 +32,7 @@ export default function Reservas({ contexto }: { contexto: ContextoPainel }) {
   const [nova, setNova] = useState(false);
   const [verPendentes, setVerPendentes] = useState(lerParam('status') === 'pendente');
   const { confirmar, elemento: dialogo } = useConfirmacao();
+  const papel = contexto.usuario.papel;
 
   useEffect(() => gravarParams({ data: data === hoje ? null : data, vista: vista === 'lista' ? null : vista, reserva: aberta, status: verPendentes ? 'pendente' : null }), [data, vista, aberta, verPendentes]);
 
@@ -119,7 +121,7 @@ export default function Reservas({ contexto }: { contexto: ContextoPainel }) {
       id: 'acoes', titulo: '',
       celula: (r) => (
         <div class="linha" style={{ justifyContent: 'flex-end', flexWrap: 'nowrap' }}>
-          {statusDe(r) === 'pendente' && (
+          {statusDe(r) === 'pendente' && pode(papel, 'reservas.mudar_status') && (
             <Botao tamanho="p" variante="primario" icone={<Check aria-hidden="true" />} onClick={() => aprovar(r)} aria-label={`Aprovar a reserva de ${r.contato_nome}`}>
               Aprovar
             </Botao>
@@ -134,7 +136,7 @@ export default function Reservas({ contexto }: { contexto: ContextoPainel }) {
               <>
                 <button class="suspenso__item" role="menuitem" onClick={() => { fechar(); setAberta(r.id); }}>Ver detalhes</button>
                 {r.contato_telefone_e164 && <a class="suspenso__item" role="menuitem" href={`tel:${r.contato_telefone_e164}`}><Phone aria-hidden="true" /> Ligar</a>}
-                {statusDe(r) === 'pendente' && <button class="suspenso__item suspenso__item--perigo" role="menuitem" onClick={() => { fechar(); recusar(r); }}><X aria-hidden="true" /> Recusar</button>}
+                {statusDe(r) === 'pendente' && pode(papel, 'reservas.mudar_status') && <button class="suspenso__item suspenso__item--perigo" role="menuitem" onClick={() => { fechar(); recusar(r); }}><X aria-hidden="true" /> Recusar</button>}
               </>
             )}
           </Suspenso>
@@ -154,7 +156,7 @@ export default function Reservas({ contexto }: { contexto: ContextoPainel }) {
         acoes={
           <>
             <Segmentado rotulo="Visualização" valor={vista} aoMudar={setVista} opcoes={[{ valor: 'lista', rotulo: <><List size={14} aria-hidden="true" /> Dia</> }, { valor: 'semana', rotulo: <><CalendarDays size={14} aria-hidden="true" /> Semana</> }]} />
-            <Botao variante="primario" icone={<Plus aria-hidden="true" />} onClick={() => setNova(true)}>Nova reserva</Botao>
+            {pode(papel, 'reservas.criar') && <Botao variante="primario" icone={<Plus aria-hidden="true" />} onClick={() => setNova(true)}>Nova reserva</Botao>}
           </>
         }
       />
@@ -165,7 +167,7 @@ export default function Reservas({ contexto }: { contexto: ContextoPainel }) {
           <div style={{ flex: 1 }}>
             <strong>{plural(nPend, 'reserva aguarda', 'reservas aguardam')} aprovação</strong> <span class="suave">— hoje e próximos dias</span>
           </div>
-          <Botao tamanho="p" variante="primario" onClick={() => setVerPendentes(true)}>Revisar</Botao>
+          {pode(papel, 'reservas.mudar_status') && <Botao tamanho="p" variante="primario" onClick={() => setVerPendentes(true)}>Revisar</Botao>}
         </div>
       )}
 
@@ -255,7 +257,7 @@ export default function Reservas({ contexto }: { contexto: ContextoPainel }) {
         </>
       )}
 
-      <DetalheReserva id={aberta} aoFechar={() => setAberta(null)} confirmar={confirmar} />
+      <DetalheReserva id={aberta} aoFechar={() => setAberta(null)} confirmar={confirmar} papel={papel} />
       <NovaReserva aberta={nova} aoFechar={() => setNova(false)} unidade={contexto.unidade?.codigo ?? null} dataInicial={data} aoCriar={(r) => { setNova(false); setData(r.data); setAberta(r.id); }} />
       <Pendentes aberta={verPendentes} aoFechar={() => setVerPendentes(false)} aoAprovar={aprovar} aoRecusar={recusar} aoAbrir={(id) => { setVerPendentes(false); setAberta(id); }} />
       {dialogo}

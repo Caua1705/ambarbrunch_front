@@ -89,6 +89,9 @@ export default defineConfig({
       PAINEL_CLUBE_CONVITES: envField.boolean({ context: 'server', access: 'secret', optional: true }),
       // Liberação controlada: módulos visíveis e acessíveis (ex.: "visao-geral,reservas"). Vazia = todos.
       PAINEL_MODULOS: envField.string({ context: 'server', access: 'secret', optional: true }),
+      // Segredo do servidor do painel = AMBAR_PAINEL_CHAVE do backend: só com ele o backend aceita o IP e o navegador
+      // de quem entra (limite de login por pessoa, não pelo IP da Vercel). Nunca vai ao navegador.
+      PAINEL_API_CHAVE: envField.string({ context: 'server', access: 'secret', optional: true }),
     },
   },
   build: { inlineStylesheets: 'auto', assets: '_astro' },

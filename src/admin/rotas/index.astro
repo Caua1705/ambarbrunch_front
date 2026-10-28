@@ -9,6 +9,8 @@ export const prerender = false;
 const contexto = Astro.locals.painel;
 if (!contexto) return Astro.redirect('/admin/login', 303);
 // Liberação controlada (PAINEL_MODULOS) e papel, os dois conferidos aqui no servidor.
+// O Atendente não tem Visão Geral: abre direto em Reservas (sem um painel financeiro vazio).
+if (!podeVer(contexto.usuario.papel, 'visao-geral') && contexto.modulos.includes('reservas')) return Astro.redirect('/admin/reservas', 303);
 const liberado = contexto.modulos.includes('visao-geral');
 if (!liberado && contexto.modulos.includes('reservas')) return Astro.redirect('/admin/reservas', 303);
 const pode = liberado && podeVer(contexto.usuario.papel, 'visao-geral');

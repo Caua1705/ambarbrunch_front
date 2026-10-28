@@ -1,8 +1,8 @@
-// Entrar e sair. POST {email, senha} → login no backend e cookie HttpOnly; DELETE → apaga o cookie.
+// Entrar e sair. POST {email, senha} → login no backend e cookie HttpOnly; DELETE → revoga o token no backend e apaga o cookie.
 // Demonstração: POST {demo: "gerente"} — só existe com PAINEL_MODO=demo (nunca na Vercel).
 import type { APIRoute } from 'astro';
-import { modoPainel, DEMO_PERMITIDO } from '../../servidor/config';
-import { gravarSessao, apagarSessao, requisicaoDoPainel, ehHttps } from '../../servidor/sessao';
+import { modoPainel, DEMO_PERMITIDO, chavePainel } from '../../servidor/config';
+import { gravarSessao, apagarSessao, lerSessao, requisicaoDoPainel, ehHttps } from '../../servidor/sessao';
 import { chamarBackend, lerJson, BackendForaDoAr } from '../../servidor/backend';
 import type { Usuario } from '../../lib/sessao';
 
@@ -43,12 +43,18 @@ export const POST: APIRoute = async (ctx) => {
 
   let res: Response;
   try {
-    // O backend limita as tentativas de login por IP. Repassamos o IP de quem entrou (vindo do provedor, não de um
-    // cabeçalho do navegador). Atenção: o Traefik da API de produção tende a descartar este cabeçalho — então o limite
-    // por IP pode valer para o painel inteiro (docs/technical/PAINEL-ADMIN.md, seção 8, pendência 6).
+    // O backend limita as tentativas de login por conta e por origem. O IP de quem entrou (vindo do provedor, não de um
+    // cabeçalho do navegador) e o navegador vão assinados com a chave do painel (PAINEL_API_CHAVE = AMBAR_PAINEL_CHAVE):
+    // sem ela o backend ignora estes cabeçalhos e o time inteiro contaria como um IP só (o da Vercel).
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    const chave = chavePainel();
     const ip = ipDoCliente(ctx);
-    if (ip) headers['X-Forwarded-For'] = ip;
+    if (chave) {
+      headers['X-Ambar-Painel-Chave'] = chave;
+      if (ip) headers['X-Ambar-Cliente-IP'] = ip;
+      const navegador = request.headers.get('user-agent');
+      if (navegador) headers['X-Ambar-Cliente-Navegador'] = navegador.slice(0, 160);
+    }
     res = await chamarBackend(null, 'auth/login', { method: 'POST', headers, body: JSON.stringify({ email, senha }) });
   } catch (e) {
     if (e instanceof BackendForaDoAr) return json(502, { detail: 'O sistema do Âmbar não respondeu. Tente de novo em instantes.', codigo: 'backend_indisponivel' });
@@ -67,7 +73,17 @@ export const POST: APIRoute = async (ctx) => {
 
 export const DELETE: APIRoute = async ({ request, cookies }) => {
   if (!requisicaoDoPainel(request)) return json(403, { detail: 'Requisição recusada.', codigo: 'origem_invalida' });
-  // O backend não revoga o token (sem rota de logout): o cookie some daqui e o token expira sozinho.
+  // Sair de verdade: o backend invalida o token (POST /admin/auth/sair; vale para todos os aparelhos da conta).
+  const sessao = lerSessao(cookies);
+  let revogada = false;
+  if (sessao && !sessao.demoPapel && modoPainel() === 'api') {
+    try {
+      const r = await chamarBackend(sessao.token, 'auth/sair', { method: 'POST' });
+      revogada = r.status === 204 || r.status === 401;   // 401: já não valia
+    } catch {
+      revogada = false;
+    }
+  }
   apagarSessao(cookies);
-  return json(200, { ok: true });
+  return json(200, { ok: true, revogada });
 };

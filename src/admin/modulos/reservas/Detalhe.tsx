@@ -12,8 +12,12 @@ import { Dados, Esqueleto } from '../../ui/estados';
 import type { ReservaPainel } from '../../lib/tipos/reservas';
 import { SituacaoReserva, statusDe, emAberto, confirmadaBase, comecou, atualizarReservas, registrarComparecimento, CANAL, STATUS } from './comum';
 import { EditarReserva } from './NovaReserva';
+import { pode } from '../../lib/permissoes';
+import type { Papel } from '../../lib/sessao';
 
-export function DetalheReserva({ id, aoFechar, confirmar }: { id: string | null; aoFechar: () => void; confirmar: (p: PedidoConfirmacao) => void }) {
+export function DetalheReserva({ id, aoFechar, confirmar, papel }: { id: string | null; aoFechar: () => void; confirmar: (p: PedidoConfirmacao) => void; papel: Papel }) {
+  // Atendente: só "Chegou" no dia (o backend confere de novo). Gerente e Proprietário: todas as ações do estado.
+  const gerencia = pode(papel, 'reservas.mudar_status');
   const consulta = useConsulta(id ? `reservas/${id}` : null, () => reservas.obter(id!));
   const comp = useConsulta(id ? `reservas/${id}/comparecimento` : null, () => reservas.comparecimento(id!));
   const [editando, setEditando] = useState(false);
@@ -41,27 +45,27 @@ export function DetalheReserva({ id, aoFechar, confirmar }: { id: string | null;
     <>
       {s === 'pendente' && (
         <>
-          <Botao variante="perigo" icone={<X aria-hidden="true" />} onClick={() => confirmar({ titulo: 'Recusar esta reserva?', confirmar: 'Recusar reserva', perigo: true, motivo: { rotulo: 'Motivo', obrigatorio: false, ajuda: 'Opcional. Fica no histórico.' }, acao: async (m) => { await reservas.mudarStatus(r.id, 'cancelada', m || undefined); atualizarReservas(); }, sucesso: 'Reserva recusada.' })}>
+          {gerencia && <Botao variante="perigo" icone={<X aria-hidden="true" />} onClick={() => confirmar({ titulo: 'Recusar esta reserva?', confirmar: 'Recusar reserva', perigo: true, motivo: { rotulo: 'Motivo', obrigatorio: false, ajuda: 'Opcional. Fica no histórico.' }, acao: async (m) => { await reservas.mudarStatus(r.id, 'cancelada', m || undefined); atualizarReservas(); }, sucesso: 'Reserva recusada.' })}>
             Recusar
-          </Botao>
-          <Botao variante="primario" icone={<Check aria-hidden="true" />} carregando={ocupado === 'aprovar'} onClick={() => executar('aprovar', () => reservas.mudarStatus(r.id, 'confirmada'), 'Reserva aprovada.')} data-autofoco>
+          </Botao>}
+          {gerencia && <Botao variante="primario" icone={<Check aria-hidden="true" />} carregando={ocupado === 'aprovar'} onClick={() => executar('aprovar', () => reservas.mudarStatus(r.id, 'confirmada'), 'Reserva aprovada.')} data-autofoco>
             Aprovar reserva
-          </Botao>
+          </Botao>}
         </>
       )}
       {confirmadaBase(r) && emAberto(r) && !comecou(r) && (
         <>
-          <Botao variante="fantasma" icone={<X aria-hidden="true" />} onClick={() => confirmar({ titulo: `Cancelar a reserva de ${r.contato_nome}?`, texto: 'O lugar volta a ficar livre. Esta ação não pode ser desfeita.', confirmar: 'Cancelar reserva', perigo: true, motivo: { rotulo: 'Motivo do cancelamento', ajuda: 'Ex.: cliente pediu por telefone. Fica no histórico.' }, acao: async (m) => { await reservas.mudarStatus(r.id, 'cancelada', m); atualizarReservas(); }, sucesso: 'Reserva cancelada.' })}>
+          {gerencia && <Botao variante="fantasma" icone={<X aria-hidden="true" />} onClick={() => confirmar({ titulo: `Cancelar a reserva de ${r.contato_nome}?`, texto: 'O lugar volta a ficar livre. Esta ação não pode ser desfeita.', confirmar: 'Cancelar reserva', perigo: true, motivo: { rotulo: 'Motivo do cancelamento', ajuda: 'Ex.: cliente pediu por telefone. Fica no histórico.' }, acao: async (m) => { await reservas.mudarStatus(r.id, 'cancelada', m); atualizarReservas(); }, sucesso: 'Reserva cancelada.' })}>
             Cancelar reserva
-          </Botao>
-          <Botao icone={<Pencil aria-hidden="true" />} onClick={() => setEditando(true)}>Alterar</Botao>
+          </Botao>}
+          {pode(papel, 'reservas.alterar') && <Botao icone={<Pencil aria-hidden="true" />} onClick={() => setEditando(true)}>Alterar</Botao>}
         </>
       )}
       {confirmadaBase(r) && emAberto(r) && comecou(r) && (
         <>
-          <Botao icone={<UserX aria-hidden="true" />} disabled={!ausenciaLiberada} title={ausenciaLiberada ? undefined : 'Liberado depois da tolerância de atraso'} onClick={() => confirmar({ titulo: 'Registrar que o cliente não veio?', texto: 'Isso entra no histórico de frequência do cliente.', confirmar: 'Não veio', acao: () => registrarComparecimento(r.id, 'nao_compareceu'), sucesso: 'Ausência registrada.' })}>
+          {gerencia && <Botao icone={<UserX aria-hidden="true" />} disabled={!ausenciaLiberada} title={ausenciaLiberada ? undefined : 'Liberado depois da tolerância de atraso'} onClick={() => confirmar({ titulo: 'Registrar que o cliente não veio?', texto: 'Isso entra no histórico de frequência do cliente.', confirmar: 'Não veio', acao: () => registrarComparecimento(r.id, 'nao_compareceu'), sucesso: 'Ausência registrada.' })}>
             Não veio
-          </Botao>
+          </Botao>}
           <Botao variante="primario" icone={<UserCheck aria-hidden="true" />} carregando={ocupado === 'chegou'} onClick={() => executar('chegou', () => registrarComparecimento(r.id, 'compareceu'), 'Chegada registrada.')}>
             Chegou
           </Botao>
@@ -69,12 +73,12 @@ export function DetalheReserva({ id, aoFechar, confirmar }: { id: string | null;
       )}
       {(s === 'compareceu' || s === 'nao_compareceu') && (
         <>
-          <Botao variante="fantasma" icone={<Undo2 aria-hidden="true" />} onClick={() => confirmar({ titulo: 'Desfazer o registro de comparecimento?', confirmar: 'Desfazer', motivo: { rotulo: 'Justificativa', ajuda: 'Obrigatória: correções ficam no histórico.' }, acao: (m) => registrarComparecimento(r.id, 'nao_registrado', m), sucesso: 'Registro desfeito.' })}>
+          {gerencia && <Botao variante="fantasma" icone={<Undo2 aria-hidden="true" />} onClick={() => confirmar({ titulo: 'Desfazer o registro de comparecimento?', confirmar: 'Desfazer', motivo: { rotulo: 'Justificativa', ajuda: 'Obrigatória: correções ficam no histórico.' }, acao: (m) => registrarComparecimento(r.id, 'nao_registrado', m), sucesso: 'Registro desfeito.' })}>
             Desfazer
-          </Botao>
-          <Botao onClick={() => { const novo = s === 'compareceu' ? 'nao_compareceu' : 'compareceu'; confirmar({ titulo: `Corrigir para “${STATUS[novo].rotulo}”?`, confirmar: 'Corrigir', motivo: { rotulo: 'Justificativa', ajuda: 'Obrigatória: correções ficam no histórico.' }, acao: (m) => registrarComparecimento(r.id, novo, m), sucesso: 'Registro corrigido.' }); }}>
+          </Botao>}
+          {gerencia && <Botao onClick={() => { const novo = s === 'compareceu' ? 'nao_compareceu' : 'compareceu'; confirmar({ titulo: `Corrigir para “${STATUS[novo].rotulo}”?`, confirmar: 'Corrigir', motivo: { rotulo: 'Justificativa', ajuda: 'Obrigatória: correções ficam no histórico.' }, acao: (m) => registrarComparecimento(r.id, novo, m), sucesso: 'Registro corrigido.' }); }}>
             Corrigir para “{s === 'compareceu' ? 'Não veio' : 'Chegou'}”
-          </Botao>
+          </Botao>}
         </>
       )}
     </>
@@ -103,7 +107,7 @@ export function DetalheReserva({ id, aoFechar, confirmar }: { id: string | null;
                 <Aviso tom="atencao" icone={<BellRing aria-hidden="true" />}>
                   <strong>Avise o cliente da {r.avisar_cliente === 'cancelamento' ? 'cancelamento' : 'alteração'}.</strong> O sistema não enviou mensagem automática desta mudança.
                   <div style={{ marginTop: '8px' }}>
-                    <Botao tamanho="p" carregando={ocupado === 'avisado'} onClick={() => executar('avisado', () => reservas.avisoComunicado(r.id), 'Marcado como avisado.')}>Já avisei o cliente</Botao>
+                    {gerencia && <Botao tamanho="p" carregando={ocupado === 'avisado'} onClick={() => executar('avisado', () => reservas.avisoComunicado(r.id), 'Marcado como avisado.')}>Já avisei o cliente</Botao>}
                   </div>
                 </Aviso>
               )}

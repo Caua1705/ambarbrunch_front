@@ -28,6 +28,7 @@ const MODULOS: { id: Modulo; rotulo: string; href: string; icone: typeof LayoutD
   { id: 'estoque', rotulo: 'Estoque', href: '/admin/estoque', icone: Package },
 ];
 const visiveis = MODULOS.filter((m) => podeVer(usuario.papel, m.id) && contexto.modulos.includes(m.id));
+const veConfiguracoes = podeVer(usuario.papel, 'configuracoes');
 const sub = unidade ? unidade.nome : 'Sem unidade atribuída';
 ---
 
@@ -70,10 +71,12 @@ const sub = unidade ? unidade.nome : 'Sem unidade atribuída';
           </ul>
         </nav>
         <div class="lateral__base">
-          <a class="nav__item" href="/admin/configuracoes" aria-current={modulo === 'configuracoes' ? 'page' : undefined} title="Configurações">
-            <Settings aria-hidden="true" />
-            <span class="nav__rotulo">Configurações</span>
-          </a>
+          {veConfiguracoes && (
+            <a class="nav__item" href="/admin/configuracoes" aria-current={modulo === 'configuracoes' ? 'page' : undefined} title="Configurações">
+              <Settings aria-hidden="true" />
+              <span class="nav__rotulo">Configurações</span>
+            </a>
+          )}
           <button type="button" class="nav__item btn--fantasma recolher" id="recolher" style="border:0;background:none;cursor:pointer;width:100%" aria-label="Recolher o menu" title="Recolher o menu">
             <PanelLeftClose aria-hidden="true" />
             <span class="nav__rotulo">Recolher menu</span>
@@ -119,7 +122,7 @@ const sub = unidade ? unidade.nome : 'Sem unidade atribuída';
                   <span>{NOME_PAPEL[usuario.papel]}</span>
                 </div>
                 <div class="suspenso__sep"></div>
-                <a class="suspenso__item" role="menuitem" href="/admin/configuracoes"><Settings aria-hidden="true" /> Configurações</a>
+                {veConfiguracoes && <a class="suspenso__item" role="menuitem" href="/admin/configuracoes"><Settings aria-hidden="true" /> Configurações</a>}
                 <button type="button" class="suspenso__item suspenso__item--perigo" role="menuitem" id="sair"><LogOut aria-hidden="true" /> Sair</button>
               </div>
             </div>

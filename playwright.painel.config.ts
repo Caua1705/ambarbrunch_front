@@ -25,7 +25,7 @@ export default defineConfig({
     { command: 'node tests-painel/backend-falso.mjs 4491', url: 'http://127.0.0.1:4491/saude', reuseExistingServer: false },
     servidor(4490, { PAINEL_MODO: 'demo' }),
     // como o preview: só Visão Geral e Reservas liberados
-    servidor(4492, { PAINEL_MODO: 'api', PAINEL_API_URL: 'http://127.0.0.1:4491', PAINEL_MODULOS: 'visao-geral,reservas' }),
+    servidor(4492, { PAINEL_MODO: 'api', PAINEL_API_URL: 'http://127.0.0.1:4491', PAINEL_MODULOS: 'visao-geral,reservas', PAINEL_API_CHAVE: 'chave-do-painel-de-teste-com-40-caracteres!!' }),
     servidor(4493, {}),
   ],
   projects: [

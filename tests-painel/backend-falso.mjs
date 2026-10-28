@@ -6,6 +6,7 @@ import http from 'node:http';
 const porta = Number(process.argv[2] ?? 4491);
 const TOKEN = 'token-de-teste-nao-secreto';
 let ultimo = null;
+let revogado = false;
 let ipDoLogin = null;
 const usuario = { id: '11111111-1111-4111-8111-111111111111', nome: 'Gerente Teste', email: 'gerente@teste.invalid', papel: 'gerente', unidades: [1] };
 const hoje = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Fortaleza' }).format(new Date());
@@ -20,15 +21,22 @@ http.createServer(async (req, res) => {
   let corpo = '';
   for await (const parte of req) corpo += parte;
   if (url.pathname === '/saude') return json(res, 200, { status: 'ok' });
-  if (url.pathname === '/__ultimo') return json(res, 200, { authorization: ultimo, ip_do_login: ipDoLogin });
+  if (url.pathname === '/__ultimo') return json(res, 200, { authorization: ultimo, ip_do_login: ipDoLogin, revogado });
   if (url.pathname === '/admin/auth/login' && req.method === 'POST') {
-    ipDoLogin = req.headers['x-forwarded-for'] ?? null;
+    // IP de quem entra: só vale com a chave do painel (o backend real ignora sem ela).
+    ipDoLogin = req.headers['x-ambar-painel-chave'] === 'chave-do-painel-de-teste-com-40-caracteres!!' ? (req.headers['x-ambar-cliente-ip'] ?? null) : null;
+    revogado = false;
     const { email, senha } = JSON.parse(corpo || '{}');
     if (email === 'gerente@teste.invalid' && senha === 'senha-certa') return json(res, 200, { token: TOKEN, tipo: 'bearer', expira_em: new Date(Date.now() + 3600_000).toISOString(), usuario });
     return json(res, 401, { detail: 'Credenciais inválidas', codigo: 'nao_autenticado' });
   }
   ultimo = req.headers.authorization ?? null;
-  if (req.headers.authorization !== `Bearer ${TOKEN}`) return json(res, 401, { detail: 'Não autenticado', codigo: 'nao_autenticado' });
+  if (req.headers.authorization !== `Bearer ${TOKEN}` || revogado) return json(res, 401, { detail: 'Não autenticado', codigo: 'nao_autenticado' });
+  if (url.pathname === '/admin/auth/sair' && req.method === 'POST') {
+    revogado = true;      // como o backend real: o token deixa de valer no servidor
+    res.writeHead(204);
+    return res.end();
+  }
   if (url.pathname === '/admin/auth/me') return json(res, 200, usuario);
   if (url.pathname === '/admin/unidades') return json(res, 200, [{ id: 1, codigo: 'ambar_cafe', nome: 'Âmbar Café', razao_social: null, cnpj: null, ativo: true }]);
   if (url.pathname === '/admin/reservas/operacao') {

@@ -1,6 +1,5 @@
-// Sair do painel: apaga o cookie da sessão neste navegador (DELETE /admin/api/sessao). O backend do Âmbar ainda não tem
-// rota para revogar o token — ele continua válido no servidor até expirar (600 min por padrão), mas o navegador não o
-// tem mais (o cookie é HttpOnly: nenhum script o leu). Revogar de verdade: CLI do backend `revogar-sessoes <e-mail>`.
+// Sair do painel (DELETE /admin/api/sessao): o servidor do painel pede ao backend para invalidar o token
+// (POST /admin/auth/sair — a conta sai de todos os aparelhos) e apaga o cookie deste navegador.
 // Se a chamada falhar, a tela de login percebe a sessão ainda aberta e oferece encerrar de novo.
 export async function sair(): Promise<void> {
   let ok = false;

@@ -1,5 +1,5 @@
-// Configurações: conta e aparência para todos; regras de reserva (política e ambientes) para a gerência.
-// Usuários do painel não têm rota no backend (só a CLI): a tela explica, sem formulário de mentira.
+// Configurações (Proprietário e Gerente): conta e aparência; regras de reserva (política e ambientes) e Equipe e acessos
+// só para o Proprietário. Contas novas e senhas só pela CLI do backend: a tela não tem formulário de mentira.
 import { useEffect, useState } from 'preact/hooks';
 import { Sun, Moon, Monitor, LogOut, ShieldCheck, Pencil, CalendarCog } from 'lucide-preact';
 import type { ContextoPainel, Papel } from '../../lib/sessao';
@@ -12,6 +12,7 @@ import { Raiz, Gaveta, avisar, avisarErro } from '../../ui/camadas';
 import { sair } from '../../layout/sair';
 import { Botao, Cabecalho, Cartao, Segmentado, Campo, Aviso, Situacao } from '../../ui/base';
 import { Dados, EsqueletoTabela } from '../../ui/estados';
+import { Equipe } from './Equipe';
 import { Tabela } from '../../ui/tabela';
 import type { AmbienteConfig, PoliticaReserva } from '../../lib/tipos/reservas';
 
@@ -54,10 +55,10 @@ export default function Configuracoes({ contexto }: { contexto: ContextoPainel }
               <dt>Perfil</dt>
               <dd>{NOME_PAPEL[usuario.papel]}</dd>
               <dt>Unidades</dt>
-              <dd>{usuario.papel === 'admin' ? 'Todas' : unidades.map((u) => u.nome).join(', ') || '—'}</dd>
+              <dd>{unidades.map((u) => u.nome).join(', ') || '—'}</dd>
             </dl>
-            <p class="fraco">Para trocar a senha ou o perfil, fale com o administrador do sistema.</p>
-            <p class="fraco">Sair apaga o acesso deste navegador. Em computador compartilhado, sempre saia ao terminar. Se achar que alguém usou o seu acesso, peça ao administrador para encerrar as suas sessões no sistema.</p>
+            <p class="fraco">Para trocar a senha ou o perfil, fale com um proprietário.</p>
+            <p class="fraco">Sair encerra esta conta em todos os aparelhos. Em computador compartilhado, sempre saia ao terminar. Se achar que alguém usou o seu acesso, peça a um proprietário para encerrar as suas sessões.</p>
             <Botao icone={<LogOut aria-hidden="true" />} onClick={() => void sair()} style={{ alignSelf: 'flex-start' }}>Sair do painel</Botao>
           </div>
         </Cartao>
@@ -68,14 +69,16 @@ export default function Configuracoes({ contexto }: { contexto: ContextoPainel }
 
       {pode(usuario.papel, 'reservas.configurar') && contexto.modulos.includes('reservas') && unidade && <RegrasReserva unidade={unidade.codigo} />}
 
+      {pode(usuario.papel, 'usuarios.gerenciar') && <Equipe eu={usuario.id} />}
+
       <Cartao titulo={<span class="linha"><ShieldCheck size={16} aria-hidden="true" /> Perfis de acesso</span>} descricao="Quem vê o quê. O sistema do Âmbar confere o perfil a cada ação." justo>
         <Tabela<{ papel: Papel; ve: string; nao: string }>
           rotulo="Perfis de acesso"
           chave={(l) => l.papel}
           linhas={[
-            { papel: 'operador', ve: 'Visão Geral (sem financeiro), Reservas, Atendimento, Clube (consulta), Estoque: compras, conferência, perdas e contagem', nao: 'Financeiro, custos, margens e fichas técnicas' },
-            { papel: 'gerente', ve: 'Tudo da operação + Financeiro, custos, fichas técnicas, análises, regras de reserva, suspensão no Clube', nao: 'Fechar/reabrir apuração e reativar membro suspenso' },
-            { papel: 'admin', ve: 'Tudo, em todas as unidades', nao: '—' },
+            { papel: 'operador', ve: 'Reservas de hoje e dos próximos dias (sem telefone e e-mail do cliente), registrar a chegada, Atendimento', nao: 'Criar, alterar ou cancelar reservas, clientes, Financeiro, Estoque, Clube, Configurações' },
+            { papel: 'gerente', ve: 'Toda a operação: Visão Geral, Reservas (aprovar, alterar, cancelar, dias fechados e eventos), Atendimento, Clube, Financeiro operacional, Estoque', nao: 'Retiradas e distribuição aos sócios, capacidade e regras da casa, usuários, integrações' },
+            { papel: 'admin', ve: 'Tudo na unidade, inclusive equipe, regras da casa e dados societários', nao: '—' },
           ]}
           colunas={[
             { id: 'papel', titulo: 'Perfil', celula: (l) => <span class="principal-celula">{NOME_PAPEL[l.papel]}</span> },
@@ -83,7 +86,7 @@ export default function Configuracoes({ contexto }: { contexto: ContextoPainel }
             { id: 'nao', titulo: 'Não acessa', prioridade: 'media', celula: (l) => <span class="fraco">{l.nao}</span> },
           ]}
         />
-        <div class="cartao__rodape">Usuários da equipe são criados e desativados pelo administrador do sistema (ainda não há tela para isso). Desativar alguém vale na hora.</div>
+        <div class="cartao__rodape">O sistema do Âmbar confere o perfil em toda ação: esconder um botão nunca é a única proteção.</div>
       </Cartao>
     </Raiz>
   );

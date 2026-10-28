@@ -1,5 +1,5 @@
 // Configuração do servidor do painel, lida em tempo de execução (astro:env, nunca no navegador).
-import { PAINEL_MODO, PAINEL_API_URL, PAINEL_CLUBE_CONVITES, PAINEL_MODULOS } from 'astro:env/server';
+import { PAINEL_MODO, PAINEL_API_URL, PAINEL_CLUBE_CONVITES, PAINEL_MODULOS, PAINEL_API_CHAVE } from 'astro:env/server';
 import type { ModoPainel } from '../lib/sessao';
 import type { Modulo } from '../lib/permissoes';
 
@@ -27,6 +27,9 @@ export function apiBase(): string | null {
 }
 
 export const clubeConvites = () => PAINEL_CLUBE_CONVITES === true;
+
+/** Chave do servidor do painel junto ao backend (AMBAR_PAINEL_CHAVE). Sem ela, o login segue sem o IP de quem entra. */
+export const chavePainel = (): string | null => PAINEL_API_CHAVE?.trim() || null;
 
 const TODOS_OS_MODULOS: Modulo[] = ['visao-geral', 'reservas', 'atendimento', 'clube', 'financeiro', 'estoque'];
 
