@@ -1,8 +1,8 @@
 # Reservas públicas — pronto para o lançamento
 
-> 28/10/2026. Backend lido (só leitura) em `giardini_back` `65e8fb3` (abertura e máximo por reserva = lotação).
-> Produção conferida em 28/10: `GET /reservas/config` → 503 `reservas_indisponiveis` (política com
-> `aceita_reservas=false`); segundo a sessão do backend, `AMBAR_RESERVAS_ABERTURA=2026-11-03` em produção.
+> Atualizado em 28/10/2026 (frontend `main`, sem push). Backend lido (só leitura) em `giardini_back`; produção da API
+> conferida em 28/10: `GET /reservas/config` → 503 `reservas_indisponiveis` (`aceita_reservas=false`). Segundo a sessão
+> do backend, `AMBAR_RESERVAS_ABERTURA=2026-11-03` em produção, a ser trocada para `2026-11-06`.
 
 ## Como o site funciona em produção
 
@@ -18,46 +18,120 @@ da Vercel, ambiente Production). Com isso a comanda de `/` (#reservar) e de `/re
   lotação somando reservas sobrepostas, duração de 3 h) vêm de `/reservas/disponibilidade`. O site não recalcula
   nenhuma regra.
 - **Envio**: o backend reconfere tudo. 409 `horario_esgotado` volta à escolha com o aviso e recarrega os horários;
-  422 de data/hora (prazo, abertura) mostra a mensagem e recarrega; erro técnico deixa "Tentar de novo" com a mesma
-  `Idempotency-Key` (nada duplica); clique duplo não manda dois pedidos.
+  422 de data/hora (prazo, abertura) mostra a mensagem e recarrega; erro técnico ou sem conexão deixa "Tentar de novo"
+  com a mesma `Idempotency-Key` (nada duplica); clique duplo não manda dois pedidos.
 - **Fuso**: "hoje" do calendário é o de America/Fortaleza (vem da config), em qualquer fuso do navegador.
+- **Privacidade**: com as reservas em modo API, `/privacidade/` mostra os tratamentos reais (dados pedidos, finalidades,
+  operadores: Supabase em São Paulo, servidor da API, Meta WhatsApp Business Platform, Z-API, Vercel) com o aviso
+  "Texto em validação jurídica". **Não está aprovada**: faltam responsável/controlador, canal do titular, bases legais,
+  prazos de guarda e forma de exercer direitos (`src/data/privacidade.ts`, itens `pendente()`, `aprovada: false`). Ao
+  receber o texto validado, preencher esses itens e marcar `aprovada: true` — não inventar nenhum deles.
 
 ## A data de abertura (06/11/2026)
 
-A fonte de verdade é o backend (`AMBAR_RESERVAS_ABERTURA`): o site não tem data fixa no código. Hoje a produção está
-em **2026-11-03**: se as reservas fossem abertas assim, o site ofereceria 03, 04 e 05/11. Por isso, antes de publicar:
+O Âmbar inaugura em 03/11, mas as reservas online começam em **06/11** (decisão do responsável — não trocar para 03/11).
+A fonte de verdade é o backend (`AMBAR_RESERVAS_ABERTURA`): o site não tem data fixa no código. Se as reservas forem
+abertas com a produção ainda em 2026-11-03, o site ofereceria 03, 04 e 05/11. Por isso, antes e depois de abrir:
 
 ```bash
-node scripts/conferir-abertura-reservas.mjs          # só leituras na API de produção
-# 0 = pronto (nada antes de 06/11, e 06/11 com horários) · 1 = divergência · 2 = reservas fechadas na API
+node scripts/conferir-abertura-reservas.mjs          # só GETs na API de produção; não cria nada
+# 0 = pronto: nenhuma data antes de 06/11 em nenhum ambiente, 05/11 sem horários e 06/11 com horários
+# 1 = CONFIGURAÇÃO INCORRETA: alguma data antes de 06/11 aberta (aponta quais) ou 06/11 sem horários
+# 2 = FECHADA: a API responde 503 reservas_indisponiveis (o site mostra o aviso)
+# 3 = FALHA DE COMUNICAÇÃO: sem conexão, tempo esgotado (15 s), erro HTTP ou resposta que não é JSON
+# opções: --api <url> (outra API, ex. homologação) e --abertura AAAA-MM-DD
 ```
 
-## Para publicar (nesta ordem)
+Em 28/10 a produção devolve **2** (fechada). `tests-reservas/conferir-abertura.spec.ts` testa as quatro saídas contra
+APIs locais mínimas.
 
-1. Backend: `AMBAR_RESERVAS_ABERTURA=2026-11-06` em produção (outra sessão).
-2. Backend: aprovar a privacidade e abrir as reservas (`aceita_reservas=true`) — decisão do responsável.
-3. Rodar `node scripts/conferir-abertura-reservas.mjs` → precisa sair 0.
-4. Vercel (Production): `PUBLIC_RESERVAS_MODO=api` e `PUBLIC_RESERVAS_API_URL=https://api.ambarbrunch.com`
-   (hoje estão em `indisponivel`; são lidas no build).
-5. Push da `main` (com autorização) → deploy de produção. Conferir em `https://ambarbrunch.com/reservar/`.
+## Vercel — o que conferir antes do deploy
 
-A ordem 4–5 antes de 1–3 também é segura: com a API fechada o site mostra o aviso e não oferece nada; mas, se as
-reservas forem abertas no backend antes do passo 1, o site ofereceria 03–05/11 (é a API que decide).
+Projeto `ambarbrunch-front` (framework Astro, `npm ci`, `npm run build`, Node 22.x, Production Branch `main`,
+proteção de deployments `all_except_custom_domains`). O build com adaptador gera `.vercel/output`, que prevalece sobre
+`outputDirectory: dist`.
+
+**Ambiente Production — Reservas (obrigatório):**
+
+| Variável | Valor | Quando vale |
+| --- | --- | --- |
+| `PUBLIC_REVISAO` | `0` | build (já existe) |
+| `PUBLIC_RESERVAS_MODO` | `api` | build (já existe; valor criptografado — conferir que está `api`, hoje `indisponivel`) |
+| `PUBLIC_RESERVAS_API_URL` | `https://api.ambarbrunch.com` | build (**não existe — criar**) |
+| `PUBLIC_CLUBE_MODO` | ausente ou `indisponivel` | build (Clube fica fora; não definir `PUBLIC_CLUBE_HOME`) |
+
+Variáveis `PUBLIC_*` são embutidas no HTML/JS no build: mudar o valor na Vercel **não muda o site no ar** até um novo
+deploy. Com `PUBLIC_RESERVAS_MODO=api` e sem `PUBLIC_RESERVAS_API_URL`, o build cai em `indisponivel` (comanda
+ilustrativa, nada coletado) e a privacidade volta ao texto antigo — ou seja, as reservas não entram no ar.
+Conferência rápida depois do deploy: o HTML de `/reservar/` precisa conter `api.ambarbrunch.com`.
+
+**Painel `/admin` — NÃO definir em Production agora.** Sem `PAINEL_ADMIN=1` o build é estático: não existe `/admin`
+nem função de servidor (conferido: `/admin` e `/admin/login` dão 404 no preview). A liberação do painel é separada
+(`docs/technical/PAINEL-ADMIN.md`) e exige: `PAINEL_ADMIN=1` (build), `PAINEL_MODO=api`,
+`PAINEL_API_URL=https://api.ambarbrunch.com`, `PAINEL_MODULOS` e `PAINEL_API_CHAVE` (segredos lidos pela função em
+tempo de execução — na Vercel também só valem a partir do próximo deploy), mais as contas da equipe criadas no backend.
+
+**Preview privado do HEAD (sem push, sem produção):** `vercel deploy` com `-b PUBLIC_REVISAO=0 -b PUBLIC_RESERVAS_MODO=api
+-b PUBLIC_RESERVAS_API_URL=https://api.ambarbrunch.com -b PUBLIC_CLUBE_MODO=indisponivel`. O de 28/10
+(`ambarbrunch-front-4yks0omif-cauas-projects-3c9f6aea.vercel.app`, commit `cec125d`) confirmou: home sem Clube, menu
+sem Clube, `/admin` 404, privacidade provisória com os operadores, `/reservar/` apontando para a API oficial. A comanda
+ali mostra "Não foi possível carregar as reservas agora" porque a origem do preview não está no CORS da API — esperado;
+em `ambarbrunch.com` a API responde 503 com CORS e o site mostra o aviso de reservas fechadas.
 
 CORS conferido em 28/10: a API libera `https://ambarbrunch.com` e `https://ambarbrunch-front.vercel.app`;
 `www.ambarbrunch.com` redireciona (308) para `ambarbrunch.com`.
 
+## Para publicar (nesta ordem)
+
+1. Backend: `AMBAR_RESERVAS_ABERTURA=2026-11-06` em produção (sessão do backend).
+2. Vercel Production: conferir/criar as variáveis da tabela acima (sem `PAINEL_*`).
+3. Com autorização do responsável: `git push origin main` → a Vercel faz o deploy de produção.
+4. Conferir `https://ambarbrunch.com/reservar/` (aviso de reservas fechadas, link do WhatsApp), `/privacidade/`
+   (tratamentos reais), home sem Clube, `/admin` 404.
+5. Backend: abrir as reservas (`aceita_reservas=true`) — decisão do responsável, depois da privacidade validada.
+6. `node scripts/conferir-abertura-reservas.mjs` → precisa sair **0**. Se sair 1, fechar as reservas no backend e
+   corrigir a abertura antes de qualquer coisa. Conferir no celular que a primeira data é 06/11.
+
+Os passos 2–4 antes do 1 também são seguros enquanto a API está fechada (o site só mostra o aviso). O risco é o passo
+5 antes do 1: o site ofereceria 03–05/11, porque é a API que decide.
+
+## Rollback
+
+- **Site**: a produção atual é o deployment `dpl_5AhMWRKxEVYwrWgskHZdQDPhJoDS` (commit `85dc36e`, reservas
+  `indisponivel`). Voltar para ele: Vercel → Deployments → esse deployment → **Instant Rollback** (ou
+  `vercel rollback dpl_5AhMWRKxEVYwrWgskHZdQDPhJoDS`). Depois de um rollback a Vercel não promove sozinha os próximos
+  deploys até alguém promover de novo. Alternativa sem painel: `git revert` dos commits e push (nunca force-push).
+- **Só a comanda**: trocar `PUBLIC_RESERVAS_MODO` para `indisponivel` em Production e fazer redeploy.
+- **Reservas em si**: fechar no backend (`aceita_reservas=false`) — vale na hora, sem mexer no site: a comanda passa a
+  mostrar o aviso na próxima consulta.
+
 ## Testes
 
 ```bash
-npm run build:reservas-api && npm run test:reservas-api   # modo API com a API interceptada (formato real do backend)
+npm run build:reservas-api && npm run test:reservas-api   # API INTERCEPTADA (formato real do backend) — não é teste real
 ```
 
 `tests-reservas/` cobre: 05/11 e anteriores bloqueados, 06/11 primeira data com horários 07:00–16:00, ocupação
 parcial, dia fechado por evento, limite de 60 dias, ambiente lotado, máximo por ambiente, confirmação (corpo e
-Idempotency-Key), clique duplo, erro de API, horário esgotado (409), data recusada (422), API fechada e reaberta sem
-build, erro de configuração, fuso de Fortaleza, navegação a partir do botão da home e celular 375/390/430 px — em
-Chromium (celular e desktop) e WebKit (celular).
+Idempotency-Key), clique duplo, erro de API, sem conexão no envio, horário esgotado (409), data recusada (422), API
+fechada e reaberta sem build, erro de configuração, fuso de Fortaleza, navegação a partir do botão da home, celular
+375/390/430 px, política de privacidade (tratamentos reais, sem "não coleta dados", sem "aprovada"), consentimento
+obrigatório, Clube oculto e as quatro saídas do script de conferência — em Chromium (celular e desktop) e WebKit
+(celular).
 
-Pendente: o mesmo roteiro no navegador contra a homologação real (`127.0.0.1:8090`), que não pôde ser ligada em
-28/10 por falta de memória na máquina.
+### Ponta a ponta com a API real (quando a homologação estiver no ar)
+
+Sem mocks: site → API real → config → disponibilidade → revisão (e, com autorização, reserva → resposta).
+
+```bash
+# build apontando para a API de homologação (exemplo com a local da sessão do backend)
+PUBLIC_REVISAO=0 PUBLIC_RESERVAS_MODO=api PUBLIC_RESERVAS_API_URL=http://127.0.0.1:8090/ npx astro build --outDir dist-reservas-real
+# só leitura: nada antes de 06/11 na config real e o site mostra exatamente os horários da API
+RESERVAS_API_REAL=http://127.0.0.1:8090 npx playwright test -c playwright.reservas-real.config.ts
+# cria UMA reserva de teste ("TESTE E2E — pode apagar") e confere o código devolvido; recusado em api.ambarbrunch.com
+RESERVAS_API_REAL=http://127.0.0.1:8090 RESERVAS_CRIAR=1 RESERVAS_TELEFONE=<telefone de teste> npx playwright test -c playwright.reservas-real.config.ts
+```
+
+Se a API real estiver fechada (503), o teste é pulado e diz isso. Em produção, só leitura: **nunca** criar reserva de
+teste. Pendente em 28/10: a homologação (`127.0.0.1:8090`) não pôde ser ligada por falta de memória na máquina, então a
+integração real ainda **não foi testada** — tudo acima foi com a API interceptada.
