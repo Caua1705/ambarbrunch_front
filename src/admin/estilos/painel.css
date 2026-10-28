@@ -2104,3 +2104,9 @@ button.lista__item {
 .btn--p.btn--icone {
   padding: 0;
 }
+
+/* O painel aberto recebe o foco (o leitor de tela anuncia o título); sem anel em volta da gaveta inteira */
+.gaveta:focus,
+.dialogo:focus {
+  outline: none;
+}

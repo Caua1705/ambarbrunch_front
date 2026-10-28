@@ -21,8 +21,7 @@ function useCamada(aberta: boolean, aoFechar: () => void) {
     document.documentElement.style.overflow = 'hidden';
     const el = ref.current;
     requestAnimationFrame(() => {
-      const alvo = el?.querySelector<HTMLElement>('[data-autofoco]') ?? el?.querySelector<HTMLElement>(FOCAVEIS);
-      (alvo ?? el)?.focus();
+      (el?.querySelector<HTMLElement>('[data-autofoco]') ?? el)?.focus();
     });
     const tecla = (e: KeyboardEvent) => {
       if (!el || !el.contains(document.activeElement) && document.activeElement !== document.body) return;

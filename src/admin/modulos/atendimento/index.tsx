@@ -215,6 +215,8 @@ function Conversa({ id, meuId, aoVoltar, confirmar }: { id: string; meuId: strin
   }
   const comigo = c.modo === 'humano' && c.atendente_id === meuId;
   const deOutro = c.modo === 'humano' && c.atendente_id && c.atendente_id !== meuId;
+  // Encaminhada pelo assistente para a equipe e ainda sem ninguém: qualquer um pode assumir.
+  const semDono = c.modo !== 'humano' || !c.atendente_id;
 
   return (
     <>
@@ -229,7 +231,7 @@ function Conversa({ id, meuId, aoVoltar, confirmar }: { id: string; meuId: strin
         </div>
         <div class="linha" style={{ flexWrap: 'nowrap' }}>
           <a class="btn btn--p btn--fantasma btn--icone" href={`tel:${c.telefone_e164}`} aria-label="Ligar para o cliente" title="Ligar"><Phone aria-hidden="true" /></a>
-          {c.modo !== 'humano' && (
+          {semDono && (
             <Botao tamanho="p" variante="primario" icone={<Hand aria-hidden="true" />} carregando={ocupado === 'assumir'} onClick={() => acao('assumir', () => atendimento.assumir(id), 'Você assumiu a conversa. O assistente está pausado nela.')}>
               Assumir
             </Botao>
@@ -239,7 +241,7 @@ function Conversa({ id, meuId, aoVoltar, confirmar }: { id: string; meuId: strin
               Assumir de {c.atendente_nome?.split(' ')[0]}
             </Botao>
           )}
-          {c.modo === 'humano' && (
+          {c.modo === 'humano' && !semDono && (
             <>
               <Botao tamanho="p" icone={<Undo2 aria-hidden="true" />} onClick={() => confirmar({ titulo: 'Devolver ao assistente virtual?', texto: 'O assistente volta a responder esta conversa automaticamente.', confirmar: 'Devolver', acao: async () => { await atendimento.devolver(id); invalidar('atendimento'); }, sucesso: 'Conversa devolvida ao assistente.' })}>
                 <span class="so-desktop">Devolver ao assistente</span>
@@ -254,7 +256,7 @@ function Conversa({ id, meuId, aoVoltar, confirmar }: { id: string; meuId: strin
 
       {c.motivo_humano && c.modo === 'humano' && (
         <div style={{ padding: '8px 16px', borderBottom: '1px solid var(--borda)' }} class="fraco">
-          Motivo do encaminhamento: {c.motivo_humano}
+          Motivo do encaminhamento: {MOTIVO_HUMANO[c.motivo_humano] ?? c.motivo_humano.replace(/_/g, ' ')}
         </div>
       )}
 
@@ -271,8 +273,8 @@ function Conversa({ id, meuId, aoVoltar, confirmar }: { id: string; meuId: strin
           <Aviso tom="atencao" icone={<Clock aria-hidden="true" />}>
             Passaram 24 h desde a última mensagem do cliente. Pela regra da Meta, só é possível responder por telefone ou quando o cliente escrever de novo.
           </Aviso>
-        ) : c.modo !== 'humano' ? (
-          <p class="fraco">Para responder, assuma a conversa: o assistente virtual pausa enquanto a equipe atende.</p>
+        ) : semDono ? (
+          <p class="fraco">Para responder, assuma a conversa: o assistente virtual fica pausado enquanto a equipe atende.</p>
         ) : !comigo ? (
           <p class="fraco">{c.atendente_nome ?? 'Outra pessoa'} está atendendo esta conversa.</p>
         ) : null}
@@ -301,6 +303,12 @@ function Conversa({ id, meuId, aoVoltar, confirmar }: { id: string; meuId: strin
     </>
   );
 }
+
+const MOTIVO_HUMANO: Record<string, string> = {
+  atendimento_humano: 'o cliente pediu para falar com alguém',
+  encomenda: 'encomenda',
+  reclamacao: 'reclamação',
+};
 
 const AUTOR: Record<string, { rotulo: string; icone: preact.ComponentChildren }> = {
   cliente: { rotulo: 'Cliente', icone: <UserRound aria-hidden="true" /> },
