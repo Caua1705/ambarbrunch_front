@@ -1,7 +1,7 @@
 // Reserva pública em modo API (como em produção), contra a API falsa no formato real do backend.
 // "Hoje" = 28/10/2026 em Fortaleza; abertura = 06/11/2026 (dias anteriores chegam em datasFechadas, como no backend).
 import { test, expect, type Page } from '@playwright/test';
-import { apiFalsa, relogio, ABERTURA, DIA_EVENTO, DIA_LOTADO, DIA_PARCIAL, type Cenario } from './api-falsa';
+import { apiFalsa, relogio, API, ABERTURA, DIA_EVENTO, DIA_LOTADO, DIA_PARCIAL, type Cenario } from './api-falsa';
 
 const comanda = (page: Page) => page.locator('form.ticket');
 const dia = (page: Page, iso: string) => page.locator(`.cal__dia[data-valor="${iso}"]`);
@@ -138,6 +138,20 @@ test.describe('envio: confirmação, clique duplo, erro e horário esgotado', ()
     await expect(page.getByText('Mesa reservada')).toBeVisible();
     // a nova tentativa reaproveita a mesma chave: o servidor não duplica se o primeiro pedido tiver chegado
     expect(reg.envios[1].chave).toBe(reg.envios[0].chave);
+  });
+
+  test('sem conexão no envio: avisa e nada é confirmado; com a conexão de volta, a mesma reserva segue', async ({ page }) => {
+    const reg = await abrir(page);
+    await escolherData(page, ABERTURA);
+    await preencherEConfirmar(page);
+    await page.route(`${API}/reservas`, (r) => (r.request().method() === 'POST' ? r.abort('internetdisconnected') : r.fallback()));
+    await page.getByRole('button', { name: 'Confirmar reserva' }).click();
+    await expect(page.getByRole('alert')).toContainText('Sem conexão');
+    await expect(page.getByText('Mesa reservada')).toHaveCount(0);
+    await page.unroute(`${API}/reservas`);
+    await page.getByRole('button', { name: 'Tentar de novo' }).click();
+    await expect(page.getByText('Mesa reservada')).toBeVisible();
+    expect(reg.envios).toHaveLength(1);
   });
 
   test('horário esgotado durante a confirmação: volta à escolha, avisa e recarrega os horários', async ({ page }) => {

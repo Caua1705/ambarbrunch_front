@@ -218,3 +218,4 @@ dist-painel/
 
 # Build de teste da reserva em modo API (tests-reservas/)
 dist-reservas-api/
+dist-reservas-real/

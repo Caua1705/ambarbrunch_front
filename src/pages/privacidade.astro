@@ -1,6 +1,9 @@
 ---
 // /privacidade — o TEXTO LEGAL é do Âmbar (pendente de validação). Estrutura e fatos do sistema em src/data/privacidade.ts.
 // Política não aprovada: o build de produção só diz o que existe hoje; o rascunho aparece no modo de revisão.
+// Com as reservas do site ligadas (PUBLIC_RESERVAS_MODO=api), o site passa a coletar dados assim que a API abrir: a
+// página não pode mais dizer que nada é coletado. Mostra os tratamentos reais já descritos em src/data/privacidade.ts e
+// avisa o que ainda está em validação jurídica — sem os itens pendentes e sem dizer que a política foi aprovada.
 import Base from '../layouts/Base.astro';
 import Foto from '../components/Foto.astro';
 import Footer from '../sections/Footer.astro';
@@ -8,7 +11,9 @@ import { privacidade } from '../data/privacidade';
 import { REVISAO, isPendente } from '../lib/conteudo';
 
 const rascunho = !privacidade.aprovada && REVISAO;
-const mostrar = privacidade.aprovada || rascunho;
+const reservasNoSite = import.meta.env.PUBLIC_RESERVAS_MODO === 'api' && !!import.meta.env.PUBLIC_RESERVAS_API_URL;
+const provisoria = !privacidade.aprovada && !REVISAO && reservasNoSite;
+const mostrar = privacidade.aprovada || rascunho || provisoria;
 ---
 <Base titulo="Privacidade — Âmbar Brunch" home={false} indexar={false}>
   <header class="page-bar">
@@ -21,6 +26,13 @@ const mostrar = privacidade.aprovada || rascunho;
       {mostrar ? (
         <>
           {rascunho && <p class="doc__rascunho" role="note">Rascunho em validação — não publicado. Os trechos marcados dependem do controlador.</p>}
+          {provisoria && (
+            <p class="doc__rascunho" role="note">
+              Texto em validação jurídica. Abaixo está como o site e o sistema de reservas tratam os seus dados hoje. Ainda
+              serão publicados aqui: a identificação do responsável pelos dados e do canal de privacidade, as bases legais,
+              os prazos de guarda e a forma de fazer pedidos sobre os seus dados.
+            </p>
+          )}
           {privacidade.secoes.map((secao) => (
             <section aria-labelledby={`priv-${secao.id}`}>
               <h2 id={`priv-${secao.id}`}>{secao.titulo}</h2>

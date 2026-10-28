@@ -25,7 +25,7 @@ export const privacidade = {
     {
       id: 'reserva-dados', titulo: 'Dados da reserva',
       itens: [
-        'Para registrar uma reserva pelo site, pedimos nome, telefone (WhatsApp), e-mail e, se você quiser, observações. Também guardamos o ambiente, a data, o horário e o número de pessoas.',
+        'Para registrar uma reserva pelo site, pedimos nome e telefone (WhatsApp); o e-mail, quando você informa; e, se você quiser, observações. Também guardamos o ambiente, a data, o horário e o número de pessoas.',
         'Guardamos o registro do seu aceite: data e hora, a versão deste texto e códigos derivados do endereço IP e do navegador. O IP e o navegador não ficam guardados em claro.',
         'Escreva nas observações só o necessário para a sua visita (por exemplo, uma restrição alimentar ou cadeirinha).',
       ],
