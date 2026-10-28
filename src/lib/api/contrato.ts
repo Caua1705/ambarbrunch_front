@@ -6,7 +6,10 @@
 export type DataISO = string;
 export type Hora = string;
 
-export interface Ambiente { id: string; nome: string; capacidadeMax?: number; pessoasMin?: number; pessoasMax?: number }
+/** `datasFechadas`: dias da janela em que o ambiente não tem nenhum horário (dia fechado, feriado, evento) — o
+ *  calendário nem os oferece. Dia lotado não vem aqui: lotação é da disponibilidade. */
+export interface Ambiente { id: string; nome: string; capacidadeMax?: number; pessoasMin?: number; pessoasMax?: number;
+  datasFechadas?: DataISO[] }
 
 /** GET /reservas/config */
 export interface ReservaConfig {

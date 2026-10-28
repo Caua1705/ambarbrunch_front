@@ -53,6 +53,19 @@ const mesAno = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric'
 const SEMANA = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
 const SEMANA_LONGA = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
 const dataLonga = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+/** “Hoje” no fuso do restaurante (config.fusoHorario), não no do navegador: quem abre o site à noite noutro fuso
+ *  não pode ver liberado um dia que em Fortaleza já passou (nem perder o dia que lá ainda é hoje). */
+function hojeNoFuso(fuso?: string): Date {
+  const agora = new Date();
+  if (!fuso) return agora;
+  try {
+    const [a, m, d] = new Intl.DateTimeFormat('en-CA', { timeZone: fuso, year: 'numeric', month: '2-digit', day: '2-digit' })
+      .format(agora).split('-').map(Number);
+    return new Date(a, m - 1, d);
+  } catch {
+    return agora;
+  }
+}
 function validar(d: Dados, exigeEmail: boolean): Record<string, string> {
   const e: Record<string, string> = {};
   if (d.nome.trim().length < 2) e.nome = 'Diga como podemos chamar você.';
@@ -93,17 +106,17 @@ function Escolha<T extends string>(p: { rotulo: string; id: string; opcoes: { va
 }
 
 /**
- * Calendário mensal da comanda (rodada final: substitui a fileira de 10 dias). Dias fora da janela [hoje, hoje + diasMax)
- * ficam riscados; setas trocam o mês; no teclado, ←/→ andam um dia e ↑/↓ uma semana (radiogroup, um dia focável).
+ * Calendário mensal da comanda (rodada final: substitui a fileira de 10 dias). Dias fora da janela [hoje, hoje + diasMax]
+ * (a mesma da API: hoje + 60 dias inclusive) e dias fechados do ambiente (`fechadas`, vindos da API) ficam riscados; setas trocam o mês; no teclado, ←/→ andam um dia e ↑/↓ uma semana (radiogroup, um dia focável).
  */
-function Calendario(p: { id: string; hoje: Date; diasMax: number; valor: string | null; aoEscolher: (v: string) => void; aoConfirmar?: () => void }) {
+function Calendario(p: { id: string; hoje: Date; diasMax: number; fechadas?: ReadonlySet<string>; valor: string | null; aoEscolher: (v: string) => void; aoConfirmar?: () => void }) {
   const inicio = new Date(p.hoje.getFullYear(), p.hoje.getMonth(), p.hoje.getDate());
-  const fim = new Date(inicio); fim.setDate(inicio.getDate() + p.diasMax - 1);
+  const fim = new Date(inicio); fim.setDate(inicio.getDate() + p.diasMax);
   const [mes, setMes] = useState(() => { const v = p.valor ? new Date(`${p.valor}T12:00:00`) : inicio; return new Date(v.getFullYear(), v.getMonth(), 1); });
   const grade = useRef<HTMLDivElement>(null);
   const primeiroMes = new Date(inicio.getFullYear(), inicio.getMonth(), 1);
   const ultimoMes = new Date(fim.getFullYear(), fim.getMonth(), 1);
-  const valido = (d: Date) => d >= inicio && d <= fim;
+  const valido = (d: Date) => d >= inicio && d <= fim && !p.fechadas?.has(iso(d));
   const diasNoMes = new Date(mes.getFullYear(), mes.getMonth() + 1, 0).getDate();
   const dias = Array.from({ length: diasNoMes }, (_, i) => new Date(mes.getFullYear(), mes.getMonth(), i + 1));
   const selecionado = p.valor && dias.some((d) => iso(d) === p.valor) ? p.valor : null;
@@ -188,6 +201,8 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
   /** Limites de UMA reserva online no ambiente escolhido (a lotação é capacidadeMax, conferida pela API). */
   const minPessoas = amb?.pessoasMin ?? cfg.pessoas.min;
   const maxPessoas = amb?.pessoasMax ?? cfg.pessoas.max;
+  /** Dias sem nenhum horário neste ambiente (dia fechado, feriado, evento), segundo a API. */
+  const fechadas = useMemo(() => new Set(amb?.datasFechadas ?? []), [amb]);
   /** Acima do máximo online: atendimento de grupos (a equipe lança pelo painel). */
   const grupo = pessoas > maxPessoas;
   const linkGrupo = `${visita.whatsapp.url}?text=${encodeURIComponent(`Olá! Quero reservar para um grupo de mais de ${maxPessoas} pessoas (${nomeAmbiente}).`)}`;
@@ -195,7 +210,7 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
   // Datas só no navegador (o HTML estático foi gerado em outro dia). Nenhuma data vem escolhida (2026-10-22): o campo
   // começa em “Escolher uma data” e os horários só são buscados depois da escolha.
   // Os estados de demonstração (/design-system/) continuam com hoje marcado, para mostrar horários e revisão completos.
-  useEffect(() => { const d = new Date(); setHoje(d); if (demo) setData(iso(d)); }, []);
+  useEffect(() => { const d = hojeNoFuso(cfg.fusoHorario); setHoje(d); if (demo) setData(iso(d)); }, [cfg.fusoHorario]);
   // Ambiente pedido por um “reservar aqui” (mesmo antes de a ilha carregar).
   useEffect(() => {
     const w = window as unknown as { __ambarAmbiente?: string };
@@ -211,6 +226,8 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
   }, [api]);
   // Ao trocar de ambiente, o número de pessoas entra na faixa dele (o grupo continua grupo).
   useEffect(() => { setPessoas((n) => (n < minPessoas ? minPessoas : n > maxPessoas + 1 ? maxPessoas + 1 : n)); }, [minPessoas, maxPessoas]);
+  // A data escolhida deixou de valer (outro ambiente fechado nesse dia): volta a “Escolher uma data”.
+  useEffect(() => { if (data && fechadas.has(data)) { setData(null); setHora(null); } }, [fechadas, data]);
   // Horários: buscados a cada mudança de ambiente, pessoas ou data. Requisições antigas são canceladas.
   useEffect(() => {
     if (!api || !data || !ambiente || demo?.horarios) return;
@@ -275,7 +292,10 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
       if (erro.tipo === 'validacao' && Object.keys(erro.campos).length) {
         // Erro de um campo que não fica no formulário de dados (pessoas, data, hora…): mostrar no topo da comanda.
         const foraDosDados = ['pessoas', 'data', 'hora', 'ambienteId'].map((c) => erro.campos[c]).find(Boolean);
-        setErros(erro.campos); setEtapa('escolha'); setFalha(foraDosDados ?? ''); setAnuncio(foraDosDados ?? erro.message); return;
+        setErros(erro.campos); setEtapa('escolha'); setFalha(foraDosDados ?? ''); setAnuncio(foraDosDados ?? erro.message);
+        // Data ou horário recusados na confirmação (o prazo de 2 h passou, a agenda mudou): a lista mostrada ficou velha.
+        if (erro.campos.data || erro.campos.hora) { setHora(null); setTentativa((t) => t + 1); }
+        return;
       }
       setFalha(erro.message);
       setEtapa('falha');
@@ -353,7 +373,7 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
             <div class="data-painel" id={`${px}-cal`} data-aberto={calAberto ? '' : undefined}
               onKeyDown={(ev) => { if (ev.key === 'Escape' && calAberto) { ev.stopPropagation(); fecharCal(); } }}>
               {hoje
-                ? <Calendario id={`${px}-l3`} hoje={hoje} diasMax={cfg.antecedencia.diasMax} valor={data}
+                ? <Calendario id={`${px}-l3`} hoje={hoje} diasMax={cfg.antecedencia.diasMax} fechadas={fechadas} valor={data}
                     aoEscolher={(v) => { setData(v); setFalha(''); }} aoConfirmar={fecharCal} />
                 : <div class="cal cal--esqueleto" aria-hidden="true"><div class="cal__grade">{Array.from({ length: 35 }, () => <span class="cal__dia chip--skeleton" />)}</div></div>}
             </div>
