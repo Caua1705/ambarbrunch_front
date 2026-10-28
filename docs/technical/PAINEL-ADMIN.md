@@ -38,15 +38,37 @@ src/admin/
 - Cada página do painel confere `GET /admin/auth/me` e `GET /admin/unidades` no servidor antes de sair HTML: papel,
   unidades e `ativo` vêm do backend a cada navegação (desativar alguém vale na hora). Sem sessão → `303 /admin/login`;
   na ponte → `401`. 401 do backend apaga o cookie e manda ao login lembrando a página.
-- Requisição forjada: cookie `SameSite=Strict` + cabeçalho `X-Painel: 1` obrigatório + `Origin` igual ao do site
-  em toda escrita.
+- Requisição forjada: cookie `SameSite=Strict` + cabeçalho `X-Painel: 1` obrigatório (um site de fora não consegue
+  mandá-lo sem permissão de CORS, que o painel não dá) + host do `Origin` igual ao `Host` da requisição em toda escrita.
 - Cabeçalhos: `Cache-Control: no-store`, `X-Robots-Tag: noindex`, `X-Frame-Options: DENY`, `Referrer-Policy`,
-  `Permissions-Policy` e **CSP com o hash sha256 de cada script inline da resposta** (sem `unsafe-inline` em scripts).
-- Sair apaga o cookie. **Limite do backend:** não há rota de logout/revogação; o token continua válido até expirar
-  (revogação só pela CLI `revogar-sessoes`). Recuperação de senha também não existe: a tela de login diz para falar
-  com o administrador.
+  `Permissions-Policy`, `Strict-Transport-Security` (em https, sem `includeSubDomains`), `Cross-Origin-Opener-Policy` e
+  `Cross-Origin-Resource-Policy` e **CSP com o hash sha256 de cada script inline da resposta** (sem `unsafe-inline` em
+  scripts).
+- Login e limite de tentativas: o backend limita as falhas por IP e por e-mail (10 em 15 min). O login passa pelo
+  servidor do painel, que repassa o IP de quem entrou em `X-Forwarded-For` (o endereço informado pelo provedor, não um
+  cabeçalho do navegador). **Mas** a API de produção fica atrás de um Traefik que, no padrão, descarta `X-Forwarded-For`
+  de quem não é confiável e grava o IP da conexão: na prática o backend tende a ver o IP da Vercel. Então o limite por
+  IP vale para o painel inteiro (10 senhas erradas em 15 min, somando a equipe, bloqueiam o login de todos por até
+  15 min; o limite por e-mail continua individual). Ver pendência 6 da seção 8.
 - Perfis reais: `admin`, `gerente`, `operador` (não existe "sócio" no backend). `lib/permissoes.ts` espelha as regras
-  só para esconder o que a pessoa não pode usar; quem decide é o backend (403).
+  só para esconder o que a pessoa não pode usar; quem decide é o backend (403). As páginas conferem papel e módulo
+  liberado no servidor, antes de sair HTML.
+
+### Sair do painel e o que isso NÃO faz
+
+- "Sair" (menu do perfil e Configurações) chama `DELETE /admin/api/sessao`, que **apaga o cookie deste navegador**. A
+  partir daí este navegador não tem mais acesso e a tela de login confirma: "Você saiu do painel neste navegador".
+- **Dependência do backend:** o backend do Âmbar **não tem rota de logout nem de revogação de token**. O token apagado
+  do navegador continua **válido no servidor até expirar** (`AMBAR_JWT_EXPIRA_MINUTOS`, 600 min por padrão). Na
+  prática o risco é pequeno — o token nunca esteve acessível a scripts (cookie HttpOnly) — mas o logout do painel
+  **não é revogação**. Revogar de verdade hoje só pela CLI do backend: `revogar-sessoes <e-mail>` (incrementa
+  `token_versao`, e todo token anterior daquela pessoa deixa de valer na hora). Desativar o usuário também derruba o
+  acesso na hora. Para logout com revogação, o backend precisaria de uma rota (ex.: `POST /admin/auth/sair` que
+  incremente `token_versao` do próprio usuário); o painel já tem o ponto certo para chamá-la (`rotas/api/sessao.ts`).
+- Se a chamada de saída falhar (sem conexão), o cookie fica; a tela de login detecta a sessão aberta e oferece
+  "Encerrar sessão" de novo. Sair também limpa a contagem de estoque aberta guardada no navegador.
+- Sem tempo de inatividade: a sessão vale até a expiração do token. Em computador compartilhado, a equipe deve sair ao
+  terminar (Configurações diz isso).
 
 ## 3. Modos (`PAINEL_MODO`, lido em tempo de execução pelo servidor)
 
@@ -54,9 +76,29 @@ src/admin/
 |---|---|
 | `indisponivel` (padrão) | A tela de login explica que o painel não está conectado; ninguém entra. |
 | `api` | Login e dados reais em `PAINEL_API_URL` (https obrigatório na Vercel). |
-| `demo` | Dados **fictícios** em memória (`src/admin/servidor/demo/`), faixa "DEMONSTRAÇÃO" em toda página, entrada por perfil sem senha. **Recusado na Vercel** (em preview e produção) e no build de produção. Nada sai para o backend. |
+| `demo` | Dados **fictícios** em memória (`src/admin/servidor/demo/`), faixa "DEMONSTRAÇÃO" em toda página, entrada por perfil sem senha. Só em build local. Num build da Vercel (preview ou produção) **o código e os dados de demonstração nem entram no pacote**: a integração troca os módulos da demo por um módulo vazio na compilação (conferido: nenhum texto da demo em `.vercel/output`), e o modo é recusado também em execução. |
 
 `PAINEL_CLUBE_CONVITES=true` liga o envio de convites do Clube pelo WhatsApp (só no lançamento do Clube).
+
+### Liberação controlada (`PAINEL_MODULOS`)
+
+`PAINEL_MODULOS=visao-geral,reservas` (lista separada por vírgulas; vazia = todos) define os módulos **liberados neste
+ambiente**. Os outros somem do menu, a página responde "Este módulo ainda não foi liberado" (no servidor) e a ponte da
+API recusa as rotas deles com `403 modulo_nao_liberado` sem chamar o backend. A Visão Geral só consulta e mostra o que
+está liberado (o bloco financeiro dela só aparece com `financeiro` liberado). Assim, quando o backend publicar o
+Financeiro ou o Estoque, **nada abre para a equipe por consequência**: abrir é mudar esta variável. Sem a Visão Geral
+liberada, `/admin` leva direto a Reservas. Configurações (conta, tema, regras de reserva) acompanha o módulo Reservas.
+
+Variáveis do painel e quando são lidas:
+
+| Variável | Quando | Valor no preview de 28/10 |
+|---|---|---|
+| `PAINEL_ADMIN=1` | **build** (liga a integração, o adaptador e as rotas) | `1` |
+| `PAINEL_MODO` | **execução** (astro:env, segredo do servidor) | `api` |
+| `PAINEL_API_URL` | **execução** | `https://api.ambarbrunch.com` |
+| `PAINEL_MODULOS` | **execução** | `visao-geral,reservas` |
+| `PAINEL_CLUBE_CONVITES` | **execução** | (vazia) |
+| `PUBLIC_REVISAO`, `PUBLIC_RESERVAS_MODO`, `PUBLIC_CLUBE_MODO`, `PUBLIC_CLUBE_HOME` | **build** (site público) | `0`, `indisponivel`, `indisponivel`, (vazia) |
 
 ## 4. O que cada tela usa e o que já funciona com dados reais
 
@@ -110,14 +152,47 @@ npx playwright test -c playwright.painel.config.ts   # testes do painel (sobe 3 
 
 No Windows, `PAINEL_MODO=…` antes do comando funciona no Git Bash; no PowerShell use `$env:PAINEL_MODO='api'`.
 
-## 7. Antes de liberar o acesso real em produção
+## 7. Preview privado (como foi feito em 28/10/2026)
 
-1. Decidir publicar o painel: configurar na Vercel `PAINEL_ADMIN=1` (build), `PAINEL_MODO=api` e
-   `PAINEL_API_URL=https://api.ambarbrunch.com` (ambiente). Sem isso, nada muda no site.
-2. Fazer um deploy de **preview** primeiro e conferir que o site público continua idêntico (as páginas são as mesmas,
-   agora servidas pelo adaptador da Vercel) e que `/admin` pede login.
-3. Criar os usuários reais da equipe pela CLI do backend (papéis corretos e unidades atribuídas) e testar cada perfil.
-4. Aplicar no backend as migrações e o código dos módulos que se quer ligar (0005–0017), na ordem do
-   `IMPLANTACAO-*.md` do backend — cada tela passa a funcionar sozinha quando a rota existir.
-5. Decidir sobre a criação manual de reservas (`AMBAR_PAINEL_CRIACAO_MANUAL`).
-6. Conferir que o backend em produção mantém o limite de tentativas de login e tokens de 600 min.
+Sem push e sem tocar nas variáveis do projeto: uma cópia exata do commit (`git archive HEAD`) enviada pela CLI, com as
+variáveis só daquele deploy. O projeto tem Vercel Authentication em todos os deploys exceto domínios próprios
+(`ssoProtection: all_except_custom_domains`), então o preview só abre para quem entra na conta da Vercel do time.
+
+```bash
+git archive HEAD | tar -x -C <pasta-temporária> && cd <pasta-temporária>
+vercel link --yes --project ambarbrunch-front --scope cauas-projects-3c9f6aea   # apague o .env.local que ele cria
+vercel deploy --yes --scope cauas-projects-3c9f6aea --target preview \
+  -b PAINEL_ADMIN=1 -b PUBLIC_REVISAO=0 -b PUBLIC_RESERVAS_MODO=indisponivel -b PUBLIC_CLUBE_MODO=indisponivel \
+  -e PAINEL_MODO=api -e PAINEL_API_URL=https://api.ambarbrunch.com -e PAINEL_MODULOS=visao-geral,reservas
+```
+
+Observações:
+- `-b` vale no build, `-e` em execução (é onde o astro:env lê `PAINEL_MODO`, `PAINEL_API_URL` e `PAINEL_MODULOS`).
+- Com o adaptador da Vercel o build sai em `.vercel/output` (Build Output API), que a Vercel usa no lugar de
+  `outputDirectory: dist` das configurações do projeto. As páginas públicas saem com o mesmo HTML do build estático; o
+  redirecionamento `/clube/membro` vira uma rota 301 da Vercel em vez de página.
+- Não use `vercel curl` para conferir um deploy protegido: ele pode criar um segredo de "bypass" permanente no projeto.
+  Confira pelo navegador com a conta da Vercel.
+
+## 8. Antes de liberar o acesso real em produção (pendências)
+
+1. **Contas da equipe:** criar pela CLI do backend os usuários reais, com papel e unidades certos (operador da
+   recepção, gerente, admin). O painel não cria usuários.
+2. **Verificar no preview, com essas contas:** login de admin, gerente e operador; Reservas do dia; aprovar/recusar;
+   o que cada papel vê (o operador não vê regras de reserva em Configurações).
+3. **Variáveis no projeto da Vercel (Production):** `PAINEL_ADMIN=1` (build), `PAINEL_MODO=api`,
+   `PAINEL_API_URL=https://api.ambarbrunch.com` e `PAINEL_MODULOS=visao-geral,reservas` (execução). Manter
+   `PUBLIC_RESERVAS_MODO=indisponivel` e o Clube como está enquanto não houver decisão contrária.
+4. **Push para `main`** (dispara o deploy de produção) — só com autorização. Depois, conferir que `/` e `/reservar/`
+   continuam iguais e que `/admin` pede login no domínio de produção.
+5. **Decisões do backend (sem mudança no frontend):** criação manual de reservas pelo painel
+   (`AMBAR_PAINEL_CRIACAO_MANUAL`, hoje desligada); a rota nova de comparecimento (0007) para corrigir/desfazer com
+   histórico; e, se quiserem logout que revogue o token, uma rota como `POST /admin/auth/sair`.
+6. **Limite de login por IP com o painel no servidor (backend):** todo login do painel chega ao backend pelo IP da
+   Vercel (o Traefik da API descarta o `X-Forwarded-For` que o painel manda). Somando a equipe, 10 senhas erradas em
+   15 min bloqueiam o login de todos por até 15 min. Opções do lado do backend: aceitar o IP do usuário só do servidor
+   do painel (cabeçalho assinado com um segredo compartilhado) ou aplicar ao painel só o limite por e-mail. Também
+   vale lembrar: o Traefik limita a 20 req/s por IP de origem (rajada 40), e o tráfego do painel sai de poucos IPs da
+   Vercel — folgado para uma equipe pequena, mas é um limite compartilhado.
+7. Liberar outros módulos depois: publicar o backend do módulo (migrações da ordem do `IMPLANTACAO-*.md`) e então
+   incluir o nome em `PAINEL_MODULOS`.
