@@ -68,7 +68,8 @@ async function conferir() {
     if (abertasAntes.length) problemas.push(`${amb.nome}: oferece datas antes da abertura (${abertasAntes.join(', ')})`);
     for (const data of [VESPERA, ABERTURA]) {
       if (!janela.includes(data)) continue;
-      const q = new URLSearchParams({ data, pessoas: '2', ambiente: amb.id });
+      // 2 pessoas, ou o mínimo do ambiente (a Sala privativa só aceita a partir de 6: com 2, a API responde 422)
+      const q = new URLSearchParams({ data, pessoas: String(Math.max(2, amb.pessoasMin ?? 1)), ambiente: amb.id });
       const d = await obter(`/reservas/disponibilidade?${q}`);
       if (d.status === 503 && d.corpo?.codigo === 'reservas_indisponiveis') {
         console.log('FECHADA: a disponibilidade responde reservas_indisponiveis.');

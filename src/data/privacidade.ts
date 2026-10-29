@@ -22,7 +22,8 @@ type Texto = string | Revisar | Pendente;
 export interface Secao { id: string; titulo: string; itens: Texto[] }
 
 export const privacidade = {
-  aprovada: false,
+  // aprovada pelo responsável pela GIARDIN CAFE BISTRO E BAR LTDA em 29/10/2026 (registro dele, não parecer jurídico)
+  aprovada: true,
   versao: 'Versão 2026-11-v1' as string | Pendente,
   secoes: [
     {

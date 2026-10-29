@@ -3,10 +3,10 @@
 import { test, expect } from '@playwright/test';
 import { apiFalsa, relogio, ABERTURA } from './api-falsa';
 
-test('política: tratamentos reais com o aviso de validação; nada de "não coleta dados" nem de "aprovada"', async ({ page }) => {
+test('política aprovada (2026-11-v1): tratamentos reais, sem aviso provisório nem "não coleta dados"', async ({ page }) => {
   await page.goto('/privacidade/');
   const doc = page.locator('main');
-  await expect(doc).toContainText('Texto aguardando a aprovação do responsável pelo Âmbar Café');
+  await expect(doc.getByRole('note')).toHaveCount(0);
   // decisões do controlador (29/10/2026): canal = WhatsApp oficial; sem exclusão automática nem prazo inventado
   await expect(doc).toContainText('Canal de privacidade: o WhatsApp oficial do Âmbar, (85) 95855-0369');
   await expect(doc).toContainText('O sistema não apaga nem anonimiza dados automaticamente, e não há um prazo fixo de exclusão.');
@@ -16,7 +16,7 @@ test('política: tratamentos reais com o aviso de validação; nada de "não col
   }
   const texto = (await doc.innerText()).toLowerCase();
   // regras de 29/10/2026 no backend: cancelamento (f41d12f) e alteração (3c36019, 075bb84) não vão ao grupo da equipe
-  for (const falso of ['não coleta dados pessoais', 'não envia formulários', 'aprovad', 'a confirmar', 'validar:', 'alterada ou cancelada', 'mudança de data', 'validação jurídica', 'parecer']) expect(texto, falso).not.toContain(falso);
+  for (const falso of ['não coleta dados pessoais', 'não envia formulários', 'aprovad', 'a confirmar', 'validar:', 'alterada ou cancelada', 'mudança de data', 'validação jurídica', 'parecer', 'aguardando a aprovação']) expect(texto, falso).not.toContain(falso);
 });
 
 test('consentimento: obrigatório para continuar e com link para a política', async ({ page }) => {

@@ -32,9 +32,11 @@ function servidor(tipo: 'abertura' | 'fechada' | 'erro500' | 'quebrada', abertur
     r.setHeader('content-type', 'application/json');
     if (tipo === 'fechada') { r.statusCode = 503; return r.end(JSON.stringify({ detail: 'Reservas online indisponíveis no momento.', codigo: 'reservas_indisponiveis' })); }
     if (tipo === 'erro500') { r.statusCode = 500; return r.end(JSON.stringify({ detail: 'erro' })); }
-    if (u.pathname === '/reservas/config') return r.end(JSON.stringify({ ambientes: ['jardim', 'salao'].map((id) => ({ id, nome: id, capacidadeMax: 20, pessoasMax: 20, datasFechadas: fechadas })), antecedencia: { diasMax: 60, horasMin: 2 }, fusoHorario: 'America/Fortaleza', privacidadeVersao: versao }));
+    if (u.pathname === '/reservas/config') return r.end(JSON.stringify({ ambientes: [['jardim', 1], ['salao', 1], ['privativa', 6]].map(([id, min]) => ({ id, nome: id, capacidadeMax: 20, pessoasMin: min, pessoasMax: 20, datasFechadas: fechadas })), antecedencia: { diasMax: 60, horasMin: 2 }, fusoHorario: 'America/Fortaleza', privacidadeVersao: versao }));
     if (tipo === 'quebrada') { r.statusCode = 502; return r.end('<html>bad gateway</html>'); }
     const d = u.searchParams.get('data')!;
+    // como o backend: abaixo do mínimo do ambiente, 422 abaixo_do_minimo
+    if (u.searchParams.get('ambiente') === 'privativa' && Number(u.searchParams.get('pessoas')) < 6) { r.statusCode = 422; return r.end(JSON.stringify({ detail: [{ loc: ['body', 'pessoas'], msg: 'Sala privativa recebe reservas a partir de 6 pessoas.', type: 'abaixo_do_minimo' }], codigo: 'abaixo_do_minimo' })); }
     r.end(JSON.stringify({ data: d, horarios: d < abertura ? [] : [{ hora: '07:00', disponivel: true }] }));
   });
   return new Promise((ok) => s.listen(0, '127.0.0.1', () => ok({ url: `http://127.0.0.1:${(s.address() as AddressInfo).port}`, fechar: () => s.close() })));

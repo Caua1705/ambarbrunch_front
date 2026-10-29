@@ -27,8 +27,8 @@ da Vercel, ambiente Production). Com isso a comanda de `/` (#reservar) e de `/re
   "Texto aguardando a aprovação do responsável pelo Âmbar Café". Decisões do controlador de 29/10/2026 já no texto:
   canal de privacidade = WhatsApp oficial (85) 95855-0369; nenhuma exclusão ou anonimização automática e nenhum prazo
   fixo (guarda descrita como o sistema funciona; eliminação a pedido, quando a lei exigir); sem parecer jurídico — o
-  responsável aprova como representante da empresa, e o site não afirma validação jurídica. **Ainda não aprovada**
-  (`aprovada: false`): quando ele aprovar, marcar `aprovada: true` em `src/data/privacidade.ts` e publicar. Notas de
+  responsável aprova como representante da empresa, e o site não afirma validação jurídica. **Aprovada por ele em
+  29/10/2026** (`aprovada: true`; backend com a mesma versão via `aprovar-privacidade`). Notas de
   revisão ("Validar: …") aparecem só no build de revisão (`npm run build:revisao`). Análise:
   `docs/technical/PRIVACIDADE-REVISAO.md`. A `versao` publicada
   tem de ser a mesma registrada no backend (`app.cli aprovar-privacidade --unidade ambar_cafe --versao …`). Avisos ao
