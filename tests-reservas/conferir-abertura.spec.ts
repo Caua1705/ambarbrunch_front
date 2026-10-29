@@ -1,5 +1,5 @@
 // O script de conferência da abertura (scripts/conferir-abertura-reservas.mjs) contra APIs locais mínimas:
-// abertura em 03/11 (configuração incorreta), em 06/11 (pronto), versão da política, reservas fechadas, erro 500 e sem conexão.
+// abertura em 03/11 (configuração incorreta), em 09/11 (pronto), versão da política, reservas fechadas, erro 500 e sem conexão.
 import { test, expect } from '@playwright/test';
 import http from 'node:http';
 import { execFile } from 'node:child_process';
@@ -24,7 +24,7 @@ function politica(versao: string, aprovada = true) {
   return arquivo;
 }
 
-function servidor(tipo: 'abertura' | 'fechada' | 'erro500' | 'quebrada', abertura = '2026-11-06', versao = '2026-11-v1'): Promise<{ url: string; fechar: () => void }> {
+function servidor(tipo: 'abertura' | 'fechada' | 'erro500' | 'quebrada', abertura = '2026-11-09', versao = '2026-11-v1'): Promise<{ url: string; fechar: () => void }> {
   const hoje = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Fortaleza' }).format(new Date());
   const fechadas = Array.from({ length: 61 }, (_, i) => somar(hoje, i)).filter((d) => d < abertura);
   const s = http.createServer((q, r) => {
@@ -51,25 +51,33 @@ const rodar = (api: string, arquivoPolitica = politica('2026-11-v1')) =>
 test.describe.configure({ mode: 'serial' });
 test.skip(({ browserName, isMobile }) => browserName !== 'chromium' || !!isMobile, 'script de Node: roda uma vez só');
 
-test('backend com abertura em 03/11: configuração incorreta (saída 1), aponta 03, 04 e 05/11', async () => {
+test('backend com abertura em 03/11: configuração incorreta (saída 1), aponta 03 a 08/11', async () => {
   const s = await servidor('abertura', '2026-11-03');
   const r = await rodar(s.url);
   s.fechar();
   expect(r.status).toBe(1);
   expect(r.stdout).toContain('CONFIGURAÇÃO INCORRETA');
-  expect(r.stdout).toContain('2026-11-03, 2026-11-04, 2026-11-05');
+  expect(r.stdout).toContain('2026-11-03, 2026-11-04, 2026-11-05, 2026-11-06, 2026-11-07, 2026-11-08');
 });
 
-test('backend com abertura em 06/11: pronto (saída 0)', async () => {
+test('backend com abertura em 06/11 (decisão antiga): configuração incorreta, aponta 06 a 08/11', async () => {
   const s = await servidor('abertura', '2026-11-06');
   const r = await rodar(s.url);
   s.fechar();
+  expect(r.status).toBe(1);
+  expect(r.stdout).toContain('2026-11-06, 2026-11-07, 2026-11-08');
+});
+
+test('backend com abertura em 09/11: pronto (saída 0)', async () => {
+  const s = await servidor('abertura', '2026-11-09');
+  const r = await rodar(s.url);
+  s.fechar();
   expect(r.status).toBe(0);
-  expect(r.stdout).toContain('primeira data aberta 2026-11-06');
+  expect(r.stdout).toContain('primeira data aberta 2026-11-09');
 });
 
 test('política: versão do backend diferente da do site, ou site sem aprovar: configuração incorreta (saída 1)', async () => {
-  const s = await servidor('abertura', '2026-11-06', '2026-10');
+  const s = await servidor('abertura', '2026-11-09', '2026-10');
   const diferente = await rodar(s.url);
   expect(diferente.status).toBe(1);
   expect(diferente.stdout).toContain('versão da política diferente: backend "2026-10", site "2026-11-v1"');

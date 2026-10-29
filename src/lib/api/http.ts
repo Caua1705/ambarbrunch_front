@@ -54,6 +54,9 @@ async function pedir<T>(base: string, caminho: string, init: RequestInit = {}, s
   if (res.status === 429) throw new ErroReserva('limite', msg ?? 'Muitas tentativas seguidas. Tente de novo em alguns minutos.', {}, codigo);
   // Reservas fechadas pela unidade (aceita_reservas desligado): estado da comanda, não erro técnico.
   if (res.status === 503 && codigo === 'reservas_indisponiveis') throw new ErroReserva('fechado', 'As reservas pelo site estão fechadas no momento.', {}, codigo);
+  // Recusa de acesso (rotas públicas não a usam hoje; um bloqueio na frente da API, sim): a mensagem do servidor, sem
+  // sugerir que repetir resolve.
+  if (res.status === 403) throw new ErroReserva('servidor', msg ?? 'O sistema de reservas recusou o pedido. Fale com a equipe pelo WhatsApp.', {}, codigo);
   if (res.status === 503) throw new ErroReserva('indisponivel', 'O sistema de reservas está indisponível no momento.', {}, codigo);
   throw new ErroReserva('servidor', 'Não foi possível concluir. Tente de novo em instantes.', {}, codigo);
 }

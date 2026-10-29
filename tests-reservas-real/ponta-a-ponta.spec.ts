@@ -7,7 +7,7 @@ import { test, expect } from '@playwright/test';
 const API = (process.env.RESERVAS_API_REAL ?? '').replace(/\/+$/, '');
 const CRIAR = process.env.RESERVAS_CRIAR === '1';
 const PRODUCAO = /(^|\.)api\.ambarbrunch\.com$/i.test(API ? new URL(API).hostname : '');
-const ABERTURA = '2026-11-06';
+const ABERTURA = '2026-11-09';
 
 test.skip(!API, 'defina RESERVAS_API_REAL (e faça o build dist-reservas-real com a mesma URL)');
 
@@ -18,7 +18,7 @@ async function json<T>(caminho: string): Promise<{ status: number; corpo: T }> {
   return { status: r.status, corpo: (await r.json()) as T };
 }
 
-test('a API real não oferece nada antes de 06/11 e o site mostra exatamente os horários dela', async ({ page }) => {
+test('a API real não oferece nada antes de 09/11 e o site mostra exatamente os horários dela', async ({ page }) => {
   const cfg = await json<{ ambientes: Ambiente[]; antecedencia: { diasMax: number }; fusoHorario: string }>('/reservas/config');
   test.skip(cfg.status === 503, 'reservas fechadas nesta API (503 reservas_indisponiveis)');
   expect(cfg.status).toBe(200);

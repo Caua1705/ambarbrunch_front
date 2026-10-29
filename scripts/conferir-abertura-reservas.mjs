@@ -1,6 +1,7 @@
 // Confere, só com leituras (GET), se a API de reservas está pronta para o site público abrir:
-//   node scripts/conferir-abertura-reservas.mjs [--api https://api.ambarbrunch.com] [--abertura 2026-11-06] [--politica arquivo]
-// Decisão operacional (28/10/2026): o Âmbar inaugura em 03/11, mas a primeira data reservável pelo site é 06/11.
+//   node scripts/conferir-abertura-reservas.mjs [--api https://api.ambarbrunch.com] [--abertura 2026-11-09] [--politica arquivo]
+// Decisão do responsável (29/10/2026): a primeira data de visita reservável pelo site é 09/11 (inclusive); o site
+// também a impõe (src/data/visita.ts, reservasDesde).
 // - /reservas/config responde (reservas abertas pela unidade, não 503 reservas_indisponiveis);
 // - em cada ambiente, nenhum dia antes da abertura é oferecido (datasFechadas, vindas de AMBAR_RESERVAS_ABERTURA);
 // - a disponibilidade da véspera da abertura vem sem horários e a do dia da abertura tem horários em algum ambiente;
@@ -15,7 +16,7 @@ const arg = (nome, padrao) => {
   return i > 0 ? process.argv[i + 1] : padrao;
 };
 const API = arg('api', 'https://api.ambarbrunch.com').replace(/\/+$/, '');
-const ABERTURA = arg('abertura', '2026-11-06');
+const ABERTURA = arg('abertura', '2026-11-09');
 // texto da política publicado pelo site (os testes passam outro arquivo)
 const POLITICA = arg('politica', new URL('../src/data/privacidade.ts', import.meta.url));
 const somar = (iso, n) => {

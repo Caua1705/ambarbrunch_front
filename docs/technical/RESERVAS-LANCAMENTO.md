@@ -2,7 +2,8 @@
 
 > Atualizado em 28/10/2026 (frontend `main`, sem push). Backend lido (só leitura) em `giardini_back`; produção da API
 > conferida em 28/10: `GET /reservas/config` → 503 `reservas_indisponiveis` (`aceita_reservas=false`). Segundo a sessão
-> do backend, `AMBAR_RESERVAS_ABERTURA=2026-11-03` em produção, a ser trocada para `2026-11-06`.
+> do backend, `AMBAR_RESERVAS_ABERTURA=2026-11-03` em produção. **Decisão de 29/10/2026: a primeira data de visita é
+> 09/11/2026** — o backend passa a `AMBAR_RESERVAS_ABERTURA=2026-11-09` e o site impõe a mesma data sozinho.
 
 ## Como o site funciona em produção
 
@@ -32,16 +33,24 @@ da Vercel, ambiente Production). Com isso a comanda de `/` (#reservar) e de `/re
   grupo conforme a regra de 29/10/2026 do backend: reserva nova e agenda das 06h; **alteração e cancelamento não vão
   ao grupo** (na 1ª versão data, horário, ambiente e pessoas não mudam: `AMBAR_PAINEL_ALTERACAO=false`).
 
-## A data de abertura (06/11/2026)
+## A primeira data de visita (09/11/2026)
 
-O Âmbar inaugura em 03/11, mas as reservas online começam em **06/11** (decisão do responsável — não trocar para 03/11).
-A fonte de verdade é o backend (`AMBAR_RESERVAS_ABERTURA`): o site não tem data fixa no código. Se as reservas forem
-abertas com a produção ainda em 2026-11-03, o site ofereceria 03, 04 e 05/11. Por isso, antes e depois de abrir:
+O cliente só escolhe datas de visita **a partir de 09/11/2026, inclusive** (decisão do responsável de 29/10/2026; a
+anterior era 06/11). Pedidos podem ser feitos antes disso, desde que a data escolhida seja 09/11 ou depois. Duas
+proteções independentes:
+
+- **Backend** (`AMBAR_RESERVAS_ABERTURA=2026-11-09`): dias anteriores saem em `datasFechadas`, sem horários, e o
+  `POST /reservas` recusa com 422 `antes_da_abertura` (“Reservas a partir de 09/11/2026.”).
+- **Site** (`src/data/visita.ts`, `reservasDesde`): o calendário abre em novembro, 08/11 e antes ficam desabilitados
+  mesmo que a API os ofereça, as setas do teclado não passam de 09/11, nenhum horário é pedido nem reserva enviada para
+  data anterior. Trocar a data exige novo build.
+
+Antes e depois de abrir:
 
 ```bash
 node scripts/conferir-abertura-reservas.mjs          # só GETs na API de produção; não cria nada
-# 0 = pronto: nenhuma data antes de 06/11 em nenhum ambiente, 05/11 sem horários e 06/11 com horários
-# 1 = CONFIGURAÇÃO INCORRETA: alguma data antes de 06/11 aberta (aponta quais) ou 06/11 sem horários
+# 0 = pronto: nenhuma data antes de 09/11 em nenhum ambiente, 08/11 sem horários e 09/11 com horários
+# 1 = CONFIGURAÇÃO INCORRETA: alguma data antes de 09/11 aberta (aponta quais) ou 09/11 sem horários
 # 2 = FECHADA: a API responde 503 reservas_indisponiveis (o site mostra o aviso)
 # 3 = FALHA DE COMUNICAÇÃO: sem conexão, tempo esgotado (15 s), erro HTTP ou resposta que não é JSON
 # opções: --api <url> (outra API, ex. homologação) e --abertura AAAA-MM-DD
@@ -88,18 +97,18 @@ CORS conferido em 28/10: a API libera `https://ambarbrunch.com` e `https://ambar
 
 ## Para publicar (nesta ordem)
 
-1. Backend: `AMBAR_RESERVAS_ABERTURA=2026-11-06` em produção (sessão do backend).
+1. Backend: `AMBAR_RESERVAS_ABERTURA=2026-11-09` em produção (sessão do backend).
 2. Vercel Production: conferir/criar as variáveis da tabela acima (sem `PAINEL_*`).
 3. Com autorização do responsável: `git push origin main` → a Vercel faz o deploy de produção.
 4. Conferir `https://ambarbrunch.com/reservar/` (aviso de reservas fechadas, link do WhatsApp), `/privacidade/`
    (tratamentos reais), home sem Clube, `/admin` 404.
 5. Backend: abrir as reservas (`aceita_reservas=true`) — decisão do responsável, depois da privacidade validada.
 6. `node scripts/conferir-abertura-reservas.mjs` → precisa sair **0**. Se sair 1, fechar as reservas no backend e
-   corrigir a abertura antes de qualquer coisa. Conferir no celular que a primeira data é 06/11. Desde 29/10 o script
+   corrigir a abertura antes de qualquer coisa. Conferir no celular que a primeira data é 09/11. Desde 29/10 o script
    também exige a mesma versão da política no backend (`privacidadeVersao`) e no site, e `aprovada: true` no site.
 
-Os passos 2–4 antes do 1 também são seguros enquanto a API está fechada (o site só mostra o aviso). O risco é o passo
-5 antes do 1: o site ofereceria 03–05/11, porque é a API que decide.
+Os passos 2–4 antes do 1 também são seguros enquanto a API está fechada (o site só mostra o aviso). O passo 5 antes do
+1 não abre 03–08/11 no site (ele bloqueia sozinho), mas o painel e outros caminhos do backend aceitariam essas datas.
 
 ## Painel da equipe (onde mora e o que falta)
 
@@ -129,7 +138,8 @@ Os passos 2–4 antes do 1 também são seguros enquanto a API está fechada (o 
 npm run build:reservas-api && npm run test:reservas-api   # API INTERCEPTADA (formato real do backend) — não é teste real
 ```
 
-`tests-reservas/` cobre: 05/11 e anteriores bloqueados, 06/11 primeira data com horários 07:00–16:00, ocupação
+`tests-reservas/` cobre: calendário abrindo em novembro, 08/11 e anteriores bloqueados (também com a API mal
+configurada, por clique forçado e pelo teclado), 09/11 primeira data com horários 07:00–16:00, 422 `antes_da_abertura`, ocupação
 parcial, dia fechado por evento, limite de 60 dias, ambiente lotado, máximo por ambiente, confirmação (corpo e
 Idempotency-Key), clique duplo, erro de API, sem conexão no envio, horário esgotado (409), data recusada (422), API
 fechada e reaberta sem build, erro de configuração, fuso de Fortaleza, navegação a partir do botão da home, celular
@@ -144,7 +154,7 @@ Sem mocks: site → API real → config → disponibilidade → revisão (e, com
 ```bash
 # build apontando para a API de homologação (exemplo com a local da sessão do backend)
 PUBLIC_REVISAO=0 PUBLIC_RESERVAS_MODO=api PUBLIC_RESERVAS_API_URL=http://127.0.0.1:8090/ npx astro build --outDir dist-reservas-real
-# só leitura: nada antes de 06/11 na config real e o site mostra exatamente os horários da API
+# só leitura: nada antes de 09/11 na config real e o site mostra exatamente os horários da API
 RESERVAS_API_REAL=http://127.0.0.1:8090 npx playwright test -c playwright.reservas-real.config.ts
 # cria UMA reserva de teste ("TESTE E2E — pode apagar") e confere o código devolvido; recusado em api.ambarbrunch.com
 RESERVAS_API_REAL=http://127.0.0.1:8090 RESERVAS_CRIAR=1 RESERVAS_TELEFONE=<telefone de teste> npx playwright test -c playwright.reservas-real.config.ts

@@ -1,5 +1,6 @@
 // Reserva pública em modo API (como em produção), contra a API falsa no formato real do backend.
-// "Hoje" = 28/10/2026 em Fortaleza; abertura = 06/11/2026 (dias anteriores chegam em datasFechadas, como no backend).
+// "Hoje" = 28/10/2026 em Fortaleza; abertura = 09/11/2026 (dias anteriores chegam em datasFechadas, como no backend, e o
+// site também os bloqueia sozinho).
 import { test, expect, type Page } from '@playwright/test';
 import { apiFalsa, relogio, API, ABERTURA, DIA_EVENTO, DIA_LOTADO, DIA_PARCIAL, type Cenario } from './api-falsa';
 
@@ -42,14 +43,18 @@ async function preencherEConfirmar(page: Page, hora = '09:00') {
   await expect(page.getByRole('button', { name: 'Confirmar reserva' })).toBeVisible();
 }
 
-test.describe('datas: abertura em 06/11, janela de 60 dias e dias fechados (tudo vindo da API)', () => {
-  test('05/11 e antes ficam bloqueados; 06/11 é a primeira data e mostra os horários da API', async ({ page }) => {
+test.describe('datas: primeira data 09/11, janela de 60 dias e dias fechados', () => {
+  test('o calendário abre em novembro: 08/11 e antes bloqueados; 09/11 é a primeira data e mostra os horários da API', async ({ page }) => {
     const reg = await abrir(page);
     await abrirCalendario(page);
-    for (const d of ['2026-10-28', '2026-10-29', '2026-10-31']) await expect(dia(page, d)).toBeDisabled();
-    await irParaMes(page, ABERTURA);
-    for (const d of ['2026-11-01', '2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05']) await expect(dia(page, d), d).toBeDisabled();
+    // abre direto no mês da primeira data; outubro (hoje = 28/10) nem é alcançável
+    await expect(page.locator('.cal__mes')).toHaveText(/novembro/i);
+    await expect(page.getByRole('button', { name: 'Mês anterior' })).toBeDisabled();
+    for (const d of ['2026-11-01', '2026-11-03', '2026-11-06', '2026-11-07', '2026-11-08']) await expect(dia(page, d), d).toBeDisabled();
     await expect(dia(page, ABERTURA)).toBeEnabled();
+    await expect(dia(page, '2026-11-10')).toBeEnabled();
+    // o único dia focável pelo Tab é 09/11
+    await expect(page.locator('.cal__dia[tabindex="0"]')).toHaveAttribute('data-valor', ABERTURA);
     await dia(page, ABERTURA).click();
     const horas = page.getByRole('radiogroup', { name: /horário/i }).getByRole('radio');
     await expect(horas).toHaveCount(19);
@@ -59,7 +64,43 @@ test.describe('datas: abertura em 06/11, janela de 60 dias e dias fechados (tudo
     expect(reg.disponibilidades.every((q) => q.data >= ABERTURA)).toBe(true);
   });
 
-  test('07/11 com ocupação parcial (alguns horários esgotados) e 10/11 fechado por evento', async ({ page }) => {
+  test('API mal configurada (abertura em 03/11): o site continua sem oferecer 03–08/11 nem pedir horários deles', async ({ page }) => {
+    const reg = await abrir(page, { aberturaApi: '2026-11-03' });
+    await abrirCalendario(page);
+    for (const d of ['2026-11-03', '2026-11-05', '2026-11-08']) await expect(dia(page, d), d).toBeDisabled();
+    await expect(dia(page, ABERTURA)).toBeEnabled();
+    // clique forçado num dia desabilitado (como quem mexe no DOM) não escolhe nada
+    await dia(page, '2026-11-08').evaluate((b) => { (b as HTMLButtonElement).disabled = false; (b as HTMLButtonElement).click(); });
+    await expect(page.getByText('Escolha uma data para ver os horários.')).toBeVisible();
+    expect(reg.disponibilidades).toHaveLength(0);
+  });
+
+  test('teclado: das setas a partir de 09/11 não se chega a 08/11 nem a 02/11', async ({ page }) => {
+    const reg = await abrir(page, { aberturaApi: '2026-11-03' });
+    await abrirCalendario(page);
+    await dia(page, ABERTURA).focus();
+    await page.keyboard.press('ArrowLeft');
+    await page.keyboard.press('ArrowUp');
+    await expect(page.locator('.cal__dia[aria-checked="true"]')).toHaveCount(0);
+    await page.keyboard.press('ArrowRight');
+    await expect(dia(page, '2026-11-10')).toHaveAttribute('aria-checked', 'true');
+    await page.keyboard.press('ArrowLeft');
+    await expect(dia(page, ABERTURA)).toHaveAttribute('aria-checked', 'true');
+    await page.keyboard.press('ArrowLeft');
+    await expect(dia(page, ABERTURA)).toHaveAttribute('aria-checked', 'true');
+    expect(reg.disponibilidades.every((q) => q.data >= ABERTURA)).toBe(true);
+  });
+
+  test('data recusada por ser antes da abertura (422 antes_da_abertura): mensagem do backend no topo, nada confirmado', async ({ page }) => {
+    await abrir(page, { envio: 'abertura' });
+    await escolherData(page, ABERTURA);
+    await preencherEConfirmar(page);
+    await page.getByRole('button', { name: 'Confirmar reserva' }).click();
+    await expect(page.getByRole('alert')).toContainText('Reservas a partir de 09/11/2026.');
+    await expect(page.getByText('Mesa reservada')).toHaveCount(0);
+  });
+
+  test('10/11 com ocupação parcial (alguns horários esgotados) e 14/11 fechado por evento', async ({ page }) => {
     await abrir(page);
     await abrirCalendario(page);
     await irParaMes(page, DIA_PARCIAL);
@@ -196,7 +237,7 @@ test.describe('envio: confirmação, clique duplo, erro e horário esgotado', ()
     await expect(page.getByText('Mesa reservada')).toBeVisible();
     expect((await comanda(page).innerText()).toLowerCase()).not.toContain('whatsapp');
     const ics = decodeURIComponent((await page.getByRole('link', { name: 'Adicionar à agenda' }).getAttribute('href'))!);
-    expect(ics).toContain('DTSTART:20261106T120000Z');  // 09:00 em Fortaleza (UTC−3)
+    expect(ics).toContain('DTSTART:20261109T120000Z');  // 09:00 em Fortaleza (UTC−3)
     expect(ics).toMatch(/DTSTAMP:\d{8}T\d{6}Z/);
     await page.getByRole('button', { name: 'Fazer outra reserva' }).click();
     await escolherData(page, ABERTURA);
@@ -307,12 +348,28 @@ test.describe('API fechada ou fora do ar: nada de horários por conta própria',
 
 test.describe('fuso de Fortaleza', () => {
   test.use({ timezoneId: 'Asia/Tokyo' });
-  test('em outro fuso (Tóquio já em 29/10), "hoje" do calendário é 28/10 de Fortaleza', async ({ page }) => {
+  test('em outro fuso (Tóquio já em 29/10), a janela conta de 28/10 de Fortaleza: 27/12 é o último dia', async ({ page }) => {
     await page.clock.setFixedTime(new Date('2026-10-28T23:30:00-03:00'));
     await apiFalsa(page);
     await page.goto('/reservar/');
     await abrirCalendario(page);
-    await expect(page.locator('.cal__dia[data-hoje]')).toHaveAttribute('data-valor', '2026-10-28');
+    await expect(dia(page, ABERTURA)).toBeEnabled();
+    await irParaMes(page, '2026-12-27');
+    await expect(dia(page, '2026-12-27')).toBeEnabled();
+    await expect(dia(page, '2026-12-28')).toBeDisabled();
+  });
+});
+
+test.describe('fuso de Fortaleza a oeste', () => {
+  test.use({ timezoneId: 'America/Manaus' });
+  test('Fortaleza já em 09/11 de madrugada com o navegador ainda em 08/11 (Manaus): 09/11 é hoje e reservável', async ({ page }) => {
+    await page.clock.setFixedTime(new Date('2026-11-09T00:30:00-03:00'));
+    await apiFalsa(page, { hoje: '2026-11-09' });
+    await page.goto('/reservar/');
+    await abrirCalendario(page);
+    await expect(page.locator('.cal__dia[data-hoje]')).toHaveAttribute('data-valor', ABERTURA);
+    await expect(dia(page, ABERTURA)).toBeEnabled();
+    await expect(dia(page, '2026-11-08')).toBeDisabled();
   });
 });
 

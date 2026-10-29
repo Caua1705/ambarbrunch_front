@@ -51,6 +51,14 @@ function horariosDemo(estado: DemoComanda['horarios']): Horarios {
 const DIAS_PADRAO = 60;
 const pad = (n: number) => String(n).padStart(2, '0');
 const iso = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+/** Primeira data de visita aceita (inclusive), em qualquer modo: o calendário começa nela e nenhum caminho (teclado,
+ *  troca de mês, estado antigo) leva a horários ou envio antes dela. A API recusa o mesmo (422 antes_da_abertura). */
+const PRIMEIRA_DATA = visita.reservasDesde;
+/** A data pode ser reservada? Mesma janela do calendário: [max(hoje, PRIMEIRA_DATA), hoje + diasMax], sem dias fechados. */
+function dataPermitida(v: string, hoje: Date, diasMax: number, fechadas?: ReadonlySet<string>): boolean {
+  const fim = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + diasMax);
+  return /^\d{4}-\d{2}-\d{2}$/.test(v) && v >= PRIMEIRA_DATA && v >= iso(hoje) && v <= iso(fim) && !fechadas?.has(v);
+}
 const mesAno = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' });
 const SEMANA = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
 const SEMANA_LONGA = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
@@ -135,16 +143,20 @@ function Escolha<T extends string>(p: { rotulo: string; id: string; opcoes: { va
 
 /**
  * Calendário mensal da comanda (rodada final: substitui a fileira de 10 dias). Dias fora da janela [hoje, hoje + diasMax]
- * (a mesma da API: hoje + 60 dias inclusive) e dias fechados do ambiente (`fechadas`, vindos da API) ficam riscados; setas trocam o mês; no teclado, ←/→ andam um dia e ↑/↓ uma semana (radiogroup, um dia focável).
+ * (a mesma da API: hoje + 60 dias inclusive), antes de PRIMEIRA_DATA e dias fechados do ambiente (`fechadas`, vindos da
+ * API) ficam riscados; abre no mês da primeira data possível; setas trocam o mês; no teclado, ←/→ andam um dia e ↑/↓
+ * uma semana (radiogroup, um dia focável).
  */
 function Calendario(p: { id: string; hoje: Date; diasMax: number; fechadas?: ReadonlySet<string>; valor: string | null; aoEscolher: (v: string) => void; aoConfirmar?: () => void }) {
-  const inicio = new Date(p.hoje.getFullYear(), p.hoje.getMonth(), p.hoje.getDate());
-  const fim = new Date(inicio); fim.setDate(inicio.getDate() + p.diasMax);
+  const hoje = new Date(p.hoje.getFullYear(), p.hoje.getMonth(), p.hoje.getDate());
+  const primeira = new Date(`${PRIMEIRA_DATA}T00:00:00`);
+  const inicio = primeira > hoje ? primeira : hoje;
+  const fim = new Date(hoje); fim.setDate(hoje.getDate() + p.diasMax);
   const [mes, setMes] = useState(() => { const v = p.valor ? new Date(`${p.valor}T12:00:00`) : inicio; return new Date(v.getFullYear(), v.getMonth(), 1); });
   const grade = useRef<HTMLDivElement>(null);
   const primeiroMes = new Date(inicio.getFullYear(), inicio.getMonth(), 1);
   const ultimoMes = new Date(fim.getFullYear(), fim.getMonth(), 1);
-  const valido = (d: Date) => d >= inicio && d <= fim && !p.fechadas?.has(iso(d));
+  const valido = (d: Date) => dataPermitida(iso(d), hoje, p.diasMax, p.fechadas);
   const diasNoMes = new Date(mes.getFullYear(), mes.getMonth() + 1, 0).getDate();
   const dias = Array.from({ length: diasNoMes }, (_, i) => new Date(mes.getFullYear(), mes.getMonth(), i + 1));
   const selecionado = p.valor && dias.some((d) => iso(d) === p.valor) ? p.valor : null;
@@ -176,9 +188,9 @@ function Calendario(p: { id: string; hoje: Date; diasMax: number; fechadas?: Rea
           const ok = valido(d);
           return (
             <button type="button" role="radio" class="cal__dia" data-valor={v} aria-checked={v === p.valor} tabIndex={v === focavel && ok ? 0 : -1}
-              disabled={!ok} data-hoje={v === iso(inicio) ? '' : undefined}
-              aria-label={`${v === iso(inicio) ? 'hoje, ' : ''}${SEMANA_LONGA[d.getDay()]}, ${d.getDate()}`}
-              onClick={() => { p.aoEscolher(v); p.aoConfirmar?.(); }}>{d.getDate()}</button>
+              disabled={!ok} data-hoje={v === iso(hoje) ? '' : undefined}
+              aria-label={`${v === iso(hoje) ? 'hoje, ' : ''}${SEMANA_LONGA[d.getDay()]}, ${d.getDate()}`}
+              onClick={() => { if (!ok) return; p.aoEscolher(v); p.aoConfirmar?.(); }}>{d.getDate()}</button>
           );
         })}
       </div>
@@ -250,7 +262,7 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
   // Datas só no navegador (o HTML estático foi gerado em outro dia). Nenhuma data vem escolhida (2026-10-22): o campo
   // começa em “Escolher uma data” e os horários só são buscados depois da escolha.
   // Os estados de demonstração (/design-system/) continuam com hoje marcado, para mostrar horários e revisão completos.
-  useEffect(() => { const d = hojeNoFuso(cfg.fusoHorario); setHoje(d); if (demo) setData(iso(d)); }, [cfg.fusoHorario]);
+  useEffect(() => { const d = hojeNoFuso(cfg.fusoHorario); setHoje(d); if (demo) setData(iso(d) > PRIMEIRA_DATA ? iso(d) : PRIMEIRA_DATA); }, [cfg.fusoHorario]);
   // Ambiente pedido por um “reservar aqui” (mesmo antes de a ilha carregar).
   useEffect(() => {
     const w = window as unknown as { __ambarAmbiente?: string };
@@ -283,11 +295,17 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
   }, [estadoCfg]);
   // Ao trocar de ambiente, o número de pessoas entra na faixa dele (o grupo continua grupo).
   useEffect(() => { setPessoas((n) => (n < minPessoas ? minPessoas : n > maxPessoas + 1 ? maxPessoas + 1 : n)); }, [minPessoas, maxPessoas]);
-  // A data escolhida deixou de valer (outro ambiente fechado nesse dia): volta a “Escolher uma data”.
-  useEffect(() => { if (data && fechadas.has(data)) { setData(null); setHora(null); } }, [fechadas, data]);
+  /** A data escolhida ainda vale? (antes de PRIMEIRA_DATA, fora da janela ou fechada no ambiente: não) */
+  const dataOk = !!data && !!hoje && (!!demo || dataPermitida(data, hoje, cfg.antecedencia.diasMax, fechadas));
+  // A data escolhida deixou de valer (outro ambiente fechado nesse dia, virou o dia, estado antigo): volta a “Escolher uma data”.
+  useEffect(() => {
+    if (!data || !hoje || dataOk) return;
+    setData(null); setHora(null); setHorarios({ estado: 'ocioso', lista: [] });
+    if (etapa === 'revisao' || etapa === 'falha') { setEtapa('escolha'); setFalha('Esta data não pode mais ser reservada. Escolha outra.'); }
+  }, [dataOk, data, hoje]);
   // Horários: buscados a cada mudança de ambiente, pessoas ou data. Requisições antigas são canceladas.
   useEffect(() => {
-    if (!api || !pronto || !data || !ambiente || demo?.horarios) return;
+    if (!api || !pronto || !data || !dataOk || !ambiente || demo?.horarios) return;
     if (pessoas < minPessoas || pessoas > maxPessoas) { setHora(null); setHorarios({ estado: 'ocioso', lista: [] }); return; }
     const ctrl = new AbortController();
     setHora(null);
@@ -304,7 +322,7 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
         setHorarios({ estado: 'erro', lista: [], msg: e instanceof ErroReserva ? e.message : 'Não foi possível carregar os horários.' });
       });
     return () => ctrl.abort();
-  }, [api, pronto, data, pessoas, ambiente, tentativa, minPessoas, maxPessoas]);
+  }, [api, pronto, data, dataOk, pessoas, ambiente, tentativa, minPessoas, maxPessoas]);
   // Foco no topo da comanda a cada TROCA de etapa (leitor de tela e teclado); não na montagem.
   const montou = useRef(false);
   useEffect(() => { if (!montou.current) { montou.current = true; return; } if (etapa !== 'escolha') topo.current?.focus(); }, [etapa]);
@@ -323,6 +341,7 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
     ev.preventDefault();
     if (!api || grupo) return;
     if (etapa === 'revisao' || etapa === 'falha') { enviar(); return; }
+    if (!dataOk) { setData(null); setHora(null); setAnuncio('Escolha uma data.'); return; }
     if (!hora) { setAnuncio('Escolha um horário.'); passo4.current?.scrollIntoView({ block: 'center' }); return; }
     const e = validar(dados, cfg.exigeEmail);
     setErros(e);
@@ -346,7 +365,7 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
   });
 
   const enviar = async () => {
-    if (!api || !data || !hora || enviandoAgora.current) return;
+    if (!api || !data || !hora || !dataOk || enviandoAgora.current) return;
     enviandoAgora.current = true;
     setEtapa('enviando');
     setAnuncio('Enviando a reserva…');
@@ -361,6 +380,8 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
         : `Pedido de reserva recebido, aguardando a confirmação da equipe. Código ${r.codigo}.`);
     } catch (e) {
       const erro = e instanceof ErroReserva ? e : new ErroReserva('servidor', 'Não foi possível concluir. Tente de novo em instantes.');
+      // A chave já foi usada com outros dados: a próxima confirmação leva uma chave nova (a antiga nunca passaria).
+      if (erro.codigo === 'idempotencia_conflito') { chave.current = uuid(); chaveDe.current = JSON.stringify(pedido()); }
       // As reservas foram fechadas enquanto a pessoa preenchia: nada foi registrado; a comanda passa ao estado fechado.
       if (erro.tipo === 'fechado') { setEtapa('escolha'); setHora(null); setEstadoCfg('fechado'); setAnuncio(erro.message); return; }
       if (erro.tipo === 'conflito') { setEtapa('escolha'); setHora(null); setTentativa((t) => t + 1); setAnuncio(erro.message); setFalha(erro.message); return; }

@@ -12,4 +12,7 @@ export const visita = {
   horarioCurto: 'todos os dias · 07h–19h',
   whatsapp: { numero: '(85) 99445-2724', url: 'https://wa.me/5585994452724' },
   instagram: { handle: '@ambarbrunch', url: 'https://www.instagram.com/ambarbrunch/' },
+  /** Primeira data de VISITA reservável pelo site (decisão do responsável, 29/10/2026), inclusive. O backend aplica a
+   *  mesma regra (AMBAR_RESERVAS_ABERTURA); a comanda também a impõe, para nada antes dela ser oferecido nem enviado. */
+  reservasDesde: '2026-11-09',
 };

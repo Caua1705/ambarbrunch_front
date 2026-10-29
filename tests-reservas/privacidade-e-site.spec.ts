@@ -22,6 +22,8 @@ test('consentimento: obrigatório para continuar e com link para a política', a
   const campo = page.locator('.data-campo');
   await expect(page.locator('.data-campo:visible, .cal__grade:visible').first()).toBeVisible();
   if (await campo.isVisible()) await campo.click();
+  // a grade-esqueleto aparece antes da configuração: só conta os dias depois que os de verdade existem
+  await expect(page.locator('.cal__dia[data-valor]').first()).toBeVisible();
   for (let i = 0; i < 2 && !(await page.locator(`.cal__dia[data-valor="${ABERTURA}"]`).count()); i++) await page.getByRole('button', { name: 'Próximo mês' }).click();
   await page.locator(`.cal__dia[data-valor="${ABERTURA}"]`).click();
   await page.getByRole('radio', { name: '09:00', exact: true }).click();
