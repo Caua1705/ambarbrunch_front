@@ -328,7 +328,7 @@ test('da home: o botão de reservar leva à comanda já com os ambientes da API'
   await expect(dia(page, ABERTURA)).toBeEnabled();
 });
 
-for (const largura of [375, 390, 430]) {
+for (const largura of [360, 375, 390, 430]) {
   test(`celular ${largura}px: comanda inteira sem rolagem horizontal, calendário e horários abertos`, async ({ page, isMobile }) => {
     test.skip(!isMobile, 'larguras de celular');
     await page.setViewportSize({ width: largura, height: 844 });
