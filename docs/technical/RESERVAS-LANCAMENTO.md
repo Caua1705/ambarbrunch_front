@@ -25,7 +25,11 @@ da Vercel, ambiente Production). Com isso a comanda de `/` (#reservar) e de `/re
   operadores: Supabase em São Paulo, servidor da API, Meta WhatsApp Business Platform, Z-API, Vercel) com o aviso
   "Texto em validação jurídica". **Não está aprovada**: faltam responsável/controlador, canal do titular, bases legais,
   prazos de guarda e forma de exercer direitos (`src/data/privacidade.ts`, itens `pendente()`, `aprovada: false`). Ao
-  receber o texto validado, preencher esses itens e marcar `aprovada: true` — não inventar nenhum deles.
+  receber o texto validado, preencher esses itens e marcar `aprovada: true` — não inventar nenhum deles. A lista do que
+  falta aparece como "A confirmar" em `/privacidade/` no build de revisão (`npm run build:revisao`). A `versao` publicada
+  tem de ser a mesma registrada no backend (`app.cli aprovar-privacidade --unidade ambar_cafe --versao …`). Avisos ao
+  grupo conforme a regra de 29/10/2026 do backend: reserva nova, mudança de data/horário/ambiente/pessoas e agenda das
+  06h; **cancelamento não vai ao grupo**.
 
 ## A data de abertura (06/11/2026)
 

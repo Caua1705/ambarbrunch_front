@@ -7,11 +7,12 @@ test('política: tratamentos reais com o aviso de validação; nada de "não col
   await page.goto('/privacidade/');
   const doc = page.locator('main');
   await expect(doc).toContainText('Texto em validação jurídica');
-  for (const fato of ['nome e telefone (WhatsApp)', 'WhatsApp oficial do Âmbar', 'grupo interno de WhatsApp', 'Supabase', 'WhatsApp Business Platform (Meta)', 'Z-API', 'Vercel']) {
+  for (const fato of ['nome e telefone (WhatsApp)', 'WhatsApp oficial do Âmbar', 'grupo interno de WhatsApp', 'Reservas canceladas não geram aviso no grupo', 'Supabase', 'WhatsApp Business Platform (Meta)', 'Z-API', 'Vercel']) {
     await expect(doc, fato).toContainText(fato);
   }
   const texto = (await doc.innerText()).toLowerCase();
-  for (const falso of ['não coleta dados pessoais', 'não envia formulários', 'aprovad', 'a confirmar']) expect(texto, falso).not.toContain(falso);
+  // regra de 29/10/2026 no backend (f41d12f): cancelamento não vai ao grupo da equipe
+  for (const falso of ['não coleta dados pessoais', 'não envia formulários', 'aprovad', 'a confirmar', 'alterada ou cancelada']) expect(texto, falso).not.toContain(falso);
 });
 
 test('consentimento: obrigatório para continuar e com link para a política', async ({ page }) => {
