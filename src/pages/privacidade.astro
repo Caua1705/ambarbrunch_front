@@ -7,7 +7,7 @@
 import Base from '../layouts/Base.astro';
 import Foto from '../components/Foto.astro';
 import Footer from '../sections/Footer.astro';
-import { privacidade } from '../data/privacidade';
+import { privacidade, isRevisar } from '../data/privacidade';
 import { REVISAO, isPendente } from '../lib/conteudo';
 
 const rascunho = !privacidade.aprovada && REVISAO;
@@ -29,8 +29,7 @@ const mostrar = privacidade.aprovada || rascunho || provisoria;
           {provisoria && (
             <p class="doc__rascunho" role="note">
               Texto em validação jurídica. Abaixo está como o site e o sistema de reservas tratam os seus dados hoje. Ainda
-              serão publicados aqui: a identificação do responsável pelos dados e do canal de privacidade, as bases legais,
-              os prazos de guarda e a forma de fazer pedidos sobre os seus dados.
+              serão publicados aqui o canal de privacidade e os prazos de guarda dos dados.
             </p>
           )}
           {privacidade.secoes.map((secao) => (
@@ -38,7 +37,9 @@ const mostrar = privacidade.aprovada || rascunho || provisoria;
               <h2 id={`priv-${secao.id}`}>{secao.titulo}</h2>
               {secao.itens.map((item) => isPendente(item)
                 ? (rascunho && <p class="doc__pendente">A confirmar: {item.falta}</p>)
-                : <p>{item}</p>)}
+                : isRevisar(item)
+                  ? <><p>{item.texto}</p>{rascunho && <p class="doc__pendente">Validar: {item.revisar}</p>}</>
+                  : <p>{item}</p>)}
             </section>
           ))}
           {isPendente(privacidade.versao)
