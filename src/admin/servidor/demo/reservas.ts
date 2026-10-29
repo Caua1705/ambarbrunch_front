@@ -1,5 +1,5 @@
 // DEMONSTRAÇÃO — Reservas fictícias (nomes, telefones e capacidades inventados; o cadastro real vem do backend).
-// Regras imitadas do backend: máquina de estados (estados.py), comparecimento só depois do início e ausência só depois da
+// Regras imitadas do backend: máquina de estados (estados.py), comparecimento a partir do dia da reserva e ausência só depois da
 // tolerância, motivo obrigatório para corrigir/desfazer, criação manual pela equipe.
 import type { Rota } from './roteador';
 import { TODOS, GERENCIA, ErroDemo, dia, instante, uuid, sorteio, hojeFortaleza, resposta, exigirMotivo } from './roteador';
@@ -119,7 +119,8 @@ function registrar(l: Linha, novo: Comparecimento, motivo: string | null, papel:
   const r = l.r;
   if (r.comparecimento === novo) return;
   if (!['confirmada', 'lembrada', 'reconfirmada'].includes(r.status_reserva)) throw new ErroDemo(422, 'regra_violada', 'Só reserva confirmada recebe comparecimento.');
-  if (Date.now() < inicio(r)) throw new ErroDemo(422, 'antes_do_inicio', 'A reserva ainda não começou.');
+  // como o backend: comparecimento a partir do DIA da reserva (o cliente pode chegar antes do horário)
+  if (r.data > hojeFortaleza()) throw new ErroDemo(422, 'regra_violada', 'Comparecimento só pode ser registrado a partir do dia da reserva.');
   if (novo === 'nao_compareceu' && Date.now() < new Date(liberacaoAusencia(r)).getTime()) throw new ErroDemo(422, 'ausencia_antes_da_tolerancia', `Ausência só depois de ${TOLERANCIA_MIN} minutos do horário.`);
   if (r.comparecimento !== 'nao_registrado') exigirMotivo(motivo);
   l.historico.unshift({ ocorreu_em: new Date().toISOString(), antes: r.comparecimento, depois: novo, motivo, ator_tipo: 'usuario', usuario_id: null, usuario_nome: `Usuário ${papel} (demo)` });
@@ -249,7 +250,7 @@ export const ROTAS_RESERVAS: Rota[] = [
   }],
   ['GET', new RegExp(`^reservas/${UUID}/comparecimento$`), TODOS, ({ params }) => {
     const l = achar(params[0]);
-    return { reserva_id: l.r.id, codigo: l.r.codigo, status_reserva: l.r.status_reserva, comparecimento: l.r.comparecimento, registrado_em: l.r.comparecimento_registrado_em, registrado_por: null, registrado_por_nome: l.r.comparecimento_registrado_em ? 'Equipe (demo)' : null, aceita_registro: ['confirmada', 'lembrada', 'reconfirmada'].includes(l.r.status_reserva) && inicio(l.r) <= Date.now(), ausencia_liberada_em: liberacaoAusencia(l.r), historico: l.historico };
+    return { reserva_id: l.r.id, codigo: l.r.codigo, status_reserva: l.r.status_reserva, comparecimento: l.r.comparecimento, registrado_em: l.r.comparecimento_registrado_em, registrado_por: null, registrado_por_nome: l.r.comparecimento_registrado_em ? 'Equipe (demo)' : null, aceita_registro: ['confirmada', 'lembrada', 'reconfirmada'].includes(l.r.status_reserva), ausencia_liberada_em: liberacaoAusencia(l.r), historico: l.historico };
   }],
   ['PUT', new RegExp(`^reservas/${UUID}/comparecimento$`), TODOS, async ({ params, corpo, papel }) => {
     const l = achar(params[0]);
