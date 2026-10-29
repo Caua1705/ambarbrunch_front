@@ -340,3 +340,23 @@ for (const largura of [360, 375, 390, 430]) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
   });
 }
+
+test('acessibilidade (axe): comanda com campos, erros de validação e confirmação', async ({ page }) => {
+  const { default: AxeBuilder } = await import('@axe-core/playwright');
+  const checar = async (onde: string) => {
+    const { violations } = await new AxeBuilder({ page }).include('form.ticket').analyze();
+    const serias = violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
+    expect(serias.map((v) => `${onde} ${v.id}: ${v.nodes.map((n) => n.target.join(' ')).slice(0, 3).join(' | ')}`)).toEqual([]);
+  };
+  await abrir(page);
+  await escolherData(page, ABERTURA);
+  await page.getByRole('radio', { name: '09:00', exact: true }).click();
+  await page.getByRole('button', { name: 'Continuar' }).click();
+  await expect(page.locator('#rf-nome-erro')).not.toBeEmpty();
+  await checar('erros');
+  await preencherEConfirmar(page);
+  await checar('revisão');
+  await page.getByRole('button', { name: 'Confirmar reserva' }).click();
+  await expect(page.getByText('Mesa reservada')).toBeVisible();
+  await checar('confirmação');
+});
