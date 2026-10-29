@@ -140,6 +140,28 @@ indisponível vira "R$ 0,00".
 6. Para o modo `api` em produção, o backend **não** precisa liberar CORS para o site: quem chama a API é o servidor do
    painel (servidor→servidor).
 
+### Financeiro e Estoque × backend `f5b3b55` (conferido em 28/10/2026, só leitura)
+
+Todas as rotas que as telas de Financeiro, Estoque e os blocos da Visão Geral chamam existem no código do backend
+(`app/modulos/financeiro/*`, `app/modulos/estoque/*`, `app/visao_geral.py`, `app/radar.py`, `app/julia/api.py`), com
+campos em snake_case, dinheiro em string decimal e datas `AAAA-MM-DD` dos dois lados. Em produção (`80af395`, revisão
+0004) elas dão **404**: dependem das migrações 0005–0017 (head `0017_julia_classificacao`) e da imagem nova. Liberar
+depois = incluir `financeiro` e/ou `estoque` em `PAINEL_MODULOS` e refazer o deploy (sem mudar código), **depois** de
+testar com dados reais.
+
+Divergências do lado do painel (Estoque), a corrigir antes de liberar o módulo:
+
+| # | Onde | Backend devolve | Painel espera | Efeito |
+|---|---|---|---|---|
+| 1 | `GET estoque/insumos-sugestoes` | **um objeto** `{insumo_id, insumo, unidade_base, confianca, motivo, fator, alertas}` (`estoque/api_compras.py:356`) | lista `SugestaoInsumo[]` e faz `.map` (`lib/api/estoque.ts:19`, `modulos/estoque/ItemConferencia.tsx:56`) | **quebra** a busca de insumo na conferência de compras (a demo devolve lista, por isso os testes passam) |
+| 2 | 409 `inventario_aberto` | `dados.inventario_id` (`estoque/operacoes.py:187`) | `dados.id` (`modulos/estoque/Contagem.tsx:64`) | não reabre a contagem já aberta; só mostra o erro |
+| 3 | 409 `nome_ja_existe` | `dados.insumo_id` (`estoque/insumos.py:81`) | `dados.id` (`modulos/estoque/Insumos.tsx:347`) | o botão "Abrir o insumo existente" não aparece |
+
+Menores (sem efeito hoje): para Gerente o backend omite `fora_do_resultado.retirada` (sigilo) e a tela mostra "—";
+`financeiro.configurar` é só do Proprietário no backend e o painel não usa essa ação; no envio de compra (multipart)
+o backend lê `unidade` do formulário, não da query que a ponte injeta (só importa com mais de uma unidade). Não
+conferidos campo a campo: `ResumoEstoque`, `ConciliacaoMes`, `Apuracao`, `CompraDetalhe`, `Fechamento`.
+
 ## 6. Rodar, testar
 
 ```bash
