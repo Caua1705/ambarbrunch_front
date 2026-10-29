@@ -162,6 +162,12 @@ Menores (sem efeito hoje): para Gerente o backend omite `fora_do_resultado.retir
 o backend lê `unidade` do formulário, não da query que a ponte injeta (só importa com mais de uma unidade). Não
 conferidos campo a campo: `ResumoEstoque`, `ConciliacaoMes`, `Apuracao`, `CompraDetalhe`, `Fechamento`.
 
+## 5b. Modo Operação (tablet do café)
+
+`/admin/operacao`: tela própria para o tablet fixo do salão — reservas de hoje e "Cliente chegou" com um toque, para
+Proprietário, Gerente e Atendente, sobre as mesmas rotas reais de Reservas. Detalhes, perfis, sessão compartilhada,
+testes e o que falta para Atendimento e Ponto: [`MODO-OPERACAO.md`](MODO-OPERACAO.md).
+
 ## 6. Rodar, testar
 
 ```bash
