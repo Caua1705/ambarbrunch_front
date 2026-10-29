@@ -29,8 +29,8 @@ da Vercel, ambiente Production). Com isso a comanda de `/` (#reservar) e de `/re
   decisões em aberto: `docs/technical/PRIVACIDADE-REVISAO.md`. A lista do que
   falta aparece como "A confirmar" em `/privacidade/` no build de revisão (`npm run build:revisao`). A `versao` publicada
   tem de ser a mesma registrada no backend (`app.cli aprovar-privacidade --unidade ambar_cafe --versao …`). Avisos ao
-  grupo conforme a regra de 29/10/2026 do backend: reserva nova, mudança de data/horário/ambiente/pessoas e agenda das
-  06h; **cancelamento não vai ao grupo**.
+  grupo conforme a regra de 29/10/2026 do backend: reserva nova e agenda das 06h; **alteração e cancelamento não vão
+  ao grupo** (na 1ª versão data, horário, ambiente e pessoas não mudam: `AMBAR_PAINEL_ALTERACAO=false`).
 
 ## A data de abertura (06/11/2026)
 

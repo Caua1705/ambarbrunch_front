@@ -47,7 +47,7 @@ export const privacidade = {
         'Para registrar, confirmar, alterar ou cancelar a reserva e preparar o atendimento no café.',
         'Para falar com você sobre essa reserva.',
         'Pelo WhatsApp oficial do Âmbar, você recebe mensagens só sobre a sua reserva: o aviso de que ela foi registrada e lembretes antes do horário. O lembrete da véspera traz os botões “confirmar presença” e “cancelar reserva”; o lembrete mais próximo leva a localização do café. Se responder a essas mensagens, a resposta fica registrada para a equipe atender.',
-        'A equipe do café recebe, num grupo interno de WhatsApp, um aviso curto de cada reserva nova e de cada mudança de data, horário, ambiente ou número de pessoas e, todo dia às 6h, a agenda das reservas do dia. Esses avisos levam primeiro nome, data, horário, ambiente, número de pessoas e, se houver, o começo das observações. Reservas canceladas não geram aviso no grupo.',
+        'A equipe do café recebe, num grupo interno de WhatsApp, um aviso curto de cada reserva nova e, todo dia às 6h, a agenda das reservas do dia. Esses avisos levam primeiro nome, data, horário, ambiente, número de pessoas e, se houver, o começo das observações. Alterações e cancelamentos de reservas não geram aviso no grupo.',
         'O telefone não vai nesses avisos. A equipe só o vê no grupo quando a mensagem para você não puder ser entregue e for preciso falar com você diretamente, ou quando você escrever para o WhatsApp oficial do Âmbar: aí o aviso leva seu primeiro nome, seu telefone e o começo da sua mensagem, para a equipe responder.',
       ],
     },
