@@ -31,6 +31,22 @@ test('abre o detalhe com contato e ações coerentes com a situação', async ({
   await expect(page.getByRole('dialog')).toHaveCount(0);
 });
 
+test('alterar: só contato e observações; data, horário, ambiente e pessoas só para leitura', async ({ page }) => {
+  // amanhã: reservas confirmadas que ainda não começaram (só elas têm Alterar)
+  await page.getByRole('button', { name: 'Próximo dia' }).click();
+  await page.locator('[data-linha]:visible', { hasText: 'Confirmada' }).first().click();
+  const g = page.getByRole('dialog');
+  await g.getByRole('button', { name: 'Alterar' }).click();
+  await expect(g.getByRole('heading', { name: 'Alterar contato e observações' })).toBeVisible();
+  await expect(g.getByText('Data, horário, ambiente e pessoas não mudam pelo painel')).toBeVisible();
+  for (const rotulo of ['Data', 'Pessoas', 'Ambiente']) await expect(g.getByLabel(rotulo, { exact: true })).toHaveCount(0);
+  await g.getByLabel('Observações').fill('Mesa perto da janela');
+  await g.getByRole('button', { name: 'Salvar contato e observações' }).click();
+  // salvo: a gaveta volta ao detalhe com a observação nova (o aviso some sozinho em alguns segundos)
+  await expect(g.getByRole('heading', { name: 'Alterar contato e observações' })).toHaveCount(0);
+  await expect(g).toContainText('Mesa perto da janela');
+});
+
 test('filtro por situação e busca', async ({ page }) => {
   await page.getByRole('button', { name: /^Canceladas/ }).click();
   await page.getByRole('searchbox', { name: 'Buscar reserva' }).fill('zzzz-ninguem');

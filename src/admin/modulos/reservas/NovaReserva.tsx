@@ -44,15 +44,51 @@ function validar(f: Form, novo: boolean): Record<string, string> {
   return e;
 }
 
-function CamposReserva({ f, set, erros, novo }: { f: Form; set: (m: Partial<Form>) => void; erros: Record<string, string>; novo: boolean }) {
+/**
+ * `soContato` (alteração): data, horário, ambiente e pessoas aparecem só para leitura — o backend recusa mudá-los
+ * pelo painel (403 alteracao_desativada); o mesmo vale no painel do backend (app/painel).
+ */
+function CamposReserva({ f, set, erros, novo, soContato = false, ambienteNome = '' }: { f: Form; set: (m: Partial<Form>) => void; erros: Record<string, string>; novo: boolean; soContato?: boolean; ambienteNome?: string }) {
   const ambientes = useConsulta('reservas/ambientes', () => reservas.ambientes());
   const pessoas = Number(f.pessoas) || 1;
-  const lotacao = useConsulta(f.ambiente_id && f.data ? `reservas/lotacao:${f.ambiente_id}:${f.data}:${pessoas}` : null, () => reservas.lotacao(f.ambiente_id, f.data, pessoas));
+  const lotacao = useConsulta(!soContato && f.ambiente_id && f.data ? `reservas/lotacao:${f.ambiente_id}:${f.data}:${pessoas}` : null, () => reservas.lotacao(f.ambiente_id, f.data, pessoas));
   const ativos = (ambientes.dados ?? []).filter((a) => a.ativo);
 
   useEffect(() => {
     if (!f.ambiente_id && ativos.length === 1) set({ ambiente_id: ativos[0].id });
   }, [ativos.length]);
+
+  const contato = (
+    <>
+      <Campo rotulo="Nome do cliente" erro={erros.nome} class="inteiro">
+        {(id, d) => <input id={id} class="entrada" autocomplete="off" aria-describedby={d} aria-invalid={!!erros.nome || undefined} value={f.nome} onInput={(e) => set({ nome: e.currentTarget.value })} />}
+      </Campo>
+      <Campo rotulo="Telefone (WhatsApp)" erro={erros.telefone} ajuda="Com DDD.">
+        {(id, d) => <input id={id} class="entrada num" type="tel" inputMode="tel" autocomplete="off" placeholder="(85) 99999-1111" aria-describedby={d} aria-invalid={!!erros.telefone || undefined} value={f.telefone} onInput={(e) => set({ telefone: e.currentTarget.value })} onBlur={() => set({ telefone: fmtTel(digitosTelefone(f.telefone)) === '—' ? f.telefone : fmtTel(digitosTelefone(f.telefone)) })} />}
+      </Campo>
+      <Campo rotulo="E-mail" opcional erro={erros.email}>
+        {(id, d) => <input id={id} class="entrada" type="email" inputMode="email" autocomplete="off" aria-describedby={d} aria-invalid={!!erros.email || undefined} value={f.email} onInput={(e) => set({ email: e.currentTarget.value })} />}
+      </Campo>
+      <Campo rotulo="Observações" opcional class="inteiro">
+        {(id) => <textarea id={id} class="area" maxLength={500} placeholder="Aniversário, cadeira de bebê, restrição alimentar…" value={f.observacoes} onInput={(e) => set({ observacoes: e.currentTarget.value })} />}
+      </Campo>
+    </>
+  );
+
+  if (soContato) {
+    return (
+      <div class="grade-campos">
+        <dl class="inteiro" aria-label="Reserva (não muda pelo painel)">
+          <div><dt>Ambiente</dt><dd>{ambienteNome}</dd></div>
+          <div><dt>Data</dt><dd class="num">{f.data.split('-').reverse().join('/')}</dd></div>
+          <div><dt>Horário</dt><dd class="num">{f.hora}</dd></div>
+          <div><dt>Pessoas</dt><dd class="num">{f.pessoas}</dd></div>
+        </dl>
+        <p class="campo__ajuda inteiro">Data, horário, ambiente e pessoas não mudam pelo painel. Para mudar, cancele e peça ao cliente uma nova reserva pelo site.</p>
+        {contato}
+      </div>
+    );
+  }
 
   return (
     <div class="grade-campos">
@@ -111,18 +147,7 @@ function CamposReserva({ f, set, erros, novo }: { f: Form; set: (m: Partial<Form
         )}
         {erros.hora && <span class="campo__erro" role="alert">{erros.hora}</span>}
       </div>
-      <Campo rotulo="Nome do cliente" erro={erros.nome} class="inteiro">
-        {(id, d) => <input id={id} class="entrada" autocomplete="off" aria-describedby={d} aria-invalid={!!erros.nome || undefined} value={f.nome} onInput={(e) => set({ nome: e.currentTarget.value })} />}
-      </Campo>
-      <Campo rotulo="Telefone (WhatsApp)" erro={erros.telefone} ajuda="Com DDD. A confirmação vai por WhatsApp.">
-        {(id, d) => <input id={id} class="entrada num" type="tel" inputMode="tel" autocomplete="off" placeholder="(85) 99999-1111" aria-describedby={d} aria-invalid={!!erros.telefone || undefined} value={f.telefone} onInput={(e) => set({ telefone: e.currentTarget.value })} onBlur={() => set({ telefone: fmtTel(digitosTelefone(f.telefone)) === '—' ? f.telefone : fmtTel(digitosTelefone(f.telefone)) })} />}
-      </Campo>
-      <Campo rotulo="E-mail" opcional erro={erros.email}>
-        {(id, d) => <input id={id} class="entrada" type="email" inputMode="email" autocomplete="off" aria-describedby={d} aria-invalid={!!erros.email || undefined} value={f.email} onInput={(e) => set({ email: e.currentTarget.value })} />}
-      </Campo>
-      <Campo rotulo="Observações" opcional class="inteiro">
-        {(id) => <textarea id={id} class="area" maxLength={500} placeholder="Aniversário, cadeira de bebê, restrição alimentar…" value={f.observacoes} onInput={(e) => set({ observacoes: e.currentTarget.value })} />}
-      </Campo>
+      {contato}
     </div>
   );
 }
@@ -209,7 +234,7 @@ export function NovaReserva({ aberta, aoFechar, unidade, dataInicial, aoCriar }:
   );
 }
 
-/** Alteração dentro da gaveta de detalhe. Só os campos mudados vão ao backend (PATCH). */
+/** Alteração dentro da gaveta de detalhe: só contato e observações; o que mudou vai ao backend (PATCH). */
 export function EditarReserva({ reserva, aoTerminar }: { reserva: ReservaPainel; aoTerminar: () => void }) {
   const inicial: Form = { ambiente_id: reserva.ambiente_id, data: reserva.data, pessoas: String(reserva.pessoas), hora: fmtHora(reserva.hora), nome: reserva.contato_nome, telefone: fmtTel(reserva.contato_telefone_e164), email: reserva.contato_email ?? '', observacoes: reserva.observacoes ?? '', canal: 'painel' };
   const [f, setF] = useState<Form>(inicial);
@@ -224,10 +249,6 @@ export function EditarReserva({ reserva, aoTerminar }: { reserva: ReservaPainel;
     setErros(v);
     if (Object.keys(v).length) return;
     const mud: Record<string, unknown> = {};
-    if (f.ambiente_id !== inicial.ambiente_id) mud.ambiente_id = f.ambiente_id;
-    if (f.data !== inicial.data) mud.data = f.data;
-    if (f.hora !== inicial.hora) mud.hora = f.hora;
-    if (f.pessoas !== inicial.pessoas) mud.pessoas = Number(f.pessoas);
     if (f.nome.trim() !== inicial.nome) mud.contato_nome = f.nome.trim();
     if (digitosTelefone(f.telefone) !== digitosTelefone(inicial.telefone)) mud.contato_telefone = digitosTelefone(f.telefone);
     if (f.email !== inicial.email) mud.contato_email = f.email || null;
@@ -238,7 +259,7 @@ export function EditarReserva({ reserva, aoTerminar }: { reserva: ReservaPainel;
     try {
       await reservas.alterar(reserva.id, mud);
       atualizarReservas();
-      avisar('Reserva alterada. Avise o cliente, se preciso.', 'ok');
+      avisar('Contato e observações atualizados.', 'ok');
       aoTerminar();
     } catch (err) {
       const x = err instanceof ErroApi ? err : null;
@@ -251,12 +272,12 @@ export function EditarReserva({ reserva, aoTerminar }: { reserva: ReservaPainel;
 
   return (
     <form onSubmit={salvar} noValidate class="pilha">
-      <h3 class="secao-titulo">Alterar reserva</h3>
+      <h3 class="secao-titulo">Alterar contato e observações</h3>
       {erro && <Aviso tom="perigo" icone={<Info aria-hidden="true" />}>{erro}</Aviso>}
-      <CamposReserva f={f} set={set} erros={erros} novo={false} />
+      <CamposReserva f={f} set={set} erros={erros} novo={false} soContato ambienteNome={reserva.ambiente} />
       <div class="linha" style={{ justifyContent: 'flex-end' }}>
         <Botao onClick={aoTerminar} disabled={enviando}>Voltar</Botao>
-        <Botao variante="primario" type="submit" carregando={enviando}>Salvar alteração</Botao>
+        <Botao variante="primario" type="submit" carregando={enviando}>Salvar contato e observações</Botao>
       </div>
     </form>
   );

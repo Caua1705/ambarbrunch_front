@@ -215,13 +215,12 @@ export const ROTAS_RESERVAS: Rota[] = [
     const l = achar(params[0]);
     const a = await corpo<Record<string, unknown>>();
     if (l.r.status_reserva === 'cancelada') throw new ErroDemo(409, 'reserva_cancelada', 'Reserva cancelada não pode ser alterada.');
-    if (a.ambiente_id) {
-      const amb = AMBIENTES.find((x) => x.id === a.ambiente_id);
-      if (amb) Object.assign(l.r, { ambiente_id: amb.id, ambiente: amb.nome });
-    }
-    for (const k of ['data', 'pessoas', 'observacoes', 'contato_nome', 'contato_email'] as const) if (a[k] !== undefined && a[k] !== null) (l.r as unknown as Record<string, unknown>)[k] = a[k];
-    if (a.hora) l.r.hora = String(a.hora).length === 5 ? `${a.hora}:00` : String(a.hora);
-    l.avisar = 'alteracao';
+    // Como o backend (AMBAR_PAINEL_ALTERACAO=false): data, horário, ambiente e pessoas não mudam pelo painel.
+    const muda = (a.data && a.data !== l.r.data) || (a.hora && String(a.hora).slice(0, 5) !== l.r.hora.slice(0, 5))
+      || (a.pessoas && Number(a.pessoas) !== l.r.pessoas) || (a.ambiente_id && a.ambiente_id !== l.r.ambiente_id);
+    if (muda) throw new ErroDemo(403, 'alteracao_desativada', 'Nesta versão, data, horário, ambiente e pessoas não mudam pelo painel: cancele e peça ao cliente uma nova reserva pelo site.');
+    for (const k of ['observacoes', 'contato_nome', 'contato_email'] as const) if (a[k] !== undefined) (l.r as unknown as Record<string, unknown>)[k] = a[k] === '' ? null : a[k];
+    if (a.contato_telefone) l.r.contato_telefone_e164 = `+55${String(a.contato_telefone).replace(/D/g, '')}`;
     return saida(l);
   }],
   ['PATCH', new RegExp(`^reservas/${UUID}/status$`), TODOS, async ({ params, corpo, papel }) => {
