@@ -295,7 +295,7 @@ test('rodapé: logo, assinatura da Roll e os três contatos funcionais (WhatsApp
   await expect(rodape.locator('.footer__sig img[alt="Roll"]')).toBeVisible();
   const contatos = rodape.locator('nav[aria-label="Contatos"] a');
   await expect(contatos).toHaveCount(3);
-  await expect(rodape.locator('a[href="https://wa.me/5585994452724"]')).toHaveAttribute('aria-label', 'WhatsApp (85) 99445-2724');
+  await expect(rodape.locator('a[href="https://wa.me/5585958550369"]')).toHaveAttribute('aria-label', 'WhatsApp (85) 95855-0369');
   await expect(rodape.locator('a[href="https://www.instagram.com/ambarbrunch/"]')).toHaveText('@ambarbrunch');
   await expect(rodape.locator('a[href="https://www.instagram.com/roll.ofc/"]')).toContainText('@roll.ofc');
   for (const a of await contatos.all()) {
@@ -303,7 +303,7 @@ test('rodapé: logo, assinatura da Roll e os três contatos funcionais (WhatsApp
     expect((await a.boundingBox())!.height, 'alvo de toque').toBeGreaterThanOrEqual(44);
   }
   // em toda a página, cada contato aparece uma vez (o menu não repete)
-  for (const href of ['https://wa.me/5585994452724', 'https://www.instagram.com/ambarbrunch/', 'https://www.instagram.com/roll.ofc/']) {
+  for (const href of ['https://wa.me/5585958550369', 'https://www.instagram.com/ambarbrunch/', 'https://www.instagram.com/roll.ofc/']) {
     await expect(page.locator(`a[href="${href}"]`)).toHaveCount(1);
   }
   // no fim da rolagem o botão fixo (quando aparece: só com o Clube na home) não cobre nada do rodapé
