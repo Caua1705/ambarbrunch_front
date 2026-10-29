@@ -95,10 +95,23 @@ CORS conferido em 28/10: a API libera `https://ambarbrunch.com` e `https://ambar
    (tratamentos reais), home sem Clube, `/admin` 404.
 5. Backend: abrir as reservas (`aceita_reservas=true`) — decisão do responsável, depois da privacidade validada.
 6. `node scripts/conferir-abertura-reservas.mjs` → precisa sair **0**. Se sair 1, fechar as reservas no backend e
-   corrigir a abertura antes de qualquer coisa. Conferir no celular que a primeira data é 06/11.
+   corrigir a abertura antes de qualquer coisa. Conferir no celular que a primeira data é 06/11. Desde 29/10 o script
+   também exige a mesma versão da política no backend (`privacidadeVersao`) e no site, e `aprovada: true` no site.
 
 Os passos 2–4 antes do 1 também são seguros enquanto a API está fechada (o site só mostra o aviso). O risco é o passo
 5 antes do 1: o site ofereceria 03–05/11, porque é a API que decide.
+
+## Painel da equipe (onde mora e o que falta)
+
+- **Produção:** o painel de reservas da equipe é o do backend: `app/painel/` em `ambarbrunch_back`, servido em
+  `https://api.ambarbrunch.com/painel/`. Commits locais de 29/10 no branch `producao-reservas` (sem push): `e803e1b`
+  (edição só de contato e observações, ações por perfil, confirmação antes de cancelar, trava de clique duplo, erros
+  sem falso sucesso, releitura a cada minuto, contraste AA) e `46670f8` (testes de interface em `tests/painel_ui`,
+  `npm ci && npx playwright test`). Publicar = deploy do backend na VPS, que depende de autorização.
+- **Duplicado:** `src/admin` deste repositório é um segundo painel (Astro/Preact, só com `PAINEL_ADMIN=1`, fora de
+  produção). Ele segue a mesma regra de edição, mas manter os dois é trabalho dobrado: decidir qual fica.
+- **Main do backend:** `main` tem outra versão de `app/painel/js/reservas.js` (com Atendimento). Se o painel do `main` for
+  publicado, ele precisa receber as mudanças de `e803e1b`.
 
 ## Rollback
 
