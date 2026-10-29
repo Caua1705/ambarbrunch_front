@@ -1,12 +1,15 @@
-import { pendente, type Pendente } from '../lib/conteudo';
+import { type Pendente } from '../lib/conteudo';
 
-// Política de privacidade (LGPD) das RESERVAS do Âmbar Café. O texto jurídico é do controlador e passa por validação.
+// Política de privacidade (LGPD) das RESERVAS do Âmbar Café. O texto é do controlador, que o aprova como responsável
+// pela empresa (decisão de 29/10/2026: sem parecer jurídico; o site não afirma validação jurídica).
 // Só entra aqui o que o sistema de fato faz (backend do Âmbar conferido em 29/10/2026: avisos ao grupo da regra f41d12f —
 // cancelamento não vai ao grupo —, tabelas, n8n e fornecedores). O Clube Âmbar não entra nesta política.
 // - texto simples: fato do sistema ou dado conferido;
 // - `revisar(texto, nota)`: proposta que já aparece no texto, com a nota “Validar: …” só no modo de revisão
-//   (bases legais, dispensa de encarregado, transferência internacional — validação jurídica);
-// - `pendente(...)`: decisão que ainda não existe (canal de privacidade, prazos de guarda) — nunca inventar.
+//   (bases legais, dispensa de encarregado, transferência internacional);
+// - `pendente(...)`: decisão que ainda não existe — nunca inventar.
+// Decisões do controlador em 29/10/2026: canal de privacidade = WhatsApp oficial do Âmbar; nenhuma exclusão ou
+// anonimização automática e nenhum prazo fixo — a guarda é descrita como o sistema realmente funciona.
 // Enquanto `aprovada` for false, a página não se diz aprovada (ver src/pages/privacidade.astro). A `versao` é a mesma
 // que o backend registra com `app.cli aprovar-privacidade --versao` e grava em cada aceite. Análise completa e o que
 // o backend precisa implementar: docs/technical/PRIVACIDADE-REVISAO.md.
@@ -30,7 +33,7 @@ export const privacidade = {
         'Esta política trata das reservas do Âmbar Café feitas por este site e das mensagens sobre essas reservas.',
         revisar('Por ser agente de tratamento de pequeno porte, o Âmbar Café não indicou encarregado pelo tratamento de dados (Resolução CD/ANPD nº 2/2022, art. 11). Pedidos e dúvidas sobre os seus dados vão pelo canal de privacidade abaixo.',
           'a dispensa vale para microempresa (a Receita registra MICRO EMPRESA, optante do Simples) que não faça tratamento de alto risco e não integre grupo econômico com receita global acima do limite da LC 123/2006 (art. 3º, II e III)'),
-        pendente('Canal de privacidade (obrigatório mesmo sem encarregado: Res. CD/ANPD nº 2/2022, art. 11, § 1º). Recomendação: e-mail no domínio (ex.: privacidade@ambarbrunch.com) encaminhado a uma caixa da empresa — nunca um número pessoal'),
+        'Canal de privacidade: o WhatsApp oficial do Âmbar, (85) 95855-0369. Escreva ali seus pedidos e dúvidas sobre os seus dados; a mensagem chega à equipe e você recebe uma resposta automática confirmando o recebimento.',
       ],
     },
     {
@@ -90,7 +93,14 @@ export const privacidade = {
     },
     {
       id: 'retencao', titulo: 'Por quanto tempo guardamos',
-      itens: [pendente('Prazos de guarda (decisão do controlador com o jurídico) para: contato da reserva (nome, telefone, e-mail); observações; registro do aceite; mensagens do WhatsApp; avisos no grupo da equipe. Critérios, procedimento e o que o backend precisa implementar: docs/technical/PRIVACIDADE-REVISAO.md — hoje o sistema não apaga nem anonimiza nada sozinho')],
+      itens: [
+        'O sistema não apaga nem anonimiza dados automaticamente, e não há um prazo fixo de exclusão.',
+        'Guardamos o histórico das reservas e os dados de contato de quem reservou (nome, telefone, e-mail e observações) enquanto forem necessários para as finalidades descritas nesta política — registrar e atender as reservas e falar com você sobre elas — ou para cumprir uma obrigação legal.',
+        'O registro do seu aceite fica guardado junto da reserva, para comprovar que você conheceu esta política.',
+        'As mensagens trocadas pelo WhatsApp sobre a reserva ficam registradas no sistema para a equipe atender, e os avisos ao grupo da equipe ficam no histórico desse grupo.',
+        revisar('Você pode pedir a eliminação dos seus dados pelo canal de privacidade. Atendemos o pedido nos casos previstos na lei, guardando apenas o que for necessário para cumprir uma obrigação legal ou exercer direitos (Lei 13.709/2018, arts. 16 e 18).',
+          'decisão do controlador (29/10/2026): sem exclusão automática; eliminação a pedido do titular, quando a lei exigir'),
+      ],
     },
     {
       id: 'direitos', titulo: 'Seus direitos',

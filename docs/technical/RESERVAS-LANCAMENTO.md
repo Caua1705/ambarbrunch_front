@@ -24,11 +24,13 @@ da Vercel, ambiente Production). Com isso a comanda de `/` (#reservar) e de `/re
 - **Fuso**: "hoje" do calendário é o de America/Fortaleza (vem da config), em qualquer fuso do navegador.
 - **Privacidade**: com as reservas em modo API, `/privacidade/` mostra os tratamentos reais (dados pedidos, finalidades,
   operadores: Supabase em São Paulo, servidor da API, Meta WhatsApp Business Platform, Z-API, Vercel) com o aviso
-  "Texto em validação jurídica". **Não está aprovada**: faltam responsável/controlador, canal do titular, bases legais,
-  prazos de guarda e forma de exercer direitos (`src/data/privacidade.ts`, itens `pendente()`, `aprovada: false`). Ao
-  receber o texto validado, preencher esses itens e marcar `aprovada: true` — não inventar nenhum deles. Análise e
-  decisões em aberto: `docs/technical/PRIVACIDADE-REVISAO.md`. A lista do que
-  falta aparece como "A confirmar" em `/privacidade/` no build de revisão (`npm run build:revisao`). A `versao` publicada
+  "Texto aguardando a aprovação do responsável pelo Âmbar Café". Decisões do controlador de 29/10/2026 já no texto:
+  canal de privacidade = WhatsApp oficial (85) 95855-0369; nenhuma exclusão ou anonimização automática e nenhum prazo
+  fixo (guarda descrita como o sistema funciona; eliminação a pedido, quando a lei exigir); sem parecer jurídico — o
+  responsável aprova como representante da empresa, e o site não afirma validação jurídica. **Ainda não aprovada**
+  (`aprovada: false`): quando ele aprovar, marcar `aprovada: true` em `src/data/privacidade.ts` e publicar. Notas de
+  revisão ("Validar: …") aparecem só no build de revisão (`npm run build:revisao`). Análise:
+  `docs/technical/PRIVACIDADE-REVISAO.md`. A `versao` publicada
   tem de ser a mesma registrada no backend (`app.cli aprovar-privacidade --unidade ambar_cafe --versao …`). Avisos ao
   grupo conforme a regra de 29/10/2026 do backend: reserva nova e agenda das 06h; **alteração e cancelamento não vão
   ao grupo** (na 1ª versão data, horário, ambiente e pessoas não mudam: `AMBAR_PAINEL_ALTERACAO=false`).

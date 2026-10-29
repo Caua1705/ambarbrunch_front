@@ -3,7 +3,8 @@
 // Política não aprovada: o build de produção só diz o que existe hoje; o rascunho aparece no modo de revisão.
 // Com as reservas do site ligadas (PUBLIC_RESERVAS_MODO=api), o site passa a coletar dados assim que a API abrir: a
 // página não pode mais dizer que nada é coletado. Mostra os tratamentos reais já descritos em src/data/privacidade.ts e
-// avisa o que ainda está em validação jurídica — sem os itens pendentes e sem dizer que a política foi aprovada.
+// avisa que o texto aguarda a aprovação do responsável pela empresa — sem os itens pendentes e sem dizer que a política
+// foi aprovada (nem que passou por validação jurídica: decisão do controlador, 29/10/2026).
 import Base from '../layouts/Base.astro';
 import Foto from '../components/Foto.astro';
 import Footer from '../sections/Footer.astro';
@@ -28,8 +29,8 @@ const mostrar = privacidade.aprovada || rascunho || provisoria;
           {rascunho && <p class="doc__rascunho" role="note">Rascunho em validação — não publicado. Os trechos marcados dependem do controlador.</p>}
           {provisoria && (
             <p class="doc__rascunho" role="note">
-              Texto em validação jurídica. Abaixo está como o site e o sistema de reservas tratam os seus dados hoje. Ainda
-              serão publicados aqui o canal de privacidade e os prazos de guarda dos dados.
+              Texto aguardando a aprovação do responsável pelo Âmbar Café. Abaixo está como o site e o sistema de reservas
+              tratam os seus dados hoje.
             </p>
           )}
           {privacidade.secoes.map((secao) => (
