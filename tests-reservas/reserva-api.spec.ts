@@ -84,8 +84,11 @@ test.describe('datas: primeira data 09/11, janela de 60 dias e dias fechados', (
     await expect(page.locator('.cal__dia[aria-checked="true"]')).toHaveCount(0);
     await page.keyboard.press('ArrowRight');
     await expect(dia(page, '2026-11-10')).toHaveAttribute('aria-checked', 'true');
+    // o foco anda para o dia escolhido no quadro seguinte
+    await expect(dia(page, '2026-11-10')).toBeFocused();
     await page.keyboard.press('ArrowLeft');
     await expect(dia(page, ABERTURA)).toHaveAttribute('aria-checked', 'true');
+    await expect(dia(page, ABERTURA)).toBeFocused();
     await page.keyboard.press('ArrowLeft');
     await expect(dia(page, ABERTURA)).toHaveAttribute('aria-checked', 'true');
     expect(reg.disponibilidades.every((q) => q.data >= ABERTURA)).toBe(true);
