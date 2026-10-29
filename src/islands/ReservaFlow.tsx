@@ -68,14 +68,40 @@ function hojeNoFuso(fuso?: string): Date {
     return agora;
   }
 }
+/**
+ * Início da reserva para o .ics em UTC (…Z): data e hora são do fuso do café, e a agenda de quem está em outro fuso
+ * mostra o horário certo. Sem o fuso (ou sem suporte a longOffset), fica no horário local "flutuante", como antes.
+ */
+function inicioIcs(data: string, hora: string, fuso?: string): string {
+  const [y, m, d] = data.split('-'); const [h, min] = hora.split(':');
+  const flutuante = `${y}${m}${d}T${h}${min}00`;
+  if (!fuso) return flutuante;
+  try {
+    const meioDia = new Date(`${data}T12:00:00Z`);
+    const nome = new Intl.DateTimeFormat('en-US', { timeZone: fuso, timeZoneName: 'longOffset' })
+      .formatToParts(meioDia).find((p) => p.type === 'timeZoneName')?.value ?? '';
+    const desvio = nome === 'GMT' ? '+00:00' : nome.replace('GMT', '');
+    if (!/^[+-]\d{2}:\d{2}$/.test(desvio)) return flutuante;
+    const inicio = new Date(`${data}T${h}:${min}:00${desvio}`);
+    return Number.isNaN(inicio.getTime()) ? flutuante : inicio.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  } catch {
+    return flutuante;
+  }
+}
+
+/** Limites do backend (esquemas.py: nome até 120; e-mail validado como EmailStr, com domínio e terminação). */
+const NOME_MAX = 120;
+const EMAIL = /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)*\.[a-z]{2,}$/i;
+
 function validar(d: Dados, exigeEmail: boolean): Record<string, string> {
   const e: Record<string, string> = {};
   if (d.nome.trim().length < 2) e.nome = 'Diga como podemos chamar você.';
+  else if (d.nome.trim().length > NOME_MAX) e.nome = `Use até ${NOME_MAX} caracteres.`;
   // as regras do backend (lib/telefone.ts): celular sem o nono dígito é recusado com a explicação, nunca completado
   const tel = conferirTelefone(d.telefone);
   if (!tel.ok) e.telefone = tel.mensagem;
   if (exigeEmail && !d.email.trim()) e.email = 'Informe o e-mail.';
-  else if (d.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email.trim())) e.email = 'Confira o e-mail.';
+  else if (d.email.trim() && !EMAIL.test(d.email.trim())) e.email = 'Confira o e-mail.';
   if (!d.consentimento) e.consentimento = 'Para reservar, é preciso concordar com o uso dos dados.';
   return e;
 }
@@ -195,6 +221,8 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
   const [anuncio, setAnuncio] = useState('');
   const [tentativa, setTentativa] = useState(0);
   const chave = useRef<string>(uuid());
+  /** pedido (JSON) para o qual a chave atual foi criada */
+  const chaveDe = useRef('');
   const topo = useRef<HTMLParagraphElement>(null);
   const passo4 = useRef<HTMLLegendElement>(null);
   // Campo de data (celular): o calendário começa fechado e abre dentro da comanda; um toque num dia escolhe e fecha.
@@ -280,6 +308,8 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
   // Foco no topo da comanda a cada TROCA de etapa (leitor de tela e teclado); não na montagem.
   const montou = useRef(false);
   useEffect(() => { if (!montou.current) { montou.current = true; return; } if (etapa !== 'escolha') topo.current?.focus(); }, [etapa]);
+  // 409/422 na confirmação devolvem à escolha com o aviso no topo: o foco vai para lá (no celular, o aviso fica à vista).
+  useEffect(() => { if (etapa === 'escolha' && falha) topo.current?.focus(); }, [falha]);
 
   const dataTexto = data ? dataLonga.format(new Date(`${data}T12:00:00`)) : '';
   const mudarDado = (campo: keyof Dados) => (ev: Event) => {
@@ -301,9 +331,19 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
       requestAnimationFrame(() => document.querySelector<HTMLElement>(`#${px}-${Object.keys(e)[0]}`)?.focus());
       return;
     }
-    chave.current = uuid();
+    // Chave nova só quando o pedido muda: voltar de uma falha (tempo esgotado, sem conexão) por "Editar" sem mexer em
+    // nada reaproveita a chave, e o backend devolve a mesma reserva em vez de criar outra.
+    const assinatura = JSON.stringify(pedido());
+    if (assinatura !== chaveDe.current) { chave.current = uuid(); chaveDe.current = assinatura; }
     setEtapa('revisao');
   };
+
+  const pedido = () => ({
+    ambienteId: ambiente, pessoas, data: data ?? '', hora: hora ?? '',
+    nome: dados.nome.trim(), telefone: telefoneNacional(dados.telefone),
+    email: dados.email.trim() || undefined, observacoes: dados.observacoes.trim() || undefined,
+    consentimentoPrivacidade: true as const, origem: 'site' as const,
+  });
 
   const enviar = async () => {
     if (!api || !data || !hora || enviandoAgora.current) return;
@@ -311,15 +351,14 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
     setEtapa('enviando');
     setAnuncio('Enviando a reserva…');
     try {
-      const r = await api.criar({
-        ambienteId: ambiente, pessoas, data, hora,
-        nome: dados.nome.trim(), telefone: telefoneNacional(dados.telefone),
-        email: dados.email.trim() || undefined, observacoes: dados.observacoes.trim() || undefined,
-        consentimentoPrivacidade: true, origem: 'site',
-      }, chave.current);
+      const r = await api.criar(pedido(), chave.current);
       setResultado(r);
       setEtapa('confirmada');
-      setAnuncio(`Reserva ${r.status === 'confirmada' ? 'confirmada' : 'recebida'}. Código ${r.codigo}.`);
+      // a próxima reserva (outra mesa, outro dia) nasce com chave nova
+      chaveDe.current = '';
+      setAnuncio(r.status === 'confirmada'
+        ? `Reserva confirmada. Código ${r.codigo}.`
+        : `Pedido de reserva recebido, aguardando a confirmação da equipe. Código ${r.codigo}.`);
     } catch (e) {
       const erro = e instanceof ErroReserva ? e : new ErroReserva('servidor', 'Não foi possível concluir. Tente de novo em instantes.');
       // As reservas foram fechadas enquanto a pessoa preenchia: nada foi registrado; a comanda passa ao estado fechado.
@@ -333,9 +372,15 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
         if (erro.campos.data || erro.campos.hora) { setHora(null); setTentativa((t) => t + 1); }
         return;
       }
-      setFalha(erro.message);
+      // Tempo esgotado ou conexão caída: a reserva pode ter sido registrada. "Tentar de novo" usa a mesma chave e não
+      // duplica — a pessoa precisa saber disso para não refazer por outro caminho.
+      const incerto = erro.tipo === 'tempo' || erro.tipo === 'rede';
+      const texto = incerto
+        ? `${erro.message} A reserva pode já ter sido registrada: toque em “Tentar de novo” — se ela existir, não será duplicada.`
+        : erro.message;
+      setFalha(texto);
       setEtapa('falha');
-      setAnuncio(erro.message);
+      setAnuncio(texto);
     } finally {
       enviandoAgora.current = false;
     }
@@ -343,16 +388,17 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
 
   const agenda = () => {
     if (!resultado) return '#';
-    const [y, m, d] = resultado.data.split('-'); const [h, min] = resultado.hora.split(':');
-    const inicio = `${y}${m}${d}T${h}${min}00`;
+    const utc = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
     const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Ambar Brunch//Reserva//PT', 'BEGIN:VEVENT', `UID:${resultado.codigo}@ambarbrunch`,
-      `DTSTART:${inicio}`, `DURATION:PT${resultado.duracaoMin ?? 180}M`, `SUMMARY:Reserva no Âmbar Brunch (${resultado.pessoas} pessoas)`,
+      `DTSTAMP:${utc(new Date())}`, `DTSTART:${inicioIcs(resultado.data, resultado.hora, cfg.fusoHorario)}`, `DURATION:PT${resultado.duracaoMin ?? 180}M`, `SUMMARY:Reserva no Âmbar Brunch (${resultado.pessoas} pessoas)`,
       `DESCRIPTION:Código ${resultado.codigo} · ${nomeAmbiente}`, 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
     return `data:text/calendar;charset=utf-8,${encodeURIComponent(ics)}`;
   };
 
+  /** O backend devolveu "pendente" (ambiente com aprovação da equipe): pedido recebido, não mesa garantida. */
+  const pendente = etapa === 'confirmada' && resultado?.status === 'pendente';
   const carimbo = etapa === 'confirmada'
-    ? { estado: 'reservado', texto: modo === 'simulado' ? 'simulado' : 'reservado' }
+    ? { estado: 'reservado', texto: modo === 'simulado' ? 'simulado' : pendente ? 'recebido' : 'reservado' }
     : etapa === 'falha' ? { estado: 'erro', texto: 'tente de novo' }
     : { estado: undefined, texto: modo === 'indisponivel' || estadoCfg === 'fechado' ? 'em breve' : modo === 'simulado' ? 'simulação' : 'reserva' };
 
@@ -372,7 +418,7 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
     <form class="ticket" data-modo={modo} data-etapa={etapa} onSubmit={continuar} noValidate aria-describedby={nota} aria-busy={etapa === 'enviando'}>
       <div class="stamp ticket__stamp" data-state={carimbo.estado} aria-hidden="true">{carimbo.texto}</div>
       <p class="ticket__title" ref={topo} tabIndex={-1}>
-        {etapa === 'confirmada' ? (modo === 'simulado' ? 'Reserva simulada' : 'Mesa reservada') : etapa === 'escolha' ? 'Comanda de reserva' : 'Confira sua reserva'}
+        {etapa === 'confirmada' ? (modo === 'simulado' ? 'Reserva simulada' : pendente ? 'Pedido recebido' : 'Mesa reservada') : etapa === 'escolha' ? 'Comanda de reserva' : 'Confira sua reserva'}
       </p>
       {modo === 'simulado' && <p class="ticket__sim" role="note">Simulação para testes — nenhuma reserva é feita e nada é enviado.</p>}
 
@@ -447,7 +493,7 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
               <div class="ticket__fields">
                 <label class="field" data-invalid={erros.nome ? '' : undefined}>
                   <span class="field__label">Nome</span>
-                  <input id={`${px}-nome`} class="field__input" autocomplete="name" value={dados.nome} onInput={mudarDado('nome')} aria-invalid={!!erros.nome} aria-describedby={erros.nome ? `${px}-nome-erro` : undefined} />
+                  <input id={`${px}-nome`} class="field__input" autocomplete="name" maxLength={NOME_MAX} value={dados.nome} onInput={mudarDado('nome')} aria-invalid={!!erros.nome} aria-describedby={erros.nome ? `${px}-nome-erro` : undefined} />
                   <span class="field__error" id={`${px}-nome-erro`}>{erros.nome}</span>
                 </label>
                 <label class="field" data-invalid={erros.telefone ? '' : undefined}>
@@ -495,17 +541,20 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
       {etapa === 'confirmada' && resultado && (
         <>
           <p class="ticket__status" role="status">
-            {resultado.status === 'confirmada' ? 'Tudo certo! ' : 'Recebemos seu pedido. O Âmbar confirma em seguida. '}
+            {pendente
+              ? 'Recebemos seu pedido. A reserva só vale depois de aprovada pela equipe do Âmbar. '
+              : 'Tudo certo! Sua reserva está registrada. '}
             Código <strong class="ticket__code">{resultado.codigo}</strong>
           </p>
           {resumo}
           <div class="ticket__actions">
             <a class="btn btn--wine btn--block" href={agenda()} download={`reserva-ambar-${resultado.codigo}.ics`}>Adicionar à agenda</a>
-            <button class="ticket__link" type="button" onClick={() => { setResultado(null); setHora(null); setEtapa('escolha'); setTentativa((t) => t + 1); }}>Fazer outra reserva</button>
+            {/* nova reserva: mesmos nome e telefone, mas o aceite da política é dado de novo */}
+            <button class="ticket__link" type="button" onClick={() => { setResultado(null); setHora(null); setDados((d) => ({ ...d, consentimento: false })); setEtapa('escolha'); setTentativa((t) => t + 1); }}>Fazer outra reserva</button>
           </div>
           {resultado.clube?.convite && resultado.clube.url && (
             <aside class="ticket__clube" aria-label="Convite opcional ao Clube Âmbar">
-              <p><strong>Conheça o Clube Âmbar.</strong> Pontos a cada compra no café. É opcional: sua reserva já está garantida.</p>
+              <p><strong>Conheça o Clube Âmbar.</strong> Pontos a cada compra no café. É opcional e não muda nada na sua reserva.</p>
               <a class="ticket__link" href={resultado.clube.url}>Ver o Clube</a>
             </aside>
           )}

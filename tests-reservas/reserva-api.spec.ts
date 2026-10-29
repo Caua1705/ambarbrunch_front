@@ -173,7 +173,96 @@ test.describe('envio: confirmação, clique duplo, erro e horário esgotado', ()
     await page.getByRole('button', { name: 'Confirmar reserva' }).click();
     await expect(page.getByRole('alert')).toContainText('fora do prazo de reserva online');
     await expect.poll(() => reg.disponibilidades.length).toBeGreaterThan(pedidosAntes);
+    // o aviso fica à vista: o foco volta ao topo da comanda
+    await expect(page.locator('.ticket__title')).toBeFocused();
   });
+
+  test('reserva pendente (ambiente com aprovação): "pedido recebido", nunca "mesa reservada" nem "garantida"', async ({ page }) => {
+    await abrir(page, { envio: 'pendente' });
+    await escolherData(page, ABERTURA);
+    await preencherEConfirmar(page);
+    await page.getByRole('button', { name: 'Confirmar reserva' }).click();
+    await expect(page.locator('.ticket__title')).toHaveText('Pedido recebido');
+    await expect(comanda(page)).toContainText('A reserva só vale depois de aprovada pela equipe do Âmbar.');
+    const texto = (await comanda(page).innerText()).toLowerCase();
+    for (const falso of ['mesa reservada', 'garantida', 'whatsapp']) expect(texto, falso).not.toContain(falso);
+  });
+
+  test('confirmação não promete WhatsApp; .ics no horário de Fortaleza (UTC); nova reserva pede o aceite de novo', async ({ page }) => {
+    await abrir(page);
+    await escolherData(page, ABERTURA);
+    await preencherEConfirmar(page);
+    await page.getByRole('button', { name: 'Confirmar reserva' }).click();
+    await expect(page.getByText('Mesa reservada')).toBeVisible();
+    expect((await comanda(page).innerText()).toLowerCase()).not.toContain('whatsapp');
+    const ics = decodeURIComponent((await page.getByRole('link', { name: 'Adicionar à agenda' }).getAttribute('href'))!);
+    expect(ics).toContain('DTSTART:20261106T120000Z');  // 09:00 em Fortaleza (UTC−3)
+    expect(ics).toMatch(/DTSTAMP:\d{8}T\d{6}Z/);
+    await page.getByRole('button', { name: 'Fazer outra reserva' }).click();
+    await escolherData(page, ABERTURA);
+    await page.getByRole('radio', { name: '10:00', exact: true }).click();
+    await expect(page.getByLabel('Nome')).toHaveValue('Maria Teste');
+    await expect(page.getByRole('checkbox')).not.toBeChecked();
+  });
+
+  test('429: mostra a mensagem do backend (alguns minutos) e nada é confirmado', async ({ page }) => {
+    await abrir(page, { envio: 'limite' });
+    await escolherData(page, ABERTURA);
+    await preencherEConfirmar(page);
+    await page.getByRole('button', { name: 'Confirmar reserva' }).click();
+    await expect(page.getByRole('alert')).toContainText('Muitas tentativas. Tente de novo em alguns minutos.');
+    await expect(page.getByText('Mesa reservada')).toHaveCount(0);
+  });
+
+  test('e-mail e aceite recusados pelo backend: mensagem em português no campo certo, dados mantidos', async ({ page }) => {
+    const c: Cenario = { envio: 'email' };
+    await abrir(page, c);
+    await escolherData(page, ABERTURA);
+    await preencherEConfirmar(page);
+    await page.getByRole('button', { name: 'Confirmar reserva' }).click();
+    await expect(page.locator(`#rf-email-erro`)).toHaveText('Confira o e-mail.');
+    await expect(page.getByLabel('Nome')).toHaveValue('Maria Teste');
+    c.envio = 'consentimento';
+    await page.getByRole('button', { name: 'Continuar' }).click();
+    await page.getByRole('button', { name: 'Confirmar reserva' }).click();
+    await expect(page.locator('#rf-consentimento-erro')).toContainText('É preciso aceitar a política de privacidade');
+  });
+
+  test('sem conexão e "Editar" sem mudar nada: a nova confirmação usa a mesma chave (não duplica)', async ({ page }) => {
+    const reg = await abrir(page);
+    await escolherData(page, ABERTURA);
+    await preencherEConfirmar(page);
+    let primeiraChave = '';
+    await page.route(`${API}/reservas`, (r) => {
+      if (r.request().method() !== 'POST') return r.fallback();
+      primeiraChave = r.request().headers()['idempotency-key'] ?? '';
+      return r.abort('internetdisconnected');
+    });
+    await page.getByRole('button', { name: 'Confirmar reserva' }).click();
+    await expect(page.getByRole('alert')).toContainText('A reserva pode já ter sido registrada');
+    await page.unroute(`${API}/reservas`);
+    await page.getByRole('button', { name: 'Editar' }).click();
+    await page.getByRole('button', { name: 'Continuar' }).click();
+    await page.getByRole('button', { name: 'Confirmar reserva' }).click();
+    await expect(page.getByText('Mesa reservada')).toBeVisible();
+    // o primeiro pedido foi cortado; o segundo, depois de "Editar" sem mudanças, leva a mesma chave
+    expect(primeiraChave.length).toBeGreaterThanOrEqual(8);
+    expect(reg.envios.map((e) => e.chave)).toEqual([primeiraChave]);
+  });
+});
+
+test('navegador sem AbortSignal.any/timeout (iOS < 17.4): horários carregam e a reserva é enviada', async ({ page }) => {
+  await page.addInitScript(() => {
+    const s = AbortSignal as unknown as Record<string, unknown>;
+    delete s.any;
+    delete s.timeout;
+  });
+  await abrir(page);
+  await escolherData(page, ABERTURA);
+  await expect(page.getByRole('radio', { name: '09:00', exact: true })).toBeVisible();
+  await preencherEConfirmar(page);
+  await page.getByRole('button', { name: 'Confirmar reserva' }).click();
+  await expect(page.getByText('Mesa reservada')).toBeVisible();
 });
 
 test.describe('API fechada ou fora do ar: nada de horários por conta própria', () => {
