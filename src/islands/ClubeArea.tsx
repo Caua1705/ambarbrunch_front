@@ -20,7 +20,6 @@ import { RECURSOS } from '../lib/api/clube-futuro';
 import type { ConfigClube, MembroClube, MovimentoClube, SituacaoClube } from '../lib/api/clube-acesso';
 import { ROTAS, urlEntrar, useApiClube, type Volta } from '../lib/clube-cliente';
 import type { ModoClube } from '../lib/clube-modo';
-import { visita } from '../data/visita';
 
 export type SecaoArea = 'conta' | 'historico' | 'recompensas';
 type Estado = 'carregando' | 'fechado' | 'falha' | 'suspensa' | 'pronto' | 'saindo';
@@ -145,13 +144,12 @@ export default function ClubeArea({ modo, apiUrl, secao, demo }: Props) {
     );
   }
   if (estado === 'suspensa') {
-    // sem nada da conta e sem “tentar de novo”: só o texto do backend e o caminho para falar com a equipe
+    // sem nada da conta e sem “tentar de novo”: só o texto do backend
     return (
       <div class="area-vazio" role="alert" data-estado="suspensa">
         <Icone nome="pessoa" class="area-vazio__icone" />
         <p class="area-vazio__titulo">Conta suspensa</p>
         <p class="area-vazio__texto">{falha}</p>
-        <a class="btn btn--wine" href={visita.whatsapp.url} target="_blank" rel="noopener">Falar com a equipe no WhatsApp</a>
         <a class="ticket__link" href="/">Voltar ao início</a>
       </div>
     );

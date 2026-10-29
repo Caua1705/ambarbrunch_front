@@ -17,7 +17,6 @@ const ano = new Date().getFullYear();
 const endereco = v.endereco.replace(', ', ', ');
 // ícones de traço no mesmo desenho dos marcos do Clube (components/ClubeJornada.astro): 24 × 24, traço 1,7
 const ICONES = {
-  whatsapp: 'M12 3.5a8.5 8.5 0 0 0-7.4 12.7L3.5 20.5l4.4-1.1A8.5 8.5 0 1 0 12 3.5zM9 8.2c.4-.5 1.2-.5 1.5 0l.8 1.5c.2.3.1.7-.2 1l-.5.5c.6 1.2 1.6 2.2 2.8 2.8l.5-.5c.3-.3.7-.4 1-.2l1.5.8c.5.3.5 1.1 0 1.5-.8.7-2 .9-3.4.2a9 9 0 0 1-4.2-4.2C8.1 10.2 8.3 9 9 8.2z',
   instagram: 'M7.5 3.5h9a4 4 0 0 1 4 4v9a4 4 0 0 1-4 4h-9a4 4 0 0 1-4-4v-9a4 4 0 0 1 4-4zM12 8.3a3.7 3.7 0 1 0 0 7.4 3.7 3.7 0 0 0 0-7.4zM17.2 6.9v.01',
 };
 ---
@@ -63,7 +62,6 @@ const ICONES = {
 
     <nav class="footer__redes" aria-label="Contatos">
       <ul class="footer__contatos">
-        <li><a href={v.whatsapp.url} rel="noopener" target="_blank" aria-label={`WhatsApp ${v.whatsapp.numero}`}><svg viewBox="0 0 24 24" aria-hidden="true"><path d={ICONES.whatsapp} /></svg><span class="footer__rede-curta">WhatsApp</span><span class="footer__rede-longa">{v.whatsapp.numero}</span></a></li>
         <li><a href={v.instagram.url} rel="noopener" target="_blank" aria-label={`Instagram do Âmbar Café ${v.instagram.handle}`}><svg viewBox="0 0 24 24" aria-hidden="true"><path d={ICONES.instagram} /></svg><span>{v.instagram.handle}</span></a></li>
         <li><a href={roll.instagram.url} rel="noopener" target="_blank" aria-label={`Instagram da Roll ${roll.instagram.handle}`}><svg viewBox="0 0 24 24" aria-hidden="true"><path d={ICONES.instagram} /></svg><span>{roll.instagram.handle}</span></a></li>
       </ul>

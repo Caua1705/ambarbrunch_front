@@ -802,7 +802,7 @@ test('conta suspensa: o código certo mostra “Conta suspensa” com o texto do
   await confirmarCodigo(page);
   await expect(f.locator('.ticket__title')).toHaveText('Conta suspensa');
   await expect(f.getByRole('alert')).toHaveText(TEXTO_SUSPENSA);
-  await expect(f.getByRole('link', { name: 'Falar com a equipe no WhatsApp' })).toHaveAttribute('href', /^https:\/\/wa\.me\//);
+  await expect(f.locator('a[href*="wa.me"]')).toHaveCount(0);
   await expect(f.getByRole('button', { name: /tentar de novo|confirmar/i })).toHaveCount(0);
   await expect(f.locator('input')).toHaveCount(0);
   await expect(f).not.toContainText(/não está disponível|Não foi possível/);

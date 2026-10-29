@@ -286,7 +286,7 @@ test('rodapé absorve a Visite (2026-10-23): endereço 1580 no Meireles, horári
   await expect(page.locator('#menu a[href="#visite"]')).toHaveCount(1);
 });
 
-test('rodapé: logo, assinatura da Roll e os três contatos funcionais (WhatsApp, Instagram do Âmbar e da Roll), uma vez só', async ({ page }) => {
+test('rodapé: logo, assinatura da Roll e os dois contatos (Instagram do Âmbar e da Roll), uma vez só; sem WhatsApp', async ({ page }) => {
   await page.goto('/');
   const rodape = page.locator('footer.footer');
   await expect(rodape.locator('img[alt="Âmbar Café"]')).toBeVisible();
@@ -294,8 +294,9 @@ test('rodapé: logo, assinatura da Roll e os três contatos funcionais (WhatsApp
   await expect(rodape).not.toContainText('Âmbar Brunch');
   await expect(rodape.locator('.footer__sig img[alt="Roll"]')).toBeVisible();
   const contatos = rodape.locator('nav[aria-label="Contatos"] a');
-  await expect(contatos).toHaveCount(3);
-  await expect(rodape.locator('a[href="https://wa.me/5585958550369"]')).toHaveAttribute('aria-label', 'WhatsApp (85) 95855-0369');
+  await expect(contatos).toHaveCount(2);
+  // sem atendimento pelo WhatsApp no site (pedido do responsável, 29/10/2026)
+  await expect(page.locator('a[href*="wa.me"]')).toHaveCount(0);
   await expect(rodape.locator('a[href="https://www.instagram.com/ambarbrunch/"]')).toHaveText('@ambarbrunch');
   await expect(rodape.locator('a[href="https://www.instagram.com/roll.ofc/"]')).toContainText('@roll.ofc');
   for (const a of await contatos.all()) {
@@ -303,7 +304,7 @@ test('rodapé: logo, assinatura da Roll e os três contatos funcionais (WhatsApp
     expect((await a.boundingBox())!.height, 'alvo de toque').toBeGreaterThanOrEqual(44);
   }
   // em toda a página, cada contato aparece uma vez (o menu não repete)
-  for (const href of ['https://wa.me/5585958550369', 'https://www.instagram.com/ambarbrunch/', 'https://www.instagram.com/roll.ofc/']) {
+  for (const href of ['https://www.instagram.com/ambarbrunch/', 'https://www.instagram.com/roll.ofc/']) {
     await expect(page.locator(`a[href="${href}"]`)).toHaveCount(1);
   }
   // no fim da rolagem o botão fixo (quando aparece: só com o Clube na home) não cobre nada do rodapé
@@ -342,8 +343,8 @@ for (const largura of [360, 390]) {
     expect(mapa.x, 'mapa à direita do texto').toBeGreaterThanOrEqual(info.x + info.width - 1);
     expect(mapa.width, 'mapa visível, não um ícone').toBeGreaterThan(100);
     const linhas = await rodape.locator('.footer__contatos a').evaluateAll((as) => as.map((a) => Math.round(a.getBoundingClientRect().top)));
-    expect(new Set(linhas).size, 'os três contatos na mesma linha').toBe(1);
-    await expect(rodape.locator('.footer__contatos a svg')).toHaveCount(3);
+    expect(new Set(linhas).size, 'os contatos na mesma linha').toBe(1);
+    await expect(rodape.locator('.footer__contatos a svg')).toHaveCount(2);
     expect(await page.evaluate(() => document.documentElement.scrollWidth), 'sem rolagem horizontal').toBeLessThanOrEqual(largura);
     // nenhum texto do rodapé estoura a própria caixa
     const estouro = await rodape.locator('.footer__texto, .footer__contatos a, .footer__sig').evaluateAll((es) => es.filter((e) => e.scrollWidth > e.clientWidth + 1).length);

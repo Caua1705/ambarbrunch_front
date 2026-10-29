@@ -25,7 +25,6 @@ import { ErroClube } from '../lib/api/clube-erro';
 import type { CadastroPendente, ConclusaoCadastro, ConfigClube, DesafioAcesso, MembroClube, SituacaoClube } from '../lib/api/clube-acesso';
 import { ROTAS, destinoSeguro, levarDesafio, primeiroNome, trazerDesafio, urlEntrar, useApiClube } from '../lib/clube-cliente';
 import { conferirTelefone, mascaraTel, soDigitos, telefoneNacional, uuid } from '../lib/telefone';
-import { visita } from '../data/visita';
 import type { ModoClube } from '../lib/clube-modo';
 
 export type PaginaAcesso = 'landing' | 'entrar' | 'cadastro' | 'ativar';
@@ -554,11 +553,10 @@ export default function ClubeAcesso({ modo, apiUrl, privacidadeUrl, pagina, ids:
           </>
         )}
 
-        {/* conta suspensa: o texto do backend, o caminho para a equipe — sem “tentar de novo” e sem nada da conta */}
+        {/* conta suspensa: o texto do backend — sem “tentar de novo” e sem nada da conta */}
         {etapa === 'suspensa' && (
           <>
             <p class="ticket__status" data-tone="error" role="alert">{falha}</p>
-            <a class="btn btn--wine btn--block" href={visita.whatsapp.url} target="_blank" rel="noopener">Falar com a equipe no WhatsApp</a>
             <a class="ticket__link ficha__sair" href="/">Voltar ao início</a>
           </>
         )}

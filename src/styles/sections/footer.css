@@ -72,8 +72,7 @@ body:not(:has([data-hero])) .footer { padding-bottom: max(var(--s-30), env(safe-
 }
 .footer__mapa:active { scale: var(--press-scale); }
 
-/* contatos: uma fileira de links com ícone de traço — sem botões. Alvo de toque de 44 px. No celular o WhatsApp mostra
-   o nome da rede (o número completo não cabe na fileira em 360 px; fica no rótulo acessível); a partir de 600 px, o número. */
+/* contatos: uma fileira de links com ícone de traço — sem botões. Alvo de toque de 44 px. */
 .footer__redes { margin-top: var(--s-18); }
 /* corpo e intervalo encolhem só abaixo de ~390 px (13 px e 11 px em 360): a fileira cabe sem quebrar nem encostar */
 .footer__contatos { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 clamp(10px, 3vw, var(--s-16)); }
@@ -83,7 +82,6 @@ body:not(:has([data-hero])) .footer { padding-bottom: max(var(--s-30), env(safe-
 }
 .footer__contatos a span { text-decoration: underline 1.5px color-mix(in srgb, var(--wine) 30%, transparent); text-underline-offset: 4px; }
 .footer__contatos svg { flex: none; width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
-.footer__rede-longa { display: none; }
 @media (hover: hover) and (pointer: fine) {
   .footer__contatos a:hover span { text-decoration-color: currentColor; }
 }
@@ -100,14 +98,12 @@ body:not(:has([data-hero])) .footer { padding-bottom: max(var(--s-30), env(safe-
 }
 .pill-link[aria-disabled="true"] { border-style: dashed; opacity: .6; pointer-events: none; }
 
-/* tablet: endereço e horários lado a lado, minimapa maior; o WhatsApp mostra o número */
+/* tablet: endereço e horários lado a lado, minimapa maior */
 @media (min-width: 600px) {
   .footer__conteudo { max-width: 640px; }
   .footer__visita { grid-template-columns: minmax(0, 1fr) 220px; gap: var(--s-22); }
   .footer__info { grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); gap: var(--s-18); align-content: center; }
   .footer__mapa { min-height: 140px; }
-  .footer__rede-curta { display: none; }
-  .footer__rede-longa { display: inline; }
 }
 
 /* desktop: a marca vira a 1ª coluna; o botão fixo fica à direita, então a linha final vai à esquerda e os contatos

@@ -256,8 +256,6 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
   const fechadas = useMemo(() => new Set(amb?.datasFechadas ?? []), [amb]);
   /** Acima do máximo online: atendimento de grupos (a equipe lança pelo painel). */
   const grupo = pessoas > maxPessoas;
-  const linkEquipe = `${visita.whatsapp.url}?text=${encodeURIComponent('Olá! Quero reservar uma mesa no Âmbar.')}`;
-  const linkGrupo = `${visita.whatsapp.url}?text=${encodeURIComponent(`Olá! Quero reservar para um grupo de mais de ${maxPessoas} pessoas (${nomeAmbiente}).`)}`;
 
   // Datas só no navegador (o HTML estático foi gerado em outro dia). Nenhuma data vem escolhida (2026-10-22): o campo
   // começa em “Escolher uma data” e os horários só são buscados depois da escolha.
@@ -444,10 +442,7 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
       {modo === 'simulado' && <p class="ticket__sim" role="note">Simulação para testes — nenhuma reserva é feita e nada é enviado.</p>}
 
       {etapa === 'escolha' && estadoCfg === 'fechado' && (
-        <>
-          <p class="ticket__status" role="status">As reservas pelo site não estão abertas no momento.</p>
-          <p class="ticket__slots">Para reservar agora, a equipe atende você. <a class="ticket__link" href={linkEquipe} target="_blank" rel="noopener">Falar com a equipe no WhatsApp</a></p>
-        </>
+        <p class="ticket__status" role="status">As reservas pelo site não estão abertas no momento.</p>
       )}
       {etapa === 'escolha' && estadoCfg === 'erro' && (
         <p class="ticket__status" data-tone="error" role="alert">
@@ -473,8 +468,7 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
             {api && minPessoas > 1 && pessoas <= minPessoas && <p class="ticket__slots ticket__slots--after">{nomeAmbiente}: reservas a partir de {minPessoas} pessoas.</p>}
             {api && grupo && (
               <p class="ticket__status" role="status">
-                Reservas online em {nomeAmbiente} vão até {maxPessoas} pessoas. Para grupos maiores, a equipe monta a reserva com você.{' '}
-                <a class="ticket__link" href={linkGrupo} target="_blank" rel="noopener">Falar com a equipe no WhatsApp</a>
+                Reservas online em {nomeAmbiente} vão até {maxPessoas} pessoas.
               </p>
             )}
           </fieldset>

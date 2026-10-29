@@ -10,9 +10,8 @@ export const visita = {
   mapaUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(enderecoBusca)}`,
   horarios: [{ dias: 'Todos os dias', horas: '07h às 19h' }],
   horarioCurto: 'todos os dias · 07h–19h',
-  // 2026-10-29: número OFICIAL do Âmbar (WhatsApp Business Platform da Meta), no lugar do número pessoal do
-  // responsável. Quem escreve recebe a resposta automática e a equipe é avisada no grupo (backend, whatsapp.atendimento).
-  whatsapp: { numero: '(85) 95855-0369', url: 'https://wa.me/5585958550369' },
+  // 2026-10-29: sem WhatsApp de atendimento no site (pedido do responsável). O número oficial fica só na política de
+  // privacidade, como canal dos pedidos sobre dados pessoais (src/data/privacidade.ts).
   instagram: { handle: '@ambarbrunch', url: 'https://www.instagram.com/ambarbrunch/' },
   /** Primeira data de VISITA reservável pelo site (decisão do responsável, 29/10/2026), inclusive. O backend aplica a
    *  mesma regra (AMBAR_RESERVAS_ABERTURA); a comanda também a impõe, para nada antes dela ser oferecido nem enviado. */

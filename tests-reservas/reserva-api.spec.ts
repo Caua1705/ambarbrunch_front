@@ -143,7 +143,7 @@ test.describe('datas: primeira data 09/11, janela de 60 dias e dias fechados', (
     await page.getByRole('button', { name: 'Mais de 15 pessoas' }).click();
     await expect(page.locator('.stepper output')).toHaveText('+15');
     await expect(page.getByText(/Reservas online em Lounge vão até 15 pessoas/)).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Falar com a equipe no WhatsApp' })).toBeVisible();
+    await expect(page.locator('a[href*="wa.me"]')).toHaveCount(0);
   });
 });
 
@@ -317,7 +317,7 @@ test.describe('API fechada ou fora do ar: nada de horários por conta própria',
     await expect(page.locator('.cal__dia')).toHaveCount(0);
     await expect(page.getByRole('radiogroup', { name: /horário/i })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Continuar' })).toHaveCount(0);
-    await expect(comanda(page).getByRole('link', { name: 'Falar com a equipe no WhatsApp' })).toHaveAttribute('href', /wa\.me/);
+    await expect(page.locator('a[href*="wa.me"]')).toHaveCount(0);
     expect(reg.disponibilidades).toHaveLength(0);
     // o backend abre as reservas: ao voltar para a aba, a comanda confere de novo e libera
     c.fechada = false;
