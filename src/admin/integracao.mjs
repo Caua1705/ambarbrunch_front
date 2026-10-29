@@ -13,6 +13,8 @@ const ROTAS = [
   ['/admin/financeiro', 'financeiro.astro'],
   ['/admin/estoque', 'estoque.astro'],
   ['/admin/configuracoes', 'configuracoes.astro'],
+  // Modo Operação: tela do tablet fixo do café (Reservas do dia, chegada com um toque)
+  ['/admin/operacao', 'operacao.astro'],
   ['/admin/api/sessao', 'api/sessao.ts'],
   ['/admin/api/[...caminho]', 'api/[...caminho].ts'],
 ];

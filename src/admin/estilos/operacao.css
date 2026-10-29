@@ -1,0 +1,611 @@
+/* Modo Operação — tablet fixo do café (Android de 8 a 11", em pé ou deitado), também celular e desktop. Só tokens e
+   componentes do painel (tokens.css + painel.css); aqui ficam tamanhos de toque maiores e a leitura à distância de um
+   braço: horário e nome grandes, uma ação principal por linha, nada de tabela. */
+
+.op {
+  --op-toque: 52px;
+  --op-borda: var(--r-xl);
+  font-size: var(--t-l);
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+/* Cabeçalho ---------------------------------------------------------------------------------------------------------- */
+.op-topo {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--e-4);
+  min-height: 72px;
+  padding: var(--e-2) max(var(--e-6), env(safe-area-inset-right)) var(--e-2) max(var(--e-6), env(safe-area-inset-left));
+  background: color-mix(in srgb, var(--fundo) 92%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--borda);
+}
+.op-topo__marca {
+  display: flex;
+  align-items: center;
+  gap: var(--e-3);
+  min-width: 0;
+}
+.op-topo__marca .marca-logo {
+  width: 76px;
+  height: 30px;
+}
+.op-topo__unidade {
+  color: var(--texto-3);
+  font-size: var(--t-s);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-left: var(--e-3);
+  border-left: 1px solid var(--borda);
+}
+.op-relogio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.15;
+  text-align: center;
+}
+.op-relogio strong {
+  font-size: 1.75rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.op-relogio span {
+  color: var(--texto-2);
+  font-size: var(--t-s);
+  white-space: nowrap;
+}
+.op-topo__acoes {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--e-2);
+  min-width: 0;
+}
+.op-topo .btn {
+  min-height: var(--alvo-toque);
+}
+.op-topo .btn--icone {
+  width: var(--alvo-toque);
+}
+.op-conta {
+  min-height: var(--alvo-toque);
+  max-width: 260px;
+}
+.op-conta__texto {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.2;
+  min-width: 0;
+}
+.op-conta__texto strong {
+  font-size: var(--t-m);
+  font-weight: 600;
+  max-width: 170px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.op-conta__texto span {
+  font-size: var(--t-xs);
+  color: var(--texto-3);
+}
+.op-topo .suspenso__item {
+  min-height: var(--alvo-toque);
+}
+.op-sair {
+  padding: 0 var(--e-4);
+}
+
+/* Seções (aparecem só quando houver mais de uma: Mensagens, Ponto…) */
+.op-secoes {
+  display: flex;
+  gap: var(--e-2);
+  padding: var(--e-3) var(--e-6) 0;
+  max-width: 1240px;
+  margin: 0 auto;
+}
+.op-secoes__item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--e-2);
+  min-height: var(--op-toque);
+  padding: 0 var(--e-5);
+  border-radius: var(--r-pilula);
+  border: 1px solid var(--borda-forte);
+  background: var(--superficie);
+  color: var(--texto);
+  text-decoration: none;
+  font-weight: 500;
+}
+.op-secoes__item svg {
+  width: 20px;
+  height: 20px;
+}
+.op-secoes__item[aria-current='page'] {
+  background: var(--marca);
+  border-color: var(--marca);
+  color: var(--marca-contraste);
+}
+.op-secoes__fora {
+  width: 14px !important;
+  height: 14px !important;
+  opacity: 0.6;
+}
+
+/* Conteúdo ----------------------------------------------------------------------------------------------------------- */
+.op-conteudo,
+.op-carregando {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e-4);
+  width: 100%;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: var(--e-5) max(var(--e-6), env(safe-area-inset-right)) max(var(--e-8), env(safe-area-inset-bottom)) max(var(--e-6), env(safe-area-inset-left));
+}
+.op-conteudo:focus {
+  outline: none;
+}
+
+/* Resumo: quatro números grandes */
+.op-resumo {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--e-3);
+}
+.op-numero {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: var(--e-4) var(--e-5);
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: var(--op-borda);
+  box-shadow: var(--sombra-1);
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+button.op-numero {
+  cursor: pointer;
+}
+button.op-numero:hover {
+  background: var(--sobre-hover);
+}
+.op-numero__rotulo {
+  font-size: var(--t-s);
+  font-weight: 500;
+  color: var(--texto-2);
+}
+.op-numero__valor {
+  font-size: 2.25rem;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+.op-numero__rodape {
+  font-size: var(--t-s);
+  color: var(--texto-3);
+}
+.op-numero--atencao {
+  background: var(--atencao-suave);
+  border-color: color-mix(in srgb, var(--atencao) 35%, var(--borda));
+}
+.op-numero--atencao .op-numero__valor,
+.op-numero--atencao .op-numero__rodape {
+  color: var(--atencao);
+}
+
+/* Barra: vistas + atualização */
+.op-barra {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e-3);
+  flex-wrap: wrap;
+}
+.op-vistas button {
+  min-height: 44px;
+  padding: 0 var(--e-5);
+  font-size: var(--t-m);
+}
+.op-atualizado {
+  display: flex;
+  align-items: center;
+  gap: var(--e-1);
+  font-size: var(--t-s);
+}
+.op-atualizado .btn--icone {
+  width: var(--alvo-toque);
+  min-height: var(--alvo-toque);
+}
+
+/* Ambientes: fichas grandes */
+.op-ambientes {
+  display: flex;
+  gap: var(--e-2);
+  flex-wrap: wrap;
+}
+.op-chip {
+  min-height: 44px;
+  padding: 0 var(--e-5);
+  border-radius: var(--r-pilula);
+  border: 1px solid var(--borda-forte);
+  background: var(--superficie);
+  color: var(--texto-2);
+  font-size: var(--t-m);
+  font-weight: 500;
+  cursor: pointer;
+}
+.op-chip:hover {
+  background: var(--sobre-hover);
+}
+.op-chip[aria-pressed='true'] {
+  background: var(--texto);
+  border-color: var(--texto);
+  color: var(--fundo);
+}
+
+/* Lista de reservas */
+.op-cartao {
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: var(--op-borda);
+  box-shadow: var(--sombra-1);
+  overflow: hidden;
+}
+.op-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.op-reserva {
+  display: flex;
+  align-items: center;
+  gap: var(--e-3);
+  padding: var(--e-2) var(--e-4) var(--e-2) var(--e-2);
+  position: relative;
+}
+.op-reserva + .op-reserva {
+  border-top: 1px solid var(--borda);
+}
+.op-reserva--carregando {
+  padding: var(--e-5);
+  gap: var(--e-5);
+}
+/* faixa à esquerda: o que pede ação agora */
+.op-reserva::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 4px;
+  border-radius: 0 4px 4px 0;
+  background: transparent;
+}
+.op-reserva--atrasada::before {
+  background: var(--perigo);
+}
+.op-reserva--agora::before,
+.op-reserva--em_breve::before {
+  background: var(--info);
+}
+.op-reserva--sem_registro::before,
+.op-reserva--pendente::before {
+  background: var(--caramelo);
+}
+.op-reserva--chegou .op-reserva__hora,
+.op-reserva--chegou .op-reserva__nome,
+.op-reserva--nao_veio .op-reserva__hora,
+.op-reserva--cancelada .op-reserva__hora,
+.op-reserva--cancelada .op-reserva__nome {
+  color: var(--texto-3);
+}
+.op-reserva--cancelada .op-reserva__nome {
+  text-decoration: line-through;
+}
+.op-reserva__abrir {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--e-4);
+  min-height: 84px;
+  padding: var(--e-3) var(--e-3) var(--e-3) var(--e-4);
+  border: 0;
+  border-radius: var(--r-l);
+  background: none;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.op-reserva__abrir:hover {
+  background: var(--sobre-hover);
+}
+.op-reserva__hora {
+  font-size: 1.625rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.op-reserva__info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.op-reserva__nome {
+  font-size: 1.1875rem;
+  font-weight: 600;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.op-reserva__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-1) var(--e-4);
+  color: var(--texto-2);
+  font-size: var(--t-m);
+}
+.op-reserva__meta span,
+.op-reserva__obs {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.op-reserva__meta svg,
+.op-reserva__obs svg {
+  width: 16px;
+  height: 16px;
+  color: var(--texto-3);
+  flex: none;
+}
+.op-reserva__obs {
+  color: var(--atencao);
+  font-size: var(--t-m);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+}
+.op-reserva__obs svg {
+  display: inline;
+  vertical-align: -3px;
+  margin-right: 4px;
+  color: inherit;
+}
+.op-reserva__situacao .situacao {
+  font-size: var(--t-m);
+}
+.op-reserva__acao {
+  flex: none;
+  display: flex;
+  justify-content: flex-end;
+}
+.op-reserva__acao:empty {
+  display: none;
+}
+.op-chegou,
+.gaveta__rodape .op-chegou {
+  min-height: var(--op-toque);
+  min-width: 188px;
+  padding: 0 var(--e-5);
+  font-size: var(--t-l);
+  font-weight: 600;
+  border-radius: var(--r-l);
+}
+.op-chegou svg {
+  width: 22px;
+  height: 22px;
+}
+.op-feito {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--e-2);
+  min-height: var(--op-toque);
+  padding: 0 var(--e-3);
+  color: var(--marca-texto);
+  font-size: var(--t-m);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.op-feito svg {
+  width: 20px;
+  height: 20px;
+}
+.op-confirmar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--e-2);
+  max-width: 420px;
+}
+.op-confirmar__texto {
+  width: 100%;
+  text-align: right;
+  font-size: var(--t-s);
+  font-weight: 600;
+  color: var(--atencao);
+}
+.op-confirmar .btn {
+  min-height: var(--op-toque);
+  padding: 0 var(--e-5);
+  font-size: var(--t-m);
+}
+
+.op-cartao .estado {
+  padding: var(--e-10) var(--e-6);
+}
+.op .aviso {
+  font-size: var(--t-m);
+}
+.op-definicoes {
+  font-size: var(--t-l);
+}
+.op .gaveta__rodape .btn {
+  min-height: var(--op-toque);
+  font-size: var(--t-m);
+}
+.op .avisos-rapidos {
+  width: min(440px, calc(100vw - 32px));
+}
+.op .aviso-rapido {
+  font-size: var(--t-l);
+  padding: var(--e-4) var(--e-5);
+}
+
+/* Tablet em pé (8"–11": ~600–834 px de largura) ---------------------------------------------------------------------- */
+@media (max-width: 900px) {
+  .op-topo {
+    padding-left: max(var(--e-4), env(safe-area-inset-left));
+    padding-right: max(var(--e-4), env(safe-area-inset-right));
+  }
+  .op-conteudo,
+  .op-carregando {
+    padding-left: max(var(--e-4), env(safe-area-inset-left));
+    padding-right: max(var(--e-4), env(safe-area-inset-right));
+  }
+  .op-topo__unidade,
+  .op-conta__texto span {
+    display: none;
+  }
+  .op-reserva__abrir {
+    grid-template-columns: 76px minmax(0, 1fr);
+  }
+  .op-reserva__situacao {
+    grid-column: 2;
+  }
+}
+@media (max-width: 760px) {
+  .op-resumo {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .op-conta__texto,
+  .op-sair__rotulo {
+    display: none;
+  }
+  .op-sair {
+    width: var(--alvo-toque);
+    padding: 0;
+  }
+}
+
+/* Celular ------------------------------------------------------------------------------------------------------------ */
+@media (max-width: 560px) {
+  .op-topo {
+    grid-template-columns: auto 1fr auto;
+    min-height: 60px;
+    gap: var(--e-2);
+  }
+  .op-topo__marca .marca-logo {
+    width: 58px;
+    height: 24px;
+  }
+  .op-relogio {
+    align-items: flex-start;
+    text-align: left;
+  }
+  .op-relogio strong {
+    font-size: 1.25rem;
+  }
+  .op-relogio span {
+    font-size: var(--t-xs);
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .op-topo__acoes {
+    gap: 0;
+  }
+  .op-conta .lucide-chevron-down {
+    display: none;
+  }
+  .op-conteudo {
+    gap: var(--e-3);
+    padding-top: var(--e-3);
+  }
+  .op-numero {
+    padding: var(--e-3) var(--e-4);
+  }
+  .op-numero__valor {
+    font-size: 1.75rem;
+  }
+  .op-vistas {
+    width: 100%;
+  }
+  .op-vistas button {
+    flex: 1;
+    justify-content: center;
+    padding: 0 var(--e-2);
+  }
+  .op-atualizado > span {
+    display: none;
+  }
+  .op-barra {
+    flex-wrap: nowrap;
+  }
+  .op-ambientes {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin: 0 calc(-1 * var(--e-4));
+    padding: 0 var(--e-4);
+  }
+  .op-chip {
+    flex: none;
+  }
+  .op-reserva {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    padding: var(--e-2) var(--e-3) var(--e-3);
+  }
+  .op-reserva__abrir {
+    grid-template-columns: 60px minmax(0, 1fr);
+    gap: var(--e-3);
+    min-height: 0;
+    padding: var(--e-2);
+  }
+  .op-reserva__hora {
+    font-size: 1.25rem;
+    align-self: start;
+  }
+  .op-reserva__nome {
+    font-size: var(--t-l);
+    white-space: normal;
+  }
+  .op-reserva__acao {
+    padding-left: calc(60px + var(--e-3) + var(--e-2));
+  }
+  .op-chegou {
+    width: 100%;
+    min-width: 0;
+  }
+  .op-confirmar {
+    max-width: none;
+  }
+  .op-confirmar__texto {
+    text-align: left;
+  }
+  .op-confirmar .btn {
+    flex: 1;
+  }
+  .op-feito {
+    padding: 0;
+    min-height: 0;
+  }
+}

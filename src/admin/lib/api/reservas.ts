@@ -19,8 +19,9 @@ export interface FiltroReservas {
 
 export const reservas = {
   listar: (f: FiltroReservas) => pedir<ListaReservas>('reservas', { query: { ...f, limite: f.limite ?? 200 } }),
-  operacao: (data: string) => pedir<OperacaoReserva[]>('reservas/operacao', { query: { data } }),
-  ambientes: () => pedir<AmbienteOperacao[]>('reservas/ambientes'),
+  // `unidade` explícita (Modo Operação); sem ela, a ponte usa a unidade escolhida no topo do painel.
+  operacao: (data: string, unidade?: string) => pedir<OperacaoReserva[]>('reservas/operacao', { query: { data, unidade } }),
+  ambientes: (unidade?: string) => pedir<AmbienteOperacao[]>('reservas/ambientes', { query: { unidade } }),
   lotacao: (ambiente_id: string, data: string, pessoas?: number) => pedir<Lotacao>('reservas/lotacao', { query: { ambiente_id, data, pessoas } }),
   mensagens: (q: { status?: string[]; data_de?: string; data_ate?: string; limite?: number }) => pedir<Pagina<MensagemReservaFila>>('reservas/mensagens', { query: q }),
   obter: (id: string) => pedir<ReservaPainel>(`reservas/${id}`),

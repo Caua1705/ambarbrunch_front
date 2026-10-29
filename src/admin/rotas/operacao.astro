@@ -1,0 +1,50 @@
+---
+// Modo Operação (tablet fixo do café) — sessão conferida no middleware como em todo o /admin; a página só existe com
+// PAINEL_ADMIN=1. Tela própria, sem a lateral do painel: mesmos tokens, componentes, sessão e rotas reais de Reservas.
+import '@fontsource-variable/inter/wght.css';
+import '../estilos/painel.css';
+import '../estilos/operacao.css';
+import logo from '../../assets/media/brand/logo-ambar.png?url';
+import TemaInicial from '../layout/TemaInicial.astro';
+import SemAcesso from '../layout/SemAcesso.astro';
+import Operacao from '../modulos/operacao';
+import { podeVer } from '../lib/permissoes';
+
+export const prerender = false;
+const contexto = Astro.locals.painel;
+if (!contexto) return Astro.redirect('/admin/login?volta=%2Fadmin%2Foperacao', 303);
+// Liberação controlada (PAINEL_MODULOS) e papel, conferidos aqui no servidor: Reservas é a base do Modo Operação.
+const liberado = contexto.modulos.includes('reservas');
+const pode = liberado && podeVer(contexto.usuario.papel, 'reservas');
+---
+
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#f7f5f2" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#141110" media="(prefers-color-scheme: dark)" />
+    <title>Operação · Painel Âmbar</title>
+    <link rel="icon" href="/favicon-48.png" type="image/png" sizes="48x48" />
+    <TemaInicial />
+  </head>
+  <body class="op" style={`--logo:url(${logo})`}>
+    <a class="pular" href="#conteudo">Pular para o conteúdo</a>
+    {contexto.modo === 'demo' && <div class="faixa-demo" role="note">DEMONSTRAÇÃO — dados fictícios, nada é enviado ao sistema do Âmbar</div>}
+    {pode ? (
+      <Operacao client:only="preact" contexto={contexto}>
+        <div slot="fallback" class="op-carregando" aria-busy="true" aria-label="Carregando"><span class="esqueleto" style="height:64px"></span><span class="esqueleto" style="height:120px"></span><span class="esqueleto" style="height:420px"></span></div>
+      </Operacao>
+    ) : (
+      <main class="op-conteudo" id="conteudo"><SemAcesso naoLiberado={!liberado} /></main>
+    )}
+    <style is:global>
+      :root[data-tema='escuro'] [data-icone-escuro],
+      :root:not([data-tema='escuro']) [data-icone-claro] {
+        display: none;
+      }
+    </style>
+  </body>
+</html>

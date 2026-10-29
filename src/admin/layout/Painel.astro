@@ -4,7 +4,7 @@
 import '@fontsource-variable/inter/wght.css';
 import '../estilos/painel.css';
 import logo from '../../assets/media/brand/logo-ambar.png?url';
-import { LayoutDashboard, CalendarCheck, MessagesSquare, Award, Wallet, Package, Settings, Menu, Sun, Moon, PanelLeftClose, LogOut, ChevronDown, Bell } from 'lucide-preact';
+import { LayoutDashboard, CalendarCheck, MessagesSquare, Award, Wallet, Package, Settings, Menu, Sun, Moon, PanelLeftClose, LogOut, ChevronDown, Bell, Tablet } from 'lucide-preact';
 import { podeVer, type Modulo } from '../lib/permissoes';
 import { NOME_PAPEL, type ContextoPainel } from '../lib/sessao';
 import TemaInicial from './TemaInicial.astro';
@@ -29,6 +29,8 @@ const MODULOS: { id: Modulo; rotulo: string; href: string; icone: typeof LayoutD
 ];
 const visiveis = MODULOS.filter((m) => podeVer(usuario.papel, m.id) && contexto.modulos.includes(m.id));
 const veConfiguracoes = podeVer(usuario.papel, 'configuracoes');
+// Modo Operação (tablet do café): para quem opera Reservas, quando o módulo está liberado.
+const veOperacao = podeVer(usuario.papel, 'reservas') && contexto.modulos.includes('reservas');
 const sub = unidade ? unidade.nome : 'Sem unidade atribuída';
 ---
 
@@ -71,6 +73,12 @@ const sub = unidade ? unidade.nome : 'Sem unidade atribuída';
           </ul>
         </nav>
         <div class="lateral__base">
+          {veOperacao && (
+            <a class="nav__item" href="/admin/operacao" title="Modo Operação (tablet)">
+              <Tablet aria-hidden="true" />
+              <span class="nav__rotulo">Modo Operação</span>
+            </a>
+          )}
           {veConfiguracoes && (
             <a class="nav__item" href="/admin/configuracoes" aria-current={modulo === 'configuracoes' ? 'page' : undefined} title="Configurações">
               <Settings aria-hidden="true" />
