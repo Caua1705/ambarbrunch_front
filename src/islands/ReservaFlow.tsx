@@ -6,7 +6,7 @@
 //  - "api" (produção): a API do Âmbar é a fonte de tudo — ambientes, limites, janela de 60 dias, dias fechados (inclusive
 //    os anteriores à abertura, AMBAR_RESERVAS_ABERTURA) e horários. Reservas fechadas na API (503 reservas_indisponiveis):
 //    a comanda diz isso, sem datas nem horários, e confere de novo quando a pessoa volta à aba.
-import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
 import { ErroReserva, type ReservaConfig, type ReservaCriada, type ReservasApi } from '../lib/api/contrato';
 import { criarApiSimulada } from '../lib/api/simulado';
@@ -97,6 +97,50 @@ function inicioIcs(data: string, hora: string, fuso?: string): string {
   }
 }
 
+/** Fuso do café, quando a configuração da API não o informa. */
+const FUSO_CAFE = 'America/Fortaleza';
+/** Data e hora do café somadas de `min` minutos, no formato do Google Agenda (AAAAMMDDTHHMMSS, sem “Z”: o fuso vai em
+ *  `ctz`). A conta é feita em UTC só para virar o dia certo (16:00 + 180 min = 19:00; 23:00 + 180 min = 02:00 do dia seguinte). */
+function horaLocalGoogle(data: string, hora: string, min = 0): string {
+  const [y, m, d] = data.split('-').map(Number); const [h, mi] = hora.split(':').map(Number);
+  const t = new Date(Date.UTC(y, m - 1, d, h, mi + min));
+  return `${t.getUTCFullYear()}${pad(t.getUTCMonth() + 1)}${pad(t.getUTCDate())}T${pad(t.getUTCHours())}${pad(t.getUTCMinutes())}00`;
+}
+interface EventoAgenda { titulo: string; local: string; descricao: string }
+/** Google Agenda já preenchido (modelo de evento público do Google, sem login nem permissão: a pessoa só salva).
+ *  Fim = início + duração da reserva vinda do backend; sem duração, o evento fica só com o início. */
+function linkGoogleAgenda(r: ReservaCriada, ev: EventoAgenda, fuso: string): string {
+  const inicio = horaLocalGoogle(r.data, r.hora);
+  const fim = r.duracaoMin ? horaLocalGoogle(r.data, r.hora, r.duracaoMin) : inicio;
+  const q = new URLSearchParams({ action: 'TEMPLATE', text: ev.titulo, dates: `${inicio}/${fim}`, ctz: fuso, details: ev.descricao, location: ev.local });
+  return `https://calendar.google.com/calendar/render?${q}`;
+}
+/** Texto de propriedade do .ics (RFC 5545 §3.3.11): barra, ponto e vírgula, vírgula e quebra de linha escapados. */
+const textoIcs = (s: string) => s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+/** Linhas do .ics com no máximo 75 octetos (RFC 5545 §3.1), dobradas sem partir um caractere acentuado ao meio. */
+function dobrarIcs(linha: string): string {
+  const bytes = new TextEncoder();
+  const partes: string[] = [];
+  let atual = ''; let tam = 0;
+  for (const c of linha) {
+    const n = bytes.encode(c).length;
+    if (tam + n > (partes.length ? 74 : 75)) { partes.push(atual); atual = ''; tam = 0; }
+    atual += c; tam += n;
+  }
+  partes.push(atual);
+  return partes.join('\r\n ');
+}
+/** Arquivo .ics (Apple Calendário, Outlook e outros) com os mesmos dados do Google Agenda; início em UTC (inicioIcs). */
+function arquivoIcs(r: ReservaCriada, ev: EventoAgenda, fuso: string): string {
+  const utc = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  const linhas = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Ambar Cafe//Reserva//PT', 'CALSCALE:GREGORIAN', 'BEGIN:VEVENT',
+    `UID:${r.codigo}@ambarbrunch`, `DTSTAMP:${utc(new Date())}`, `DTSTART:${inicioIcs(r.data, r.hora, fuso)}`,
+    ...(r.duracaoMin ? [`DURATION:PT${r.duracaoMin}M`] : []),
+    `SUMMARY:${textoIcs(ev.titulo)}`, `LOCATION:${textoIcs(ev.local)}`, `DESCRIPTION:${textoIcs(ev.descricao)}`,
+    'END:VEVENT', 'END:VCALENDAR'];
+  return `${linhas.map(dobrarIcs).join('\r\n')}\r\n`;
+}
+
 /** Limites do backend (esquemas.py: nome até 120; e-mail validado como EmailStr, com domínio e terminação). */
 const NOME_MAX = 120;
 const EMAIL = /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)*\.[a-z]{2,}$/i;
@@ -114,13 +158,14 @@ function validar(d: Dados, exigeEmail: boolean): Record<string, string> {
   return e;
 }
 
-/** Grupo de chips com papel de radiogroup e setas do teclado. */
-function Escolha<T extends string>(p: { rotulo: string; id: string; opcoes: { valor: T; texto: JSX.Element | string; desabilitado?: boolean }[]; valor: T | null; aoEscolher: (v: T) => void; datas?: boolean }) {
+/** Grupo de chips com papel de radiogroup e setas do teclado. `ocupado`: a lista está sendo atualizada — fica à vista,
+ *  apagada e inerte (sem toque, teclado nem foco), no lugar de sumir. */
+function Escolha<T extends string>(p: { rotulo: string; id: string; opcoes: { valor: T; texto: JSX.Element | string; desabilitado?: boolean }[]; valor: T | null; aoEscolher: (v: T) => void; datas?: boolean; ocupado?: boolean }) {
   const grupo = useRef<HTMLDivElement>(null);
   const ativos = p.opcoes.filter((o) => !o.desabilitado);
   const aoTeclar = (ev: KeyboardEvent) => {
     const passo = ev.key === 'ArrowRight' || ev.key === 'ArrowDown' ? 1 : ev.key === 'ArrowLeft' || ev.key === 'ArrowUp' ? -1 : 0;
-    if (!passo || !ativos.length) return;
+    if (!passo || !ativos.length || p.ocupado) return;
     ev.preventDefault();
     const i = Math.max(0, ativos.findIndex((o) => o.valor === p.valor));
     const prox = ativos[(i + passo + ativos.length) % ativos.length];
@@ -128,13 +173,14 @@ function Escolha<T extends string>(p: { rotulo: string; id: string; opcoes: { va
     requestAnimationFrame(() => grupo.current?.querySelector<HTMLElement>(`[data-valor="${prox.valor}"]`)?.focus());
   };
   return (
-    <div ref={grupo} class={`chips${p.datas ? ' chips--dates' : ''}`} role="radiogroup" aria-labelledby={p.id} onKeyDown={aoTeclar}>
+    <div ref={grupo} class={`chips${p.datas ? ' chips--dates' : ''}`} role="radiogroup" aria-labelledby={p.id} onKeyDown={aoTeclar}
+      aria-busy={p.ocupado || undefined} inert={p.ocupado || undefined}>
       {p.opcoes.map((o) => {
         const marcado = o.valor === p.valor;
         const foco = marcado || (!p.valor && o === ativos[0]);
         return (
           <button type="button" class="chip" role="radio" aria-checked={marcado} data-valor={o.valor}
-            tabIndex={foco ? 0 : -1} disabled={o.desabilitado} onClick={() => p.aoEscolher(o.valor)}>{o.texto}</button>
+            tabIndex={foco ? 0 : -1} disabled={o.desabilitado} onClick={() => { if (!p.ocupado) p.aoEscolher(o.valor); }}>{o.texto}</button>
         );
       })}
     </div>
@@ -241,21 +287,57 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
   // No desktop (≥ 960 px) o calendário fica sempre aberto e o campo some (CSS: .data-campo / .data-painel).
   const [calAberto, setCalAberto] = useState(false);
   const campoData = useRef<HTMLButtonElement>(null);
-  const fecharCal = () => {
-    setCalAberto(false);
-    const campo = campoData.current;
-    if (campo && campo.offsetParent) requestAnimationFrame(() => campo.focus());
+  const passo3 = useRef<HTMLFieldSetElement>(null);
+  /** fim do fieldset da data ANTES de o calendário abrir ou fechar (para o deslize do que vem abaixo) */
+  const fimDaDataAntes = useRef<number | null>(null);
+  const mudarCal = (aberto: boolean) => {
+    fimDaDataAntes.current = passo3.current?.getBoundingClientRect().bottom ?? null;
+    setCalAberto(aberto);
   };
+  // deslizarDepoisDaData — abrir ou fechar o calendário muda a altura de uma vez (sem animar a altura quadro a quadro,
+  // que sobre o papel com textura repinta a página toda e engasga no iPhone). O que vem abaixo do campo (horários, dados,
+  // botão) volta à posição antiga e desliza até a nova só com transform: nada pula, e o navegador não repinta a cada quadro.
+  useLayoutEffect(() => {
+    const antes = fimDaDataAntes.current;
+    fimDaDataAntes.current = null;
+    const fs = passo3.current;
+    if (antes == null || !fs || typeof fs.animate !== 'function') return;
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches || document.documentElement.dataset.motion === 'paused') return;
+    const desvio = antes - fs.getBoundingClientRect().bottom;
+    if (Math.abs(desvio) < 2) return;   // desktop: o calendário fica sempre aberto
+    for (let e = fs.nextElementSibling; e; e = e.nextElementSibling) {
+      (e as HTMLElement).animate([{ transform: `translateY(${desvio}px)` }, { transform: 'none' }], { duration: 300, easing: 'cubic-bezier(.2, .7, .2, 1)' });
+    }
+  }, [calAberto]);
+  const fecharCal = () => {
+    mudarCal(false);
+    const campo = campoData.current;
+    if (!campo || !campo.offsetParent) return;
+    // O foco volta ao campo SEM a rolagem que o focus() faz (no Safari, ela pulava a página no toque do dia). Só se o
+    // campo ficou acima da tela (calendário rolado até o fim do mês) a página o traz de volta, com a rolagem do site.
+    requestAnimationFrame(() => {
+      campo.focus({ preventScroll: true });
+      if (campo.getBoundingClientRect().top < 0) campo.scrollIntoView({ block: 'start' });
+    });
+  };
+  /** O formulário de dados, depois de aberto, fica na tela: trocar a data (que zera o horário) não o desmonta. */
+  const dadosAbertos = useRef(false);
+  if (hora) dadosAbertos.current = true;
+  const menos = useRef<HTMLButtonElement>(null);
+  const mais = useRef<HTMLButtonElement>(null);
 
   const amb = cfg.ambientes.find((a) => a.id === ambiente);
   const nomeAmbiente = amb?.nome ?? ambiente;
-  /** Limites de UMA reserva online no ambiente escolhido (a lotação é capacidadeMax, conferida pela API). */
+  /** Limites de UMA reserva online no ambiente escolhido, vindos da API (pessoasMin/pessoasMax de /reservas/config).
+   *  A vaga em cada horário (lotação somando as reservas) não é presumida aqui: vem de /reservas/disponibilidade, já com
+   *  o número de pessoas, e o backend reconfere no envio. */
   const minPessoas = amb?.pessoasMin ?? cfg.pessoas.min;
   const maxPessoas = amb?.pessoasMax ?? cfg.pessoas.max;
   /** Dias sem nenhum horário neste ambiente (dia fechado, feriado, evento), segundo a API. */
   const fechadas = useMemo(() => new Set(amb?.datasFechadas ?? []), [amb]);
-  /** Acima do máximo online: atendimento de grupos (a equipe lança pelo painel). */
-  const grupo = pessoas > maxPessoas;
+  /** No máximo do ambiente o “+” some; nada passa do limite (nem pelo estado: o envio confere `pessoasOk`). */
+  const noMaximo = pessoas >= maxPessoas;
+  const pessoasOk = pessoas >= minPessoas && pessoas <= maxPessoas;
 
   // Datas só no navegador (o HTML estático foi gerado em outro dia). Nenhuma data vem escolhida (2026-10-22): o campo
   // começa em “Escolher uma data” e os horários só são buscados depois da escolha.
@@ -291,8 +373,8 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
     document.addEventListener('visibilitychange', conferir);
     return () => document.removeEventListener('visibilitychange', conferir);
   }, [estadoCfg]);
-  // Ao trocar de ambiente, o número de pessoas entra na faixa dele (o grupo continua grupo).
-  useEffect(() => { setPessoas((n) => (n < minPessoas ? minPessoas : n > maxPessoas + 1 ? maxPessoas + 1 : n)); }, [minPessoas, maxPessoas]);
+  // Ao trocar de ambiente, o número de pessoas entra na faixa dele.
+  useEffect(() => { setPessoas((n) => Math.min(maxPessoas, Math.max(minPessoas, n))); }, [minPessoas, maxPessoas]);
   /** A data escolhida ainda vale? (antes de PRIMEIRA_DATA, fora da janela ou fechada no ambiente: não) */
   const dataOk = !!data && !!hoje && (!!demo || dataPermitida(data, hoje, cfg.antecedencia.diasMax, fechadas));
   // A data escolhida deixou de valer (outro ambiente fechado nesse dia, virou o dia, estado antigo): volta a “Escolher uma data”.
@@ -307,7 +389,10 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
     if (pessoas < minPessoas || pessoas > maxPessoas) { setHora(null); setHorarios({ estado: 'ocioso', lista: [] }); return; }
     const ctrl = new AbortController();
     setHora(null);
-    setHorarios({ estado: 'carregando', lista: [] });
+    // Troca de data, pessoas ou ambiente com horários na tela: a lista anterior fica (apagada e inerte) até a nova
+    // chegar, sem esqueleto no lugar — a seção não encolhe nem cresce no meio da troca. Na 1ª busca, o esqueleto.
+    setHorarios((h) => ({ estado: 'carregando', lista: h.estado === 'ok' || h.estado === 'carregando' ? h.lista : [] }));
+    setAnuncio('Carregando horários…');
     api.disponibilidade({ data, pessoas, ambienteId: ambiente }, ctrl.signal)
       .then((d) => {
         const livres = d.horarios.filter((h) => h.disponivel).length;
@@ -337,7 +422,7 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
 
   const continuar = (ev: Event) => {
     ev.preventDefault();
-    if (!api || grupo) return;
+    if (!api || !pessoasOk) return;
     if (etapa === 'revisao' || etapa === 'falha') { enviar(); return; }
     if (!dataOk) { setData(null); setHora(null); setAnuncio('Escolha uma data.'); return; }
     if (!hora) { setAnuncio('Escolha um horário.'); passo4.current?.scrollIntoView({ block: 'center' }); return; }
@@ -363,7 +448,7 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
   });
 
   const enviar = async () => {
-    if (!api || !data || !hora || !dataOk || enviandoAgora.current) return;
+    if (!api || !data || !hora || !dataOk || !pessoasOk || enviandoAgora.current) return;
     enviandoAgora.current = true;
     setEtapa('enviando');
     setAnuncio('Enviando a reserva…');
@@ -405,14 +490,16 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
     }
   };
 
-  const agenda = () => {
-    if (!resultado) return '#';
-    const utc = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
-    const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Ambar Brunch//Reserva//PT', 'BEGIN:VEVENT', `UID:${resultado.codigo}@ambarbrunch`,
-      `DTSTAMP:${utc(new Date())}`, `DTSTART:${inicioIcs(resultado.data, resultado.hora, cfg.fusoHorario)}`, `DURATION:PT${resultado.duracaoMin ?? 180}M`, `SUMMARY:Reserva no Âmbar Brunch (${resultado.pessoas} pessoas)`,
-      `DESCRIPTION:Código ${resultado.codigo} · ${nomeAmbiente}`, 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
-    return `data:text/calendar;charset=utf-8,${encodeURIComponent(ics)}`;
+  /** O evento da reserva confirmada, com os dados que o backend devolveu (código, ambiente, pessoas, data, hora). */
+  const evento = (r: ReservaCriada): EventoAgenda => {
+    const nomeAmb = cfg.ambientes.find((a) => a.id === r.ambienteId)?.nome ?? nomeAmbiente;
+    return {
+      titulo: 'Reserva no Âmbar Café',
+      local: `Âmbar Café, ${visita.endereco}, ${visita.cidade}`,
+      descricao: `Código ${r.codigo} · ${nomeAmb} · ${r.pessoas} ${r.pessoas === 1 ? 'pessoa' : 'pessoas'}${r.status === 'pendente' ? ' · aguardando a aprovação da equipe' : ''}`,
+    };
   };
+  const fusoCafe = cfg.fusoHorario ?? FUSO_CAFE;
 
   /** O backend devolveu "pendente" (ambiente com aprovação da equipe): pedido recebido, não mesa garantida. */
   const pendente = etapa === 'confirmada' && resultado?.status === 'pendente';
@@ -461,21 +548,23 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
           <fieldset>
             <legend id={`${px}-l2`} data-done={api ? '' : undefined}>02 · pessoas</legend>
             <div class="stepper">
-              <button type="button" aria-label="Menos uma pessoa" disabled={pessoas <= minPessoas} onClick={() => setPessoas((n) => Math.max(minPessoas, Math.min(n, maxPessoas + 1) - 1))}>−</button>
-              <output aria-live="polite" aria-labelledby={`${px}-l2`}>{grupo ? `+${maxPessoas}` : pessoas}</output>
-              <button type="button" aria-label={pessoas >= maxPessoas ? `Mais de ${maxPessoas} pessoas` : 'Mais uma pessoa'} disabled={grupo} onClick={() => setPessoas((n) => Math.min(maxPessoas + 1, n + 1))}>+</button>
+              <button type="button" ref={menos} aria-label="Menos uma pessoa" disabled={pessoas <= minPessoas} onClick={() => setPessoas((n) => Math.max(minPessoas, Math.min(n, maxPessoas) - 1))}>−</button>
+              <output aria-live="polite" aria-labelledby={`${px}-l2`}>{pessoas}</output>
+              {/* no máximo do ambiente o “+” some, sem aviso no lugar; o espaço fica, e o contador não sai do lugar */}
+              <button type="button" ref={mais} aria-label="Mais uma pessoa" data-oculto={noMaximo ? '' : undefined} disabled={noMaximo}
+                onClick={() => {
+                  if (noMaximo) return;
+                  setPessoas((n) => Math.min(maxPessoas, n + 1));
+                  // quem chegou ao máximo pelo teclado não fica com o foco num botão que sumiu
+                  if (pessoas + 1 >= maxPessoas && document.activeElement === mais.current) requestAnimationFrame(() => menos.current?.focus());
+                }}>+</button>
             </div>
             {api && minPessoas > 1 && pessoas <= minPessoas && <p class="ticket__slots ticket__slots--after">{nomeAmbiente}: reservas a partir de {minPessoas} pessoas.</p>}
-            {api && grupo && (
-              <p class="ticket__status" role="status">
-                Reservas online em {nomeAmbiente} vão até {maxPessoas} pessoas.
-              </p>
-            )}
           </fieldset>
-          {!grupo && <fieldset>
+          <fieldset ref={passo3}>
             <legend id={`${px}-l3`} data-done={api && data ? '' : undefined}>03 · data</legend>
             <button type="button" class="data-campo" ref={campoData} aria-expanded={calAberto} aria-controls={`${px}-cal`}
-              data-escolhida={data ? '' : undefined} onClick={() => setCalAberto((a) => !a)}>
+              data-escolhida={data ? '' : undefined} onClick={() => mudarCal(!calAberto)}>
               <svg class="data-campo__icone" viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 5.5h13a1.5 1.5 0 0 1 1.5 1.5v11.5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5V7a1.5 1.5 0 0 1 1.5-1.5zM4 10h16M8.5 3.5v4M15.5 3.5v4" /><path class="data-campo__ponto" d="M8 14h.01M12 14h.01M16 14h.01" /></svg>
               <span class="data-campo__texto">{data ? dataTexto : 'Escolher uma data'}</span>
               <span class="data-campo__acao" aria-hidden="true">{data ? 'trocar' : ''}<i /></span>
@@ -487,22 +576,22 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
                     aoEscolher={(v) => { setData(v); setFalha(''); }} aoConfirmar={fecharCal} />
                 : <div class="cal cal--esqueleto" aria-hidden="true"><div class="cal__grade">{Array.from({ length: 35 }, () => <span class="cal__dia chip--skeleton" />)}</div></div>}
             </div>
-          </fieldset>}
-          {!grupo && <fieldset>
+          </fieldset>
+          <fieldset aria-busy={horarios.estado === 'carregando'}>
             <legend id={`${px}-l4`} ref={passo4} data-done={hora ? '' : undefined}>04 · horário</legend>
             {!api && <p class="ticket__slots">Os horários aparecem aqui quando as reservas pelo site forem ativadas.</p>}
             {api && !pronto && <p class="ticket__slots">Carregando a agenda…</p>}
             {api && pronto && !data && !demo?.horarios && <p class="ticket__slots">Escolha uma data para ver os horários.</p>}
-            {api && horarios.estado === 'carregando' && <><div class="chips" aria-hidden="true">{[0, 1, 2, 3].map(() => <span class="chip chip--skeleton" />)}</div><p class="ticket__slots ticket__slots--after">Carregando horários…</p></>}
+            {api && horarios.estado === 'carregando' && !horarios.lista.length && <><div class="chips" aria-hidden="true">{[0, 1, 2, 3].map(() => <span class="chip chip--skeleton" />)}</div><p class="ticket__slots ticket__slots--after">Carregando horários…</p></>}
             {api && horarios.estado === 'vazio' && <p class="ticket__slots">Sem horários nesta data. Escolha outro dia.</p>}
             {api && horarios.estado === 'erro' && <p class="ticket__status" data-tone="error" role="alert">{horarios.msg} <button type="button" class="ticket__link" onClick={() => setTentativa((t) => t + 1)}>Tentar de novo</button></p>}
-            {api && horarios.estado === 'ok' && (
-              <Escolha id={`${px}-l4`} rotulo="Horário" valor={hora}
+            {api && (horarios.estado === 'ok' || (horarios.estado === 'carregando' && horarios.lista.length > 0)) && (
+              <Escolha id={`${px}-l4`} rotulo="Horário" valor={hora} ocupado={horarios.estado === 'carregando'}
                 opcoes={horarios.lista.map((h) => ({ valor: h.hora, texto: h.hora, desabilitado: !h.disponivel }))}
                 aoEscolher={(v) => { setHora(v); setFalha(''); }} />
             )}
-          </fieldset>}
-          {api && hora && !grupo && (
+          </fieldset>
+          {api && (hora || dadosAbertos.current) && (
             <fieldset class="ticket__dados">
               <legend>05 · seus dados</legend>
               <div class="ticket__fields">
@@ -535,7 +624,7 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
             </fieldset>
           )}
           {api
-            ? <button class="btn btn--wine btn--block" type="submit" disabled={grupo || !pronto}>Continuar</button>
+            ? <button class="btn btn--wine btn--block" type="submit" disabled={!pronto}>Continuar</button>
             : <button class="btn btn--wine btn--block" type="button" disabled>Reservas online em breve</button>}
         </>
       )}
@@ -563,7 +652,10 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
           </p>
           {resumo}
           <div class="ticket__actions">
-            <a class="btn btn--wine btn--block" href={agenda()} download={`reserva-ambar-${resultado.codigo}.ics`}>Adicionar à agenda</a>
+            {/* agenda: só com o toque da pessoa — Google Agenda já preenchido numa aba nova; .ics para as demais */}
+            <a class="btn btn--wine btn--block" href={linkGoogleAgenda(resultado, evento(resultado), fusoCafe)} target="_blank" rel="noopener">Adicionar ao Google Agenda</a>
+            <a class="ticket__link" href={`data:text/calendar;charset=utf-8,${encodeURIComponent(arquivoIcs(resultado, evento(resultado), fusoCafe))}`}
+              download={`reserva-ambar-${resultado.codigo}.ics`}>Apple, Outlook e outras (.ics)</a>
             {/* nova reserva: mesmos nome e telefone, mas o aceite da política é dado de novo */}
             <button class="ticket__link" type="button" onClick={() => { setResultado(null); setHora(null); setDados((d) => ({ ...d, consentimento: false })); setEtapa('escolha'); setTentativa((t) => t + 1); }}>Fazer outra reserva</button>
           </div>

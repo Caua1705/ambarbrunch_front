@@ -134,16 +134,96 @@ test.describe('datas: primeira data 09/11, janela de 60 dias e dias fechados', (
     await expect(page.getByRole('radiogroup', { name: /horário/i }).getByRole('radio').first()).toBeEnabled();
   });
 
-  test('máximo por reserva = lotação do ambiente (Lounge 15); acima disso, atendimento pela equipe', async ({ page }) => {
+  test('contador: no máximo do ambiente (Lounge 15, da API) o “+” some sem aviso; com “−” ele volta; o número não sai do lugar', async ({ page }) => {
+    const reg = await abrir(page);
+    await page.getByRole('radio', { name: 'Lounge' }).click();
+    const saida = page.locator('.stepper output');
+    const botaoMais = page.locator('.stepper button').nth(1);
+    const posicao = async () => (await saida.boundingBox())!.x;
+    const x0 = await posicao();
+    for (let i = 0; i < 13; i++) await page.getByRole('button', { name: 'Mais uma pessoa' }).click();
+    await expect(saida).toHaveText('15');
+    await expect(botaoMais).toBeHidden();
+    await expect(botaoMais).toBeDisabled();
+    expect(await posicao(), 'o contador não anda quando o “+” some').toBe(x0);
+    const passo2 = page.locator('fieldset').filter({ has: page.locator('[id$="-l2"]') });
+    await expect(passo2).not.toContainText(/vão até|equipe|whatsapp|grupo/i);
+    await expect(page.locator('a[href*="wa.me"]')).toHaveCount(0);
+    // o calendário e os horários continuam: com 15 pessoas a reserva segue normalmente
+    await escolherData(page, ABERTURA);
+    await expect(page.getByRole('radiogroup', { name: /horário/i }).getByRole('radio').first()).toBeVisible();
+    await page.getByRole('button', { name: 'Menos uma pessoa' }).click();
+    await expect(saida).toHaveText('14');
+    await expect(botaoMais).toBeVisible();
+    // nenhum pedido com mais pessoas que o limite do ambiente
+    expect(reg.disponibilidades.filter((q) => q.ambiente === 'lounge').every((q) => Number(q.pessoas) <= 15)).toBe(true);
+  });
+
+  test('contador: o mínimo (Sala privativa, 6) e a troca de ambiente ajustam o número ao limite de cada um', async ({ page }) => {
+    await abrir(page);
+    const saida = page.locator('.stepper output');
+    const botaoMais = page.locator('.stepper button').nth(1);
+    await page.getByRole('radio', { name: 'Sala privativa' }).click();
+    await expect(saida).toHaveText('6');
+    await expect(page.getByRole('button', { name: 'Menos uma pessoa' })).toBeDisabled();
+    await page.getByRole('radio', { name: 'Salão principal' }).click();
+    for (let i = 0; i < 18; i++) await page.getByRole('button', { name: 'Mais uma pessoa' }).click();
+    await expect(saida).toHaveText('24');
+    await expect(botaoMais).toBeVisible();   // Salão vai até 30
+    await page.getByRole('radio', { name: 'Lounge' }).click();
+    await expect(saida).toHaveText('15');    // Lounge vai até 15: o número desce ao limite
+    await expect(botaoMais).toBeHidden();
+  });
+
+  test('contador pelo teclado: no máximo o “+” some e o foco vai para o “−” (nunca fica num botão invisível)', async ({ page, isMobile }) => {
+    test.skip(!!isMobile, 'teclado: desktop');
     await abrir(page);
     await page.getByRole('radio', { name: 'Lounge' }).click();
-    const mais = page.getByRole('button', { name: /Mais uma pessoa|Mais de 15 pessoas/ });
-    for (let i = 0; i < 13; i++) await mais.click();
+    for (let i = 0; i < 12; i++) await page.getByRole('button', { name: 'Mais uma pessoa' }).click();
+    await page.getByRole('button', { name: 'Mais uma pessoa' }).focus();
+    await page.keyboard.press('Enter');
     await expect(page.locator('.stepper output')).toHaveText('15');
-    await page.getByRole('button', { name: 'Mais de 15 pessoas' }).click();
-    await expect(page.locator('.stepper output')).toHaveText('+15');
-    await expect(page.getByText(/Reservas online em Lounge vão até 15 pessoas/)).toBeVisible();
-    await expect(page.locator('a[href*="wa.me"]')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Menos uma pessoa' })).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.stepper output')).toHaveText('14');
+  });
+});
+
+test.describe('tela estável ao escolher data e horário', () => {
+  test('tocar num dia: o campo de data fica onde estava, o foco volta a ele e os horários chegam num pedido só', async ({ page }) => {
+    const reg = await abrir(page);
+    await abrirCalendario(page);
+    await dia(page, ABERTURA).scrollIntoViewIfNeeded();
+    const campo = page.locator('.data-campo:visible, .cal__grade:visible').first();
+    const antes = (await campo.boundingBox())!.y;
+    await dia(page, ABERTURA).click();
+    await expect(page.getByRole('radiogroup', { name: /horário/i }).getByRole('radio').first()).toBeVisible();
+    expect(Math.abs((await campo.boundingBox())!.y - antes), 'o campo de data não pula').toBeLessThanOrEqual(1);
+    expect(reg.disponibilidades.filter((q) => q.data === ABERTURA)).toHaveLength(1);
+  });
+
+  test('trocar a data com horários e dados na tela: a lista fica (apagada) até a nova chegar, sem esqueleto, e os dados não somem', async ({ page }) => {
+    const reg = await abrir(page);
+    let soltar = () => {};
+    await escolherData(page, ABERTURA);
+    await page.getByRole('radio', { name: '09:00', exact: true }).click();
+    await page.getByLabel('Nome').fill('Maria Teste');
+    // a próxima consulta de horários fica pendurada até o teste soltar: dá para ver o estado intermediário
+    await page.route('**/reservas/disponibilidade**', async (r) => { await new Promise<void>((ok) => { soltar = ok; }); return r.fallback(); });
+    const n = reg.disponibilidades.length;
+    await escolherData(page, DIA_PARCIAL);
+    const lista = page.locator('[role="radiogroup"][aria-busy="true"]');
+    await expect(lista).toBeVisible();
+    await expect(page.locator('.chip--skeleton')).toHaveCount(0);
+    await expect(page.getByLabel('Nome')).toHaveValue('Maria Teste');
+    // inerte enquanto atualiza: um toque na lista antiga não escolhe nada
+    await lista.locator('.chip:not([disabled])').first().click({ force: true, timeout: 2000 }).catch(() => {});
+    await expect(page.locator('[id$="-l4"] ~ .chips .chip[aria-checked="true"]')).toHaveCount(0);
+    soltar();
+    await expect(page.locator('[role="radiogroup"][aria-busy="true"]')).toHaveCount(0);
+    await expect(page.getByRole('radiogroup', { name: /horário/i }).getByRole('radio').first()).toBeVisible();
+    await expect(page.getByLabel('Nome')).toHaveValue('Maria Teste');
+    expect(reg.disponibilidades.length - n, 'um pedido por troca de data').toBe(1);
   });
 });
 
@@ -230,18 +310,62 @@ test.describe('envio: confirmação, clique duplo, erro e horário esgotado', ()
     await expect(comanda(page)).toContainText('A reserva só vale depois de aprovada pela equipe do Âmbar.');
     const texto = (await comanda(page).innerText()).toLowerCase();
     for (const falso of ['mesa reservada', 'garantida', 'whatsapp']) expect(texto, falso).not.toContain(falso);
+    // na agenda, o pedido pendente diz que aguarda a equipe
+    const google = new URL((await page.getByRole('link', { name: 'Adicionar ao Google Agenda' }).getAttribute('href'))!);
+    expect(google.searchParams.get('details')).toContain('aguardando a aprovação da equipe');
   });
 
-  test('confirmação não promete WhatsApp; .ics no horário de Fortaleza (UTC); nova reserva pede o aceite de novo', async ({ page }) => {
+  test('agenda: Google Agenda preenchido (data, horário, duração do backend, local, fuso) só no toque; sem abrir sozinho', async ({ page, context }) => {
+    await abrir(page);
+    await escolherData(page, ABERTURA);
+    await preencherEConfirmar(page);
+    await page.getByRole('button', { name: 'Confirmar reserva' }).click();
+    await expect(page.getByText('Mesa reservada')).toBeVisible();
+    expect(context.pages(), 'nada abre sem o toque').toHaveLength(1);
+    const google = page.getByRole('link', { name: 'Adicionar ao Google Agenda' });
+    await expect(google).toHaveAttribute('target', '_blank');
+    const url = new URL((await google.getAttribute('href'))!);
+    expect(`${url.origin}${url.pathname}`).toBe('https://calendar.google.com/calendar/render');
+    expect(url.searchParams.get('action')).toBe('TEMPLATE');
+    expect(url.searchParams.get('text')).toBe('Reserva no Âmbar Café');
+    // 09:00 a 12:00 no horário do café: duracaoMin = 180 veio da resposta do backend (api-falsa: formato real)
+    expect(url.searchParams.get('dates')).toBe('20261109T090000/20261109T120000');
+    expect(url.searchParams.get('ctz')).toBe('America/Fortaleza');
+    expect(url.searchParams.get('location')).toBe('Âmbar Café, Rua Tavares Coutinho, 1580, Meireles, Fortaleza - CE');
+    expect(url.searchParams.get('details')).toBe('Código AMB-7Q2K · Jardim externo · 2 pessoas');
+    // o toque abre o Google Agenda numa aba nova (o pedido é interceptado: o teste não sai para a internet)
+    await context.route('https://calendar.google.com/**', (r) => r.fulfill({ status: 200, contentType: 'text/html', body: '<title>Google Agenda</title>' }));
+    const [aba] = await Promise.all([context.waitForEvent('page'), google.click()]);
+    await aba.waitForLoadState();
+    expect(aba.url()).toContain('calendar.google.com/calendar/render?action=TEMPLATE');
+    await aba.close();
+  });
+
+  test('confirmação não promete WhatsApp; .ics válido (Fortaleza em UTC, duração, local escapado, linhas ≤ 75 octetos); nova reserva pede o aceite de novo', async ({ page }) => {
     await abrir(page);
     await escolherData(page, ABERTURA);
     await preencherEConfirmar(page);
     await page.getByRole('button', { name: 'Confirmar reserva' }).click();
     await expect(page.getByText('Mesa reservada')).toBeVisible();
     expect((await comanda(page).innerText()).toLowerCase()).not.toContain('whatsapp');
-    const ics = decodeURIComponent((await page.getByRole('link', { name: 'Adicionar à agenda' }).getAttribute('href'))!);
-    expect(ics).toContain('DTSTART:20261109T120000Z');  // 09:00 em Fortaleza (UTC−3)
-    expect(ics).toMatch(/DTSTAMP:\d{8}T\d{6}Z/);
+    const link = page.getByRole('link', { name: 'Apple, Outlook e outras (.ics)' });
+    await expect(link).toHaveAttribute('download', 'reserva-ambar-AMB-7Q2K.ics');
+    const href = (await link.getAttribute('href'))!;
+    expect(href.startsWith('data:text/calendar;charset=utf-8,')).toBe(true);
+    const ics = decodeURIComponent(href.slice(href.indexOf(',') + 1));
+    // estrutura RFC 5545: CRLF, linhas físicas ≤ 75 octetos, dobras começando por espaço
+    expect(ics.endsWith('\r\n')).toBe(true);
+    const fisicas = ics.split('\r\n').filter(Boolean);
+    for (const l of fisicas) expect(new TextEncoder().encode(l).length, l).toBeLessThanOrEqual(75);
+    const props = Object.fromEntries(ics.replace(/\r\n /g, '').split('\r\n').filter(Boolean).map((l) => [l.slice(0, l.indexOf(':')), l.slice(l.indexOf(':') + 1)]));
+    expect(props.BEGIN).toBe('VEVENT');   // a última BEGIN (VCALENDAR vem antes)
+    expect(props.DTSTART).toBe('20261109T120000Z');  // 09:00 em Fortaleza (UTC−3)
+    expect(props.DURATION).toBe('PT180M');
+    expect(props.DTSTAMP).toMatch(/^\d{8}T\d{6}Z$/);
+    expect(props.SUMMARY).toBe('Reserva no Âmbar Café');
+    expect(props.LOCATION).toBe('Âmbar Café\\, Rua Tavares Coutinho\\, 1580\\, Meireles\\, Fortaleza - CE');
+    expect(props.DESCRIPTION).toBe('Código AMB-7Q2K · Jardim externo · 2 pessoas');
+    expect(props.UID).toBe('AMB-7Q2K@ambarbrunch');
     await page.getByRole('button', { name: 'Fazer outra reserva' }).click();
     await escolherData(page, ABERTURA);
     await page.getByRole('radio', { name: '10:00', exact: true }).click();
