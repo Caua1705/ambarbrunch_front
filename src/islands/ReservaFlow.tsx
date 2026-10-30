@@ -13,6 +13,8 @@ import { criarApiSimulada } from '../lib/api/simulado';
 import { criarApiHttp } from '../lib/api/http';
 import { visita } from '../data/visita';
 import { conferirTelefone, mascaraTel, telefoneNacional, uuid } from '../lib/telefone';
+import { FUSO_CAFE, linkGoogleAgenda, linkIcs, nomeIcs, type ReservaAgenda } from '../lib/agenda';
+import { guardarConfirmacao, ROTA_CONFIRMADA } from '../lib/reserva-confirmada';
 
 type Modo = 'indisponivel' | 'simulado' | 'api';
 export type Etapa = 'escolha' | 'revisao' | 'enviando' | 'confirmada' | 'falha';
@@ -76,71 +78,6 @@ function hojeNoFuso(fuso?: string): Date {
     return agora;
   }
 }
-/**
- * Início da reserva para o .ics em UTC (…Z): data e hora são do fuso do café, e a agenda de quem está em outro fuso
- * mostra o horário certo. Sem o fuso (ou sem suporte a longOffset), fica no horário local "flutuante", como antes.
- */
-function inicioIcs(data: string, hora: string, fuso?: string): string {
-  const [y, m, d] = data.split('-'); const [h, min] = hora.split(':');
-  const flutuante = `${y}${m}${d}T${h}${min}00`;
-  if (!fuso) return flutuante;
-  try {
-    const meioDia = new Date(`${data}T12:00:00Z`);
-    const nome = new Intl.DateTimeFormat('en-US', { timeZone: fuso, timeZoneName: 'longOffset' })
-      .formatToParts(meioDia).find((p) => p.type === 'timeZoneName')?.value ?? '';
-    const desvio = nome === 'GMT' ? '+00:00' : nome.replace('GMT', '');
-    if (!/^[+-]\d{2}:\d{2}$/.test(desvio)) return flutuante;
-    const inicio = new Date(`${data}T${h}:${min}:00${desvio}`);
-    return Number.isNaN(inicio.getTime()) ? flutuante : inicio.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
-  } catch {
-    return flutuante;
-  }
-}
-
-/** Fuso do café, quando a configuração da API não o informa. */
-const FUSO_CAFE = 'America/Fortaleza';
-/** Data e hora do café somadas de `min` minutos, no formato do Google Agenda (AAAAMMDDTHHMMSS, sem “Z”: o fuso vai em
- *  `ctz`). A conta é feita em UTC só para virar o dia certo (16:00 + 180 min = 19:00; 23:00 + 180 min = 02:00 do dia seguinte). */
-function horaLocalGoogle(data: string, hora: string, min = 0): string {
-  const [y, m, d] = data.split('-').map(Number); const [h, mi] = hora.split(':').map(Number);
-  const t = new Date(Date.UTC(y, m - 1, d, h, mi + min));
-  return `${t.getUTCFullYear()}${pad(t.getUTCMonth() + 1)}${pad(t.getUTCDate())}T${pad(t.getUTCHours())}${pad(t.getUTCMinutes())}00`;
-}
-interface EventoAgenda { titulo: string; local: string; descricao: string }
-/** Google Agenda já preenchido (modelo de evento público do Google, sem login nem permissão: a pessoa só salva).
- *  Fim = início + duração da reserva vinda do backend; sem duração, o evento fica só com o início. */
-function linkGoogleAgenda(r: ReservaCriada, ev: EventoAgenda, fuso: string): string {
-  const inicio = horaLocalGoogle(r.data, r.hora);
-  const fim = r.duracaoMin ? horaLocalGoogle(r.data, r.hora, r.duracaoMin) : inicio;
-  const q = new URLSearchParams({ action: 'TEMPLATE', text: ev.titulo, dates: `${inicio}/${fim}`, ctz: fuso, details: ev.descricao, location: ev.local });
-  return `https://calendar.google.com/calendar/render?${q}`;
-}
-/** Texto de propriedade do .ics (RFC 5545 §3.3.11): barra, ponto e vírgula, vírgula e quebra de linha escapados. */
-const textoIcs = (s: string) => s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
-/** Linhas do .ics com no máximo 75 octetos (RFC 5545 §3.1), dobradas sem partir um caractere acentuado ao meio. */
-function dobrarIcs(linha: string): string {
-  const bytes = new TextEncoder();
-  const partes: string[] = [];
-  let atual = ''; let tam = 0;
-  for (const c of linha) {
-    const n = bytes.encode(c).length;
-    if (tam + n > (partes.length ? 74 : 75)) { partes.push(atual); atual = ''; tam = 0; }
-    atual += c; tam += n;
-  }
-  partes.push(atual);
-  return partes.join('\r\n ');
-}
-/** Arquivo .ics (Apple Calendário, Outlook e outros) com os mesmos dados do Google Agenda; início em UTC (inicioIcs). */
-function arquivoIcs(r: ReservaCriada, ev: EventoAgenda, fuso: string): string {
-  const utc = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
-  const linhas = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Ambar Cafe//Reserva//PT', 'CALSCALE:GREGORIAN', 'BEGIN:VEVENT',
-    `UID:${r.codigo}@ambarbrunch`, `DTSTAMP:${utc(new Date())}`, `DTSTART:${inicioIcs(r.data, r.hora, fuso)}`,
-    ...(r.duracaoMin ? [`DURATION:PT${r.duracaoMin}M`] : []),
-    `SUMMARY:${textoIcs(ev.titulo)}`, `LOCATION:${textoIcs(ev.local)}`, `DESCRIPTION:${textoIcs(ev.descricao)}`,
-    'END:VEVENT', 'END:VCALENDAR'];
-  return `${linhas.map(dobrarIcs).join('\r\n')}\r\n`;
-}
-
 /** Limites do backend (esquemas.py: nome até 120; e-mail validado como EmailStr, com domínio e terminação). */
 const NOME_MAX = 120;
 const EMAIL = /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)*\.[a-z]{2,}$/i;
@@ -452,15 +389,24 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
     enviandoAgora.current = true;
     setEtapa('enviando');
     setAnuncio('Enviando a reserva…');
+    let saindo = false;
     try {
       const r = await api.criar(pedido(), chave.current);
-      setResultado(r);
-      setEtapa('confirmada');
       // a próxima reserva (outra mesa, outro dia) nasce com chave nova
       chaveDe.current = '';
+      // No site (API real), a confirmação é uma página própria, sem a landing nem a comanda: a reserva vai para o
+      // sessionStorage (sem dados pessoais) e a página é TROCADA (replace) — o “voltar” não reabre a comanda preenchida
+      // e recarregar a confirmação não envia nada. Se o navegador recusar o armazenamento, a confirmação fica aqui mesmo.
+      if (modo === 'api' && !demo && guardarConfirmacao({ ...agendaDe(r), fuso: fusoCafe })) {
+        saindo = true;
+        location.replace(ROTA_CONFIRMADA);
+        return;
+      }
+      setResultado(r);
+      setEtapa('confirmada');
       setAnuncio(r.status === 'confirmada'
-        ? `Reserva confirmada. Código ${r.codigo}.`
-        : `Pedido de reserva recebido, aguardando a confirmação da equipe. Código ${r.codigo}.`);
+        ? 'Reserva confirmada.'
+        : 'Pedido de reserva recebido, aguardando a confirmação da equipe.');
     } catch (e) {
       const erro = e instanceof ErroReserva ? e : new ErroReserva('servidor', 'Não foi possível concluir. Tente de novo em instantes.');
       // A chave já foi usada com outros dados: a próxima confirmação leva uma chave nova (a antiga nunca passaria).
@@ -486,19 +432,16 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
       setEtapa('falha');
       setAnuncio(texto);
     } finally {
-      enviandoAgora.current = false;
+      // indo para a página de confirmação: nada mais é enviado desta comanda até a troca de página
+      if (!saindo) enviandoAgora.current = false;
     }
   };
 
-  /** O evento da reserva confirmada, com os dados que o backend devolveu (código, ambiente, pessoas, data, hora). */
-  const evento = (r: ReservaCriada): EventoAgenda => {
-    const nomeAmb = cfg.ambientes.find((a) => a.id === r.ambienteId)?.nome ?? nomeAmbiente;
-    return {
-      titulo: 'Reserva no Âmbar Café',
-      local: `Âmbar Café, ${visita.endereco}, ${visita.cidade}`,
-      descricao: `Código ${r.codigo} · ${nomeAmb} · ${r.pessoas} ${r.pessoas === 1 ? 'pessoa' : 'pessoas'}${r.status === 'pendente' ? ' · aguardando a aprovação da equipe' : ''}`,
-    };
-  };
+  /** A reserva confirmada para as agendas e a página de confirmação: só o que o backend devolveu, mais o nome do ambiente. */
+  const agendaDe = (r: ReservaCriada): ReservaAgenda => ({
+    codigo: r.codigo, status: r.status, pessoas: r.pessoas, data: r.data, hora: r.hora, duracaoMin: r.duracaoMin,
+    ambienteNome: cfg.ambientes.find((a) => a.id === r.ambienteId)?.nome ?? nomeAmbiente,
+  });
   const fusoCafe = cfg.fusoHorario ?? FUSO_CAFE;
 
   /** O backend devolveu "pendente" (ambiente com aprovação da equipe): pedido recebido, não mesa garantida. */
@@ -644,18 +587,17 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
 
       {etapa === 'confirmada' && resultado && (
         <>
+          {/* o código da reserva não aparece para o cliente (fica no sistema, no UID do .ics e no painel) */}
           <p class="ticket__status" role="status">
             {pendente
-              ? 'Recebemos seu pedido. A reserva só vale depois de aprovada pela equipe do Âmbar. '
-              : 'Tudo certo! Sua reserva está registrada. '}
-            Código <strong class="ticket__code">{resultado.codigo}</strong>
+              ? 'Recebemos seu pedido. A reserva só vale depois de aprovada pela equipe do Âmbar.'
+              : 'Tudo certo! Sua reserva está registrada.'}
           </p>
           {resumo}
           <div class="ticket__actions">
             {/* agenda: só com o toque da pessoa — Google Agenda já preenchido numa aba nova; .ics para as demais */}
-            <a class="btn btn--wine btn--block" href={linkGoogleAgenda(resultado, evento(resultado), fusoCafe)} target="_blank" rel="noopener">Adicionar ao Google Agenda</a>
-            <a class="ticket__link" href={`data:text/calendar;charset=utf-8,${encodeURIComponent(arquivoIcs(resultado, evento(resultado), fusoCafe))}`}
-              download={`reserva-ambar-${resultado.codigo}.ics`}>Apple, Outlook e outras (.ics)</a>
+            <a class="btn btn--wine btn--block" href={linkGoogleAgenda(agendaDe(resultado), fusoCafe)} target="_blank" rel="noopener">Adicionar ao Google Agenda</a>
+            <a class="ticket__link" href={linkIcs(agendaDe(resultado), fusoCafe)} download={nomeIcs(agendaDe(resultado))}>Outros calendários (.ics)</a>
             {/* nova reserva: mesmos nome e telefone, mas o aceite da política é dado de novo */}
             <button class="ticket__link" type="button" onClick={() => { setResultado(null); setHora(null); setDados((d) => ({ ...d, consentimento: false })); setEtapa('escolha'); setTentativa((t) => t + 1); }}>Fazer outra reserva</button>
           </div>

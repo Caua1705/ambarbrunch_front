@@ -121,7 +121,8 @@ test.describe('modo simulado (só testes)', () => {
     // confirmação (simulada)
     await expect(page.locator('#reservar .ticket__title')).toHaveText('Reserva simulada');
     await expect(page.locator('.ticket__stamp')).toHaveText('simulado');
-    await expect(page.locator('.ticket__code')).toHaveText(/^SIM-/);
+    // o código da reserva não aparece para o cliente
+    await expect(page.locator('#reservar')).not.toContainText('SIM-');
     await expect(page.locator('.ticket__sim')).toBeVisible();
   });
 

@@ -77,7 +77,10 @@ test('a API real não oferece nada antes de 09/11 e o site mostra exatamente os 
   expect([201, 409]).toContain(r.status());
   if (r.status() === 201) {
     const criada = await r.json();
-    await expect(page.locator('.ticket__code')).toHaveText(criada.codigo);
+    // página própria de confirmação, sem o código na tela
+    await expect(page).toHaveURL(/\/reserva-confirmada\/$/);
+    await expect(page.getByText('Tudo certo! Sua reserva está registrada.')).toBeVisible();
+    await expect(page.locator('body')).not.toContainText(criada.codigo);
     expect(criada.data).toBe(escolhido!.data);
   } else {
     await expect(page.getByRole('alert')).toBeVisible();

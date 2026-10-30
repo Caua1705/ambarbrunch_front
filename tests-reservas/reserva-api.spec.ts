@@ -234,7 +234,7 @@ test.describe('envio: confirmação, clique duplo, erro e horário esgotado', ()
     await preencherEConfirmar(page);
     await page.getByRole('button', { name: 'Confirmar reserva' }).click();
     await expect(page.getByText('Mesa reservada')).toBeVisible();
-    await expect(page.locator('.ticket__code')).toHaveText('AMB-7Q2K');
+    await expect(page).toHaveURL(/\/reserva-confirmada\/$/);
     expect(reg.envios).toHaveLength(1);
     expect(reg.envios[0].corpo).toMatchObject({ ambienteId: 'jardim', pessoas: 2, data: ABERTURA, hora: '09:00', nome: 'Maria Teste', telefone: '85987654321', consentimentoPrivacidade: true, origem: 'site' });
     expect(reg.envios[0].chave?.length).toBeGreaterThanOrEqual(8);
@@ -307,8 +307,8 @@ test.describe('envio: confirmação, clique duplo, erro e horário esgotado', ()
     await preencherEConfirmar(page);
     await page.getByRole('button', { name: 'Confirmar reserva' }).click();
     await expect(page.locator('.ticket__title')).toHaveText('Pedido recebido');
-    await expect(comanda(page)).toContainText('A reserva só vale depois de aprovada pela equipe do Âmbar.');
-    const texto = (await comanda(page).innerText()).toLowerCase();
+    await expect(page.locator('main')).toContainText('A reserva só vale depois de aprovada pela equipe do Âmbar.');
+    const texto = (await page.locator('main').innerText()).toLowerCase();
     for (const falso of ['mesa reservada', 'garantida', 'whatsapp']) expect(texto, falso).not.toContain(falso);
     // na agenda, o pedido pendente diz que aguarda a equipe
     const google = new URL((await page.getByRole('link', { name: 'Adicionar ao Google Agenda' }).getAttribute('href'))!);
@@ -324,6 +324,7 @@ test.describe('envio: confirmação, clique duplo, erro e horário esgotado', ()
     expect(context.pages(), 'nada abre sem o toque').toHaveLength(1);
     const google = page.getByRole('link', { name: 'Adicionar ao Google Agenda' });
     await expect(google).toHaveAttribute('target', '_blank');
+    await expect(google).not.toHaveAttribute('download');
     const url = new URL((await google.getAttribute('href'))!);
     expect(`${url.origin}${url.pathname}`).toBe('https://calendar.google.com/calendar/render');
     expect(url.searchParams.get('action')).toBe('TEMPLATE');
@@ -332,7 +333,8 @@ test.describe('envio: confirmação, clique duplo, erro e horário esgotado', ()
     expect(url.searchParams.get('dates')).toBe('20261109T090000/20261109T120000');
     expect(url.searchParams.get('ctz')).toBe('America/Fortaleza');
     expect(url.searchParams.get('location')).toBe('Âmbar Café, Rua Tavares Coutinho, 1580, Meireles, Fortaleza - CE');
-    expect(url.searchParams.get('details')).toBe('Código AMB-7Q2K · Jardim externo · 2 pessoas');
+    expect(url.searchParams.get('details')).toBe('Jardim externo · 2 pessoas');
+    // o botão principal abre o link do Google: não é download
     // o toque abre o Google Agenda numa aba nova (o pedido é interceptado: o teste não sai para a internet)
     await context.route('https://calendar.google.com/**', (r) => r.fulfill({ status: 200, contentType: 'text/html', body: '<title>Google Agenda</title>' }));
     const [aba] = await Promise.all([context.waitForEvent('page'), google.click()]);
@@ -341,15 +343,15 @@ test.describe('envio: confirmação, clique duplo, erro e horário esgotado', ()
     await aba.close();
   });
 
-  test('confirmação não promete WhatsApp; .ics válido (Fortaleza em UTC, duração, local escapado, linhas ≤ 75 octetos); nova reserva pede o aceite de novo', async ({ page }) => {
+  test('confirmação não promete WhatsApp; “Outros calendários (.ics)” válido (Fortaleza em UTC, duração, local escapado, linhas ≤ 75 octetos); nova reserva pede o aceite de novo', async ({ page }) => {
     await abrir(page);
     await escolherData(page, ABERTURA);
     await preencherEConfirmar(page);
     await page.getByRole('button', { name: 'Confirmar reserva' }).click();
     await expect(page.getByText('Mesa reservada')).toBeVisible();
-    expect((await comanda(page).innerText()).toLowerCase()).not.toContain('whatsapp');
-    const link = page.getByRole('link', { name: 'Apple, Outlook e outras (.ics)' });
-    await expect(link).toHaveAttribute('download', 'reserva-ambar-AMB-7Q2K.ics');
+    expect((await page.locator('main').innerText()).toLowerCase()).not.toContain('whatsapp');
+    const link = page.getByRole('link', { name: 'Outros calendários (.ics)' });
+    await expect(link).toHaveAttribute('download', 'reserva-ambar-2026-11-09.ics');
     const href = (await link.getAttribute('href'))!;
     expect(href.startsWith('data:text/calendar;charset=utf-8,')).toBe(true);
     const ics = decodeURIComponent(href.slice(href.indexOf(',') + 1));
@@ -364,12 +366,12 @@ test.describe('envio: confirmação, clique duplo, erro e horário esgotado', ()
     expect(props.DTSTAMP).toMatch(/^\d{8}T\d{6}Z$/);
     expect(props.SUMMARY).toBe('Reserva no Âmbar Café');
     expect(props.LOCATION).toBe('Âmbar Café\\, Rua Tavares Coutinho\\, 1580\\, Meireles\\, Fortaleza - CE');
-    expect(props.DESCRIPTION).toBe('Código AMB-7Q2K · Jardim externo · 2 pessoas');
+    expect(props.DESCRIPTION).toBe('Jardim externo · 2 pessoas');
     expect(props.UID).toBe('AMB-7Q2K@ambarbrunch');
-    await page.getByRole('button', { name: 'Fazer outra reserva' }).click();
+    // nova reserva: a comanda começa do zero, e o aceite da política é dado de novo
+    await page.goto('/reservar/');
     await escolherData(page, ABERTURA);
     await page.getByRole('radio', { name: '10:00', exact: true }).click();
-    await expect(page.getByLabel('Nome')).toHaveValue('Maria Teste');
     await expect(page.getByRole('checkbox')).not.toBeChecked();
   });
 
@@ -527,8 +529,9 @@ for (const largura of [360, 375, 390, 430]) {
 
 test('acessibilidade (axe): comanda com campos, erros de validação e confirmação', async ({ page }) => {
   const { default: AxeBuilder } = await import('@axe-core/playwright');
-  const checar = async (onde: string) => {
-    const { violations } = await new AxeBuilder({ page }).include('form.ticket').analyze();
+  // a comanda; na confirmação (página própria), a página inteira
+  const checar = async (onde: string, alvo = 'form.ticket') => {
+    const { violations } = await new AxeBuilder({ page }).include(alvo).analyze();
     const serias = violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
     expect(serias.map((v) => `${onde} ${v.id}: ${v.nodes.map((n) => n.target.join(' ')).slice(0, 3).join(' | ')}`)).toEqual([]);
   };
@@ -542,5 +545,78 @@ test('acessibilidade (axe): comanda com campos, erros de validação e confirma�
   await checar('revisão');
   await page.getByRole('button', { name: 'Confirmar reserva' }).click();
   await expect(page.getByText('Mesa reservada')).toBeVisible();
-  await checar('confirmação');
+  await checar('confirmação', 'body');
+});
+
+test.describe('página de confirmação (/reserva-confirmada/)', () => {
+  test('tela própria: só o cartão (sem landing, comanda, menu, botão fixo nem rodapé), no topo e sem o código da reserva', async ({ page }) => {
+    await abrir(page);
+    await escolherData(page, ABERTURA);
+    await preencherEConfirmar(page);
+    await page.getByRole('button', { name: 'Confirmar reserva' }).click();
+    await expect(page).toHaveURL(/\/reserva-confirmada\/$/);
+    await expect(page.getByRole('heading', { level: 1, name: 'Mesa reservada' })).toBeVisible();
+    await expect(page.locator('main')).toContainText('Tudo certo! Sua reserva está registrada.');
+    // nada da landing nem da comanda — rolar para cima não mostra “Reserve sua mesa”
+    for (const s of ['form', '.mega', '#reservar', '[data-sticky-cta]', 'dialog.sheet', 'footer', '.skip-link']) await expect(page.locator(s), s).toHaveCount(0);
+    await expect(page.locator('body')).not.toContainText(/reserve sua mesa/i);
+    // no topo, o cartão vem logo abaixo do logo: não há nada acima para onde rolar
+    expect(await page.evaluate(() => scrollY)).toBe(0);
+    expect((await page.locator('main .ticket').boundingBox())!.y).toBeLessThan(260);
+    // o código fica no sistema, não na tela
+    await expect(page.locator('body')).not.toContainText('AMB-7Q2K');
+    const detalhes = page.locator('.ticket__review');
+    for (const t of ['Jardim externo', '2', 'segunda-feira, 9 de novembro', '09:00']) await expect(detalhes).toContainText(t);
+    await expect(page.getByRole('link', { name: 'Voltar ao início', exact: true })).toHaveAttribute('href', '/');
+    // nada pessoal na URL
+    expect(page.url()).not.toMatch(/Maria|8598|nome|telefone|AMB-/);
+  });
+
+  test('recarregar mostra a mesma confirmação sem enviar nada; voltar não reabre a comanda preenchida', async ({ page }) => {
+    await relogio(page);
+    const reg = await apiFalsa(page);
+    await page.goto('/privacidade/');
+    await page.goto('/reservar/');
+    await escolherData(page, ABERTURA);
+    await preencherEConfirmar(page);
+    await page.getByRole('button', { name: 'Confirmar reserva' }).click();
+    await expect(page).toHaveURL(/\/reserva-confirmada\/$/);
+    await page.reload();
+    await expect(page.getByRole('heading', { level: 1, name: 'Mesa reservada' })).toBeVisible();
+    await expect(page.locator('.ticket__review')).toContainText('09:00');
+    expect(reg.envios, 'recarregar não envia de novo').toHaveLength(1);
+    // a comanda foi TROCADA pela confirmação: voltar sai dela (aqui, para a página anterior), sem reenviar
+    await page.goBack();
+    await expect(page).toHaveURL(/\/privacidade\/$/);
+    await page.goForward();
+    await expect(page.getByRole('heading', { level: 1, name: 'Mesa reservada' })).toBeVisible();
+    expect(reg.envios).toHaveLength(1);
+  });
+
+  test('aberta sem reserva nesta aba (link direto, outro aparelho): aviso e volta ao início, sem dados inventados', async ({ page }) => {
+    await page.goto('/reserva-confirmada/');
+    await expect(page.getByRole('heading', { level: 1, name: 'Nenhuma reserva recente' })).toBeVisible();
+    await expect(page.locator('.ticket__review')).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Adicionar ao Google Agenda' })).toHaveCount(0);
+  });
+
+  for (const largura of [360, 390, 430]) {
+    test(`celular ${largura}px: cartão inteiro, botões alcançáveis e sem rolagem horizontal`, async ({ page, isMobile }) => {
+      test.skip(!isMobile, 'larguras de celular');
+      await page.setViewportSize({ width: largura, height: 740 });
+      await abrir(page);
+      await escolherData(page, ABERTURA);
+      await preencherEConfirmar(page);
+      await page.getByRole('button', { name: 'Confirmar reserva' }).click();
+      await expect(page.getByRole('heading', { level: 1, name: 'Mesa reservada' })).toBeVisible();
+      expect(await page.evaluate(() => scrollY), 'começa no topo').toBe(0);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
+      for (const nome of ['Adicionar ao Google Agenda', 'Outros calendários (.ics)', 'Voltar ao início']) {
+        const b = (await page.getByRole('link', { name: nome, exact: true }).boundingBox())!;
+        expect(b.x, nome).toBeGreaterThanOrEqual(0);
+        expect(b.x + b.width, nome).toBeLessThanOrEqual(largura);
+        expect(b.height, `${nome}: alvo de toque`).toBeGreaterThanOrEqual(44);
+      }
+    });
+  }
 });
