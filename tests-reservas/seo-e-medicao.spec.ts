@@ -9,7 +9,7 @@ const meta = (page: Page, seletor: string, attr = 'content') => page.locator(sel
 
 test('home: título local, canonical e Open Graph no domínio oficial, imagem 1200 × 630 publicada', async ({ page, request }) => {
   await page.goto('/');
-  await expect(page).toHaveTitle('Âmbar Café — brunch, café e cinnamon rolls no Meireles, Fortaleza');
+  await expect(page).toHaveTitle('Âmbar — cafeteria e brunch no Meireles, Fortaleza');
   expect(await meta(page, 'meta[name="description"]')).toContain('Meireles, em Fortaleza');
   expect(await meta(page, 'link[rel="canonical"]', 'href')).toBe(`${OFICIAL}/`);
   expect(await meta(page, 'meta[property="og:url"]')).toBe(`${OFICIAL}/`);
@@ -26,7 +26,8 @@ test('home: dados estruturados do café (CafeOrCoffeeShop) com endereço, horár
   expect(blocos).toHaveLength(1);
   const grafo = JSON.parse(blocos[0])['@graph'] as Record<string, any>[];
   const cafe = grafo.find((n) => n['@type'] === 'CafeOrCoffeeShop')!;
-  expect(cafe.name).toBe('Âmbar Café');
+  expect(cafe.name).toBe('Âmbar');
+  expect(cafe.alternateName).toContain('Âmbar Café');
   expect(cafe.url).toBe(`${OFICIAL}/`);
   expect(cafe.address).toMatchObject({ streetAddress: 'Rua Tavares Coutinho, 1580', addressLocality: 'Fortaleza', addressRegion: 'CE', postalCode: '60160-130', addressCountry: 'BR' });
   expect(cafe.openingHoursSpecification).toEqual([expect.objectContaining({ dayOfWeek: expect.arrayContaining(['Monday', 'Sunday']), opens: '07:00', closes: '19:00' })]);

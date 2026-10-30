@@ -1,4 +1,4 @@
-# SEO local, Search Console e GA4 — Âmbar Café
+# SEO local, Search Console e GA4 — Âmbar
 
 > 30/10/2026 · branch `seo-local-ga4` (worktree `ambarbrunch_front-seo`). O visual do site e o fluxo de reservas não
 > mudam: no `<body>`, o HTML de produção é idêntico ao da `main` (só o `uid` interno das ilhas muda com o hash do JS).
@@ -99,7 +99,7 @@ O DNS de `ambarbrunch.com` está na **Cloudflare** (`shane.ns.cloudflare.com`). 
 ### 4. GA4 — criar propriedade e fluxo
 
 1. https://analytics.google.com → **Administrador** → **Criar** → **Propriedade**:
-   - Nome: `Âmbar Café — site` · Fuso horário: **Brasil — (GMT-03:00) Fortaleza** (ou o horário de Brasília) ·
+   - Nome: `Âmbar — site` · Fuso horário: **Brasil — (GMT-03:00) Fortaleza** (ou o horário de Brasília) ·
      Moeda: **Real brasileiro (R$)** → Avançar → dados da empresa → objetivos: “Gerar leads” → **Criar**.
 2. Plataforma **Web** → URL `ambarbrunch.com` (https) → nome `Site ambarbrunch.com`.
    Em **Medição otimizada**, clique na engrenagem e deixe **assim**:
@@ -174,9 +174,10 @@ O canonical continua sem parâmetros: os links com `utm_` não viram páginas du
 
 ### 9. Perfil da Empresa no Google (NAP igual em todo lugar)
 
-- O **nome** dos dados estruturados é `Âmbar Café` (`src/data/seo.ts`, `seo.nome`), com “Âmbar Brunch” e “Âmbar Café &
-  Brunch” como nomes alternativos. **Tem de ser idêntico ao nome do Perfil da Empresa.** Se o perfil usar outro, troque
-  `seo.nome` (e o título da home) para ficar igual.
+- O **nome** dos dados estruturados é `Âmbar` (`src/data/seo.ts`, `seo.nome`), o nome pedido ao Google para o Perfil
+  da Empresa em 30/10/2026, com “Âmbar Café”, “Âmbar Brunch” e “Âmbar Café & Brunch” como nomes alternativos. “Cafeteria”
+  e “brunch” ficam no título e na descrição (não no nome: o Google pede o nome real, sem palavras-chave). **Tem de ser
+  idêntico ao nome do Perfil da Empresa.** Se o Google recusar a alteração, volte `seo.nome` para o nome que ficar.
 - Endereço do perfil: `Rua Tavares Coutinho, 1580 - Meireles, Fortaleza - CE, 60160-130`; horário: todos os dias,
   07:00–19:00 — os mesmos do site. Mudou o horário? Mude `visita.horarios` **e** `seo.abre`/`seo.fecha`.
 - Telefone: o site não publica telefone (decisão de 29/10/2026). Se o perfil tiver um número público e o responsável

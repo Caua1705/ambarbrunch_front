@@ -2,6 +2,7 @@
 // dos dados oficiais de visita (src/data/visita.ts). Nunca inventar: o que não foi confirmado (telefone público,
 // coordenadas, faixa de preço, link do Perfil da Empresa no Google) fica de fora até existir.
 // O NOME tem de ser escrito igual ao do Perfil da Empresa no Google (Maps): NAP igual em todo lugar.
+// O horário é o divulgado no site (visita.horarios) e pela Júlia; mudou lá, muda aqui e no Perfil da Empresa.
 import { getImage } from 'astro:assets';
 import { visita } from './visita';
 import { imagem } from '../lib/media';
@@ -9,12 +10,13 @@ import { imagem } from '../lib/media';
 export const SITE = `https://${visita.dominio}`;
 
 export const seo = {
-  nome: 'Âmbar Café',
+  // “Âmbar”: o nome pedido ao Google para o Perfil da Empresa (Maps) em 30/10/2026 — a identidade comercial
+  nome: 'Âmbar',
   // o domínio, o Instagram e as páginas mais antigas usam “Âmbar Brunch”; o logo diz “âmbar café & brunch”
-  nomesAlternativos: ['Âmbar Brunch', 'Âmbar Café & Brunch'],
-  /** Título e descrição da home: o que aparece no resultado do Google. */
-  titulo: 'Âmbar Café — brunch, café e cinnamon rolls no Meireles, Fortaleza',
-  descricao: 'Brunch de mesa cheia, café e os cinnamon rolls da Roll no Meireles, em Fortaleza. Aberto todos os dias, das 07h às 19h. Reserve sua mesa pelo site.',
+  nomesAlternativos: ['Âmbar Café', 'Âmbar Brunch', 'Âmbar Café & Brunch'],
+  /** Título e descrição da home: o que aparece no resultado do Google (com “cafeteria” e “brunch”, o que se busca). */
+  titulo: 'Âmbar — cafeteria e brunch no Meireles, Fortaleza',
+  descricao: 'Cafeteria e brunch no Meireles, em Fortaleza: mesa cheia, café e os cinnamon rolls da Roll. Aberto todos os dias, das 07h às 19h. Reserve sua mesa pelo site.',
   endereco: {
     rua: visita.endereco,
     bairro: 'Meireles',
@@ -26,7 +28,7 @@ export const seo = {
   // mesmo horário de visita.horarios (“Todos os dias, 07h às 19h”)
   abre: '07:00',
   fecha: '19:00',
-  cozinha: ['Brunch', 'Café', 'Cinnamon rolls'],
+  cozinha: ['Brunch', 'Cafeteria', 'Café', 'Cinnamon rolls'],
   /** Página da reserva (uma ação do Google “Reservar” pode apontar para cá). */
   reservar: `${SITE}/reservar/`,
   // sameAs = o mesmo negócio em outro lugar: só o Instagram do Âmbar (a Roll é outra marca)
