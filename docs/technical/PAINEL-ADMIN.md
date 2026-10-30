@@ -232,9 +232,10 @@ Pendências:
    da tabela da seção 0.
 2. **Contas da equipe** são criadas pela CLI do backend (o painel não cria usuários nem recupera senha).
 3. **Limite de login por IP:** sem `PAINEL_API_CHAVE` (= `AMBAR_PAINEL_CHAVE` do backend) na Production da Vercel, todo
-   login chega ao backend com o IP da Vercel — 10 senhas erradas em 15 min, somando a equipe, bloqueiam o login de todos
-   por até 15 min (o limite por e-mail continua individual). Hoje a chave só existe no Preview: copiar para Production
-   no painel da Vercel.
+   login chega ao backend com o IP da Vercel (o backend ignora X-Ambar-Cliente-IP/Navegador sem a chave) — 30 falhas em
+   15 min por origem, somando a equipe, bloqueiam o login de todos (o limite de 10 por conta continua individual). O
+   backend de produção já tem AMBAR_PAINEL_CHAVE; falta o responsável copiar o MESMO valor para PAINEL_API_CHAVE na
+   Production da Vercel e refazer o deploy.
 4. **Nova reserva pela equipe** continua desligada no backend (`AMBAR_PAINEL_CRIACAO_MANUAL`); a tela explica.
 5. **Unidade padrão do backend** na produção é `ambar_teste` (`AMBAR_OPERACAO_UNIDADE`): o painel sempre manda
    `?unidade=`, mas qualquer outro cliente da API sem `unidade` cai nos dados de teste.
