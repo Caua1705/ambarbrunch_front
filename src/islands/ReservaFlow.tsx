@@ -13,7 +13,7 @@ import { criarApiSimulada } from '../lib/api/simulado';
 import { criarApiHttp } from '../lib/api/http';
 import { visita } from '../data/visita';
 import { conferirTelefone, mascaraTel, telefoneNacional, uuid } from '../lib/telefone';
-import { FUSO_CAFE, linkGoogleAgenda, linkIcs, nomeIcs, type ReservaAgenda } from '../lib/agenda';
+import { FUSO_CAFE, linkIcs, nomeIcs, type ReservaAgenda } from '../lib/agenda';
 import { guardarConfirmacao, ROTA_CONFIRMADA } from '../lib/reserva-confirmada';
 
 type Modo = 'indisponivel' | 'simulado' | 'api';
@@ -343,6 +343,24 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
       });
     return () => ctrl.abort();
   }, [api, pronto, data, dataOk, pessoas, ambiente, tentativa, minPessoas, maxPessoas]);
+  // Revisão ("Confira sua reserva"), envio, falha e confirmação na comanda: a comanda sozinha na tela (CSS:
+  // html[data-comanda-sozinha]), sem a landing acima para onde rolar — como a página /reserva-confirmada/. Ao voltar à
+  // escolha ("Editar", 409, 422), a landing volta e a página fica na comanda. Rolagem sem a animação do site (o salto
+  // é a troca de tela, não um passeio pela landing).
+  const comanda = useRef<HTMLFormElement>(null);
+  const sozinha = etapa !== 'escolha';
+  useLayoutEffect(() => {
+    if (demo) return;
+    const raiz = document.documentElement;
+    const semAnimar = (rolar: () => void) => { const antes = raiz.style.scrollBehavior; raiz.style.scrollBehavior = 'auto'; rolar(); raiz.style.scrollBehavior = antes; };
+    if (sozinha) {
+      raiz.dataset.comandaSozinha = '';
+      semAnimar(() => scrollTo(0, 0));
+    } else if (raiz.dataset.comandaSozinha !== undefined) {
+      delete raiz.dataset.comandaSozinha;
+      semAnimar(() => comanda.current?.scrollIntoView({ block: 'start' }));
+    }
+  }, [sozinha]);
   // Foco no topo da comanda a cada TROCA de etapa (leitor de tela e teclado); não na montagem.
   const montou = useRef(false);
   useEffect(() => { if (!montou.current) { montou.current = true; return; } if (etapa !== 'escolha') topo.current?.focus(); }, [etapa]);
@@ -464,7 +482,7 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
   );
 
   return (
-    <form class="ticket" data-modo={modo} data-etapa={etapa} onSubmit={continuar} noValidate aria-describedby={nota} aria-busy={etapa === 'enviando'}>
+    <form class="ticket" ref={comanda} data-modo={modo} data-etapa={etapa} onSubmit={continuar} noValidate aria-describedby={nota} aria-busy={etapa === 'enviando'}>
       <div class="stamp ticket__stamp" data-state={carimbo.estado} aria-hidden="true">{carimbo.texto}</div>
       <p class="ticket__title" ref={topo} tabIndex={-1}>
         {etapa === 'confirmada' ? (modo === 'simulado' ? 'Reserva simulada' : pendente ? 'Pedido recebido' : 'Mesa reservada') : etapa === 'escolha' ? 'Comanda de reserva' : 'Confira sua reserva'}
@@ -595,9 +613,7 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
           </p>
           {resumo}
           <div class="ticket__actions">
-            {/* agenda: só com o toque da pessoa — Google Agenda já preenchido numa aba nova; .ics para as demais */}
-            <a class="btn btn--wine btn--block" href={linkGoogleAgenda(agendaDe(resultado), fusoCafe)} target="_blank" rel="noopener">Adicionar ao Google Agenda</a>
-            <a class="ticket__link" href={linkIcs(agendaDe(resultado), fusoCafe)} download={nomeIcs(agendaDe(resultado))}>Outros calendários (.ics)</a>
+            <a class="btn btn--wine btn--block" href={linkIcs(agendaDe(resultado), fusoCafe)} download={nomeIcs(agendaDe(resultado))}>Adicionar à agenda</a>
             {/* nova reserva: mesmos nome e telefone, mas o aceite da política é dado de novo */}
             <button class="ticket__link" type="button" onClick={() => { setResultado(null); setHora(null); setDados((d) => ({ ...d, consentimento: false })); setEtapa('escolha'); setTentativa((t) => t + 1); }}>Fazer outra reserva</button>
           </div>

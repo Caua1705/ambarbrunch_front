@@ -311,47 +311,35 @@ test.describe('envio: confirmação, clique duplo, erro e horário esgotado', ()
     const texto = (await page.locator('main').innerText()).toLowerCase();
     for (const falso of ['mesa reservada', 'garantida', 'whatsapp']) expect(texto, falso).not.toContain(falso);
     // na agenda, o pedido pendente diz que aguarda a equipe
-    const google = new URL((await page.getByRole('link', { name: 'Adicionar ao Google Agenda' }).getAttribute('href'))!);
-    expect(google.searchParams.get('details')).toContain('aguardando a aprovação da equipe');
+    const ics = decodeURIComponent((await page.getByRole('link', { name: 'Adicionar à agenda' }).getAttribute('href'))!);
+    expect(ics.replace(/\r\n /g, '')).toContain('aguardando a aprovação da equipe');
   });
 
-  test('agenda: Google Agenda preenchido (data, horário, duração do backend, local, fuso) só no toque; sem abrir sozinho', async ({ page, context }) => {
+  test('agenda: um botão só, “Adicionar à agenda”, que baixa o evento (.ics) — sem Google Agenda nem segunda opção', async ({ page }) => {
     await abrir(page);
     await escolherData(page, ABERTURA);
     await preencherEConfirmar(page);
     await page.getByRole('button', { name: 'Confirmar reserva' }).click();
     await expect(page.getByText('Mesa reservada')).toBeVisible();
-    expect(context.pages(), 'nada abre sem o toque').toHaveLength(1);
-    const google = page.getByRole('link', { name: 'Adicionar ao Google Agenda' });
-    await expect(google).toHaveAttribute('target', '_blank');
-    await expect(google).not.toHaveAttribute('download');
-    await expect(google).toHaveAttribute('href', /^https:\/\/calendar\.google\.com\//);
-    const url = new URL((await google.getAttribute('href'))!);
-    expect(`${url.origin}${url.pathname}`).toBe('https://calendar.google.com/calendar/render');
-    expect(url.searchParams.get('action')).toBe('TEMPLATE');
-    expect(url.searchParams.get('text')).toBe('Reserva no Âmbar Café');
-    // 09:00 a 12:00 no horário do café: duracaoMin = 180 veio da resposta do backend (api-falsa: formato real)
-    expect(url.searchParams.get('dates')).toBe('20261109T090000/20261109T120000');
-    expect(url.searchParams.get('ctz')).toBe('America/Fortaleza');
-    expect(url.searchParams.get('location')).toBe('Âmbar Café, Rua Tavares Coutinho, 1580, Meireles, Fortaleza - CE');
-    expect(url.searchParams.get('details')).toBe('Jardim externo · 2 pessoas');
-    // o botão principal abre o link do Google: não é download
-    // o toque abre o Google Agenda numa aba nova (o pedido é interceptado: o teste não sai para a internet)
-    await context.route('https://calendar.google.com/**', (r) => r.fulfill({ status: 200, contentType: 'text/html', body: '<title>Google Agenda</title>' }));
-    const [aba] = await Promise.all([context.waitForEvent('page'), google.click()]);
-    await aba.waitForLoadState();
-    expect(aba.url()).toContain('calendar.google.com/calendar/render?action=TEMPLATE');
-    await aba.close();
+    const acoes = page.locator('.ticket__actions a');
+    await expect(acoes).toHaveText(['Adicionar à agenda', 'Voltar ao início']);
+    await expect(page.locator('a[href*="calendar.google"]')).toHaveCount(0);
+    await expect(page.getByText(/outros calendários|google agenda/i)).toHaveCount(0);
+    const botao = page.getByRole('link', { name: 'Adicionar à agenda' });
+    await expect(botao).toHaveClass(/btn--wine/);
+    await expect(botao).toHaveAttribute('download', 'reserva-ambar-2026-11-09.ics');
+    const [arquivo] = await Promise.all([page.waitForEvent('download'), botao.click()]);
+    expect(arquivo.suggestedFilename()).toBe('reserva-ambar-2026-11-09.ics');
   });
 
-  test('confirmação não promete WhatsApp; “Outros calendários (.ics)” válido (Fortaleza em UTC, duração, local escapado, linhas ≤ 75 octetos); nova reserva pede o aceite de novo', async ({ page }) => {
+  test('confirmação não promete WhatsApp; “Adicionar à agenda” (.ics) válido (Fortaleza em UTC, duração, local escapado, linhas ≤ 75 octetos); nova reserva pede o aceite de novo', async ({ page }) => {
     await abrir(page);
     await escolherData(page, ABERTURA);
     await preencherEConfirmar(page);
     await page.getByRole('button', { name: 'Confirmar reserva' }).click();
     await expect(page.getByText('Mesa reservada')).toBeVisible();
     expect((await page.locator('main').innerText()).toLowerCase()).not.toContain('whatsapp');
-    const link = page.getByRole('link', { name: 'Outros calendários (.ics)' });
+    const link = page.getByRole('link', { name: 'Adicionar à agenda' });
     await expect(link).toHaveAttribute('download', 'reserva-ambar-2026-11-09.ics');
     const href = (await link.getAttribute('href'))!;
     expect(href.startsWith('data:text/calendar;charset=utf-8,')).toBe(true);
@@ -598,7 +586,7 @@ test.describe('página de confirmação (/reserva-confirmada/)', () => {
     await page.goto('/reserva-confirmada/');
     await expect(page.getByRole('heading', { level: 1, name: 'Nenhuma reserva recente' })).toBeVisible();
     await expect(page.locator('.ticket__review')).toHaveCount(0);
-    await expect(page.getByRole('link', { name: 'Adicionar ao Google Agenda' })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Adicionar à agenda' })).toHaveCount(0);
   });
 
   for (const largura of [360, 390, 430]) {
@@ -612,7 +600,7 @@ test.describe('página de confirmação (/reserva-confirmada/)', () => {
       await expect(page.getByRole('heading', { level: 1, name: 'Mesa reservada' })).toBeVisible();
       expect(await page.evaluate(() => scrollY), 'começa no topo').toBe(0);
       expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
-      for (const nome of ['Adicionar ao Google Agenda', 'Outros calendários (.ics)', 'Voltar ao início']) {
+      for (const nome of ['Adicionar à agenda', 'Voltar ao início']) {
         const b = (await page.getByRole('link', { name: nome, exact: true }).boundingBox())!;
         expect(b.x, nome).toBeGreaterThanOrEqual(0);
         expect(b.x + b.width, nome).toBeLessThanOrEqual(largura);
@@ -620,4 +608,51 @@ test.describe('página de confirmação (/reserva-confirmada/)', () => {
       }
     });
   }
+});
+
+test.describe('“Confira sua reserva”: só a comanda na tela, como a confirmação', () => {
+  for (const url of ['/', '/reservar/']) {
+    test(`${url}: na revisão a landing some (não há o que ver rolando para cima); "Editar" traz tudo de volta com os dados`, async ({ page }) => {
+      await abrir(page, {}, url);
+      await escolherData(page, ABERTURA);
+      await preencherEConfirmar(page);
+      await expect(page.locator('form.ticket .ticket__title')).toHaveText('Confira sua reserva');
+      // no topo, só a barra do logo e o cartão
+      expect(await page.evaluate(() => scrollY)).toBe(0);
+      await expect(page.locator('.reserva-marca')).toBeVisible();
+      expect((await page.locator('form.ticket').boundingBox())!.y, 'o cartão logo abaixo do logo').toBeLessThan(260);
+      for (const s of ['.hero', '.reserva > .mega', 'footer.footer', '[data-sticky-cta]', 'body > .page-bar']) await expect(page.locator(s).first(), s).toBeHidden();
+      // nada visível acima do cartão além da barra do logo
+      const acima = await page.evaluate(() => {
+        const topo = document.querySelector('form.ticket')!.getBoundingClientRect().top + scrollY;
+        return [...document.querySelectorAll('main *, body > *')].filter((e) => {
+          const r = e.getBoundingClientRect();
+          return r.height > 0 && r.bottom + scrollY <= topo && !e.closest('.reserva-marca') && !e.closest('.reserva');
+        }).length;
+      });
+      expect(acima, 'elementos da landing acima da revisão').toBe(0);
+      await expect(page.getByRole('button', { name: 'Confirmar reserva' })).toBeVisible();
+      // "Editar": volta a landing e a página fica na comanda, com os dados
+      await page.getByRole('button', { name: 'Editar' }).click();
+      await expect(page.locator('.reserva-marca')).toBeHidden();
+      await expect(page.locator('form.ticket')).toBeInViewport();
+      await expect(page.getByLabel('Nome')).toHaveValue('Maria Teste');
+      if (url === '/') await expect(page.locator('.hero')).toBeAttached();
+    });
+  }
+
+  test('erro de envio: a falha aparece na mesma tela só da comanda; horário esgotado (409) volta ao formulário com a landing', async ({ page }) => {
+    const c: Cenario = { envio: 'erro' };
+    await abrir(page, c);
+    await escolherData(page, ABERTURA);
+    await preencherEConfirmar(page);
+    await page.getByRole('button', { name: 'Confirmar reserva' }).click();
+    await expect(page.getByRole('alert')).toContainText('Não foi possível concluir');
+    await expect(page.locator('.reserva-marca')).toBeVisible();
+    c.envio = 'esgotado';
+    await page.getByRole('button', { name: 'Tentar de novo' }).click();
+    await expect(page.getByRole('alert')).toContainText('Este horário acabou de esgotar');
+    await expect(page.locator('.reserva-marca')).toBeHidden();
+    await expect(page.locator('form.ticket')).toBeInViewport();
+  });
 });

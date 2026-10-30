@@ -4,6 +4,7 @@
 // horários e se as reservas estão abertas (fechadas, a comanda mostra um aviso discreto). Sem API configurada,
 // “indisponível”: comanda ilustrativa, nada é coletado. Ver docs/technical/RESERVAS-LANCAMENTO.md.
 import MegaTitle from '../components/MegaTitle.astro';
+import Foto from '../components/Foto.astro';
 import ReservaFlow from '../islands/ReservaFlow';
 import { reservaveis } from '../data/ambientes';
 import { secoes } from '../data/secoes';
@@ -15,6 +16,10 @@ interface Props { titulo?: 'h1' | 'h2' }
 const { titulo = 'h2' } = Astro.props;
 const s = secoes.reserva;
 ---
+<!-- barra do logo da revisão da reserva: só aparece com a comanda sozinha na tela (ReservaFlow, html[data-comanda-sozinha]) -->
+<header class="page-bar reserva-marca">
+  <a href="/" aria-label="Âmbar Café — voltar ao início"><span class="label"><Foto src="brand/logo-ambar.png" alt="Âmbar Café" sizes="122px" widths={[122, 244, 366]} eager qualidade={80} /></span></a>
+</header>
 <section class="reserva" id={s.id} aria-labelledby="reserva-titulo" data-reserva data-vivo tabindex="-1">
   <MegaTitle linhas={[...s.linhas]} id="reserva-titulo" tom="light" scribble={s.sub} as={titulo} />
   <ReservaFlow client:visible={{ rootMargin: '400px' }} modo={modo} apiUrl={apiUrl} ambientes={reservaveis.opcoes} privacidadeUrl="/privacidade/" />

@@ -22,3 +22,14 @@
 .confirmada { display: flex; flex-direction: column; min-height: 100svh; }
 .reserva--confirmada { flex: 1 0 auto; padding-top: var(--s-14); }
 .reserva--confirmada .ticket { margin-top: 0; }
+
+/* Revisão da reserva ("Confira sua reserva", envio, falha) e confirmação na comanda: só a comanda na tela, como em
+   /reserva-confirmada/ — a landing some acima e abaixo e não há para onde rolar. ReservaFlow liga html[data-comanda-sozinha]
+   e volta ao normal no "Editar". */
+.page-bar.reserva-marca { display: none; }
+[data-comanda-sozinha] body > :not(main) { display: none !important; }
+[data-comanda-sozinha] main > :not(.reserva, .reserva-marca) { display: none !important; }
+[data-comanda-sozinha] .page-bar.reserva-marca { display: flex; }
+[data-comanda-sozinha] .reserva { min-height: 100svh; padding-top: var(--s-14); }
+[data-comanda-sozinha] .reserva > .mega { display: none; }
+[data-comanda-sozinha] .reserva .ticket { margin-top: 0; }
