@@ -19,6 +19,10 @@
 /* novos estados */
 .chip:disabled, .chip[aria-disabled="true"] { border-style: dashed; border-color: var(--rule); background: transparent; color: var(--text-muted); cursor: not-allowed; text-decoration: line-through; }
 .chip--skeleton { width: 74px; border-color: var(--rule); background: linear-gradient(100deg, var(--glaze) 30%, var(--butter) 50%, var(--glaze) 70%) 0 0 / 300% 100%; animation: shimmer var(--dur-loop-busy) linear infinite; pointer-events: none; }
+/* Na comanda o esqueleto fica parado: o brilho anima background-position, que repinta a cada quadro a seção com o grão
+   de papel (mix-blend-mode) — no iPhone, a primeira escolha de data travava enquanto os horários carregavam
+   (Chromium com CPU 6×: 123 pinturas em 1,8 s com o brilho, 36 sem). */
+.ticket .chip--skeleton { animation: none; }
 
 .stepper { display: inline-flex; align-items: center; gap: var(--s-6); }
 .stepper button { width: 46px; height: 46px; border: var(--border-control) solid var(--ink); border-radius: var(--radius-control); background: var(--glaze); color: var(--wine); font: var(--t-step-key); cursor: pointer; }
