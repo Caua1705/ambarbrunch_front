@@ -1,0 +1,58 @@
+---
+// Google Analytics 4 (2026-10-30). Só é renderizado com MEDICAO_LIGADA (src/lib/medicao-config.ts): ID definido, seção de
+// medição da política aprovada e build de produção. O que garante a ausência de dados pessoais:
+// - nada carrega para quem recusou (botão em /privacidade/, localStorage “ambar:medicao”) ou com Global Privacy Control;
+// - publicidade desligada: consentimento de anúncios negado, sem Google Signals e sem personalização de anúncios;
+// - page_location/page_referrer sem query string (só utm_* passam) e sem fragmento — nenhum token ou dado vai na URL;
+// - eventos só com categorias e números (lib/medicao.ts); o código da reserva nunca vai;
+// - cookie do GA de 13 meses (395 dias), não os 2 anos do padrão.
+// O gtag.js (~150 KB) só baixa depois do `load` da página, no tempo ocioso: não pesa no LCP nem na primeira interação.
+// Cliques medidos aqui (delegação, sem tocar nos componentes): “Reservar mesa”, “Como chegar”, Instagram e a agenda.
+import { GA4_ID } from '../lib/medicao-config';
+---
+<script is:inline define:vars={{ id: GA4_ID }}>
+try {
+  var recusou = false;
+  try { recusou = localStorage.getItem('ambar:medicao') === 'recusada'; } catch (e) {}
+  if (!recusou && !navigator.globalPrivacyControl) {
+    var limpa = function (href) {
+      var u = new URL(href, location.href), q = new URLSearchParams();
+      u.searchParams.forEach(function (v, k) { if (/^utm_/.test(k)) q.append(k, v); });
+      var s = q.toString();
+      return u.origin + u.pathname + (s ? '?' + s : '');
+    };
+    window.dataLayer = window.dataLayer || [];
+    window.gtag = function () { window.dataLayer.push(arguments); };
+    gtag('consent', 'default', { ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'granted' });
+    gtag('set', { allow_google_signals: false, allow_ad_personalization_signals: false });
+    gtag('js', new Date());
+    gtag('config', id, {
+      page_location: limpa(location.href),
+      page_referrer: document.referrer ? limpa(document.referrer) : '',
+      cookie_expires: 34128000,
+    });
+    document.addEventListener('click', function (ev) {
+      var a = ev.target instanceof Element ? ev.target.closest('a[href]') : null;
+      if (!a) return;
+      var h = a.getAttribute('href') || '';
+      if (/(^|\/)#reservar$|^\/reservar\/?$/.test(h)) {
+        gtag('event', 'abrir_reserva', { origem: a.closest('.hero') ? 'hero' : a.closest('.sheet') ? 'menu' : a.hasAttribute('data-sticky-cta') ? 'botao_fixo' : a.hasAttribute('data-ambiente') ? 'ambiente' : 'link' });
+      } else if (/google\.[a-z.]+\/maps|maps\.app\.goo\.gl/.test(h)) {
+        gtag('event', 'como_chegar', { origem: a.closest('footer') ? 'rodape' : 'link' });
+      } else if (/calendar\.google\.com/.test(h)) {
+        gtag('event', 'adicionar_agenda');
+      } else if (/instagram\.com/.test(h)) {
+        gtag('event', 'abrir_instagram', { perfil: /instagram\.com\/ambarbrunch/.test(h) ? 'ambar' : /instagram\.com\/roll\.ofc/.test(h) ? 'roll' : 'outro' });
+      }
+    }, { capture: true, passive: true });
+    var carregar = function () {
+      var s = document.createElement('script');
+      s.async = true;
+      s.src = 'https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(id);
+      document.head.appendChild(s);
+    };
+    var ocioso = function () { 'requestIdleCallback' in window ? requestIdleCallback(carregar, { timeout: 2500 }) : setTimeout(carregar, 1); };
+    document.readyState === 'complete' ? ocioso() : addEventListener('load', ocioso, { once: true });
+  }
+} catch (e) {}
+</script>

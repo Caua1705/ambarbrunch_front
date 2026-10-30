@@ -5,7 +5,10 @@ import bricolage from '@fontsource-variable/bricolage-grotesque/files/bricolage-
 import fraunces from '@fontsource-variable/fraunces/files/fraunces-latin-opsz-italic.woff2?url';
 import Dock from '../components/Dock.astro';
 import NavSheet from '../components/NavSheet.astro';
+import Medicao from '../components/Medicao.astro';
 import { REVISAO } from '../lib/conteudo';
+import { imagensSeo, seo, SITE } from '../data/seo';
+import { GSC_VERIFICACAO, MEDICAO_LIGADA, paginaMedida } from '../lib/medicao-config';
 
 interface Props {
   titulo?: string;
@@ -18,12 +21,17 @@ interface Props {
   enxuta?: boolean;
 }
 const {
-  titulo = 'Âmbar Brunch — café, brunch & rolls',
-  descricao = 'Âmbar Brunch: café, brunch de mesa cheia e cinnamon rolls com a assinatura da Roll. Reserve sua mesa.',
+  titulo = seo.titulo,
+  descricao = seo.descricao,
   indexar = !REVISAO,
   home = true,
   enxuta = false,
 } = Astro.props;
+// SEO (2026-10-30): endereço canônico sempre no domínio oficial — o mesmo HTML também responde em *.vercel.app, e o
+// Google deve contar só o ambarbrunch.com. Imagem de compartilhamento: o salão principal, 1200 × 630.
+const canonico = new URL(Astro.url.pathname, SITE).href;
+const { capa } = await imagensSeo();
+const medir = MEDICAO_LIGADA && paginaMedida(Astro.url.pathname);
 // Faixa Latin (português incluso), igual ao subconjunto do Google Fonts usado no protótipo.
 const LATIN = 'U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD';
 const fontes = `
@@ -43,10 +51,21 @@ const fontes = `
   <title>{titulo}</title>
   <meta name="description" content={descricao} />
   {!indexar && <meta name="robots" content="noindex" />}
+  {indexar && <link rel="canonical" href={canonico} />}
+  {GSC_VERIFICACAO && <meta name="google-site-verification" content={GSC_VERIFICACAO} />}
   <meta name="theme-color" content="#670D27" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content={seo.nome} />
+  <meta property="og:url" content={canonico} />
   <meta property="og:title" content={titulo} />
   <meta property="og:description" content={descricao} />
   <meta property="og:locale" content="pt_BR" />
+  {capa && <meta property="og:image" content={capa} />}
+  {capa && <meta property="og:image:width" content="1200" />}
+  {capa && <meta property="og:image:height" content="630" />}
+  {capa && <meta property="og:image:alt" content="Salão do Âmbar Café, com paredes cor de âmbar e luminárias acesas" />}
+  <meta name="twitter:card" content={capa ? 'summary_large_image' : 'summary'} />
+  {medir && <Medicao />}
   <!-- ícone oficial: o logo do Âmbar Brunch sobre creme -->
   <link rel="icon" href="/favicon-48.png" type="image/png" sizes="48x48" />
   <link rel="icon" href="/favicon.png" type="image/png" sizes="512x512" />

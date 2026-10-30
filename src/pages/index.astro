@@ -16,8 +16,13 @@ import ClubeConvite from '../sections/ClubeConvite.astro';
 import Footer from '../sections/Footer.astro';
 // 2026-10-27: o convite do Clube só entra com PUBLIC_CLUBE_HOME=1 (lib/clube-modo.ts); por padrão a reserva vai ao rodapé
 import { CLUBE_NA_HOME } from '../lib/clube-modo';
+// SEO local (2026-10-30): o café como negócio local para o Google (src/data/seo.ts)
+import { dadosEstruturados, imagensSeo, jsonLd } from '../data/seo';
+
+const ld = dadosEstruturados(await imagensSeo());
 ---
 <Base>
+  <script type="application/ld+json" slot="head" set:html={jsonLd(ld)} />
   <Hero />
   <main>
     <NovoCapitulo />

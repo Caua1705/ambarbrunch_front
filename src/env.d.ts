@@ -14,6 +14,11 @@ interface ImportMetaEnv {
   readonly PUBLIC_CLUBE_API_URL?: string;
   /** "1" = mostra o Clube na home e no menu (lib/clube-modo.ts). Desligado por padrão até o lançamento do Clube. */
   readonly PUBLIC_CLUBE_HOME?: string;
+  /** ID de medição do GA4 (G-XXXXXXXXXX). Público por natureza; só liga com a seção de medição da política aprovada
+   *  (src/lib/medicao-config.ts). Vazio = sem GA4. */
+  readonly PUBLIC_GA4_ID?: string;
+  /** Valor de content="…" da meta google-site-verification (opcional: a verificação recomendada é por DNS). */
+  readonly PUBLIC_GSC_VERIFICACAO?: string;
   /** Definida na compilação pelo painel (src/admin/integracao.mjs): `false` em build da Vercel — sem código de demonstração. */
   readonly PAINEL_DEMO_PERMITIDO?: boolean;
 }

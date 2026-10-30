@@ -120,3 +120,30 @@ export const privacidade = {
     },
   ] satisfies Secao[],
 };
+
+// Medição de audiência (Google Analytics 4), preparada em 30/10/2026. O GA4 SÓ entra no site com as duas coisas:
+// PUBLIC_GA4_ID na Vercel e esta seção aprovada pelo responsável (`aprovada: true`). Aprovada, ela substitui a seção
+// “Cookies e armazenamento no navegador” acima (que hoje diz, com razão, que não há cookies de rastreamento) e a versão
+// da política passa a ser a daqui — que também precisa ser registrada no backend:
+// `app.cli aprovar-privacidade --unidade ambar_cafe --versao "<versao>"`. Até lá, o texto aparece só no build de revisão.
+// Fatos conferidos no código (src/components/Medicao.astro): sem sinais de publicidade, endereços sem parâmetros,
+// eventos sem dados pessoais, cookie de 13 meses, recusa guardada no navegador e Global Privacy Control respeitado.
+export const medicao = {
+  aprovada: false,
+  versao: 'Versão 2026-11-v2',
+  secao: {
+    id: 'cookies', titulo: 'Cookies, medição de audiência e armazenamento no navegador',
+    itens: [
+      'Este site não usa ferramentas de publicidade nem cookies de publicidade.',
+      'Para saber quantas pessoas visitam o site, de onde elas chegam (por exemplo, pela busca do Google, pelo Google Maps ou pelo Instagram) e quantas reservas são feitas por ele, usamos o Google Analytics 4, do Google. Ele grava no seu navegador cookies próprios (_ga e _ga_…) com um número aleatório, que vencem em até 13 meses, e registra dados técnicos da visita, como páginas vistas, aparelho, navegador e cidade aproximada.',
+      'Não enviamos ao Google seu nome, telefone, e-mail, observações nem o código da reserva. De uma reserva feita pelo site, o Google recebe só a situação, o ambiente, o número de pessoas, o dia da semana, o horário e a antecedência. Os endereços das páginas vão sem parâmetros, exceto os de campanha (utm_). Os sinais de publicidade e de personalização de anúncios do Google ficam desligados.',
+      'As páginas do Clube Âmbar e o painel da equipe não são medidos.',
+      revisar('Usamos essa medição por legítimo interesse do Âmbar em entender o uso do site e melhorá-lo (Lei 13.709/2018, art. 7º, IX).',
+        'base proposta: legítimo interesse, com recusa simples (botão abaixo) e sem publicidade; registrar a avaliação de legítimo interesse (art. 10). O Guia de Cookies da ANPD (2022) prefere consentimento para cookies não necessários — a alternativa é um aviso de consentimento, que muda o visual do site'),
+      revisar('O Google é uma empresa estrangeira e pode tratar esses dados fora do Brasil (transferência internacional, art. 33 da lei).',
+        'conferir nos termos do Google Analytics (Google Ads Data Processing Terms) o mecanismo do art. 33 — cláusulas-padrão da ANPD, Res. CD/ANPD nº 19/2024'),
+      'Para não ser medido neste navegador, use o botão “Não medir minhas visitas” logo abaixo; a escolha fica guardada só no seu navegador, até você apagar os dados do site. Se o seu navegador enviar o sinal Global Privacy Control, a medição também não acontece.',
+      'Ficam só no seu navegador a escolha “pausar animações” e, se você usar esse botão, a de não ser medido. O que você digita na reserva não fica guardado no navegador.',
+    ],
+  } satisfies Secao,
+};

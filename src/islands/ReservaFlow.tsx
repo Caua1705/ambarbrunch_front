@@ -15,6 +15,7 @@ import { visita } from '../data/visita';
 import { conferirTelefone, mascaraTel, telefoneNacional, uuid } from '../lib/telefone';
 import { FUSO_CAFE, linkGoogleAgenda, type ReservaAgenda } from '../lib/agenda';
 import { guardarConfirmacao, ROTA_CONFIRMADA } from '../lib/reserva-confirmada';
+import { medirReserva } from '../lib/medicao';
 
 type Modo = 'indisponivel' | 'simulado' | 'api';
 export type Etapa = 'escolha' | 'revisao' | 'enviando' | 'confirmada' | 'falha';
@@ -415,6 +416,8 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
       const r = await api.criar(pedido(), chave.current);
       // a próxima reserva (outra mesa, outro dia) nasce com chave nova
       chaveDe.current = '';
+      // conversão no GA4, quando a medição está ligada (sem dados pessoais; lib/medicao.ts) — nunca lança erro
+      if (modo === 'api' && !demo) medirReserva(r, fusoCafe);
       // No site (API real), a confirmação é uma página própria, sem a landing nem a comanda: a reserva vai para o
       // sessionStorage (sem dados pessoais) e a página é TROCADA (replace) — o “voltar” não reabre a comanda preenchida
       // e recarregar a confirmação não envia nada. Se o navegador recusar o armazenamento, a confirmação fica aqui mesmo.

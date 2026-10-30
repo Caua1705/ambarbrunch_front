@@ -8,13 +8,21 @@
 import Base from '../layouts/Base.astro';
 import Foto from '../components/Foto.astro';
 import Footer from '../sections/Footer.astro';
-import { privacidade, isRevisar } from '../data/privacidade';
+import { privacidade, medicao, isRevisar } from '../data/privacidade';
 import { REVISAO, isPendente } from '../lib/conteudo';
+import { GA4_ID, MEDICAO_LIGADA } from '../lib/medicao-config';
 
 const rascunho = !privacidade.aprovada && REVISAO;
 const reservasNoSite = import.meta.env.PUBLIC_RESERVAS_MODO === 'api' && !!import.meta.env.PUBLIC_RESERVAS_API_URL;
 const provisoria = !privacidade.aprovada && !REVISAO && reservasNoSite;
 const mostrar = privacidade.aprovada || rascunho || provisoria;
+// Medição de audiência (GA4, 2026-10-30): com o GA4 no ar, a seção de medição substitui a de cookies e a versão da
+// política é a dela. Antes de aprovada, ela aparece só no build de revisão, marcada como rascunho e com as notas.
+const previaMedicao = REVISAO && !medicao.aprovada;
+const comMedicao = MEDICAO_LIGADA || previaMedicao;
+const secoes = comMedicao ? privacidade.secoes.map((s) => (s.id === medicao.secao.id ? medicao.secao : s)) : privacidade.secoes;
+const versao = MEDICAO_LIGADA ? medicao.versao : privacidade.versao;
+const notas = (secao: { id: string }) => rascunho || (previaMedicao && secao === medicao.secao);
 ---
 <Base titulo="Privacidade — Âmbar Brunch" home={false} indexar={false}>
   <header class="page-bar">
@@ -33,19 +41,28 @@ const mostrar = privacidade.aprovada || rascunho || provisoria;
               tratam os seus dados hoje.
             </p>
           )}
-          {privacidade.secoes.map((secao) => (
+          {secoes.map((secao) => (
             <section aria-labelledby={`priv-${secao.id}`}>
               <h2 id={`priv-${secao.id}`}>{secao.titulo}</h2>
+              {previaMedicao && secao === medicao.secao && (
+                <p class="doc__rascunho" role="note">Rascunho da medição de audiência (GA4) — não publicado. Só entra no site aprovado pelo responsável e com o ID do GA4 na Vercel ({medicao.versao}).</p>
+              )}
               {secao.itens.map((item) => isPendente(item)
-                ? (rascunho && <p class="doc__pendente">A confirmar: {item.falta}</p>)
+                ? (notas(secao) && <p class="doc__pendente">A confirmar: {item.falta}</p>)
                 : isRevisar(item)
-                  ? <><p>{item.texto}</p>{rascunho && <p class="doc__pendente">Validar: {item.revisar}</p>}</>
+                  ? <><p>{item.texto}</p>{notas(secao) && <p class="doc__pendente">Validar: {item.revisar}</p>}</>
                   : <p>{item}</p>)}
+              {comMedicao && secao === medicao.secao && (
+                <p>
+                  <button type="button" class="btn btn--wine" data-medicao-recusa hidden>Não medir minhas visitas</button>
+                  <span data-medicao-estado role="status"></span>
+                </p>
+              )}
             </section>
           ))}
-          {isPendente(privacidade.versao)
-            ? rascunho && <p class="doc__pendente">A confirmar: {privacidade.versao.falta}</p>
-            : <p class="doc__versao">{privacidade.versao}</p>}
+          {isPendente(versao)
+            ? rascunho && <p class="doc__pendente">A confirmar: {versao.falta}</p>
+            : <p class="doc__versao">{versao}</p>}
         </>
       ) : (
         <>
@@ -57,4 +74,29 @@ const mostrar = privacidade.aprovada || rascunho || provisoria;
     </article>
   </main>
   <Footer />
+  {/* recusa da medição (só com a seção de medição): guardada só neste navegador e lida por components/Medicao.astro */}
+  {comMedicao && (
+    <script is:inline define:vars={{ id: GA4_ID }}>
+    (function () {
+      var b = document.querySelector('[data-medicao-recusa]'), e = document.querySelector('[data-medicao-estado]');
+      if (!b || !e) return;
+      var ler = function () { try { return localStorage.getItem('ambar:medicao') === 'recusada'; } catch (x) { return null; } };
+      var mostrar = function () {
+        var r = ler();
+        if (r === null) { e.textContent = 'Seu navegador não permite guardar essa escolha.'; return; }
+        b.hidden = false;
+        b.textContent = r ? 'Voltar a medir minhas visitas' : 'Não medir minhas visitas';
+        e.textContent = navigator.globalPrivacyControl ? ' Seu navegador envia o sinal Global Privacy Control: suas visitas não são medidas.'
+          : r ? ' Suas visitas não são medidas neste navegador.' : '';
+      };
+      b.addEventListener('click', function () {
+        var r = ler();
+        try { if (r) localStorage.removeItem('ambar:medicao'); else localStorage.setItem('ambar:medicao', 'recusada'); } catch (x) {}
+        if (id) window['ga-disable-' + id] = !r;
+        mostrar();
+      });
+      mostrar();
+    })();
+    </script>
+  )}
 </Base>
