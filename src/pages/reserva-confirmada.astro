@@ -7,10 +7,12 @@ import Foto from '../components/Foto.astro';
 import ReservaConfirmada from '../islands/ReservaConfirmada';
 ---
 <Base titulo="Reserva confirmada — Âmbar Café" descricao="Confirmação da reserva no Âmbar Café." home={false} indexar={false} enxuta>
+  <div class="confirmada">
   <header class="page-bar">
     <a href="/" aria-label="Âmbar Café — voltar ao início"><span class="label"><Foto src="brand/logo-ambar.png" alt="Âmbar Café" sizes="122px" widths={[122, 244, 366]} prioridade qualidade={80} /></span></a>
   </header>
   <main class="reserva reserva--confirmada">
     <ReservaConfirmada client:load />
   </main>
+  </div>
 </Base>

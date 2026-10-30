@@ -17,7 +17,8 @@
 
 /* /reserva-confirmada/: só o cartão, no mesmo vinho com grão da reserva; sem o título grande da landing, o respiro de
    cima é o da barra do logo. O vinho com grão vai até o fim da tela (o papel do corpo não aparece abaixo de um cartão
-   curto); com conteúdo maior, a página rola normalmente. */
-body:has(> main.reserva--confirmada) { display: flex; flex-direction: column; min-height: 100svh; }
+   curto); com conteúdo maior, a página rola normalmente. Um invólucro próprio, sem body:has(): com :has() no body,
+   o WebKit (Playwright, emulação de celular) caía ao montar o cartão numa página que rola. */
+.confirmada { display: flex; flex-direction: column; min-height: 100svh; }
 .reserva--confirmada { flex: 1 0 auto; padding-top: var(--s-14); }
 .reserva--confirmada .ticket { margin-top: 0; }

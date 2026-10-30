@@ -325,6 +325,7 @@ test.describe('envio: confirmação, clique duplo, erro e horário esgotado', ()
     const google = page.getByRole('link', { name: 'Adicionar ao Google Agenda' });
     await expect(google).toHaveAttribute('target', '_blank');
     await expect(google).not.toHaveAttribute('download');
+    await expect(google).toHaveAttribute('href', /^https:\/\/calendar\.google\.com\//);
     const url = new URL((await google.getAttribute('href'))!);
     expect(`${url.origin}${url.pathname}`).toBe('https://calendar.google.com/calendar/render');
     expect(url.searchParams.get('action')).toBe('TEMPLATE');
