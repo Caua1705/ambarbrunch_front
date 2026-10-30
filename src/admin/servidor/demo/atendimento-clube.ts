@@ -63,10 +63,19 @@ const achar = (id: string) => {
   if (!c) throw new ErroDemo(404, 'nao_encontrado', 'Conversa não encontrada.');
   return c;
 };
+/** Regra de servico._assumir do backend: com outra pessoa atendendo, só com `transferir` (senão 409). */
+function assumirDemo(c: ConversaDetalhe, papel: Papel, transferir: boolean) {
+  const u = usuarioDemo(papel);
+  if (c.modo === 'humano' && c.atendente_id === u.id) return;
+  if (c.modo === 'humano' && c.atendente_id && !transferir) throw new ErroDemo(409, 'conversa_ja_assumida', 'Outra pessoa da equipe já está atendendo esta conversa.');
+  Object.assign(c, { modo: 'humano', atendente_id: u.id, atendente_nome: u.nome });
+  // como o backend: o que o robô ia mandar fica descartado
+  for (const m of c.mensagens) if (m.autor === 'robo' && m.status === 'pendente') Object.assign(m, { status: 'descartada', erro: 'atendimento_humano' });
+}
 function atualizar(c: ConversaDetalhe) {
   const ultima = c.mensagens[c.mensagens.length - 1];
   c.ultima_atividade_em = ultima.criado_em;
-  c.ultima_mensagem = ultima.texto;
+  c.ultima_mensagem = (ultima.texto ?? ultima.transcricao ?? `[${ultima.tipo}]`).slice(0, 160);
   c.aguardando_equipe = c.modo === 'humano' && ultima.direcao === 'entrada';
   return c;
 }
@@ -120,6 +129,7 @@ export const ROTAS_ATENDIMENTO_CLUBE: Rota[] = [
     const modo = query.get('modo');
     const ag = query.get('aguardando_equipe') === 'true';
     const busca = query.get('busca')?.toLowerCase();
+    if (busca !== undefined && busca.trim().length < 2) throw new ErroDemo(422, 'validacao', 'A busca precisa de pelo menos 2 caracteres.');
     return conversas
       .filter((c) => (!modo || c.modo === modo) && (!ag || c.aguardando_equipe) && (!busca || (c.nome_contato ?? '').toLowerCase().includes(busca) || c.telefone_e164.includes(busca.replace(/\D/g, '') || '§')))
       .sort((a, b) => Number(b.aguardando_equipe) - Number(a.aguardando_equipe) || b.ultima_atividade_em.localeCompare(a.ultima_atividade_em))
@@ -127,25 +137,25 @@ export const ROTAS_ATENDIMENTO_CLUBE: Rota[] = [
   }],
   ['GET', /^atendimento\/conversas\/([0-9a-f-]{36})\/mensagens$/, TODOS, () => []],
   ['GET', /^atendimento\/conversas\/([0-9a-f-]{36})$/, TODOS, ({ params }) => achar(params[0])],
-  ['POST', /^atendimento\/conversas\/([0-9a-f-]{36})\/assumir$/, TODOS, ({ params, papel }) => {
+  ['POST', /^atendimento\/conversas\/([0-9a-f-]{36})\/assumir$/, TODOS, async ({ params, papel, corpo }) => {
     const c = achar(params[0]);
-    const u = usuarioDemo(papel);
-    Object.assign(c, { modo: 'humano', atendente_id: u.id, atendente_nome: u.nome });
+    assumirDemo(c, papel, Boolean((await corpo<{ transferir?: boolean } | null>())?.transferir));
     return atualizar(c);
   }],
   ['POST', /^atendimento\/conversas\/([0-9a-f-]{36})\/responder$/, TODOS, async ({ params, papel, corpo }) => {
     const c = achar(params[0]);
-    if (!c.dentro_da_janela) throw new ErroDemo(409, 'fora_da_janela_24h', 'Fora da janela de 24 h da Meta.');
     const { texto } = await corpo<{ texto: string }>();
     if (!texto?.trim()) throw new ErroDemo(422, 'regra_violada', 'Escreva a resposta.');
+    // como o backend: responder também assume (e pausa o robô) antes de conferir a janela de 24 h
+    assumirDemo(c, papel, false);
+    if (!c.dentro_da_janela) throw new ErroDemo(409, 'fora_da_janela_24h', 'Passaram 24 h da última mensagem do cliente: a Meta só aceita template. Fale com o cliente por telefone.');
     const u = usuarioDemo(papel);
-    Object.assign(c, { modo: 'humano', atendente_id: u.id, atendente_nome: u.nome });
     // DEMONSTRAÇÃO: nada é enviado — a mensagem só entra na lista local.
-    c.mensagens.push(msg('saida', 'equipe', texto.trim(), 0, { usuario_nome: u.nome, status: 'enviada' }));
+    c.mensagens.push(msg('saida', 'equipe', texto.trim().slice(0, 2000), 0, { usuario_nome: u.nome, status: 'enviada' }));
     return atualizar(c);
   }],
-  ['POST', /^atendimento\/conversas\/([0-9a-f-]{36})\/devolver$/, TODOS, ({ params }) => atualizar(Object.assign(achar(params[0]), { modo: 'robo', atendente_id: null, atendente_nome: null }))],
-  ['POST', /^atendimento\/conversas\/([0-9a-f-]{36})\/encerrar$/, TODOS, ({ params }) => atualizar(Object.assign(achar(params[0]), { modo: 'encerrada', atendente_id: null, atendente_nome: null }))],
+  ['POST', /^atendimento\/conversas\/([0-9a-f-]{36})\/devolver$/, TODOS, ({ params }) => atualizar(Object.assign(achar(params[0]), { modo: 'robo', atendente_id: null, atendente_nome: null, motivo_humano: null }))],
+  ['POST', /^atendimento\/conversas\/([0-9a-f-]{36})\/encerrar$/, TODOS, ({ params }) => atualizar(Object.assign(achar(params[0]), { modo: 'encerrada', atendente_id: null, atendente_nome: null, motivo_humano: null }))],
 
   ['GET', /^clube\/resumo$/, TODOS, () => ({
     inscricoes_abertas: false, programa_ativo: false, credito_automatico: false,

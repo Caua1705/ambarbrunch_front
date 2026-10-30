@@ -8,7 +8,9 @@ const TOKEN = 'token-de-teste-nao-secreto';
 let ultimo = null;
 let revogado = false;
 let ipDoLogin = null;
-const usuario = { id: '11111111-1111-4111-8111-111111111111', nome: 'Gerente Teste', email: 'gerente@teste.invalid', papel: 'gerente', unidades: [1] };
+// ?unidade= da última consulta de reservas (prova que a ponte manda a unidade que o topo mostra)
+let unidadeConsultada;
+const usuario = { id: '11111111-1111-4111-8111-111111111111', nome: 'Gerente Teste', email: 'gerente@teste.invalid', papel: 'gerente', unidades: [1, 11] };
 const hoje = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Fortaleza' }).format(new Date());
 
 // Cenário do Modo Operação: um dia de movimento em volta de um instante (nomes fictícios, só deste teste).
@@ -57,7 +59,7 @@ http.createServer(async (req, res) => {
   let corpo = '';
   for await (const parte of req) corpo += parte;
   if (url.pathname === '/saude') return json(res, 200, { status: 'ok' });
-  if (url.pathname === '/__ultimo') return json(res, 200, { authorization: ultimo, ip_do_login: ipDoLogin, revogado, patches: controle.patches });
+  if (url.pathname === '/__ultimo') return json(res, 200, { authorization: ultimo, ip_do_login: ipDoLogin, revogado, patches: controle.patches, unidade: unidadeConsultada ?? null });
   if (url.pathname === '/__controle' && req.method === 'POST') {
     // ?cenario=<instante ISO> monta um dia de movimento em volta desse instante; ?cenario= (vazio) volta ao padrão
     if (url.searchParams.has('cenario')) cenario = url.searchParams.get('cenario') ? montarCenario(new Date(url.searchParams.get('cenario'))) : null;
@@ -82,7 +84,12 @@ http.createServer(async (req, res) => {
     return res.end();
   }
   if (url.pathname === '/admin/auth/me') return json(res, 200, usuario);
-  if (url.pathname === '/admin/unidades') return json(res, 200, [{ id: 1, codigo: 'ambar_cafe', nome: 'Âmbar Café', razao_social: null, cnpj: null, ativo: true }]);
+  // Como a produção: a operação real e a unidade de ensaio (código terminado em "_teste").
+  if (url.pathname === '/admin/unidades') return json(res, 200, [
+    { id: 1, codigo: 'ambar_cafe', nome: 'Âmbar Café', razao_social: null, cnpj: null, ativo: true },
+    { id: 11, codigo: 'ambar_teste', nome: 'Âmbar · TESTES', razao_social: null, cnpj: null, ativo: true },
+  ]);
+  if (url.pathname.startsWith('/admin/reservas')) unidadeConsultada = url.searchParams.get('unidade');
   // Modo Operação: chegada como na produção de hoje (sem PUT …/comparecimento → PATCH …/status), com contagem, demora,
   // falha e sessão vencida sob demanda.
   if (/^\/admin\/reservas\/[0-9a-f-]{36}\/comparecimento$/.test(url.pathname) && req.method === 'PUT') return json(res, 404, { detail: 'Not Found' });

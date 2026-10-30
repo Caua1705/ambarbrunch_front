@@ -1,10 +1,34 @@
-// Rótulos e utilidades do Financeiro, comuns às quatro abas.
+// Rótulos e utilidades do Financeiro, comuns às sete abas.
+import { createContext } from 'preact';
+import { useContext } from 'preact/hooks';
 import { useConsulta, invalidar } from '../../lib/consulta';
 import { financeiro } from '../../lib/api/financeiro';
 import { Situacao, Etiqueta, type Tom } from '../../ui/base';
 import type { Categoria, NivelQualidade, Qualidade, SituacaoConta, EstadoConciliacao, FormaPagamento, NivelConciliacao } from '../../lib/tipos/financeiro';
 import { ErroApi } from '../../lib/api/cliente';
 import { avisar, avisarErro } from '../../ui/camadas';
+import type { Papel, Usuario } from '../../lib/sessao';
+
+// Permissões do Financeiro como o backend decide (GET /admin/auth/me → usuario.permissoes). Sem a lista (demonstração,
+// sessão antiga), vale o espelho da matriz do backend (app/modulos/usuarios/permissoes.py). Só esconde o que a pessoa
+// não pode usar: quem decide é a rota (403).
+export type PermissaoFinanceiro = 'financeiro.visualizar' | 'financeiro.lancar' | 'financeiro.conciliar' | 'financeiro.ver_societario' | 'financeiro.configurar';
+const ESPELHO: Record<Papel, PermissaoFinanceiro[]> = {
+  admin: ['financeiro.visualizar', 'financeiro.lancar', 'financeiro.conciliar', 'financeiro.ver_societario', 'financeiro.configurar'],
+  gerente: ['financeiro.visualizar', 'financeiro.lancar', 'financeiro.conciliar'],
+  operador: [],
+};
+export function temPermissao(usuario: Usuario, p: PermissaoFinanceiro): boolean {
+  return usuario.permissoes ? usuario.permissoes.includes(p) : ESPELHO[usuario.papel].includes(p);
+}
+
+/** Usuário da sessão para as partes do módulo que não recebem o contexto (seletores, gavetas). */
+export const UsuarioFinanceiro = createContext<Usuario | null>(null);
+/** Permissão do Financeiro no componente (fora do provedor: nega). */
+export function usePermissao(p: PermissaoFinanceiro): boolean {
+  const u = useContext(UsuarioFinanceiro);
+  return !!u && temPermissao(u, p);
+}
 
 export const atualizarFinanceiro = () => invalidar('financeiro');
 
@@ -25,7 +49,7 @@ export const ORIGEM: Record<string, string> = {
 };
 
 export const TIPO_LANCAMENTO: Record<string, string> = {
-  venda_dia: 'Vendas do dia',
+  venda_dia: 'Vendas do PDV',
   despesa: 'Despesa',
   pagamento: 'Pagamento',
   outra_receita: 'Outra receita',
@@ -160,10 +184,12 @@ export const GRUPO: Record<string, string> = {
   pendente: 'A classificar',
 };
 
-/** Select de categorias agrupadas (só ativas; "A classificar" fica de fora — é o que se está corrigindo). */
+/** Select de categorias agrupadas (só ativas; "A classificar" fica de fora — é o que se está corrigindo). Retiradas de
+ *  sócios só para quem tem financeiro.ver_societario: para os outros o backend recusa (403), como no painel antigo. */
 export function OpcoesCategoria({ cats }: { cats: Categoria[] }) {
+  const societario = usePermissao('financeiro.ver_societario');
   const grupos = new Map<string, Categoria[]>();
-  for (const c of cats.filter((c) => c.ativo && c.grupo !== 'pendente')) {
+  for (const c of cats.filter((c) => c.ativo && c.grupo !== 'pendente' && (societario || c.grupo !== 'retirada'))) {
     const g = grupos.get(c.grupo) ?? [];
     g.push(c);
     grupos.set(c.grupo, g);
@@ -180,3 +206,19 @@ export function OpcoesCategoria({ cats }: { cats: Categoria[] }) {
     </>
   );
 }
+
+/** Meios de pagamento registrados no PDV (relatório de vendas e taxas do cartão/PIX). */
+export const MEIO: Record<string, string> = {
+  credito: 'Crédito',
+  debito: 'Débito',
+  pix: 'Pix',
+  outro: 'Outros (dinheiro, voucher…)',
+};
+
+/** Bases possíveis da participação (apuracao.py BASES). */
+export const BASE_PARTICIPACAO: Record<string, string> = {
+  receita_liquida: 'Receita líquida',
+  margem_bruta: 'Margem bruta',
+  resultado_operacional: 'Resultado operacional',
+  resultado_gerencial: 'Resultado gerencial',
+};

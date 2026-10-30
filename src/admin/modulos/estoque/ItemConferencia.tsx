@@ -18,8 +18,8 @@ const CONFIANCA = { alta: 'Confiança alta', media: 'Confiança média — confi
 
 type Modo = 'ver' | 'trocar' | 'conversao' | 'nao_estoque' | 'novo';
 
-export function ItemConferencia({ compraId, it, aoMudar }: { compraId: string; it: ItemCompra; aoMudar: () => void }) {
-  const [modo, setModo] = useState<Modo>(it.situacao === 'pendente' && !it.sugestao?.insumo_id ? 'trocar' : 'ver');
+export function ItemConferencia({ compraId, fornecedorId, it, editavel, podeCriarInsumo, aoMudar }: { compraId: string; fornecedorId: string | null; it: ItemCompra; editavel: boolean; podeCriarInsumo: boolean; aoMudar: () => void }) {
+  const [modo, setModo] = useState<Modo>(editavel && it.situacao === 'pendente' && !it.sugestao?.insumo_id ? 'trocar' : 'ver');
   const [ocupado, setOcupado] = useState(false);
   const [pendente, setPendente] = useState<{ insumo_id?: string; novo?: { nome: string; unidade_base: UnidadeBase }; unidade: UnidadeBase | null; texto: string } | null>(null);
   const [fator, setFator] = useState('');
@@ -51,9 +51,18 @@ export function ItemConferencia({ compraId, it, aoMudar }: { compraId: string; i
     }
   }
 
+  // insumos-sugestoes devolve UM objeto (a melhor associação para o texto, ou insumo_id null): ele vai no topo, e a
+  // busca no catálogo completa as opções.
   const buscar = async (texto: string): Promise<OpcaoAuto[]> => {
-    const r = await estoque.sugestoesInsumo(texto.trim() || it.descricao, it.unidade);
-    return r.map((x) => ({ valor: x.insumo_id, rotulo: x.insumo, detalhe: `em ${UNIDADE_CURTA[x.unidade_base]}` }));
+    const t = texto.trim();
+    const [sug, cat] = await Promise.all([
+      estoque.sugestaoInsumo((t || it.descricao).slice(0, 200), it.unidade, fornecedorId).catch(() => null),
+      estoque.insumos({ busca: t || undefined, limite: 20 }),
+    ]);
+    const opcoes: OpcaoAuto[] = [];
+    if (sug?.insumo_id && sug.insumo && (t.length >= 2 || !t)) opcoes.push({ valor: sug.insumo_id, rotulo: sug.insumo, detalhe: `sugestão · ${CONFIANCA[sug.confianca] ?? sug.confianca}${sug.unidade_base ? ` · em ${UNIDADE_CURTA[sug.unidade_base]}` : ''}` });
+    for (const i of cat.itens) if (i.id !== sug?.insumo_id) opcoes.push({ valor: i.id, rotulo: i.nome, detalhe: `em ${UNIDADE_CURTA[i.unidade_base]}` });
+    return opcoes;
   };
 
   const fatorN = Number(fator.replace(',', '.'));
@@ -88,7 +97,7 @@ export function ItemConferencia({ compraId, it, aoMudar }: { compraId: string; i
           {s.quantidade_base && s.unidade_base && <span class="num">{quantidade(s.quantidade_base, s.unidade_base)}</span>}
           {s.fator && s.unidade_base && <span class="fraco num">1 {it.unidade} = {quantidade(s.fator, s.unidade_base)}</span>}
           {s.custo_unitario_base && s.unidade_base && <span class="num">{custoBase(s.custo_unitario_base, s.unidade_base)}</span>}
-          {it.situacao === 'pendente' && s.confianca !== 'alta' && <Etiqueta tom="atencao">{CONFIANCA[s.confianca]}</Etiqueta>}
+          {it.situacao === 'pendente' && s.confianca && s.confianca !== 'alta' && <Etiqueta tom="atencao">{CONFIANCA[s.confianca]}</Etiqueta>}
           {it.situacao === 'pendente' && !s.fator && <span class="fraco">Falta a conversão</span>}
         </div>
       )}
@@ -101,7 +110,7 @@ export function ItemConferencia({ compraId, it, aoMudar }: { compraId: string; i
             valor={null}
             buscar={buscar}
             aoEscolher={(o) => o && resolver({ insumo_id: o.valor }, `Item associado a ${o.rotulo}.`)}
-            criar={{ rotulo: (t) => `Criar o insumo “${t}”`, acao: (t) => { setNovoNome(t); setModo('novo'); } }}
+            criar={podeCriarInsumo ? { rotulo: (t) => `Criar o insumo “${t}”`, acao: (t) => { setNovoNome(t); setModo('novo'); } } : undefined}
           />
           {s?.insumo_id ? (
             <Botao tamanho="p" variante="fantasma" onClick={() => setModo('ver')}>Voltar</Botao>
@@ -150,7 +159,7 @@ export function ItemConferencia({ compraId, it, aoMudar }: { compraId: string; i
 
       {modo === 'nao_estoque' && <NaoEstoque ocupado={ocupado} aoEscolher={(c, nome) => resolver({ nao_estoque: c }, `Marcado como despesa (${nome}).`)} aoVoltar={() => setModo(s?.insumo_id || it.situacao !== 'pendente' ? 'ver' : 'trocar')} />}
 
-      {modo === 'ver' && (
+      {modo === 'ver' && editavel && (
         <div class="item-compra__acoes">
           {it.situacao === 'pendente' && s?.insumo_id && s.fator && (
             <Botao tamanho="p" variante="primario" icone={<Check aria-hidden="true" />} carregando={ocupado} onClick={() => resolver({ insumo_id: s.insumo_id! }, `Confirmado: ${s.insumo}.`)}>

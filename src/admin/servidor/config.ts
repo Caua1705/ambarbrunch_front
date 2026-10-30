@@ -9,18 +9,22 @@ export const DEMO_PERMITIDO = import.meta.env.PAINEL_DEMO_PERMITIDO === true;
 /**
  * - `api`: fala com o backend em PAINEL_API_URL (login real, dados reais).
  * - `demo`: dados de DEMONSTRAÇÃO em memória, nada sai para o backend. Só em build local (nunca na Vercel).
- * - `indisponivel` (padrão): a tela de login explica que o painel ainda não está conectado; ninguém entra.
+ * - `indisponivel`: a tela de login explica que o painel ainda não está conectado; ninguém entra.
+ * Padrão: `api` na Vercel (o painel publicado fala com o backend real), `indisponivel` fora dela.
  */
 export function modoPainel(): ModoPainel {
-  const modo = PAINEL_MODO ?? 'indisponivel';
+  const modo = PAINEL_MODO ?? (process.env.VERCEL ? 'api' : 'indisponivel');
   if (modo === 'demo') return DEMO_PERMITIDO && !process.env.VERCEL ? 'demo' : 'indisponivel';
   if (modo === 'api') return apiBase() ? 'api' : 'indisponivel';
   return 'indisponivel';
 }
 
-/** URL base do backend, sem barra no fim. Na Vercel só https. */
+/**
+ * URL base do backend, sem barra no fim. Na Vercel só https. Sem PAINEL_API_URL, vale a mesma API do site público
+ * deste ambiente (PUBLIC_RESERVAS_API_URL, gravada no build): o painel e as reservas do site falam com o mesmo backend.
+ */
 export function apiBase(): string | null {
-  const url = PAINEL_API_URL?.trim().replace(/\/+$/, '');
+  const url = (PAINEL_API_URL?.trim() || (import.meta.env.PUBLIC_RESERVAS_API_URL ?? '').trim()).replace(/\/+$/, '');
   if (!url) return null;
   if (process.env.VERCEL && !url.startsWith('https://')) return null;
   return url;

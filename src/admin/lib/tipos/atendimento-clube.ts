@@ -1,5 +1,5 @@
 // Atendimento (WhatsApp oficial da Meta) e Clube Âmbar — CONTRATO-PAINEL-ADMIN.md §6 e §7.
-// Ainda NÃO publicados em produção (as rotas respondem 404 lá até a migração 0006/0008).
+// Publicados em produção (backend na migração 0017). Atendimento conferido com app/modulos/atendimento/api_admin.py.
 import type { Data, Dec, Instante, Uuid } from './comum';
 
 export type ModoConversa = 'robo' | 'humano' | 'encerrada';
@@ -15,11 +15,16 @@ export interface ConversaResumo {
   ultima_entrada_em: Instante | null;
   ultima_atividade_em: Instante;
   ultima_mensagem: string | null;
+  /** Com a equipe e a última mensagem é do cliente. */
   aguardando_equipe: boolean;
+  /** Com a equipe e sem movimento há 30 min (só sinaliza; o robô não volta sozinho). */
   inativa: boolean;
   /** Dentro da janela de 24 h da Meta: só assim a equipe pode responder com texto livre. */
   dentro_da_janela: boolean;
 }
+
+/** Status de uma mensagem: recebida (do cliente), pendente (saindo), enviada, entregue, lida, falhou, descartada. */
+export type StatusMensagem = 'recebida' | 'pendente' | 'enviada' | 'entregue' | 'lida' | 'falhou' | 'descartada';
 
 export interface MensagemPainel {
   id: number;

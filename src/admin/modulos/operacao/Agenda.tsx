@@ -74,6 +74,14 @@ export function Agenda({ contexto, agora }: { contexto: ContextoPainel; agora: n
   const visiveis = vista === 'dia' ? diaInteiro(doAmbiente) : vista === 'atencao' ? proximas(doAmbiente, agora).filter((r) => ehAtencao(momento(r, agora))) : proximas(doAmbiente, agora);
   const nomesAmbientes = (ambientes.dados ?? []).filter((a) => a.ativo);
   const aberto = aberta ? lista.find((r) => r.id === aberta) ?? null : null;
+  // Ausência: o backend libera em início + max(tolerância da política, espera mínima da casa), que vem em
+  // `ausencia_liberada_em` (GET …/comparecimento). Sem essa leitura, vale o sinal de atraso da agenda; o backend confere.
+  const comp = useConsulta(aberto && gerencia ? `reservas/${aberto.id}/comparecimento` : null, () => reservas.comparecimento(aberto!.id));
+  const ausenciaLiberada = (r: OperacaoReserva) => {
+    if (!aceitaAusencia(r, agora)) return false;
+    const c = comp.dados?.reserva_id === r.id ? comp.dados : null;
+    return !c || agora >= new Date(c.ausencia_liberada_em).getTime();
+  };
 
   async function registrarChegada(r: OperacaoReserva) {
     if (emCurso.current.has(r.id)) return;
@@ -247,7 +255,7 @@ export function Agenda({ contexto, agora }: { contexto: ContextoPainel; agora: n
         rodape={
           aberto && (
             <>
-              {gerencia && aceitaAusencia(aberto, agora) && (
+              {gerencia && ausenciaLiberada(aberto) && (
                 <Botao icone={<UserX aria-hidden="true" />} onClick={() => naoVeio(aberto)}>Não veio</Botao>
               )}
               {acao(aberto, momento(aberto, agora), true)}

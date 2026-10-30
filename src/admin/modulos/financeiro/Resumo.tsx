@@ -1,5 +1,5 @@
 // Resumo: receitas, despesas, resultado gerencial (com a qualidade do número), contas e o que precisa de alguém.
-// Rotas: GET /admin/financeiro/resumo e /admin/financeiro/relatorios/evolucao.
+// Rotas: GET /admin/financeiro/resumo e /admin/financeiro/relatorios/evolucao. Cada alerta leva à aba que resolve.
 import { Wallet, Receipt, Scale, CalendarClock, ChevronRight, FileWarning, Landmark, RefreshCw, Sparkles, Info } from 'lucide-preact';
 import type { ContextoPainel } from '../../lib/sessao';
 import { useConsulta } from '../../lib/consulta';
@@ -22,10 +22,10 @@ export function Resumo({ ir }: { contexto: ContextoPainel; ir: IrPara }) {
       {(r: ResumoFinanceiro) => {
         const pendRevisao = r.revisao.despesas + r.revisao.documentos;
         const atencao = [
-          pendRevisao > 0 && { id: 'revisar', icone: <FileWarning />, tom: 'atencao', titulo: plural(pendRevisao, 'lançamento para revisar', 'lançamentos para revisar'), detalhe: `${plural(r.revisao.documentos, 'comprovante da Júlia', 'comprovantes da Júlia')} · ${plural(r.revisao.despesas, 'despesa', 'despesas')}`, acao: () => ir('lancamentos', { revisar: '1' }) },
+          pendRevisao > 0 && { id: 'revisar', icone: <FileWarning />, tom: 'atencao', titulo: plural(pendRevisao, 'lançamento para revisar', 'lançamentos para revisar'), detalhe: `${plural(r.revisao.documentos, 'comprovante da Júlia', 'comprovantes da Júlia')} · ${plural(r.revisao.despesas, 'despesa', 'despesas')}`, acao: () => ir('revisao') },
           r.contas.vencidas.qtd > 0 && { id: 'vencidas', icone: <Receipt />, tom: 'perigo', titulo: plural(r.contas.vencidas.qtd, 'conta vencida', 'contas vencidas'), detalhe: `${moeda(r.contas.vencidas.valor)} em aberto`, acao: () => ir('contas', { situacao: 'vencidas' }) },
           r.contas.hoje.qtd > 0 && { id: 'hoje', icone: <CalendarClock />, tom: 'atencao', titulo: plural(r.contas.hoje.qtd, 'conta vence hoje', 'contas vencem hoje'), detalhe: moeda(r.contas.hoje.valor), acao: () => ir('contas', { situacao: 'hoje' }) },
-          r.conciliacao_mes_anterior && { id: 'conciliacao', icone: <Landmark />, tom: 'info', titulo: `Conciliação de ${mesAno(r.conciliacao_mes_anterior.mes).toLowerCase()}`, detalhe: r.conciliacao_mes_anterior.texto, href: rotaPainel(r.conciliacao_mes_anterior.rota) ?? undefined, acao: () => ir('relatorios', { vista: 'fechamento' }) },
+          r.conciliacao_mes_anterior && { id: 'conciliacao', icone: <Landmark />, tom: 'info', titulo: `Conciliação de ${mesAno(r.conciliacao_mes_anterior.mes).toLowerCase()}`, detalhe: r.conciliacao_mes_anterior.texto, href: rotaPainel(r.conciliacao_mes_anterior.rota) ?? undefined, acao: () => ir('resultado', { vista: 'fechamento' }) },
           'atrasada' in r.sincronizacao && r.sincronizacao.atrasada && { id: 'sync', icone: <RefreshCw />, tom: 'atencao', titulo: 'Vendas do PDV atrasadas', detalhe: `Última sincronização ${relativo(r.sincronizacao.ultimo_sucesso_em)}`, acao: undefined },
         ].filter(Boolean) as { id: string; icone: preact.ComponentChildren; tom: string; titulo: string; detalhe: string; acao?: () => void }[];
         const q = r.mes.qualidade;
@@ -36,7 +36,7 @@ export function Resumo({ ir }: { contexto: ContextoPainel; ir: IrPara }) {
             {r.conciliacao_mes_anterior && (
               <Aviso tom="atencao" icone={<Landmark aria-hidden="true" />}>
                 <strong>{ESTADO_CONCILIACAO[r.conciliacao_mes_anterior.estado]?.rotulo ?? 'Conciliação pendente'}</strong> — {r.conciliacao_mes_anterior.texto}{' '}
-                <button class="btn btn--p btn--fantasma" onClick={() => ir('relatorios', { vista: 'fechamento' })}>Ver fechamento</button>
+                <button class="btn btn--p btn--fantasma" onClick={() => ir('resultado', { vista: 'fechamento' })}>Ver fechamento</button>
               </Aviso>
             )}
 
@@ -72,7 +72,7 @@ export function Resumo({ ir }: { contexto: ContextoPainel; ir: IrPara }) {
 
             <div class="duas-colunas">
               <div class="pilha">
-                <Cartao titulo="Receitas e despesas" descricao="Por mês, últimos 6 meses" acoes={<button class="btn btn--p btn--fantasma" onClick={() => ir('relatorios', { vista: 'evolucao' })}>Evolução <ChevronRight size={14} aria-hidden="true" /></button>}>
+                <Cartao titulo="Receitas e despesas" descricao="Por mês, últimos 6 meses" acoes={<button class="btn btn--p btn--fantasma" onClick={() => ir('resultado', { vista: 'evolucao' })}>Evolução <ChevronRight size={14} aria-hidden="true" /></button>}>
                   <Dados consulta={evolucao} recurso="O relatório de evolução" compacto esqueleto={<Esqueleto linhas={6} altura={28} />}>
                     {(meses) =>
                       meses.every((m) => m.receita_liquida === null && !num(m.despesas_operacionais)) ? (
@@ -132,7 +132,7 @@ export function Resumo({ ir }: { contexto: ContextoPainel; ir: IrPara }) {
                   )}
                 </Cartao>
 
-                <Cartao titulo="Hoje" descricao={hojeISO().split('-').reverse().join('/')}>
+                <Cartao titulo="Hoje" descricao={hojeISO().split('-').reverse().join('/')} acoes={<button class="btn btn--p btn--fantasma" onClick={() => ir('vendas')}>Vendas <ChevronRight size={14} aria-hidden="true" /></button>}>
                   <dl class="definicoes">
                     <dt>Vendas no PDV</dt>
                     <dd class="num forte">{moeda(r.hoje.receita)}</dd>

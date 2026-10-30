@@ -1,8 +1,7 @@
 // Compras: tudo o que chega (nota pela Júlia, foto/PDF/XML pelo painel, pagamento de insumos, compra de feira) cai na
-// MESMA lista e passa pela MESMA conferência. Pendências primeiro.
+// MESMA lista e passa pela MESMA conferência. Pendências primeiro. Lista e conferência: estoque.conferir.
 import { useMemo, useState } from 'preact/hooks';
 import { PencilLine, PackageCheck } from 'lucide-preact';
-import type { Papel } from '../../lib/sessao';
 import { useConsulta } from '../../lib/consulta';
 import { estoque } from '../../lib/api/estoque';
 import { moeda, dataCurta, plural } from '../../lib/formato';
@@ -10,17 +9,17 @@ import { Botao, Cartao, Segmentado } from '../../ui/base';
 import { Dados, EsqueletoTabela, Vazio } from '../../ui/estados';
 import { Tabela, type Coluna } from '../../ui/tabela';
 import type { CompraLista } from '../../lib/tipos/estoque';
-import { SituacaoCompra, OrigemCompra, LENDO } from './comum';
+import { SituacaoCompra, OrigemCompra, LENDO, type PermissoesEstoque } from './comum';
 import { Conferencia } from './Conferencia';
 import { EnviarNota, CompraManual } from './EntradaCompra';
 
 type Filtro = 'conferir' | 'todas' | 'confirmadas' | 'problemas';
 
-export function Compras({ papel, aberta, aoAbrir, enviar, aoFecharEnvio }: { papel: Papel; aberta: string | null; aoAbrir: (id: string | null) => void; enviar: boolean; aoFecharEnvio: () => void }) {
+export function Compras({ perm, unidade, aberta, aoAbrir, enviar, aoFecharEnvio }: { perm: PermissoesEstoque; unidade: string | null; aberta: string | null; aoAbrir: (id: string | null) => void; enviar: boolean; aoFecharEnvio: () => void }) {
   const [filtro, setFiltro] = useState<Filtro>('conferir');
   const [manual, setManual] = useState(false);
   const [enviarLocal, setEnviarLocal] = useState(false);
-  const lista = useConsulta('estoque/compras?todas', () => estoque.compras({ limite: 200 }));
+  const lista = useConsulta(perm.conferir ? 'estoque/compras?todas' : null, () => estoque.compras({ limite: 200 }));
   const todas = lista.dados?.itens ?? [];
   const lendo = todas.some((c) => LENDO.includes(c.etapa));
   // Enquanto alguma nota está sendo lida, a lista se atualiza sozinha (só nesse caso).
@@ -41,7 +40,7 @@ export function Compras({ papel, aberta, aoAbrir, enviar, aoFecharEnvio }: { pap
     { id: 'origem', titulo: 'Origem', prioridade: 'baixa', celula: (c) => <OrigemCompra c={c} /> },
     { id: 'itens', titulo: 'Itens', prioridade: 'baixa', celula: (c) => (c.sem_itens ? <span class="fraco">Sem produtos</span> : LENDO.includes(c.etapa) ? <span class="fraco">Lendo…</span> : <span>{plural(c.itens, 'item', 'itens')}{c.pendentes ? <span class="sub" style={{ color: 'var(--atencao)' }}>{plural(c.pendentes, 'pendente', 'pendentes')}</span> : null}</span>) },
     { id: 'situacao', titulo: 'Situação', prioridade: 'media', celula: (c) => <SituacaoCompra c={c} /> },
-    { id: 'acoes', titulo: '', celula: (c) => (c.etapa === 'aguardando_conferencia' ? <Botao tamanho="p" variante={c.etapa_painel === 'pronta' ? 'primario' : 'secundario'} onClick={() => aoAbrir(c.id)}>Conferir</Botao> : null) },
+    { id: 'acoes', titulo: '', celula: (c) => (c.etapa === 'aguardando_conferencia' && perm.conferir ? <Botao tamanho="p" variante={c.etapa_painel === 'pronta' ? 'primario' : 'secundario'} onClick={() => aoAbrir(c.id)}>Conferir</Botao> : null) },
   ];
 
   return (
@@ -59,12 +58,16 @@ export function Compras({ papel, aberta, aoAbrir, enviar, aoFecharEnvio }: { pap
           ]}
         />
         <div class="linha">
-          <Botao icone={<PencilLine aria-hidden="true" />} onClick={() => setManual(true)}>Compra sem nota</Botao>
+          {perm.conferir && <Botao icone={<PencilLine aria-hidden="true" />} onClick={() => setManual(true)}>Compra sem nota</Botao>}
         </div>
       </div>
+      {!perm.conferir ? (
+        <Vazio titulo="Compras são de quem confere">Seu perfil não confere compras recebidas.</Vazio>
+      ) : (
       <Cartao justo>
         <Dados consulta={lista} recurso="As compras" esqueleto={<EsqueletoTabela />}>
-          {() => (
+          {(d) => (
+            <>
             <Tabela
               rotulo="Compras"
               colunas={colunas}
@@ -81,11 +84,14 @@ export function Compras({ papel, aberta, aoAbrir, enviar, aoFecharEnvio }: { pap
                 )
               }
             />
+            {d.total > d.itens.length && <div class="cartao__rodape">Mostrando as {d.itens.length} mais recentes de {plural(d.total, 'compra', 'compras')}.</div>}
+            </>
           )}
         </Dados>
       </Cartao>
-      <Conferencia id={aberta} papel={papel} aoFechar={() => aoAbrir(null)} aoAbrir={aoAbrir} />
-      <EnviarNota aberta={enviar || enviarLocal} aoFechar={() => { setEnviarLocal(false); aoFecharEnvio(); }} aoEnviar={(id) => { setEnviarLocal(false); aoFecharEnvio(); aoAbrir(id); }} />
+      )}
+      <Conferencia id={aberta} perm={perm} aoFechar={() => aoAbrir(null)} aoAbrir={aoAbrir} />
+      <EnviarNota unidade={unidade} aberta={(enviar || enviarLocal) && perm.conferir} aoFechar={() => { setEnviarLocal(false); aoFecharEnvio(); }} aoEnviar={(id) => { setEnviarLocal(false); aoFecharEnvio(); aoAbrir(id); }} />
       <CompraManual aberta={manual} aoFechar={() => setManual(false)} aoCriar={(id) => { setManual(false); aoAbrir(id); }} />
     </>
   );

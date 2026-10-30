@@ -5,8 +5,10 @@ import { DEMO, entrarDemo, semRolagemHorizontal } from './apoio';
 
 const PAGINAS = [
   '/admin', '/admin/reservas', '/admin/reservas?vista=semana', '/admin/atendimento', '/admin/clube', '/admin/clube?secao=membros',
-  '/admin/financeiro', '/admin/financeiro?aba=lancamentos', '/admin/financeiro?aba=contas', '/admin/financeiro?aba=relatorios',
-  '/admin/estoque', '/admin/estoque?aba=insumos', '/admin/estoque?aba=compras', '/admin/estoque?aba=fichas', '/admin/estoque?aba=analises',
+  '/admin/financeiro', '/admin/financeiro?aba=vendas', '/admin/financeiro?aba=lancamentos', '/admin/financeiro?aba=contas', '/admin/financeiro?aba=revisao',
+  '/admin/financeiro?aba=resultado', '/admin/financeiro?aba=contas-fixas',
+  '/admin/estoque', '/admin/estoque?aba=insumos', '/admin/estoque?aba=compras', '/admin/estoque?aba=fichas', '/admin/estoque?aba=contagem',
+  '/admin/estoque?aba=cancelamentos', '/admin/estoque?aba=analises',
   '/admin/configuracoes',
 ];
 

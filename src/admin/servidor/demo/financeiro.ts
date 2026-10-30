@@ -1,6 +1,7 @@
-// DEMONSTRAÇÃO — Financeiro fictício (vendas, despesas, contas fixas, comprovantes da Júlia, banco e conciliação).
-// Formatos das rotas /admin/financeiro* e /admin/arquivos* do backend; papéis como lá (gerência; categorias e
-// fornecedores também para a operação). Nada daqui é real nem sai do servidor de desenvolvimento.
+// DEMONSTRAÇÃO — Financeiro fictício (vendas, despesas, outras receitas, contas fixas, taxas, comprovantes da Júlia,
+// banco e conciliação, participação simulada). Formatos das rotas /admin/financeiro* e /admin/arquivos* do backend;
+// papéis como lá (gerência; categorias e fornecedores também para a operação; retiradas de sócios e participação só
+// para o Proprietário — sigilo.py). Nada daqui é real nem sai do servidor de desenvolvimento.
 //
 // Atenção: este arquivo e roteador.ts se importam mutuamente. Tudo que vem do roteador é usado só DENTRO de funções
 // (o estado é montado na primeira requisição) e os papéis são constantes locais — no import circular, as constantes
@@ -11,7 +12,8 @@ import type { Papel } from '../../lib/sessao';
 import type {
   Categoria, DespesaSaida, ParcelaSaida, PagamentoSaida, Recorrencia, DocumentoRevisao, ContaBancaria, Importacao,
   MovimentoBancario, NivelConciliacao, ContaPagar, Lancamento, MesEvolucao, ResultadoMes, Qualidade,
-  NivelQualidade, ItemFechamento, EstadoConciliacao, EstadoContaMes, FormaPagamento,
+  NivelQualidade, ItemFechamento, EstadoConciliacao, EstadoContaMes, FormaPagamento, TaxaPagamento, MeioPdv,
+  AgrupamentoVendas, PeriodoVendas, SimulacaoParticipacao, MovimentoBancario as Mov,
 } from '../../lib/tipos/financeiro';
 import type { RadarInsight, VisaoGeral } from '../../lib/tipos/visao-geral';
 
@@ -43,7 +45,8 @@ const E: {
   fornecedores: Fornecedor[];
   despesas: Despesa[];
   vendas: Venda[];
-  receitas: { id: string; descricao: string; valor: string; competencia: string; status: 'confirmada' | 'cancelada' }[];
+  receitas: { id: string; descricao: string; valor: string; competencia: string; recebido_em: string | null; status: 'confirmada' | 'cancelada'; chave?: string | null }[];
+  taxas: TaxaPagamento[];
   recorrencias: Recorrencia[];
   documentos: (DocumentoRevisao & { resolvido?: string })[];
   contas: ContaBancaria[];
@@ -53,7 +56,7 @@ const E: {
   arquivos: Map<string, Arquivo>;
   apuracoes: Map<string, { status: 'rascunho' | 'conferida' | 'fechada'; excecao: { motivo: string; por: string } | null }>;
   mesesConciliados: Set<string>;
-} = { pronto: false, seq: 0, fornecedores: [], despesas: [], vendas: [], receitas: [], recorrencias: [], documentos: [], contas: [], importacoes: [], movimentos: [], vinculos: [], arquivos: new Map(), apuracoes: new Map(), mesesConciliados: new Set() };
+} = { pronto: false, seq: 0, fornecedores: [], despesas: [], vendas: [], receitas: [], taxas: [], recorrencias: [], documentos: [], contas: [], importacoes: [], movimentos: [], vinculos: [], arquivos: new Map(), apuracoes: new Map(), mesesConciliados: new Set() };
 
 const id = () => `f${String(++E.seq).padStart(7, '0')}-0000-4000-8000-00000000demo`;
 const d2 = (n: number) => n.toFixed(2);
@@ -158,7 +161,13 @@ function montar() {
   void freezer;
   novaDespesa({ descricao: 'Pix — Distribuidora Bom Preço', valor: 236.4, competencia: dia(-2, hoje), categoria: 'a_classificar', origem: 'julia', status: 'em_revisao', motivos: ['categoria_a_classificar'], parcelas: [{ vencimento: dia(-2, hoje), valor: 236.4, paga_em: dia(-2, hoje) }], arquivo_id: arquivoFalso('Comprovante Pix', ['Pix enviado', 'R$ 236,40', 'Distribuidora Bom Preço', `${dia(-2, hoje)} 10:42`]) });
   novaDespesa({ descricao: 'Reforma do toldo do jardim', valor: 7900, competencia: dia(-1, hoje), categoria: 'manutencao', origem: 'julia', status: 'em_revisao', motivos: ['acima_do_limite'], fornecedor: fornecedor('Toldos Ceará', '77888999000100'), parcelas: [{ vencimento: dia(9, hoje), valor: 7900 }], arquivo_id: arquivoFalso('Orçamento aprovado', ['Toldos Ceará', 'Reforma toldo', 'R$ 7.900,00']) });
-  E.receitas.push({ id: id(), descricao: 'Evento corporativo — café da manhã (faturado)', valor: '4800.00', competencia: dia(-9, hoje), status: 'confirmada' });
+  E.receitas.push({ id: id(), descricao: 'Evento corporativo — café da manhã (faturado)', valor: '4800.00', competencia: dia(-9, hoje), recebido_em: dia(-2, hoje), status: 'confirmada' });
+  // Taxas do contrato da adquirente: uma vigência antiga do crédito e as atuais.
+  const taxa = (meio: MeioPdv, t: string, prazo: number, desde: string) => E.taxas.push({ id: E.taxas.length + 1, meio, taxa_percentual: t, prazo_dias: prazo, vigente_de: desde });
+  taxa('credito', '3.490', 30, `${mesMais(mesAtual, -6)}-01`);
+  taxa('credito', '3.150', 30, `${mesMais(mesAtual, -2)}-01`);
+  taxa('debito', '1.390', 1, `${mesMais(mesAtual, -6)}-01`);
+  taxa('pix', '0.990', 0, `${mesMais(mesAtual, -6)}-01`);
 
   // Comprovantes da Júlia pendentes
   const energiaAberta = E.despesas.find((d) => d.categoria_codigo === 'energia' && d.parcelas[0].situacao === 'aberta')!;
@@ -225,11 +234,11 @@ function montar() {
   ];
   mov(conta, impAtual.id, dia(-4, hoje) < `${mesAtual}-01` ? `${mesAtual}-01` : dia(-4, hoje), 'debito', 127.5, 'PIX ENVIADO PAPELARIA CENTRAL', 'sem_correspondencia');
   const tarifa = mov(conta, impAtual.id, `${mesAtual}-01`, 'debito', 45.9, 'TAR PACOTE SERVICOS', 'classificacao_pendente');
-  tarifa.classificacao_sugerida = null;
+  tarifa.classificacao_sugerida = { acao: 'registrar_despesa', categoria: 'tarifas_bancarias', texto: 'Parece tarifa bancária: registrar como despesa (categoria tarifas).' };
   const transf = mov(conta, impAtual.id, `${mesAtual}-02` > hoje ? `${mesAtual}-01` : `${mesAtual}-02`, 'debito', 10000, 'TED MESMA TITULARIDADE ITAU RESERVA', 'classificacao_pendente');
-  transf.classificacao_sugerida = 'transferencia_propria';
+  transf.classificacao_sugerida = { acao: 'classificar', classificacao: 'transferencia_propria', texto: 'A descrição indica aplicação/resgate (dinheiro da própria empresa).' };
   const dup = mov(conta, impAtual.id, dia(-6, hoje) < `${mesAtual}-01` ? `${mesAtual}-01` : dia(-6, hoje), 'debito', 89.9, 'DEB AUTOMATICO BRISANET', 'conflito');
-  dup.conflito = 'possivel_duplicidade';
+  dup.conflito = { tipo: 'possivel_duplicidade', com: null, decisao: null };
   E.mesesConciliados.clear();
 }
 
@@ -355,6 +364,7 @@ function resumoFinanceiro() {
     revisao: pendentesRevisao(),
     sincronizacao: { ultimo_sucesso_em: new Date(Date.now() - 18 * 60_000).toISOString(), falhas_seguidas: 0, atrasada: false },
     conciliacao_mes_anterior: conc,
+    unidade: { codigo: 'ambar_cafe', nome: 'Âmbar Café (demo)', teste: false },
   };
 }
 
@@ -410,6 +420,82 @@ function fechamento(mes: string) {
   ];
   const ap = E.apuracoes.get(mes) ?? { status: 'rascunho' as const, excecao: null };
   return { mes: `${mes}-01`, concluido: itens.every((i) => i.situacao === 'ok'), pendencias: itens.filter((i) => i.situacao !== 'ok'), itens, conciliacao: conc, apuracao: { status: ap.status, congelada: ap.status !== 'rascunho', qualidade: r.disponivel ? r.qualidade.nivel : 'indisponivel', excecao_conciliacao: ap.excecao } };
+}
+
+// Sigilo (sigilo.py): sem financeiro.ver_societario, nada de retiradas de sócios nem participação.
+const veSocietario = (papel: Papel) => papel === 'admin';
+const ehRetirada = (cat: string | null) => !!cat && grupoDe(cat) === 'retirada';
+function semRetirada(r: ResultadoMes, papel: Papel): ResultadoMes {
+  if (veSocietario(papel) || !r.disponivel) return r;
+  const { retirada, ...fora } = r.fora_do_resultado;
+  void retirada;
+  return { ...r, fora_do_resultado: fora };
+}
+
+/** relatorios/vendas: os mesmos campos de resultado.vendas_por_periodo (date_trunc: semana começa na segunda). */
+function vendasPorPeriodo(de: string, ate: string, agrupar: AgrupamentoVendas) {
+  const inicioDe = (d: string) => {
+    if (agrupar === 'mes') return `${mesDe(d)}-01`;
+    if (agrupar === 'semana') return dia(-((new Date(`${d}T12:00:00Z`).getUTCDay() + 6) % 7), d);
+    return d;
+  };
+  const grupos = new Map<string, Venda[]>();
+  for (const v of E.vendas.filter((x) => x.dia >= de && x.dia <= ate)) {
+    const k = inicioDe(v.dia);
+    grupos.set(k, [...(grupos.get(k) ?? []), v]);
+  }
+  const soma = (vs: Venda[]) => {
+    const total = vs.reduce((s2, v) => s2 + v.total, 0);
+    const vendas = vs.reduce((s2, v) => s2 + v.vendas, 0);
+    return { vendas, faturamento_bruto: d2(total * 1.035), descontos: d2(total * 0.03), receita_liquida_produtos: d2(total), devolucoes: d2(total * 0.005), receita_liquida: d2(total), taxa_servico: d2(total * 0.08), recebido_pdv: d2(total * 1.08), vendas_canceladas: vs.filter((v) => v.vendas % 9 === 0).length, ticket_medio: vendas ? d2(total / vendas) : null };
+  };
+  const periodos: PeriodoVendas[] = [...grupos].sort(([a], [b]) => a.localeCompare(b)).map(([inicio, vs]) => ({ inicio, primeiro_dia: vs[0].dia, ultimo_dia: vs[vs.length - 1].dia, ...soma(vs) }));
+  const todas = [...grupos.values()].flat();
+  const t = todas.reduce((s2, v) => s2 + v.total, 0) * 1.08;
+  const n = todas.reduce((s2, v) => s2 + v.vendas, 0);
+  const meio = (m: string, f: number) => ({ meio: m, pagamentos: Math.round(n * f), valor: d2(t * f) });
+  return {
+    disponivel: true, de, ate, agrupar, periodos, totais: soma(todas),
+    por_meio: todas.length ? [meio('credito', 0.45), meio('debito', 0.26), meio('pix', 0.24), meio('outro', 0.05)] : [],
+    sincronizacao: { ultimo_sucesso_em: new Date(Date.now() - 18 * 60_000).toISOString(), falhas_seguidas: 0, atrasada: false },
+    observacao: 'Receita líquida = produtos − descontos − devoluções. A taxa de serviço fica fora da receita (H2). Recebido por meio é o registrado no PDV, não o crédito no banco.',
+  };
+}
+
+/** Sem regra aprovada: a simulação nas quatro bases (apuracao.participacoes), como o 409 do backend manda. */
+function simulacaoParticipacao(mes: string): SimulacaoParticipacao {
+  const r = calcularMes(mes);
+  const base = (v: string | null | undefined) => ({ valor_base: v ?? null, valor: v === null || v === undefined ? null : d2(Number(v) * 0.4) });
+  return {
+    Roll: {
+      percentual: '40.000',
+      bases: r.disponivel
+        ? { receita_liquida: base(r.receita.receita_liquida), margem_bruta: base(r.margem_bruta), resultado_operacional: base(r.resultado_operacional), resultado_gerencial: base(r.resultado_gerencial) }
+        : { receita_liquida: base(null), margem_bruta: base(null), resultado_operacional: base(null), resultado_gerencial: base(null) },
+    },
+  };
+}
+
+/** Tipo do vínculo (tabela conciliacoes) a partir da ação usada. */
+function tipoVinculo(acao: string, classificacao?: string) {
+  if (acao === 'classificar') return classificacao ?? 'nao_operacional';
+  if (acao === 'liquidar_vendas') return 'vendas';
+  if (acao === 'vincular_receita' || acao === 'registrar_receita') return 'outra_receita';
+  return 'pagamento';
+}
+
+/** GET movimento: `saida_movimento` + vínculos (`saida_vinculo`), arquivos e histórico, como api_conciliacao.py. */
+function detalheMovimento(m: Mov) {
+  return {
+    ...m,
+    vinculos: E.vinculos.filter((v) => v.movimento_id === m.id).map((v) => ({
+      id: v.id, tipo: v.tipo, valor: v.valor, pagamento_id: v.pagamento_criado ?? null, outra_receita_id: null, movimento_par_id: null,
+      vendas: null, criados: v.despesa_criada ? { despesa_id: v.despesa_criada } : {}, origem: 'painel', evidencias: [], observacao: v.descricao || null,
+      status: v.situacao, criado_por: 'Usuário (demo)', criado_em: v.criado_em, desfeita_por: v.situacao === 'desfeita' ? 'Usuário (demo)' : null, desfeita_em: v.desfeito_em, desfeita_motivo: v.motivo,
+    })),
+    arquivos: [{ importacao_id: m.importacao_id, linha: 1, novo: true }],
+    historico: [],
+  };
 }
 
 // Exportados para a Visão Geral --------------------------------------------------------------------------------------
@@ -497,20 +583,21 @@ export const ROTAS_FINANCEIRO: Rota[] = [
     const docs = E.documentos.filter((d) => !d.resolvido).map(({ resolvido, ...d }) => { void resolvido; return d; });
     return { despesas: { total: desp.length, itens: desp }, documentos: { total: docs.length, itens: docs } };
   }],
-  ['GET', R('financeiro/lancamentos'), GERENCIA, ({ query }) => {
+  ['GET', R('financeiro/lancamentos'), GERENCIA, ({ query, papel }) => {
     montar();
     const de = query.get('de') ?? '';
     const ate = query.get('ate') ?? '';
     const itens: Lancamento[] = [];
-    for (const v of E.vendas.filter((x) => x.dia >= de && x.dia <= ate)) itens.push({ tipo: 'venda_dia', id: `1:${v.dia}`, data: v.dia, descricao: `Vendas do dia (${v.vendas} vendas)`, valor: d2(v.total), sinal: 1, categoria: null, origem: 'eyemobile', fornecedor_id: null, fornecedor: null, status: 'confirmada', tem_comprovante: false, compra_id: null, despesa_id: null, detalhes: { vendas: v.vendas } });
+    for (const v of E.vendas.filter((x) => x.dia >= de && x.dia <= ate)) itens.push({ tipo: 'venda_dia', id: `1:${v.dia}`, data: v.dia, descricao: 'Vendas PDV', valor: d2(v.total), sinal: 1, categoria: null, origem: 'eyemobile', fornecedor_id: null, fornecedor: null, status: 'confirmada', tem_comprovante: false, compra_id: null, despesa_id: null, detalhes: { vendas: v.vendas, taxa_servico: d2(v.total * 0.08), total_vendido: d2(v.total * 1.035), descontos: d2(v.total * 0.03), recebido_pdv: d2(v.total * 1.08) } });
     for (const d of E.despesas.filter((x) => x.competencia >= de && x.competencia <= ate)) itens.push({ tipo: 'despesa', id: d.id, data: d.competencia, descricao: d.descricao, valor: d.valor, sinal: -1, categoria: d.categoria_codigo, origem: d.origem, fornecedor_id: d.fornecedor?.id ?? null, fornecedor: d.fornecedor?.nome ?? null, status: d.status, tem_comprovante: !!d.arquivo_id, compra_id: d.compra_id, despesa_id: d.id, detalhes: { motivos_revisao: d.motivos_revisao, valor_a_confirmar: d.valor_a_confirmar, versao: d.versao } });
-    for (const d of E.despesas) for (const p of d.parcelas) for (const pg of p.pagamentos.filter((x) => x.pago_em >= de && x.pago_em <= ate)) itens.push({ tipo: 'pagamento', id: pg.id, data: pg.pago_em, descricao: `Pagamento — ${d.descricao}`, valor: pg.valor, sinal: -1, categoria: d.categoria_codigo, origem: pg.origem, fornecedor_id: d.fornecedor?.id ?? null, fornecedor: d.fornecedor?.nome ?? null, status: pg.estornado_em ? 'estornado' : 'confirmado', tem_comprovante: !!pg.arquivo_id, compra_id: d.compra_id, despesa_id: d.id, detalhes: { forma: pg.forma, parcela_id: p.id } });
-    for (const r of E.receitas.filter((x) => x.competencia >= de && x.competencia <= ate)) itens.push({ tipo: 'outra_receita', id: r.id, data: r.competencia, descricao: r.descricao, valor: r.valor, sinal: 1, categoria: null, origem: 'painel', fornecedor_id: null, fornecedor: null, status: r.status, tem_comprovante: false, compra_id: null, despesa_id: null, detalhes: {} });
+    for (const d of E.despesas) for (const p of d.parcelas) for (const pg of p.pagamentos.filter((x) => x.pago_em >= de && x.pago_em <= ate)) itens.push({ tipo: 'pagamento', id: pg.id, data: pg.pago_em, descricao: d.descricao, valor: pg.valor, sinal: -1, categoria: d.categoria_codigo, origem: pg.origem, fornecedor_id: d.fornecedor?.id ?? null, fornecedor: d.fornecedor?.nome ?? null, status: pg.estornado_em ? 'estornado' : 'confirmado', tem_comprovante: !!pg.arquivo_id, compra_id: d.compra_id, despesa_id: d.id, detalhes: { forma: pg.forma, parcela_id: p.id, parcela: p.numero, conciliacao: pg.conciliacao } });
+    for (const r of E.receitas.filter((x) => x.competencia >= de && x.competencia <= ate)) itens.push({ tipo: 'outra_receita', id: r.id, data: r.competencia, descricao: r.descricao, valor: r.valor, sinal: 1, categoria: null, origem: 'painel', fornecedor_id: null, fornecedor: null, status: r.status, tem_comprovante: false, compra_id: null, despesa_id: null, detalhes: { recebido_em: r.recebido_em } });
+    const tipo = query.get('tipo');
     const cat = query.get('categoria');
     const org = query.get('origem');
     const st = query.get('status');
     const b = query.get('busca')?.toLowerCase();
-    const f = itens.filter((l) => (!cat || l.categoria === cat) && (!org || l.origem === org) && (!st || l.status === st || (st === 'confirmada' && l.status === 'confirmado')) && (!b || `${l.descricao} ${l.fornecedor ?? ''}`.toLowerCase().includes(b))).sort((a, b2) => b2.data.localeCompare(a.data));
+    const f = itens.filter((l) => (!tipo || l.tipo === tipo) && (!cat || l.categoria === cat) && (!org || l.origem === org) && (!st || l.status === st) && (veSocietario(papel) || !ehRetirada(l.categoria)) && (!b || `${l.descricao} ${l.fornecedor ?? ''}`.toLowerCase().includes(b))).sort((a, b2) => b2.data.localeCompare(a.data));
     const soma = (fn: (l: Lancamento) => boolean) => d2(f.filter(fn).reduce((s, l) => s + Number(l.valor), 0));
     return { ...paginar(f, query), totais: { receita_pdv: soma((l) => l.tipo === 'venda_dia'), outras_receitas: soma((l) => l.tipo === 'outra_receita' && l.status === 'confirmada'), despesas_confirmadas: soma((l) => l.tipo === 'despesa' && l.status === 'confirmada'), despesas_em_revisao: soma((l) => l.tipo === 'despesa' && l.status === 'em_revisao'), pagamentos: soma((l) => l.tipo === 'pagamento' && l.status === 'confirmado') } };
   }],
@@ -608,10 +695,12 @@ export const ROTAS_FINANCEIRO: Rota[] = [
     let l = contasAPagar();
     if (s === 'vencidas') l = l.filter((c) => c.situacao === 'aberta' && c.vencimento < hoje);
     else if (s === 'hoje') l = l.filter((c) => c.situacao === 'aberta' && c.vencimento === hoje);
-    else if (s === 'proximas') l = l.filter((c) => c.situacao === 'aberta' && c.vencimento > hoje && c.vencimento <= dia(15, hoje));
+    else if (s === 'proximas') l = l.filter((c) => c.situacao === 'aberta' && c.vencimento > hoje && c.vencimento <= dia(7, hoje));
     else if (s === 'abertas') l = l.filter((c) => c.situacao === 'aberta');
-    else if (s === 'pagas') l = l.filter((c) => c.situacao === 'paga' && (!de || c.vencimento >= de));
-    l.sort((a, b) => a.vencimento.localeCompare(b.vencimento));
+    else if (s === 'pagas') l = l.filter((c) => c.situacao === 'paga');
+    if (de) l = l.filter((c) => c.vencimento >= de);
+    // Como consultas.contas_a_pagar: pagas da mais recente para a mais antiga; o resto por vencimento.
+    l.sort((a, b) => (s === 'pagas' ? b.vencimento.localeCompare(a.vencimento) : a.vencimento.localeCompare(b.vencimento) || a.descricao.localeCompare(b.descricao)));
     return { ...paginar(l, query), totais: { saldo: d2(l.reduce((x, c) => x + Number(c.saldo), 0)), valor: d2(l.reduce((x, c) => x + Number(c.valor), 0)) } };
   }],
   ['POST', R(`financeiro/parcelas/${UUID}/pagamentos`), GERENCIA, async ({ params, corpo }) => {
@@ -640,19 +729,51 @@ export const ROTAS_FINANCEIRO: Rota[] = [
     }
     throw new ErroDemo(404, 'nao_encontrado', 'Pagamento não encontrado.');
   }],
-  ['GET', R('financeiro/recorrencias'), GERENCIA, () => {
+  ['POST', R('financeiro/outras-receitas'), GERENCIA, async ({ corpo, request }) => {
+    montar();
+    const e = await corpo<{ descricao?: string; valor?: string; competencia?: string; recebido_em?: string | null }>();
+    if (!e.descricao?.trim() || !e.valor || Number(e.valor) <= 0 || !e.competencia) throw new ErroDemo(422, 'regra_violada', 'Preencha descrição, valor e competência.');
+    const chave = request.headers.get('Idempotency-Key');
+    const ja = chave ? E.receitas.find((x) => x.chave === chave) : undefined;
+    const item = ja ?? { id: id(), descricao: e.descricao.trim(), valor: d2(Number(e.valor)), competencia: e.competencia, recebido_em: e.recebido_em ?? null, status: 'confirmada' as const, chave };
+    if (!ja) E.receitas.push(item);
+    return resposta(201, { id: item.id, descricao: item.descricao, valor: item.valor, competencia: item.competencia, recebido_em: item.recebido_em, status: item.status });
+  }],
+  ['POST', R(`financeiro/outras-receitas/${UUID}/cancelar`), GERENCIA, async ({ params, corpo }) => {
+    montar();
+    const { motivo } = await corpo<{ motivo: string }>();
+    exigirMotivo(motivo);
+    const item = E.receitas.find((x) => x.id === params[0]);
+    if (!item) throw new ErroDemo(404, 'nao_encontrado', 'Receita não encontrada.');
+    item.status = 'cancelada';
+    return { id: item.id, status: item.status };
+  }],
+  ['GET', R('financeiro/taxas-pagamento'), GERENCIA, () => { montar(); return [...E.taxas].sort((a, b) => a.meio.localeCompare(b.meio) || a.vigente_de.localeCompare(b.vigente_de)); }],
+  ['POST', R('financeiro/taxas-pagamento'), GERENCIA, async ({ corpo }) => {
+    montar();
+    const e = await corpo<{ meio?: MeioPdv; taxa_percentual?: string; prazo_dias?: number; vigente_de?: string }>();
+    if (!e.meio || !['credito', 'debito', 'pix', 'outro'].includes(e.meio) || e.taxa_percentual === undefined || !(Number(e.taxa_percentual) >= 0 && Number(e.taxa_percentual) < 30) || !e.vigente_de) throw new ErroDemo(422, 'regra_violada', 'Informe meio, taxa (0 a 30%) e vigência.');
+    const prazo = e.prazo_dias ?? 0;
+    // Mesmo meio e mesma data substituem (ON CONFLICT do backend).
+    const ja = E.taxas.find((t) => t.meio === e.meio && t.vigente_de === e.vigente_de);
+    if (ja) { ja.taxa_percentual = e.taxa_percentual; ja.prazo_dias = prazo; } else E.taxas.push({ id: E.taxas.length + 1, meio: e.meio, taxa_percentual: e.taxa_percentual, prazo_dias: prazo, vigente_de: e.vigente_de });
+    return resposta(201, { meio: e.meio, taxa_percentual: e.taxa_percentual, prazo_dias: prazo, vigente_de: e.vigente_de });
+  }],
+  ['GET', R('financeiro/recorrencias'), GERENCIA, ({ query }) => {
     montar();
     const hoje = hojeFortaleza();
-    return E.recorrencias.filter((r) => r.ativo).map((r) => {
+    const ativas = query.get('ativas') !== 'false';
+    return E.recorrencias.filter((r) => !ativas || r.ativo).map((r) => {
       const prox = [0, 1, 2].map((i) => { const m = mesMais(mesDe(hoje), i); return { competencia: `${m}-01`, vencimento: diaNoMes(m, r.dia_vencimento) }; }).filter((x) => x.vencimento >= hoje).slice(0, 3);
-      return { ...r, proximas: prox };
+      return { ...r, proximas: r.ativo ? prox : [] };
     });
   }],
   ['POST', R('financeiro/recorrencias'), GERENCIA, async ({ corpo }) => {
     montar();
-    const e = await corpo<{ descricao: string; categoria: string; valor_previsto: string; valor_variavel?: boolean; dia_vencimento: number; inicio: string }>();
+    const e = await corpo<{ descricao: string; categoria: string; valor_previsto: string; valor_variavel?: boolean; dia_vencimento: number; intervalo_meses?: number; inicio: string; fim?: string | null; fornecedor?: { nome?: string | null } | null; antecedencia_dias?: number }>();
     if (!e.descricao || !e.categoria || !e.valor_previsto) throw new ErroDemo(422, 'regra_violada', 'Preencha os campos.');
-    const r: Recorrencia = { id: id(), descricao: e.descricao, categoria_codigo: e.categoria, fornecedor: null, valor_previsto: d2(Number(e.valor_previsto)), valor_variavel: !!e.valor_variavel, dia_vencimento: e.dia_vencimento, intervalo_meses: 1, inicio: e.inicio, fim: null, antecedencia_dias: 10, ativo: true, versao: 1, proximas: [] };
+    const forn = e.fornecedor?.nome ? fornecedor(e.fornecedor.nome) : null;
+    const r: Recorrencia = { id: id(), descricao: e.descricao, categoria_codigo: e.categoria, fornecedor: forn ? { id: forn.id, nome: forn.nome } : null, valor_previsto: d2(Number(e.valor_previsto)), valor_variavel: !!e.valor_variavel, dia_vencimento: e.dia_vencimento, intervalo_meses: e.intervalo_meses ?? 1, inicio: e.inicio, fim: e.fim ?? null, antecedencia_dias: e.antecedencia_dias ?? 45, ativo: true, versao: 1, proximas: [] };
     E.recorrencias.push(r);
     return resposta(201, r);
   }],
@@ -662,7 +783,8 @@ export const ROTAS_FINANCEIRO: Rota[] = [
     if (!r) throw new ErroDemo(404, 'nao_encontrado', 'Conta fixa não encontrada.');
     const e = await corpo<{ versao: number; encerrar_em?: string; valor_previsto?: string; descricao?: string; dia_vencimento?: number; valor_variavel?: boolean }>();
     conferirVersao(r.versao, e.versao);
-    if (e.encerrar_em) { r.fim = e.encerrar_em; r.ativo = false; }
+    // Encerrar: a conta fixa continua ativa até a data (o backend só deixa de gerar depois dela).
+    if (e.encerrar_em) { r.fim = e.encerrar_em; if (e.encerrar_em <= hojeFortaleza()) r.ativo = false; }
     if (e.valor_previsto) r.valor_previsto = d2(Number(e.valor_previsto));
     if (e.descricao) r.descricao = e.descricao;
     if (e.dia_vencimento) r.dia_vencimento = e.dia_vencimento;
@@ -676,12 +798,22 @@ export const ROTAS_FINANCEIRO: Rota[] = [
     const atual = mesDe(hojeFortaleza());
     return Array.from({ length: n }, (_, i) => evolucaoMes(mesMais(atual, i - n + 1)));
   }],
-  ['GET', R('financeiro/relatorios/resultado'), GERENCIA, ({ query }) => { montar(); return calcularMes(query.get('mes') ?? mesDe(hojeFortaleza())); }],
-  ['GET', R('financeiro/relatorios/despesas-por-categoria'), GERENCIA, ({ query }) => {
+  ['GET', R('financeiro/relatorios/resultado'), GERENCIA, ({ query, papel }) => { montar(); return semRetirada(calcularMes(query.get('mes') ?? mesDe(hojeFortaleza())), papel); }],
+  ['GET', R('financeiro/relatorios/vendas'), GERENCIA, ({ query }) => {
     montar();
     const de = query.get('de') ?? '';
     const ate = query.get('ate') ?? '';
-    const desp = vivas().filter((d) => d.status === 'confirmada' && d.competencia >= de && d.competencia <= ate);
+    const agrupar = (query.get('agrupar') ?? 'dia') as AgrupamentoVendas;
+    if (!['dia', 'semana', 'mes'].includes(agrupar)) throw new ErroDemo(422, 'regra_violada', 'Agrupe por dia, semana ou mes.');
+    const dias = (new Date(`${ate}T12:00Z`).getTime() - new Date(`${de}T12:00Z`).getTime()) / 86400_000;
+    if (!de || !ate || dias < 0 || dias > 400) throw new ErroDemo(422, 'periodo_invalido', 'Período de até 400 dias.');
+    return vendasPorPeriodo(de, ate, agrupar);
+  }],
+  ['GET', R('financeiro/relatorios/despesas-por-categoria'), GERENCIA, ({ query, papel }) => {
+    montar();
+    const de = query.get('de') ?? '';
+    const ate = query.get('ate') ?? '';
+    const desp = vivas().filter((d) => d.status === 'confirmada' && d.competencia >= de && d.competencia <= ate && (veSocietario(papel) || d.grupo !== 'retirada'));
     const total = desp.reduce((s, d) => s + Number(d.valor), 0);
     const por = new Map<string, { valor: number; n: number }>();
     for (const d of desp) { const x = por.get(d.categoria_codigo) ?? { valor: 0, n: 0 }; x.valor += Number(d.valor); x.n++; por.set(d.categoria_codigo, x); }
@@ -689,6 +821,10 @@ export const ROTAS_FINANCEIRO: Rota[] = [
   }],
   ['GET', R('financeiro/fechamento/(\\d{4}-\\d{2})'), GERENCIA, ({ params }) => { montar(); return fechamento(params[0]); }],
   ['GET', R('financeiro/apuracoes/(\\d{4}-\\d{2})'), GERENCIA, ({ params }) => { montar(); const a = E.apuracoes.get(params[0]) ?? { status: 'rascunho', excecao: null }; return { mes: `${params[0]}-01`, status: a.status, excecao_conciliacao: a.excecao }; }],
+  ['GET', R('financeiro/apuracoes/(\\d{4}-\\d{2})/participacao'), ADMIN, ({ params }) => {
+    montar();
+    throw new ErroDemo(409, 'regra_nao_aprovada', 'A regra de participação ainda não foi aprovada: só há simulação.', { simulacao: simulacaoParticipacao(params[0]) });
+  }],
   ['POST', R('financeiro/apuracoes/(\\d{4}-\\d{2})/conferir'), GERENCIA, ({ params }) => {
     montar();
     if (params[0] >= mesDe(hojeFortaleza())) throw new ErroDemo(409, 'mes_em_andamento', 'O mês ainda não terminou.');
@@ -793,7 +929,7 @@ export const ROTAS_FINANCEIRO: Rota[] = [
     montar();
     const m = E.movimentos.find((x) => x.id === params[0]);
     if (!m) throw new ErroDemo(404, 'nao_encontrado', 'Movimentação não encontrada.');
-    return { ...m, vinculos: E.vinculos.filter((v) => v.movimento_id === m.id).map((v) => ({ id: v.id, tipo: v.tipo, acao: v.acao, valor: v.valor, situacao: v.situacao, descricao: v.descricao, criado_em: v.criado_em, desfeito_em: v.desfeito_em, motivo: v.motivo })), arquivos: [{ importacao_id: m.importacao_id, linha: 1 }], historico: [] };
+    return detalheMovimento(m);
   }],
   ['POST', R(`financeiro/conciliacao/movimentos/${UUID}/acoes`), GERENCIA, async ({ params, corpo }) => {
     montar();
@@ -804,7 +940,7 @@ export const ROTAS_FINANCEIRO: Rota[] = [
     if (m.nivel === 'conflito') throw new ErroDemo(409, 'conflito_identidade_pendente', 'Decida antes se é duplicidade.');
     if (m.situacao === 'conciliado') throw new ErroDemo(409, 'ja_conciliado', 'Já conciliada.');
     if (E.mesesConciliados.has(`${mesDe(m.data)}:${m.conta.id}`)) throw new ErroDemo(409, 'mes_conciliado', 'O mês desta conta foi conciliado: reabra antes.');
-    const v: Vinculo = { id: id(), movimento_id: m.id, acao: a.acao, tipo: a.acao, valor: m.saldo_a_conciliar, descricao: '', situacao: 'ativa', criado_em: agora(), desfeito_em: null, motivo: null };
+    const v: Vinculo = { id: id(), movimento_id: m.id, acao: a.acao, tipo: tipoVinculo(a.acao, a.classificacao), valor: m.saldo_a_conciliar, descricao: '', situacao: 'ativa', criado_em: agora(), desfeito_em: null, motivo: null };
     if (a.acao === 'vincular_pagamento') {
       const pg = E.despesas.flatMap((d) => d.parcelas.flatMap((p) => p.pagamentos.map((x) => ({ x, d })))).find((y) => y.x.id === a.pagamento_id);
       if (!pg) throw new ErroDemo(404, 'nao_encontrado', 'Pagamento não encontrado.');
@@ -821,7 +957,7 @@ export const ROTAS_FINANCEIRO: Rota[] = [
       v.descricao = `Despesa nova: ${a.descricao}`;
     } else if (a.acao === 'registrar_receita') {
       if (!a.descricao) throw new ErroDemo(422, 'motivo_obrigatorio', 'Descreva a receita.');
-      E.receitas.push({ id: id(), descricao: a.descricao, valor: m.valor, competencia: a.competencia ?? m.data, status: 'confirmada' });
+      E.receitas.push({ id: id(), descricao: a.descricao, valor: m.valor, competencia: a.competencia ?? m.data, recebido_em: m.data, status: 'confirmada' });
       v.descricao = `Receita nova: ${a.descricao}`;
     } else if (a.acao === 'liquidar_vendas') {
       if (m.direcao !== 'credito') throw new ErroDemo(422, 'direcao_incompativel', 'Só entradas liquidam vendas.');
@@ -838,7 +974,7 @@ export const ROTAS_FINANCEIRO: Rota[] = [
     m.saldo_a_conciliar = '0.00';
     m.nivel = 'vinculo_confirmado';
     m.versao++;
-    return resposta(201, { ...m, conciliacao_id: v.id });
+    return resposta(201, { ...detalheMovimento(m), conciliacao_id: v.id });
   }],
   ['POST', R(`financeiro/conciliacao/movimentos/${UUID}/identidade`), GERENCIA, async ({ params, corpo }) => {
     montar();
@@ -849,17 +985,19 @@ export const ROTAS_FINANCEIRO: Rota[] = [
     m.conflito = null;
     if (e.decisao === 'duplicado') { m.situacao = 'duplicado'; m.nivel = 'duplicado'; } else { m.nivel = 'sem_correspondencia'; }
     m.versao++;
-    return m;
+    return detalheMovimento(m);
   }],
   ['POST', R(`financeiro/conciliacao/vinculos/${UUID}/desfazer`), GERENCIA, async ({ params, corpo }) => {
     montar();
-    exigirMotivo((await corpo<{ motivo: string }>()).motivo);
+    const { motivo } = await corpo<{ motivo: string }>();
+    exigirMotivo(motivo);
     const v = E.vinculos.find((x) => x.id === params[0]);
     if (!v) throw new ErroDemo(404, 'nao_encontrado', 'Vínculo não encontrado.');
     const m = E.movimentos.find((x) => x.id === v.movimento_id)!;
     if (E.mesesConciliados.has(`${mesDe(m.data)}:${m.conta.id}`)) throw new ErroDemo(409, 'mes_conciliado', 'O mês foi conciliado: reabra antes.');
     v.situacao = 'desfeita';
     v.desfeito_em = agora();
+    v.motivo = motivo;
     if (v.pagamento_criado) for (const d of E.despesas) for (const p of d.parcelas) { const pg = p.pagamentos.find((x) => x.id === v.pagamento_criado); if (pg) { pg.estornado_em = agora(); pg.estorno_motivo = 'Conciliação desfeita'; recalcularParcela(p); } }
     if (v.despesa_criada) { const d = E.despesas.find((x) => x.id === v.despesa_criada); if (d) { d.status = 'cancelada'; d.cancelado_em = agora(); d.cancelado_motivo = 'Conciliação desfeita'; } }
     m.situacao = 'pendente';
@@ -867,7 +1005,7 @@ export const ROTAS_FINANCEIRO: Rota[] = [
     m.saldo_a_conciliar = m.valor;
     m.nivel = m.candidatos.length ? 'possivel' : 'sem_correspondencia';
     m.versao++;
-    return { ok: true };
+    return detalheMovimento(m);
   }],
   ['GET', R('financeiro/conciliacao/meses/(\\d{4}-\\d{2})'), GERENCIA, ({ params }) => { montar(); return conciliacaoMes(params[0]); }],
   ['POST', R(`financeiro/conciliacao/meses/(\\d{4}-\\d{2})/contas/${UUID}/conciliar`), GERENCIA, ({ params }) => {
@@ -880,13 +1018,18 @@ export const ROTAS_FINANCEIRO: Rota[] = [
     const pend = [...(e.cobertura_integral ? [] : [{ codigo: 'cobertura_incompleta', lacunas: e.lacunas }]), ...(e.pendentes ? [{ codigo: 'movimentos_pendentes', quantidade: e.pendentes }] : []), ...(e.conflitos ? [{ codigo: 'movimentos_conflitos', quantidade: e.conflitos }] : [])];
     if (pend.length) throw new ErroDemo(409, 'pendencias', 'Ainda há pendências nesta conta.', { pendencias: pend });
     E.mesesConciliados.add(`${mes}:${contaId}`);
-    return { ok: true };
+    return { ...estadoConta(conta, mes), estado_calculado: e.estado, marcado: { por: 'Usuário (demo)', em: agora(), reaberto_por: null, reaberto_em: null, motivo_reabertura: null } };
   }],
   ['POST', R(`financeiro/conciliacao/meses/(\\d{4}-\\d{2})/contas/${UUID}/reabrir`), ADMIN, async ({ params, corpo }) => {
     montar();
-    exigirMotivo((await corpo<{ motivo: string }>()).motivo);
+    const { motivo } = await corpo<{ motivo: string }>();
+    exigirMotivo(motivo);
+    const conta = E.contas.find((c) => c.id === params[1]);
+    if (!conta) throw new ErroDemo(404, 'nao_encontrado', 'Conta não encontrada.');
+    if (!E.mesesConciliados.has(`${params[0]}:${params[1]}`)) throw new ErroDemo(409, 'mes_nao_conciliado', 'Este mês não está conciliado nesta conta.');
     E.mesesConciliados.delete(`${params[0]}:${params[1]}`);
-    return { ok: true };
+    const e = estadoConta(conta, params[0]);
+    return { ...e, estado_calculado: e.estado, marcado: { por: 'Usuário (demo)', em: agora(), reaberto_por: 'Usuário (demo)', reaberto_em: agora(), motivo_reabertura: motivo } };
   }],
   ['GET', R('financeiro/conciliacao/repasses'), GERENCIA, ({ query }) => {
     montar();

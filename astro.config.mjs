@@ -68,9 +68,11 @@ function podarMidiaNaoReferenciada({ podarCodigo = true } = {}) {
   };
 }
 
-// Painel administrativo (/admin, src/admin/): só entra no build com PAINEL_ADMIN=1 (scripts/painel.mjs). Desligado, o
-// build é o do site público de sempre — estático, sem adaptador e sem nenhuma rota /admin.
-const PAINEL = process.env.PAINEL_ADMIN === '1';
+// Painel administrativo (/admin, src/admin/): o painel da equipe é servido por este mesmo projeto. Entra no build com
+// PAINEL_ADMIN=1 (scripts/painel.mjs) e, na Vercel, por padrão (preview e produção) — PAINEL_ADMIN=0 desliga. Desligado,
+// o build é o do site público de sempre — estático, sem adaptador e sem nenhuma rota /admin. Ligado, as páginas
+// públicas continuam pré-geradas com o mesmo HTML; só as do /admin rodam no servidor.
+const PAINEL = process.env.PAINEL_ADMIN === '1' || (!!process.env.VERCEL && process.env.PAINEL_ADMIN !== '0');
 
 // Site estático. Preact só nas ilhas (src/islands; o painel tem as próprias em src/admin/).
 export default defineConfig({

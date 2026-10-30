@@ -1,10 +1,12 @@
-// Relatórios: resultado do mês (DRE gerencial, com qualidade), despesas por categoria, evolução e fechamento do mês
-// (checklist assistido + conciliação por conta + apuração). Detalhe só sob demanda.
-// Rotas: /relatorios/resultado, /despesas-por-categoria, /evolucao; /fechamento/{mes}; /conciliacao/meses/*; /apuracoes/*.
+// Resultado: resultado gerencial do mês (DRE com a qualidade dos dados), despesas por categoria, evolução e o fechamento
+// do mês (checklist assistido + conciliação por conta + apuração). Só para quem tem financeiro.ver_societario
+// (Proprietário): a participação da Roll — oficial com regra aprovada, senão a SIMULAÇÃO nas quatro bases.
+// Rotas: /relatorios/resultado, /despesas-por-categoria, /evolucao; /fechamento/{mes}; /conciliacao/meses/*;
+// /apuracoes/{mes} (conferir, fechar, reabrir) e /apuracoes/{mes}/participacao (409 regra_nao_aprovada = simulação).
+import { Fragment } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
-import { ChevronRight, CircleCheck, AlertTriangle, Info, Lock, Unlock, ClipboardCheck } from 'lucide-preact';
+import { ChevronRight, CircleCheck, AlertTriangle, Info, Lock, Unlock, ClipboardCheck, Handshake } from 'lucide-preact';
 import type { ContextoPainel } from '../../lib/sessao';
-import { pode } from '../../lib/permissoes';
 import { useConsulta } from '../../lib/consulta';
 import { financeiro } from '../../lib/api/financeiro';
 import { ErroApi } from '../../lib/api/cliente';
@@ -14,8 +16,8 @@ import { useConfirmacao } from '../../ui/camadas';
 import { Botao, Cabecalho, Cartao, Segmentado, Situacao, Aviso, Variacao } from '../../ui/base';
 import { Dados, Esqueleto, Vazio } from '../../ui/estados';
 import { GraficoLinhas, Legenda, BarraParte } from '../../ui/graficos';
-import type { ResultadoMes, DespesasPorCategoria, MesEvolucao, Fechamento } from '../../lib/tipos/financeiro';
-import { SeloQualidade, MotivosQualidade, QUALIDADE, GRUPO, ESTADO_CONCILIACAO, atualizarFinanceiro, avisar, avisarFalha } from './comum';
+import type { ResultadoMes, DespesasPorCategoria, MesEvolucao, Fechamento, Participacao as DadosParticipacao } from '../../lib/tipos/financeiro';
+import { SeloQualidade, MotivosQualidade, QUALIDADE, GRUPO, ESTADO_CONCILIACAO, BASE_PARTICIPACAO, atualizarFinanceiro, avisar, avisarFalha, temPermissao } from './comum';
 
 type Vista = 'resultado' | 'categorias' | 'evolucao' | 'fechamento';
 const VISTAS: Vista[] = ['resultado', 'categorias', 'evolucao', 'fechamento'];
@@ -23,15 +25,16 @@ const VISTAS: Vista[] = ['resultado', 'categorias', 'evolucao', 'fechamento'];
 /** Pendência do fechamento → a tela que resolve (dentro do Financeiro, abre direto a fila ou o Banco). */
 function destinoPendencia(rota: string | null) {
   if (!rota) return null;
-  if (rota.startsWith('/admin/financeiro/revisao')) return '/admin/financeiro?aba=lancamentos&revisar=1';
-  if (rota.startsWith('/admin/financeiro/conciliacao') || rota.startsWith('/admin/financeiro/extratos')) return '/admin/financeiro?aba=lancamentos&vista=banco';
+  if (rota.startsWith('/admin/financeiro/revisao')) return '/admin/financeiro?aba=revisao';
+  if (rota.startsWith('/admin/financeiro/conciliacao') || rota.startsWith('/admin/financeiro/extratos') || rota.startsWith('/admin/financeiro/contas-bancarias')) return '/admin/financeiro?aba=lancamentos&vista=banco';
   return rotaPainel(rota);
 }
 
 /** Mês anterior ao atual: o padrão (o mês corrente ainda está em andamento). */
 const mesPadrao = () => somarMeses(hojeISO(), -1).slice(0, 7);
 
-export function Relatorios({ contexto }: { contexto: ContextoPainel }) {
+export function Resultado({ contexto }: { contexto: ContextoPainel }) {
+  const societario = temPermissao(contexto.usuario, 'financeiro.ver_societario');
   const inicial = lerParam('vista') as Vista | null;
   const [vista, setVista] = useState<Vista>(inicial && VISTAS.includes(inicial) ? inicial : 'resultado');
   const [mes, setMes] = useState(lerParam('mes') ?? mesPadrao());
@@ -39,8 +42,8 @@ export function Relatorios({ contexto }: { contexto: ContextoPainel }) {
   return (
     <>
       <Cabecalho
-        titulo="Relatórios"
-        descricao="Resultado gerencial, despesas e fechamento do mês"
+        titulo="Resultado"
+        descricao="Resultado gerencial, despesas, evolução e fechamento do mês"
         acoes={vista !== 'evolucao' && (
           <>
             <label class="sr" for="mes-relatorio">Mês</label>
@@ -49,7 +52,12 @@ export function Relatorios({ contexto }: { contexto: ContextoPainel }) {
         )}
       />
       <Segmentado<Vista> rotulo="Relatório" valor={vista} aoMudar={setVista} opcoes={[{ valor: 'resultado', rotulo: 'Resultado do mês' }, { valor: 'categorias', rotulo: 'Por categoria' }, { valor: 'evolucao', rotulo: 'Evolução' }, { valor: 'fechamento', rotulo: 'Fechamento' }]} />
-      {vista === 'resultado' && <Resultado mes={mes} />}
+      {vista === 'resultado' && (
+        <>
+          <ResultadoDoMes mes={mes} />
+          {societario && <Participacao mes={mes} />}
+        </>
+      )}
       {vista === 'categorias' && <Categorias mes={mes} />}
       {vista === 'evolucao' && <Evolucao />}
       {vista === 'fechamento' && <FechamentoMes mes={mes} contexto={contexto} />}
@@ -72,7 +80,7 @@ function Linha({ rotulo, valor, sub, forte, recuo, negativo, nota }: { rotulo: s
   );
 }
 
-function Resultado({ mes }: { mes: string }) {
+function ResultadoDoMes({ mes }: { mes: string }) {
   const r = useConsulta(`financeiro/resultado:${mes}`, () => financeiro.resultado(mes));
   return (
     <Dados consulta={r} recurso="O resultado do mês" esqueleto={<Esqueleto linhas={10} />}>
@@ -113,7 +121,7 @@ function Resultado({ mes }: { mes: string }) {
                 <summary>Fora do resultado</summary>
                 <div class="fin-dre">
                   <Linha rotulo="Investimentos (obras, equipamentos)" valor={x.fora_do_resultado.investimento} />
-                  <Linha rotulo="Retiradas de sócios" valor={x.fora_do_resultado.retirada} />
+                  {x.fora_do_resultado.retirada !== undefined && <Linha rotulo="Retiradas de sócios" valor={x.fora_do_resultado.retirada} />}
                   <Linha rotulo="Repasse da taxa de serviço" valor={x.fora_do_resultado.repasse} />
                   <Linha rotulo="Compras de estoque no mês" valor={x.compras_estoque_no_mes} nota="informativo" />
                   <Linha rotulo="Taxa de serviço (fora da receita)" valor={x.receita.taxa_servico_fora_da_receita} />
@@ -250,7 +258,9 @@ function Evolucao() {
 }
 
 function FechamentoMes({ mes, contexto }: { mes: string; contexto: ContextoPainel }) {
-  const papel = contexto.usuario.papel;
+  // Conciliar o mês: financeiro.conciliar. Reabrir a conciliação, fechar e reabrir a apuração: financeiro.configurar.
+  const conciliar = temPermissao(contexto.usuario, 'financeiro.conciliar');
+  const configurar = temPermissao(contexto.usuario, 'financeiro.configurar');
   const f = useConsulta(`financeiro/fechamento:${mes}`, () => financeiro.fechamento(mes));
   const { confirmar, elemento: dialogo } = useConfirmacao();
   const [ocupado, setOcupado] = useState<string | null>(null);
@@ -275,7 +285,7 @@ function FechamentoMes({ mes, contexto }: { mes: string; contexto: ContextoPaine
   const fechar = () =>
     confirmar({
       titulo: `Fechar a apuração de ${mesAno(`${mes}-01`).toLowerCase()}?`,
-      texto: 'Os números ficam congelados. Só um administrador reabre.',
+      texto: 'Os números ficam congelados. Só o Proprietário reabre.',
       confirmar: 'Fechar apuração',
       acao: async () => {
         try {
@@ -336,10 +346,10 @@ function FechamentoMes({ mes, contexto }: { mes: string; contexto: ContextoPaine
                         </span>
                         <span class="lista__fim">
                           <Situacao tom={ESTADO_CONCILIACAO[c.estado].tom}>{ESTADO_CONCILIACAO[c.estado].rotulo}</Situacao>
-                          {c.estado === 'integral_informado' && pode(papel, 'financeiro.conciliar_mes') && (
+                          {c.estado === 'integral_informado' && conciliar && (
                             <Botao tamanho="p" variante="primario" carregando={ocupado === `c-${c.conta.id}`} onClick={() => executar(`c-${c.conta.id}`, () => financeiro.conciliarMes(mes, c.conta.id), 'Mês conciliado nesta conta.')}>Conciliar mês</Botao>
                           )}
-                          {c.estado === 'conciliado' && pode(papel, 'financeiro.reabrir_mes') && (
+                          {c.estado === 'conciliado' && configurar && (
                             <Botao tamanho="p" variante="fantasma" onClick={() => confirmar({ titulo: 'Reabrir a conciliação desta conta?', confirmar: 'Reabrir', motivo: { rotulo: 'Motivo' }, acao: async (m) => { await financeiro.reabrirMes(mes, c.conta.id, m); atualizarFinanceiro(); }, sucesso: 'Conciliação reaberta.' })}>Reabrir</Botao>
                           )}
                         </span>
@@ -347,14 +357,14 @@ function FechamentoMes({ mes, contexto }: { mes: string; contexto: ContextoPaine
                     ))}
                   </ul>
                 ) : (
-                  <Vazio compacto titulo="Nenhuma conta bancária">Cadastre a conta ao importar o primeiro extrato (Lançamentos → Importar extrato).</Vazio>
+                  <Vazio compacto titulo="Nenhuma conta bancária">Cadastre a conta ao importar o primeiro extrato (Lançamentos → Banco → Importar extrato).</Vazio>
                 )}
               </Cartao>
 
               <Cartao titulo="Apuração do mês" descricao="Os números oficiais do mês para a gestão" acoes={<Situacao tom={x.apuracao.status === 'fechada' ? 'ok' : x.apuracao.status === 'conferida' ? 'info' : 'neutro'}>{x.apuracao.status === 'fechada' ? 'Fechada' : x.apuracao.status === 'conferida' ? 'Conferida' : 'Rascunho'}</Situacao>}>
                 <dl class="definicoes">
                   <dt>Qualidade</dt>
-                  <dd><SeloQualidade q={x.apuracao.qualidade} /></dd>
+                  <dd><SeloQualidade q={x.apuracao.qualidade ?? 'indisponivel'} /></dd>
                   {x.apuracao.excecao_conciliacao && (
                     <>
                       <dt>Fechada com exceção</dt>
@@ -366,13 +376,13 @@ function FechamentoMes({ mes, contexto }: { mes: string; contexto: ContextoPaine
                   {x.apuracao.status === 'rascunho' && !emAndamento && (
                     <Botao icone={<ClipboardCheck aria-hidden="true" />} carregando={ocupado === 'conferir'} onClick={() => executar('conferir', () => financeiro.conferirApuracao(mes), 'Apuração conferida.')}>Marcar como conferida</Botao>
                   )}
-                  {x.apuracao.status === 'conferida' && pode(papel, 'financeiro.fechar_apuracao') && (
+                  {x.apuracao.status === 'conferida' && configurar && (
                     <Botao variante="primario" icone={<Lock aria-hidden="true" />} onClick={fechar}>Fechar apuração</Botao>
                   )}
-                  {x.apuracao.status === 'fechada' && pode(papel, 'financeiro.fechar_apuracao') && (
+                  {x.apuracao.status === 'fechada' && configurar && (
                     <Botao variante="fantasma" icone={<Unlock aria-hidden="true" />} onClick={() => confirmar({ titulo: 'Reabrir a apuração?', texto: 'Os números voltam a ser recalculados.', confirmar: 'Reabrir', perigo: true, motivo: { rotulo: 'Motivo' }, acao: async (m) => { await financeiro.reabrirApuracao(mes, m); atualizarFinanceiro(); }, sucesso: 'Apuração reaberta.' })}>Reabrir apuração</Botao>
                   )}
-                  {x.apuracao.status === 'conferida' && !pode(papel, 'financeiro.fechar_apuracao') && <span class="fraco">Fechar a apuração é do administrador.</span>}
+                  {x.apuracao.status === 'conferida' && !configurar && <span class="fraco">Fechar a apuração é do Proprietário.</span>}
                 </div>
               </Cartao>
             </div>
@@ -381,5 +391,66 @@ function FechamentoMes({ mes, contexto }: { mes: string; contexto: ContextoPaine
       </Dados>
       {dialogo}
     </>
+  );
+}
+
+/** Participação (ex.: Roll). Sem regra aprovada por escrito, só SIMULAÇÃO: nada aqui é oficial nem é pago ou distribuído
+ *  pelo sistema. Os valores vêm prontos do backend (apuracao.py); a tela não calcula base nem percentual. */
+function Participacao({ mes }: { mes: string }) {
+  const r = useConsulta(`financeiro/participacao:${mes}`, () => financeiro.participacao(mes));
+  return (
+    <Dados consulta={r} recurso="A participação" compacto esqueleto={<Esqueleto linhas={4} />}>
+      {(p: DadosParticipacao) =>
+        p.tipo === 'oficial' ? (
+          <Cartao titulo={<span class="linha"><Handshake size={16} aria-hidden="true" /> Participação · regra aprovada</span>} descricao={mesAno(`${mes}-01`)}>
+            {p.oficiais.length ? (
+              <dl class="definicoes">
+                {p.oficiais.map((o) => (
+                  <Fragment key={o.regra_id}>
+                    <dt key={`t-${o.regra_id}`}>{o.beneficiario}</dt>
+                    <dd key={`d-${o.regra_id}`}>
+                      <span class="num forte">{moeda(o.valor)}</span>
+                      <span class="fraco"> · {pct(o.percentual)} de {(BASE_PARTICIPACAO[o.base] ?? o.base).toLowerCase()} ({moeda(o.valor_base)}){o.documento_referencia ? ` · ${o.documento_referencia}` : ''}</span>
+                    </dd>
+                  </Fragment>
+                ))}
+              </dl>
+            ) : (
+              <Vazio compacto titulo="Nenhuma participação neste mês" />
+            )}
+          </Cartao>
+        ) : (
+          <Cartao titulo={<span class="linha"><Handshake size={16} aria-hidden="true" /> Participação da Roll — simulação</span>} descricao={mesAno(`${mes}-01`)}>
+            <Aviso tom="atencao" icone={<AlertTriangle aria-hidden="true" />}>
+              <strong>Simulação:</strong> a base da participação ainda não foi aprovada por escrito. Nenhum valor aqui é oficial nem será pago ou distribuído pelo sistema.
+            </Aviso>
+            <div class="pilha" style={{ marginTop: '12px' }}>
+              {Object.entries(p.simulacao).map(([beneficiario, sim]) => (
+                <section key={beneficiario} class="pilha pilha--p">
+                  <h3 class="secao-titulo">
+                    {beneficiario === 'sem_regra_registrada' ? 'Nenhuma regra registrada' : beneficiario}
+                    {sim.percentual !== null && sim.percentual !== undefined && <span class="fraco"> · {pct(sim.percentual)}</span>}
+                  </h3>
+                  <div class="tabela-rolagem">
+                    <table class="tabela" aria-label={`Simulação da participação — ${beneficiario === 'sem_regra_registrada' ? 'sem regra' : beneficiario}`}>
+                      <thead><tr><th>Base possível</th><th class="num">Valor da base</th><th class="num">Participação simulada</th></tr></thead>
+                      <tbody>
+                        {Object.entries(sim.bases).map(([base, b]) => (
+                          <tr key={base}>
+                            <td>{BASE_PARTICIPACAO[base] ?? base}</td>
+                            <td class="num">{moeda(b?.valor_base ?? null)}</td>
+                            <td class="num forte">{moeda(b?.valor ?? null)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              ))}
+            </div>
+          </Cartao>
+        )
+      }
+    </Dados>
   );
 }

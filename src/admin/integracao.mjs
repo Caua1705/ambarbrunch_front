@@ -8,6 +8,7 @@ const ROTAS = [
   ['/admin', 'index.astro'],
   ['/admin/login', 'login.astro'],
   ['/admin/reservas', 'reservas.astro'],
+  ['/admin/clientes', 'clientes.astro'],
   ['/admin/atendimento', 'atendimento.astro'],
   ['/admin/clube', 'clube.astro'],
   ['/admin/financeiro', 'financeiro.astro'],

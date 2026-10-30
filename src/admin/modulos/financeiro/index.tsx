@@ -1,5 +1,7 @@
-// Financeiro: exatamente quatro abas (Resumo, Lançamentos, Contas a pagar, Relatórios). A conciliação bancária vive
-// dentro de Lançamentos (Banco) e do Fechamento (Relatórios) — nunca como módulo próprio. Gerente e admin.
+// Financeiro: exatamente sete abas, as mesmas do painel antigo do backend (app/painel/financeiro.html): Resumo, Vendas,
+// Lançamentos, Contas a pagar, Revisão, Resultado e Contas fixas e taxas. A conciliação bancária (Banco, extratos) vive
+// dentro de Lançamentos e o fechamento do mês dentro de Resultado — nunca como módulo próprio. Gerente e Proprietário;
+// o que é só do Proprietário (participação, fechar/reabrir) segue as permissões que o backend manda.
 import { useEffect, useState } from 'preact/hooks';
 import type { ContextoPainel } from '../../lib/sessao';
 import { useConsulta } from '../../lib/consulta';
@@ -9,13 +11,26 @@ import { Raiz } from '../../ui/camadas';
 import { Abas } from '../../ui/base';
 import { Esqueleto } from '../../ui/estados';
 import { Resumo } from './Resumo';
+import { Vendas } from './Vendas';
 import { Lancamentos } from './Lancamentos';
 import { Contas } from './Contas';
-import { Relatorios } from './Relatorios';
+import { Revisao } from './Revisao';
+import { Resultado } from './Resultado';
+import { ContasFixas } from './ContasFixas';
+import { UsuarioFinanceiro } from './comum';
 import '../../estilos/financeiro.css';
 
-type Aba = 'resumo' | 'lancamentos' | 'contas' | 'relatorios';
-const ABAS: Aba[] = ['resumo', 'lancamentos', 'contas', 'relatorios'];
+export type Aba = 'resumo' | 'vendas' | 'lancamentos' | 'contas' | 'revisao' | 'resultado' | 'contas-fixas';
+const ABAS: Aba[] = ['resumo', 'vendas', 'lancamentos', 'contas', 'revisao', 'resultado', 'contas-fixas'];
+
+/** Aba da URL, aceitando os endereços antigos (Visão Geral, Estoque e links salvos ainda usam alguns). */
+function abaDaUrl(): Aba {
+  const a = lerParam('aba');
+  if (a === 'relatorios') return 'resultado';
+  if (a === 'configuracoes' || a === 'fixas') return 'contas-fixas';
+  if (a === 'lancamentos' && lerParam('revisar') === '1') return 'revisao';
+  return a && (ABAS as string[]).includes(a) ? (a as Aba) : 'resumo';
+}
 
 export default function Financeiro({ contexto }: { contexto: ContextoPainel }) {
   // A aba e os filtros vêm da URL, que o servidor não repassa à ilha: o conteúdo só é desenhado no navegador, depois da
@@ -26,9 +41,8 @@ export default function Financeiro({ contexto }: { contexto: ContextoPainel }) {
 }
 
 function Conteudo({ contexto }: { contexto: ContextoPainel }) {
-  const inicial = lerParam('aba') as Aba | null;
-  const [aba, setAba] = useState<Aba>(inicial && ABAS.includes(inicial) ? inicial : 'resumo');
-  useEffect(() => gravarParams({ aba: aba === 'resumo' ? null : aba }), [aba]);
+  const [aba, setAba] = useState<Aba>(abaDaUrl);
+  useEffect(() => gravarParams({ aba: aba === 'resumo' ? null : aba, revisar: null }), [aba]);
 
   // Contagens nas abas: o que precisa de alguém.
   const resumo = useConsulta('financeiro/resumo', () => financeiro.resumo());
@@ -42,24 +56,32 @@ function Conteudo({ contexto }: { contexto: ContextoPainel }) {
   };
 
   return (
-    <Raiz>
-      <Abas<Aba>
-        atual={aba}
-        aoMudar={(a) => ir(a, { situacao: null, revisar: null, vista: null })}
-        abas={[
-          { id: 'resumo', rotulo: 'Resumo' },
-          { id: 'lancamentos', rotulo: 'Lançamentos', contagem: revisar },
-          { id: 'contas', rotulo: 'Contas a pagar', contagem: vencidas },
-          { id: 'relatorios', rotulo: 'Relatórios' },
-        ]}
-      />
-      <div role="tabpanel" id={`painel-${aba}`} aria-labelledby={`aba-${aba}`} class="pilha" style={{ gap: '20px' }}>
-        {aba === 'resumo' && <Resumo contexto={contexto} ir={ir} />}
-        {aba === 'lancamentos' && <Lancamentos contexto={contexto} />}
-        {aba === 'contas' && <Contas contexto={contexto} />}
-        {aba === 'relatorios' && <Relatorios contexto={contexto} />}
-      </div>
-    </Raiz>
+    <UsuarioFinanceiro.Provider value={contexto.usuario}>
+      <Raiz>
+        <Abas<Aba>
+          atual={aba}
+          aoMudar={(a) => ir(a, { situacao: null, revisar: null, vista: null, despesa: null, mes: null })}
+          abas={[
+            { id: 'resumo', rotulo: 'Resumo' },
+            { id: 'vendas', rotulo: 'Vendas' },
+            { id: 'lancamentos', rotulo: 'Lançamentos' },
+            { id: 'contas', rotulo: 'Contas a pagar', contagem: vencidas },
+            { id: 'revisao', rotulo: 'Revisão', contagem: revisar },
+            { id: 'resultado', rotulo: 'Resultado' },
+            { id: 'contas-fixas', rotulo: 'Contas fixas e taxas' },
+          ]}
+        />
+        <div role="tabpanel" id={`painel-${aba}`} aria-labelledby={`aba-${aba}`} class="pilha" style={{ gap: '20px' }}>
+          {aba === 'resumo' && <Resumo contexto={contexto} ir={ir} />}
+          {aba === 'vendas' && <Vendas contexto={contexto} />}
+          {aba === 'lancamentos' && <Lancamentos contexto={contexto} ir={ir} />}
+          {aba === 'contas' && <Contas contexto={contexto} ir={ir} />}
+          {aba === 'revisao' && <Revisao contexto={contexto} />}
+          {aba === 'resultado' && <Resultado contexto={contexto} />}
+          {aba === 'contas-fixas' && <ContasFixas contexto={contexto} />}
+        </div>
+      </Raiz>
+    </UsuarioFinanceiro.Provider>
   );
 }
 

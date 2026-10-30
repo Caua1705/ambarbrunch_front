@@ -15,6 +15,19 @@ import { NIVEL, ESTADO_CONCILIACAO, CLASSIFICACOES, useCategorias, OpcoesCategor
 
 type Filtro = 'pendente' | 'parcial' | 'conciliado' | 'todas';
 
+/** Tipo do vínculo (tabela conciliacoes do backend). */
+const TIPO_VINCULO: Record<string, string> = {
+  pagamento: 'Pagamento',
+  outra_receita: 'Outra receita',
+  vendas: 'Repasse de vendas',
+  transferencia_propria: 'Transferência entre contas próprias',
+  aporte_socio: 'Aporte de sócio',
+  emprestimo: 'Empréstimo',
+  reembolso: 'Reembolso',
+  estorno: 'Estorno',
+  nao_operacional: 'Não operacional',
+};
+
 const TIPO_CANDIDATO: Record<CandidatoConciliacao['tipo'], string> = {
   pagamento: 'Pagamento já registrado',
   parcela: 'Conta a pagar em aberto',
@@ -182,10 +195,12 @@ function Movimento({ id, aoFechar, confirmar }: { id: string | null; aoFechar: (
     if (!m) return;
   // Só pré-seleciona com sugestão FORTE (um candidato de valor exato com prova). Ambígua: nada marcado.
     setCand(m.nivel === 'forte' && m.candidatos.length ? 0 : null);
-    setDecisao(m.candidatos.length ? 'candidato' : m.classificacao_sugerida ? 'classificar' : m.direcao === 'debito' ? 'despesa' : 'receita');
-    setClassificacao(m.classificacao_sugerida ?? '');
+    // A sugestão do backend é um objeto: classificar (com `classificacao`) ou registrar despesa (com `categoria`).
+    const sug = m.classificacao_sugerida;
+    setDecisao(m.candidatos.length ? 'candidato' : sug?.acao === 'classificar' ? 'classificar' : m.direcao === 'debito' ? 'despesa' : 'receita');
+    setClassificacao(sug?.classificacao ?? '');
     setDescricao(m.descricao);
-    setCategoria('');
+    setCategoria(sug?.acao === 'registrar_despesa' ? sug.categoria ?? '' : '');
     setVDe(m.data);
     setVAte(m.data);
     setObservacao('');
@@ -286,7 +301,7 @@ function Movimento({ id, aoFechar, confirmar }: { id: string | null; aoFechar: (
 
             {bloqueada && (
               <Aviso tom="atencao" icone={<Copy aria-hidden="true" />}>
-                <strong>Pode ser a mesma operação importada duas vezes{m.conflito ? ` (${m.conflito.replace(/_/g, ' ')})` : ''}.</strong> Decida antes de conciliar.
+                <strong>Pode ser a mesma operação importada duas vezes{m.conflito?.tipo ? ` (${m.conflito.tipo.replace(/_/g, ' ')})` : ''}.</strong> Decida antes de conciliar.
                 <div class="linha" style={{ marginTop: '8px' }}>
                   <Botao tamanho="p" icone={<Split aria-hidden="true" />} disabled={ocupado} onClick={() => identidade('distinto')}>São operações diferentes</Botao>
                   <Botao tamanho="p" icone={<Copy aria-hidden="true" />} disabled={ocupado} onClick={() => identidade('duplicado')}>É a mesma (duplicada)</Botao>
@@ -303,7 +318,7 @@ function Movimento({ id, aoFechar, confirmar }: { id: string | null; aoFechar: (
                   <div role="radiogroup" aria-label="O que é esta movimentação" class="pilha pilha--p">
                     {m.nivel === 'ambigua' && <p class="fraco">Há mais de uma opção de mesmo valor: escolha a certa com base nas evidências.</p>}
                     {m.candidatos.map((c, i) => (
-                      <label key={c.referencia} class={`fin-candidata${cand === i ? ' fin-candidata--sel' : ''}`}>
+                      <label key={c.referencia ?? `${c.tipo}-${i}`} class={`fin-candidata${cand === i ? ' fin-candidata--sel' : ''}`}>
                         <input type="radio" name={`mov-${m.id}`} checked={cand === i} onChange={() => setCand(i)} />
                         <span class="pilha pilha--p" style={{ flex: 1, minWidth: 0 }}>
                           <span class="linha linha--entre">
@@ -323,6 +338,7 @@ function Movimento({ id, aoFechar, confirmar }: { id: string | null; aoFechar: (
                 {decisao === 'despesa' && (
                   <div class="pilha">
                     <p class="fraco">Cria uma despesa já paga, com a data do banco. Use só se ela ainda não foi lançada.</p>
+                    {m.classificacao_sugerida?.acao === 'registrar_despesa' && <p class="fraco">Sugestão pela descrição do banco: <strong>{m.classificacao_sugerida.texto}</strong> Confira.</p>}
                     <Campo rotulo="Descrição">{(cid) => <input id={cid} class="entrada" value={descricao} onInput={(e) => setDescricao(e.currentTarget.value)} />}</Campo>
                     <Campo rotulo="Categoria">
                       {(cid) => (
@@ -363,7 +379,7 @@ function Movimento({ id, aoFechar, confirmar }: { id: string | null; aoFechar: (
                 )}
                 {decisao === 'classificar' && (
                   <div class="pilha">
-                    {m.classificacao_sugerida && <p class="fraco">Sugestão pela descrição do banco: <strong>{CLASSIFICACOES.find((c) => c.valor === m.classificacao_sugerida)?.rotulo ?? m.classificacao_sugerida}</strong>. Confira.</p>}
+                    {m.classificacao_sugerida?.acao === 'classificar' && <p class="fraco">Sugestão pela descrição do banco: <strong>{CLASSIFICACOES.find((c) => c.valor === m.classificacao_sugerida?.classificacao)?.rotulo ?? m.classificacao_sugerida.classificacao}</strong> — {m.classificacao_sugerida.texto} Confira.</p>}
                     <div role="radiogroup" aria-label="Classificação" class="pilha pilha--p">
                       {CLASSIFICACOES.filter((c) => !c.direcao || c.direcao === m.direcao).map((c) => (
                         <label key={c.valor} class={`fin-candidata${classificacao === c.valor ? ' fin-candidata--sel' : ''}`}>
@@ -385,10 +401,10 @@ function Movimento({ id, aoFechar, confirmar }: { id: string | null; aoFechar: (
                   {m.vinculos!.map((v) => (
                     <li key={v.id} class="lista__item">
                       <span class="lista__texto">
-                        <strong>{v.descricao ?? ACAO[v.acao] ?? v.acao}</strong>
-                        <span>{moeda(v.valor)} · {dataHora(v.criado_em)}{v.situacao === 'desfeita' ? ` · desfeito${v.motivo ? `: ${v.motivo}` : ''}` : ''}</span>
+                        <strong>{TIPO_VINCULO[v.tipo] ?? v.tipo.replace(/_/g, ' ')}{v.observacao ? <span class="fraco"> · {v.observacao}</span> : null}</strong>
+                        <span>{moeda(v.valor)} · {dataHora(v.criado_em)}{v.criado_por ? ` · ${v.criado_por}` : ''}{v.status === 'desfeita' ? ` · desfeito${v.desfeita_em ? ` em ${dataHora(v.desfeita_em)}` : ''}${v.desfeita_motivo ? `: ${v.desfeita_motivo}` : ''}` : ''}</span>
                       </span>
-                      {v.situacao === 'ativa' && (
+                      {v.status === 'ativa' && (
                         <Botao tamanho="p" variante="fantasma" icone={<Undo2 aria-hidden="true" />} onClick={() => confirmar({ titulo: 'Desfazer esta conciliação?', texto: 'O que a conciliação criou (pagamento, despesa ou receita) é estornado; a movimentação volta para conferir.', confirmar: 'Desfazer', perigo: true, motivo: { rotulo: 'Motivo' }, acao: async (mot) => { await financeiro.desfazerVinculo(v.id, mot); atualizarFinanceiro(); }, sucesso: 'Conciliação desfeita.' })}>
                           Desfazer
                         </Botao>

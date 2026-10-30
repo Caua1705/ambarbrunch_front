@@ -1,0 +1,25 @@
+---
+// Clientes — sessão conferida no middleware; a área só aparece para quem tem o papel (Gerente e Proprietário; o backend
+// confere de novo com clientes.visualizar). Liberada junto com Reservas (mesmo módulo do backend em PAINEL_MODULOS).
+import Painel from '../layout/Painel.astro';
+import SemAcesso from '../layout/SemAcesso.astro';
+import Clientes from '../modulos/clientes';
+import { podeVer } from '../lib/permissoes';
+
+export const prerender = false;
+const contexto = Astro.locals.painel;
+if (!contexto) return Astro.redirect('/admin/login', 303);
+// Liberação controlada (PAINEL_MODULOS) e papel, os dois conferidos aqui no servidor.
+const liberado = contexto.modulos.includes('reservas');
+const pode = liberado && podeVer(contexto.usuario.papel, 'clientes');
+---
+
+<Painel titulo="Clientes" modulo="clientes" contexto={contexto}>
+  {pode ? (
+    <Clientes client:only="preact" contexto={contexto}>
+      <div slot="fallback" class="carregando-modulo" aria-busy="true" aria-label="Carregando"><span class="esqueleto" style="height:28px;width:40%"></span><span class="esqueleto" style="height:56px"></span><span class="esqueleto" style="height:420px"></span></div>
+    </Clientes>
+  ) : (
+    <SemAcesso naoLiberado={!liberado} />
+  )}
+</Painel>

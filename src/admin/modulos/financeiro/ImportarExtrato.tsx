@@ -340,14 +340,16 @@ function Periodo({ imp, aoConfirmar, aoErro }: { imp: Importacao; aoConfirmar: (
 function Resultado({ imp, aoVer, aoFechar }: { imp: Importacao; aoVer: () => void; aoFechar: () => void }) {
   const r = imp.resultado;
   const c = imp.contagem;
-  const pendentes = r ? r.correspondencias_fortes + r.possiveis + r.sem_registro + r.conflitos : 0;
+  // Importação sem movimentações: o backend manda só {analisadas: 0, ...} (campos ausentes contam como zero).
+  const n = (v: number | undefined) => v ?? 0;
+  const pendentes = r ? n(r.correspondencias_fortes) + n(r.possiveis) + n(r.sem_registro) + n(r.conflitos) : 0;
   return (
     <div class="pilha">
       <Aviso tom="ok" icone={<CircleCheck aria-hidden="true" />}>
         <strong>{inteiro(c.novos)} movimentações novas</strong> lidas{c.ja_existentes ? `, ${inteiro(c.ja_existentes)} já conhecidas` : ''}{c.ignoradas ? `, ${inteiro(c.ignoradas)} linhas ignoradas (saldo, rodapé)` : ''}.
         {' '}Nada foi lançado no Financeiro: as movimentações só conferem o que já existe.
       </Aviso>
-      {r ? (
+      {r && r.analisadas > 0 ? (
         <>
           <div class="fin-valores">
             <div><span>Entradas</span><strong class="num">{moeda(r.creditos.valor)}</strong><small>{inteiro(r.creditos.quantidade)} · {moeda(r.creditos.conciliado)} conciliado</small></div>
@@ -355,11 +357,11 @@ function Resultado({ imp, aoVer, aoFechar }: { imp: Importacao; aoVer: () => voi
           </div>
           <ul class="lista fin-borda">
             {[
-              { n: r.ja_conciliadas, t: 'Já conciliadas', d: 'Batem com o que já está no Financeiro.' },
-              { n: r.correspondencias_fortes, t: 'Sugestão forte', d: 'Uma correspondência com prova (valor exato e identificador ou beneficiário). Falta só a sua confirmação.' },
-              { n: r.possiveis, t: 'Possíveis correspondências', d: 'Há candidatos, mas sem prova suficiente.' },
-              { n: r.sem_registro, t: 'Sem registro no Financeiro', d: 'Pode ser despesa não lançada, repasse de cartão, transferência entre contas, estorno ou aporte.' },
-              { n: r.conflitos + r.duplicadas, t: 'Possível duplicidade', d: 'Pode ser a mesma operação importada duas vezes: decida antes.' },
+              { n: n(r.ja_conciliadas), t: 'Já conciliadas', d: 'Batem com o que já está no Financeiro.' },
+              { n: n(r.correspondencias_fortes), t: 'Sugestão forte', d: 'Uma correspondência com prova (valor exato e identificador ou beneficiário). Falta só a sua confirmação.' },
+              { n: n(r.possiveis), t: 'Possíveis correspondências', d: 'Há candidatos, mas sem prova suficiente.' },
+              { n: n(r.sem_registro), t: 'Sem registro no Financeiro', d: 'Pode ser despesa não lançada, repasse de cartão, transferência entre contas, estorno ou aporte.' },
+              { n: n(r.conflitos) + n(r.duplicadas), t: 'Possível duplicidade', d: 'Pode ser a mesma operação importada duas vezes: decida antes.' },
             ].filter((x) => x.n > 0).map((x) => (
               <li key={x.t} class="lista__item"><span class="lista__texto"><strong>{inteiro(x.n)} · {x.t}</strong><span>{x.d}</span></span></li>
             ))}

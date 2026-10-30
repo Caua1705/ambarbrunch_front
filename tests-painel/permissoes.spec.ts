@@ -38,12 +38,13 @@ test('Gerente: Configurações sem Equipe e sem regras da casa', async ({ page }
   expect((await page.request.get(`${DEMO}/admin/api/usuarios`)).status()).toBe(403);
 });
 
-test('gerência: vê os seis módulos e o financeiro na Visão Geral', async ({ page }) => {
+test('gerência: vê os seis módulos e Clientes e o financeiro na Visão Geral', async ({ page }) => {
   await entrarDemo(page, 'gerente');
   await page.goto(`${DEMO}/admin`);
   const nav = page.getByRole('navigation', { name: 'Módulos' });
   for (const m of ['Visão Geral', 'Reservas', 'Atendimento', 'Clube Âmbar', 'Financeiro', 'Estoque']) await expect(nav.getByRole('link', { name: new RegExp(m) })).toBeVisible();
-  await expect(nav.getByRole('listitem')).toHaveCount(6);
+  await expect(nav.getByRole('listitem')).toHaveCount(7);
+  await expect(nav.getByRole('link', { name: 'Clientes' })).toBeVisible();
   await expect(page.getByText(/Faturamento do mês/)).toBeVisible();
 });
 

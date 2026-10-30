@@ -77,3 +77,27 @@ test('tema escuro persiste depois de recarregar', async ({ page, isMobile }) => 
   await page.reload();
   expect(await page.evaluate(() => document.documentElement.dataset.tema)).toBe(tema);
 });
+
+test('visões do painel anterior: Mês, Lista por período e Ambientes', async ({ page }) => {
+  await page.getByRole('tab', { name: 'Mês' }).click();
+  await expect(page.getByRole('button', { name: 'Próximo mês' })).toBeVisible();
+  await expect(page.getByRole('group', { name: /^Reservas de / })).toBeVisible();
+  await page.getByRole('tab', { name: 'Lista' }).click();
+  await page.getByRole('group', { name: 'Período' }).getByRole('button', { name: 'Próximos 7 dias' }).click();
+  await expect(page.locator('[data-linha]:visible').first()).toBeVisible();
+  await page.getByLabel('Situação').selectOption('cancelada');
+  await page.getByRole('searchbox', { name: 'Buscar na lista' }).fill('zzzz-ninguem');
+  await expect(page.getByText('Nenhuma reserva com esses filtros')).toBeVisible();
+  await page.getByRole('tab', { name: 'Ambientes' }).click();
+  await expect(page.getByRole('region', { name: /^Salão: / })).toBeVisible();
+});
+
+test('detalhe: cancelar reserva confirmada com motivo opcional', async ({ page }) => {
+  await page.getByRole('button', { name: 'Próximo dia' }).click();
+  await page.locator('[data-linha]:visible', { hasText: 'Confirmada' }).first().click();
+  const g = page.getByRole('dialog');
+  await g.getByRole('button', { name: 'Cancelar reserva' }).click();
+  const d = page.getByRole('alertdialog', { name: /^Cancelar a reserva de / });
+  await d.getByRole('button', { name: 'Cancelar reserva' }).click();
+  await expect(page.getByText(/Reserva cancelada/).first()).toBeVisible();
+});

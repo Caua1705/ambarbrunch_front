@@ -30,6 +30,8 @@ export function NovaDespesa({ aberta, aoFechar, aoCriar }: { aberta: boolean; ao
   const [data, setData] = useState(hojeISO());
   const [situacao, setSituacao] = useState<Situacao>('paga');
   const [forma, setForma] = useState<FormaPagamento>('pix');
+  const [pagoEm, setPagoEm] = useState(hojeISO());
+  const [ident, setIdent] = useState('');
   const [vencimento, setVencimento] = useState(hojeISO());
   const [nParcelas, setNParcelas] = useState(2);
   const [parcelas, setParcelas] = useState<{ vencimento: string; valor: string }[]>([]);
@@ -51,6 +53,8 @@ export function NovaDespesa({ aberta, aoFechar, aoCriar }: { aberta: boolean; ao
     setData(hojeISO());
     setSituacao('paga');
     setForma('pix');
+    setPagoEm(hojeISO());
+    setIdent('');
     setVencimento(hojeISO());
     setNParcelas(2);
     setParcelas([]);
@@ -92,6 +96,7 @@ export function NovaDespesa({ aberta, aoFechar, aoCriar }: { aberta: boolean; ao
     if (!v || Number(v) <= 0) es.valor = 'Informe o valor.';
     if (!categoria) es.categoria = 'Escolha a categoria.';
     if (!data) es.competencia = 'Informe a data.';
+    if (situacao === 'paga' && !pagoEm) es.pago_em = 'Informe quando foi pago.';
     if (situacao === 'parcelada') {
       const soma = parcelas.reduce((s, p) => s + Number(p.valor), 0);
       if (v && Math.abs(soma - Number(v)) > 0.009) es.parcelas = `A soma das parcelas (${moeda(soma)}) precisa ser igual ao valor (${moeda(v)}).`;
@@ -106,7 +111,7 @@ export function NovaDespesa({ aberta, aoFechar, aoCriar }: { aberta: boolean; ao
       fornecedor: fornNome.trim() || fornDoc.trim() ? { nome: fornNome.trim() || null, documento: fornDoc.replace(/\D/g, '') || null } : null,
       arquivo_id: arquivo?.id ?? null,
       // Sem `pagamento` nem `parcelas`, o backend cria uma conta a pagar que vence na competência.
-      pagamento: situacao === 'paga' ? { pago_em: data, forma, arquivo_id: arquivo?.id ?? null } : null,
+      pagamento: situacao === 'paga' ? { pago_em: pagoEm, forma, identificador_transacao: ident.trim() || null, arquivo_id: arquivo?.id ?? null } : null,
       parcelas: situacao === 'a_pagar' ? [{ vencimento, valor: v! }] : situacao === 'parcelada' ? parcelas : null,
     };
     setEnviando(true);
@@ -166,13 +171,21 @@ export function NovaDespesa({ aberta, aoFechar, aoCriar }: { aberta: boolean; ao
           <Segmentado<Situacao> rotulo="Situação do pagamento" valor={situacao} aoMudar={setSituacao} opcoes={[{ valor: 'paga', rotulo: 'Já foi paga' }, { valor: 'a_pagar', rotulo: 'A pagar' }, { valor: 'parcelada', rotulo: 'Parcelada' }]} />
         </div>
         {situacao === 'paga' && (
-          <Campo rotulo="Forma de pagamento">
-            {(id) => (
-              <select id={id} class="selecao" value={forma} onChange={(e) => setForma(e.currentTarget.value as FormaPagamento)}>
-                {FORMAS.map((f) => <option key={f.valor} value={f.valor}>{f.rotulo}</option>)}
-              </select>
-            )}
-          </Campo>
+          <div class="grade-campos">
+            <Campo rotulo="Pago em" erro={erros.pago_em}>
+              {(id, d) => <input id={id} type="date" class="entrada" max={hojeISO()} aria-describedby={d} value={pagoEm} onChange={(e) => setPagoEm(e.currentTarget.value)} />}
+            </Campo>
+            <Campo rotulo="Forma de pagamento">
+              {(id) => (
+                <select id={id} class="selecao" value={forma} onChange={(e) => setForma(e.currentTarget.value as FormaPagamento)}>
+                  {FORMAS.map((f) => <option key={f.valor} value={f.valor}>{f.rotulo}</option>)}
+                </select>
+              )}
+            </Campo>
+            <Campo rotulo="Identificador da transação" opcional class="inteiro" ajuda="Código do Pix (E2E) ou autenticação. Ajuda a conciliar com o extrato.">
+              {(id, d) => <input id={id} class="entrada" autocomplete="off" maxLength={120} aria-describedby={d} value={ident} onInput={(e) => setIdent(e.currentTarget.value)} />}
+            </Campo>
+          </div>
         )}
         {situacao === 'a_pagar' && (
           <Campo rotulo="Vencimento" ajuda="Vira uma conta em Contas a pagar.">

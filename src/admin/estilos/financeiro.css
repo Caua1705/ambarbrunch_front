@@ -260,3 +260,27 @@
     max-height: 46vh;
   }
 }
+
+/* Revisão (aba): cada despesa com as ações à mão, abaixo da linha que abre o detalhe. */
+.fin-revisao-item__acoes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e-2);
+  padding: 0 var(--e-5) var(--e-3) calc(var(--e-5) + 32px + var(--e-3));
+}
+.fin-revisao-item__acoes .selecao {
+  width: auto;
+  min-width: 0;
+  max-width: 100%;
+  flex: 1 1 200px;
+}
+@media (max-width: 560px) {
+  .fin-revisao-item__acoes {
+    padding: 0 var(--e-4) var(--e-3);
+  }
+}
+
+/* Taxas: vigências antigas ficam apagadas (continuam valendo para os meses anteriores). */
+.fin-apagada td {
+  color: var(--texto-3);
+}

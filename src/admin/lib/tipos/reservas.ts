@@ -1,4 +1,5 @@
-// Reservas — CONTRATO-PAINEL-ADMIN.md §7 (rotas /admin/reservas*, /admin/clientes*). Publicado em produção.
+// Reservas — CONTRATO-PAINEL-ADMIN.md §7 (rotas /admin/reservas*; clientes em ./clientes). Publicado em produção.
+// Conferido com app/modulos/reservas/esquemas.py do backend.
 import type { Data, Instante, Uuid, Pagina } from './comum';
 
 export type StatusReserva = 'pendente' | 'confirmada' | 'lembrada' | 'reconfirmada' | 'cancelada' | 'compareceu' | 'nao_compareceu';
@@ -32,12 +33,15 @@ export interface ReservaPainel {
   motivo_cancelamento: string | null;
   fechada_em: Instante | null;
   criado_em: Instante;
+  /** "alteracao" | "cancelamento": mudança que o sistema NÃO avisou ao cliente (a equipe avisa e marca o aviso). */
   avisar_cliente?: string | null;
 }
 
-export interface MensagensReserva {
-  [tipo: string]: { status: string; erro?: string | null; enviada_em?: Instante | null } | null | undefined;
-}
+/**
+ * Situação da última mensagem viva de cada tipo (confirmacao, lembrete_1h…) → status (agendada, enviada, entregue, lida,
+ * falhou…). O backend manda só o texto do status (`dict[str, str]`), não um objeto.
+ */
+export type MensagensReserva = Record<string, string>;
 
 export interface OperacaoReserva extends ReservaPainel {
   inicio: Instante;

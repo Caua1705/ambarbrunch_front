@@ -3,7 +3,7 @@
 import { defineMiddleware } from 'astro:middleware';
 import { createHash } from 'node:crypto';
 import { modoPainel, clubeConvites, modulosLiberados, DEMO_PERMITIDO } from './servidor/config';
-import { lerSessao, apagarSessao, COOKIE_UNIDADE, ehHttps } from './servidor/sessao';
+import { lerSessao, apagarSessao, gravarUnidade, COOKIE_UNIDADE, ehHttps } from './servidor/sessao';
 import { chamarBackend, lerJson, BackendForaDoAr } from './servidor/backend';
 import type { ContextoPainel, Unidade, Usuario } from './lib/sessao';
 
@@ -31,9 +31,12 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
 
     // As rotas de API não conferem /me: o backend valida o token em cada chamada repassada.
     if (!api) {
-      const carregado = await carregarContexto(sessao.token, sessao.demoPapel, ctx.cookies.get(COOKIE_UNIDADE)?.value);
+      const cookieUnidade = ctx.cookies.get(COOKIE_UNIDADE)?.value;
+      const carregado = await carregarContexto(sessao.token, sessao.demoPapel, cookieUnidade);
       if (carregado === 'sessao') return seguro(negar(), modo, https);
       if (carregado === 'backend') return seguro(paginaForaDoAr(), modo, https);
+      // A ponte da API manda a unidade do cookie: ele precisa dizer a mesma unidade que esta página mostra no topo.
+      if (carregado.unidade && carregado.unidade.codigo !== cookieUnidade) gravarUnidade(ctx.cookies, https, carregado.unidade.codigo);
       ctx.locals.painel = { ...carregado, modo };
     }
   }

@@ -38,4 +38,11 @@ export interface ContextoPainel {
   modulos: import('./permissoes').Modulo[];
 }
 
+/**
+ * Unidade de ensaio (Âmbar · TESTES): a mesma regra do backend (`unidades/escopo.py`: código começa com "teste" ou
+ * termina em "_teste"). Os números dela nunca entram nos da operação real; o painel só a identifica em destaque.
+ */
+export const ehUnidadeTeste = (u: Pick<Unidade, 'codigo'> | null | undefined) =>
+  !!u && (u.codigo.startsWith('teste') || u.codigo.endsWith('_teste'));
+
 export const NOME_PAPEL: Record<Papel, string> = { admin: 'Proprietário', gerente: 'Gerente', operador: 'Atendente' };

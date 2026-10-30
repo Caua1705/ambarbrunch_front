@@ -2,6 +2,9 @@
 import { ErroApi } from '../../lib/api/cliente';
 import { reservas } from '../../lib/api/reservas';
 import { invalidar } from '../../lib/consulta';
+import { hojeISO, somarDias } from '../../lib/formato';
+import { pode } from '../../lib/permissoes';
+import type { Papel } from '../../lib/sessao';
 import { Situacao, type Tom } from '../../ui/base';
 import type { ReservaPainel, StatusReserva, Comparecimento } from '../../lib/tipos/reservas';
 
@@ -15,7 +18,27 @@ export const STATUS: Record<StatusReserva, { rotulo: string; tom: Tom; destaque?
   nao_compareceu: { rotulo: 'Não veio', tom: 'perigo' },
 };
 
-export const CANAL: Record<string, string> = { site: 'Site', whatsapp: 'WhatsApp', telefone: 'Telefone', balcao: 'Balcão', instagram: 'Instagram', painel: 'Painel', importacao: 'Importada' };
+export const CANAL: Record<string, string> = { site: 'Site', whatsapp: 'WhatsApp', telefone: 'Telefone', balcao: 'Balcão', instagram: 'Instagram', painel: 'Painel', importacao: 'Importada', nfc: 'NFC' };
+
+/**
+ * Filtros de situação (como o painel anterior): "Confirmadas" junta confirmada, lembrete enviado e reconfirmada;
+ * "Comparecimentos" junta quem chegou e quem não veio. Vão ao backend em `status` (a situação do painel).
+ */
+export const GRUPOS_STATUS = {
+  confirmada: ['confirmada', 'lembrada', 'reconfirmada'],
+  pendente: ['pendente'],
+  cancelada: ['cancelada'],
+  encerradas: ['compareceu', 'nao_compareceu'],
+} satisfies Record<string, StatusReserva[]>;
+export type GrupoStatus = keyof typeof GRUPOS_STATUS;
+
+/** O Atendente (sem reservas.alterar) vê de hoje até 14 dias à frente; fora disso o backend responde 403. */
+export const ATENDENTE_DIAS_A_FRENTE = 14;
+export function janelaDe(papel: Papel): { de: string; ate: string } | null {
+  if (pode(papel, 'reservas.alterar')) return null;
+  const hoje = hojeISO();
+  return { de: hoje, ate: somarDias(hoje, ATENDENTE_DIAS_A_FRENTE) };
+}
 
 /** Status efetivo: o comparecimento registrado vence o status da reserva (igual ao backend). */
 export function statusDe(r: Pick<ReservaPainel, 'status' | 'status_reserva' | 'comparecimento'>): StatusReserva {
@@ -38,13 +61,24 @@ export const emAberto = (r: ReservaPainel) => (r.comparecimento ?? 'nao_registra
 export const confirmadaBase = (r: ReservaPainel) => ['confirmada', 'lembrada', 'reconfirmada'].includes(statusBase(r));
 export const comecou = (r: ReservaPainel) => new Date(`${r.data}T${r.hora.slice(0, 5)}:00-03:00`).getTime() <= Date.now();
 
+/**
+ * "Chegou": confirmada e sem registro, a partir do DIA da reserva (o cliente pode chegar antes do horário; o backend recusa
+ * antes do dia). Gerente e Proprietário registram também dias passados; o Atendente, só no dia (regra do backend).
+ */
+export function aceitaChegada(r: ReservaPainel, papel: Papel) {
+  const hoje = hojeISO();
+  if (!confirmadaBase(r) || !emAberto(r) || r.data > hoje) return false;
+  return pode(papel, 'reservas.mudar_status') || (pode(papel, 'reservas.registrar_chegada') && r.data === hoje);
+}
+
 export function atualizarReservas() {
   invalidar('reservas');
 }
 
 /**
- * Registra o comparecimento. Usa a rota nova (PUT …/comparecimento); se o backend publicado ainda não a tiver (404 de
- * rota, produção antes da 0007), usa a rota antiga que o painel anterior já usava (PATCH …/status).
+ * Registra o comparecimento pela rota própria (PUT …/comparecimento, no ar em produção; corrigir e desfazer exigem `motivo`).
+ * Se um backend antigo responder 404 de ROTA (ex.: o servidor dos testes), usa a rota do painel anterior (PATCH …/status,
+ * mesmas regras no backend). Inofensivo: só roda quando a rota nova não existe, e "desfazer" nunca cai nela.
  */
 export async function registrarComparecimento(id: string, valor: Comparecimento, motivo?: string) {
   try {

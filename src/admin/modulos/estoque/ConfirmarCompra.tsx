@@ -3,13 +3,12 @@
 // motivo (409 despesa_ja_registrada). Tudo vai numa única chamada: POST /admin/estoque/compras/{id}/confirmar.
 import { useState } from 'preact/hooks';
 import { Info, Link2, CalendarClock, BadgeCheck, AlertTriangle } from 'lucide-preact';
-import type { Papel } from '../../lib/sessao';
 import { estoque } from '../../lib/api/estoque';
 import { ErroApi } from '../../lib/api/cliente';
 import { moeda, dataCurta, hojeISO } from '../../lib/formato';
 import { Aviso, Campo, Etiqueta } from '../../ui/base';
 import type { CompraDetalhe, DespesaDaCompra } from '../../lib/tipos/estoque';
-import { atualizarEstoque } from './comum';
+import { atualizarEstoque, PENDENCIA, type PermissoesEstoque } from './comum';
 
 export interface Confirmado {
   despesa_id: string | null;
@@ -17,19 +16,21 @@ export interface Confirmado {
   ja_estava_confirmada: boolean;
 }
 
-const FORMAS = [['pix', 'Pix'], ['dinheiro', 'Dinheiro'], ['cartao', 'Cartão'], ['boleto', 'Boleto'], ['transferencia', 'Transferência'], ['outro', 'Outro']] as const;
+const FORMAS = [['pix', 'Pix'], ['dinheiro', 'Dinheiro'], ['cartao', 'Cartão'], ['boleto', 'Boleto'], ['transferencia', 'Transferência'], ['debito_automatico', 'Débito automático'], ['outro', 'Outro']] as const;
 
-export function ConfirmarCompra({ c, papel, form, aoConfirmar, aoEnviando }: { c: CompraDetalhe; papel: Papel; form: string; aoConfirmar: (r: Confirmado) => void; aoEnviando: (v: boolean) => void }) {
+export function ConfirmarCompra({ c, perm, form, aoConfirmar, aoEnviando }: { c: CompraDetalhe; perm: PermissoesEstoque; form: string; aoConfirmar: (r: Confirmado) => void; aoEnviando: (v: boolean) => void }) {
   const fortes = c.despesa.candidatas.filter((x) => x.forca === 'forte');
   const [escolha, setEscolha] = useState<string>(c.despesa_origem_id ? 'origem' : fortes[0] ? `vincular:${fortes[0].despesa_id}` : c.despesa.candidatas[0] ? 'automatica' : 'automatica');
   const [pagaEm, setPagaEm] = useState(hojeISO());
-  const [forma, setForma] = useState('pix');
+  const [forma, setForma] = useState<(typeof FORMAS)[number][0]>('pix');
   const [motivoNova, setMotivoNova] = useState('');
   const [motivoDiv, setMotivoDiv] = useState('');
   const [erro, setErro] = useState<ErroApi | null>(null);
   const precisaNova = erro?.codigo === 'despesa_ja_registrada' || escolha === 'nova';
-  const divergencia = !!c.conferencia && !c.conferencia.ok;
-  const gerencia = papel !== 'operador';
+  // Nota que não fecha (e ainda não aceita): só quem tem estoque.editar confirma, com o motivo.
+  const divergencia = !!c.conferencia && !c.conferencia.ok && !c.divergencia_aceita;
+  const gerencia = perm.editar;
+  const duplicatas = c.duplicatas ?? [];
 
   async function confirmar(e: Event) {
     e.preventDefault();
@@ -86,7 +87,7 @@ export function ConfirmarCompra({ c, papel, form, aoConfirmar, aoEnviando }: { c
                       <Link2 size={15} aria-hidden="true" /> Já foi registrado: {d.descricao}
                       {d.forca === 'forte' && <Etiqueta tom="ok" icone={<BadgeCheck aria-hidden="true" />}>Mesmo fornecedor e valor</Etiqueta>}
                     </strong>
-                    <span>{moeda(d.valor)} · {d.origem === 'julia' ? 'pela Júlia' : `pelo ${d.origem}`} · {d.paga ? 'já pago' : 'a pagar'}. Liga a compra a este lançamento, sem duplicar.</span>
+                    <span>{moeda(d.valor)} · {dataCurta(d.competencia)} · {d.origem === 'julia' ? 'pela Júlia' : `pelo ${d.origem}`} · {d.paga ? 'já pago' : 'a pagar'}. Liga a compra a este lançamento, sem duplicar.</span>
                   </span>
                 </label>
               ))}
@@ -95,8 +96,8 @@ export function ConfirmarCompra({ c, papel, form, aoConfirmar, aoEnviando }: { c
                 <span class="opcao__texto">
                   <strong class="linha" style={{ gap: '6px' }}><CalendarClock size={15} aria-hidden="true" /> Conta a pagar</strong>
                   <span>
-                    {c.duplicatas.length
-                      ? `Com as parcelas da nota: ${c.duplicatas.map((d) => `${moeda(d.valor)} em ${dataCurta(d.vencimento)}`).join(' · ')}.`
+                    {duplicatas.length
+                      ? `Com as parcelas da nota: ${duplicatas.map((d) => `${moeda(d.valor)} em ${dataCurta(d.vencimento)}`).join(' · ')}.`
                       : `Um vencimento na data da nota (${moeda(c.totais.total)}). Ajuste depois em Contas a pagar, se preciso.`}
                   </span>
                 </span>
@@ -113,7 +114,7 @@ export function ConfirmarCompra({ c, papel, form, aoConfirmar, aoEnviando }: { c
                   <Campo rotulo="Pago em">{(id) => <input id={id} type="date" class="entrada" max={hojeISO()} value={pagaEm} onChange={(e) => setPagaEm(e.currentTarget.value)} />}</Campo>
                   <Campo rotulo="Forma">
                     {(id) => (
-                      <select id={id} class="selecao" value={forma} onChange={(e) => setForma(e.currentTarget.value)}>
+                      <select id={id} class="selecao" value={forma} onChange={(e) => setForma(e.currentTarget.value as (typeof FORMAS)[number][0])}>
                         {FORMAS.map(([v, r]) => <option key={v} value={v}>{r}</option>)}
                       </select>
                     )}
@@ -151,7 +152,7 @@ export function ConfirmarCompra({ c, papel, form, aoConfirmar, aoEnviando }: { c
       {erro && (
         <Aviso tom={erro.codigo === 'despesa_ja_registrada' ? 'atencao' : 'perigo'} icone={<AlertTriangle aria-hidden="true" />}>
           {erro.message}
-          {erro.codigo === 'pendencias' && Array.isArray(erro.dados?.pendencias) && <div class="fraco" style={{ marginTop: '4px' }}>{(erro.dados!.pendencias as string[]).join(', ')}</div>}
+          {erro.codigo === 'pendencias' && Array.isArray(erro.dados?.pendencias) && <div class="fraco" style={{ marginTop: '4px' }}>{(erro.dados!.pendencias as string[]).map(PENDENCIA).join(' · ')}</div>}
         </Aviso>
       )}
     </form>

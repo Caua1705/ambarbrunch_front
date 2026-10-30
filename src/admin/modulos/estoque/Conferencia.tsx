@@ -4,8 +4,6 @@
 // própria: sem ela o Preact reaproveitaria o elemento de "Continuar" como o submit e o mesmo clique confirmaria a compra.
 import { useEffect, useState } from 'preact/hooks';
 import { FileText, ScanLine, RotateCw, ExternalLink, CheckCircle2, AlertTriangle, Info, PackageX, Bot, ArrowLeft, Check, FileCode } from 'lucide-preact';
-import type { Papel } from '../../lib/sessao';
-import { pode } from '../../lib/permissoes';
 import { useConsulta } from '../../lib/consulta';
 import { estoque } from '../../lib/api/estoque';
 import { financeiro } from '../../lib/api/financeiro';
@@ -16,12 +14,12 @@ import { Botao, Aviso, Etiqueta, Campo } from '../../ui/base';
 import { Dados, Esqueleto, Falha } from '../../ui/estados';
 import { EntradaMoeda } from '../../ui/entradas';
 import type { CompraDetalhe } from '../../lib/tipos/estoque';
-import { ETAPA, LENDO, FONTE, ERRO_LEITURA, PENDENCIA, atualizarEstoque } from './comum';
+import { ETAPA, LENDO, FONTE, ERRO_LEITURA, PENDENCIA, atualizarEstoque, textoProblemas, type PermissoesEstoque } from './comum';
 import { ItemConferencia } from './ItemConferencia';
 import { ConfirmarCompra, type Confirmado } from './ConfirmarCompra';
 import { LinhasItens, linhaVazia, validarLinhas, type LinhaManual } from './EntradaCompra';
 
-export function Conferencia({ id, papel, aoFechar, aoAbrir }: { id: string | null; papel: Papel; aoFechar: () => void; aoAbrir: (id: string) => void }) {
+export function Conferencia({ id, perm, aoFechar, aoAbrir }: { id: string | null; perm: PermissoesEstoque; aoFechar: () => void; aoAbrir: (id: string) => void }) {
   const [lendo, setLendo] = useState(false);
   const consulta = useConsulta(id ? `estoque/compras/${id}` : null, () => estoque.compra(id!), { intervalo: lendo ? 1500 : undefined });
   const c = consulta.dados;
@@ -42,20 +40,26 @@ export function Conferencia({ id, papel, aoFechar, aoAbrir }: { id: string | nul
   const aguardando = c?.etapa === 'aguardando_conferencia';
   const semItens = aguardando && !c!.itens.length;
   // A gerência pode confirmar uma nota que não fecha, com motivo; os itens precisam estar resolvidos.
-  const podeSeguir = !!c && aguardando && (c.pode_confirmar || (c.pendencias.every((p) => p === 'conferencia_aritmetica') && c.itens.length > 0));
+  const podeSeguir = !!c && aguardando && (c.pode_confirmar || (perm.editar && c.pendencias.every((p) => p === 'conferencia_aritmetica') && c.itens.length > 0));
 
-  const reprocessar = async () => {
-    setOcupado(true);
-    try {
-      await estoque.reprocessar(c!.id);
-      avisar('Lendo o documento de novo…', 'info');
-    } catch (e) {
-      avisarErro(e);
-    } finally {
-      setOcupado(false);
-      atualizarEstoque();
-    }
-  };
+  // Ler de novo cria uma compra NOVA a partir do mesmo arquivo (a antiga é cancelada): a gaveta passa para ela.
+  const reprocessar = () =>
+    confirmar({
+      titulo: 'Ler o documento de novo?',
+      texto: 'A leitura atual é substituída por uma nova, do mesmo arquivo. Nada entra no estoque até a conferência.',
+      confirmar: 'Ler de novo',
+      acao: async () => {
+        setOcupado(true);
+        try {
+          const r = await estoque.reprocessar(c!.id);
+          aoAbrir(r.id);
+        } finally {
+          setOcupado(false);
+          atualizarEstoque();
+        }
+      },
+      sucesso: 'Lendo o documento de novo…',
+    });
   const cancelar = () =>
     confirmar({
       titulo: 'Cancelar esta compra?',
@@ -73,31 +77,39 @@ export function Conferencia({ id, papel, aoFechar, aoAbrir }: { id: string | nul
       sucesso: 'Compra cancelada.',
     });
 
+  // Conferir e confirmar: estoque.conferir. Cancelar (inclusive uma compra confirmada, que estorna): estoque.editar.
   let rodape = null;
   if (c && recibo) rodape = <Botao variante="primario" onClick={aoFechar}>Concluir</Botao>;
-  else if (c && aguardando && !semItens && passo === 'itens')
+  else if (c && aguardando && !semItens && passo === 'itens' && perm.conferir)
     rodape = (
       <>
         <span class="fraco" style={{ marginRight: 'auto', alignSelf: 'center' }}>
           {c.pendencias.length ? c.pendencias.map(PENDENCIA).slice(0, 2).join(' · ') : 'Tudo conferido'}
         </span>
-        {pode(papel, 'estoque.cancelar_compra') && <Botao variante="fantasma" onClick={cancelar}>Cancelar compra</Botao>}
+        {perm.editar && <Botao variante="fantasma" onClick={cancelar}>Cancelar compra</Botao>}
         <Botao key="continuar" variante="primario" icone={<Check aria-hidden="true" />} disabled={!podeSeguir} onClick={() => setPasso('confirmar')}>Continuar</Botao>
       </>
     );
-  else if (c && aguardando && passo === 'confirmar')
+  else if (c && aguardando && passo === 'confirmar' && perm.conferir)
     rodape = (
       <>
         <Botao key="voltar" icone={<ArrowLeft aria-hidden="true" />} onClick={() => setPasso('itens')} disabled={enviando}>Voltar aos itens</Botao>
         <Botao key="confirmar" variante="primario" type="submit" form="form-confirmar-compra" carregando={enviando} icone={<CheckCircle2 aria-hidden="true" />}>Confirmar recebimento</Botao>
       </>
     );
-  else if (c?.etapa === 'confirmada' && pode(papel, 'estoque.cancelar_compra')) rodape = <Botao variante="fantasma" onClick={cancelar}>Cancelar compra</Botao>;
-  else if (c?.etapa === 'falhou' && c.erro_codigo !== 'nota_ja_registrada')
+  else if (c && semItens && (perm.editar || (perm.conferir && c.arquivo_id)))
     rodape = (
       <>
-        {pode(papel, 'estoque.cancelar_compra') && <Botao variante="fantasma" onClick={cancelar}>Descartar</Botao>}
-        <Botao variante="primario" icone={<RotateCw aria-hidden="true" />} carregando={ocupado} onClick={reprocessar}>Ler de novo</Botao>
+        {perm.editar && <Botao variante="fantasma" onClick={cancelar}>Cancelar compra</Botao>}
+        {perm.conferir && c.arquivo_id && <Botao icone={<RotateCw aria-hidden="true" />} carregando={ocupado} onClick={reprocessar}>Ler o documento de novo</Botao>}
+      </>
+    );
+  else if (c?.etapa === 'confirmada' && perm.editar) rodape = <Botao variante="fantasma" onClick={cancelar}>Cancelar compra (estorna o estoque)</Botao>;
+  else if (c?.etapa === 'falhou' && c.erro_codigo !== 'nota_ja_registrada' && (perm.conferir || perm.editar))
+    rodape = (
+      <>
+        {perm.editar && <Botao variante="fantasma" onClick={cancelar}>Descartar</Botao>}
+        {perm.conferir && c.arquivo_id && <Botao variante="primario" icone={<RotateCw aria-hidden="true" />} carregando={ocupado} onClick={reprocessar}>Ler de novo</Botao>}
       </>
     );
 
@@ -107,7 +119,7 @@ export function Conferencia({ id, papel, aoFechar, aoAbrir }: { id: string | nul
         {(c: CompraDetalhe) => {
           if (recibo) return <Recibo c={c} r={recibo} />;
           if (LENDO.includes(c.etapa)) return <Leitura c={c} />;
-          if (c.etapa === 'falhou') return <Falhou c={c} aoAbrir={aoAbrir} />;
+          if (c.etapa === 'falhou') return <Falhou c={c} />;
           if (c.etapa === 'cancelada')
             return (
               <Aviso tom="atencao" icone={<PackageX aria-hidden="true" />}>
@@ -122,9 +134,9 @@ export function Conferencia({ id, papel, aoFechar, aoAbrir }: { id: string | nul
                 {c.etapa === 'confirmada' ? (
                   <Confirmada c={c} />
                 ) : semItens ? (
-                  <PreencherItens c={c} />
+                  perm.conferir ? <PreencherItens c={c} /> : <Aviso tom="atencao" icone={<PackageX aria-hidden="true" />}>Faltam os produtos desta compra. Quem confere compras precisa informá-los.</Aviso>
                 ) : passo === 'confirmar' ? (
-                  <ConfirmarCompra c={c} papel={papel} form="form-confirmar-compra" aoEnviando={setEnviando} aoConfirmar={(r) => { setRecibo(r); avisar('Compra confirmada. Estoque atualizado.', 'ok'); }} />
+                  <ConfirmarCompra c={c} perm={perm} form="form-confirmar-compra" aoEnviando={setEnviando} aoConfirmar={(r) => { setRecibo(r); avisar('Compra confirmada. Estoque atualizado.', 'ok'); }} />
                 ) : (
                   <>
                     {c.fonte_leitura === 'foto_ia' && (
@@ -135,7 +147,7 @@ export function Conferencia({ id, papel, aoFechar, aoAbrir }: { id: string | nul
                     {c.aviso && <Aviso tom="info" icone={<Info aria-hidden="true" />}>{c.aviso}</Aviso>}
                     {c.conferencia && !c.conferencia.ok && (
                       <Aviso tom="atencao" icone={<AlertTriangle aria-hidden="true" />}>
-                        <strong>A nota não fecha.</strong> {c.conferencia.problemas.join(' ')}
+                        <strong>A nota não fecha{c.divergencia_aceita ? ` (aceita: ${c.divergencia_aceita})` : ''}.</strong> {textoProblemas(c.conferencia.problemas)}
                       </Aviso>
                     )}
                     <section class="pilha pilha--p" aria-label="Itens da nota">
@@ -145,7 +157,7 @@ export function Conferencia({ id, papel, aoFechar, aoAbrir }: { id: string | nul
                       </div>
                       <ul class="itens-compra">
                         {[...c.itens].sort((a, b) => Number(b.situacao === 'pendente') - Number(a.situacao === 'pendente') || a.ordem - b.ordem).map((it) => (
-                          <ItemConferencia key={`${it.id}:${it.versao}`} compraId={c.id} it={it} aoMudar={consulta.recarregar} />
+                          <ItemConferencia key={`${it.id}:${it.versao}`} compraId={c.id} fornecedorId={c.fornecedor?.id ?? null} it={it} editavel={perm.conferir} podeCriarInsumo={perm.editar} aoMudar={consulta.recarregar} />
                         ))}
                       </ul>
                     </section>
@@ -265,7 +277,29 @@ function Leitura({ c }: { c: CompraDetalhe }) {
   );
 }
 
-function Falhou({ c, aoAbrir }: { c: CompraDetalhe; aoAbrir: (id: string) => void }) {
+/** Abre o documento original em outra aba (URL assinada do backend, vale 5 min). */
+function DocumentoLink({ c }: { c: CompraDetalhe }) {
+  const [abrindo, setAbrindo] = useState(false);
+  async function abrir() {
+    // A janela abre já no clique (senão o navegador bloqueia) e recebe a URL quando ela chega.
+    const janela = window.open('', '_blank');
+    if (janela) janela.opener = null;
+    setAbrindo(true);
+    try {
+      const r = await financeiro.urlArquivo(c.arquivo_id!);
+      if (janela) janela.location.href = r.url;
+      else window.open(r.url, '_blank', 'noopener');
+    } catch (e) {
+      janela?.close();
+      avisarErro(e);
+    } finally {
+      setAbrindo(false);
+    }
+  }
+  return <Botao style={{ alignSelf: 'flex-start' }} icone={<ExternalLink aria-hidden="true" />} carregando={abrindo} onClick={abrir}>Ver o documento</Botao>;
+}
+
+function Falhou({ c }: { c: CompraDetalhe }) {
   const repetida = c.erro_codigo === 'nota_ja_registrada';
   return (
     <div class="pilha">
@@ -273,12 +307,12 @@ function Falhou({ c, aoAbrir }: { c: CompraDetalhe; aoAbrir: (id: string) => voi
         <strong>{ERRO_LEITURA[c.erro_codigo ?? ''] ?? 'Não foi possível ler este documento.'}</strong>
         {c.etapa_detalhe && <div style={{ marginTop: '4px' }}>{c.etapa_detalhe}</div>}
         {repetida ? (
-          <div style={{ marginTop: '6px' }}>Nada foi lançado em dobro. {c.compra_original_id ? 'Abra a compra original para conferir.' : 'Procure a compra original na lista.'}</div>
+          <div style={{ marginTop: '6px' }}>Nada foi lançado em dobro. Procure a compra original na lista (mesmo fornecedor e número).</div>
         ) : (
           <div style={{ marginTop: '6px' }}>Tente ler de novo. Se não der, envie uma foto mais nítida, o PDF ou o XML — ou digite os itens em “Compra sem nota”.</div>
         )}
       </Aviso>
-      {repetida && c.compra_original_id && <Botao style={{ alignSelf: 'flex-start' }} onClick={() => aoAbrir(c.compra_original_id!)}>Abrir a compra original</Botao>}
+      {c.arquivo_id && <DocumentoLink c={c} />}
       {c.observacoes.length > 0 && <p class="fraco">Detalhes técnicos: {c.observacoes.join(', ')}</p>}
     </div>
   );

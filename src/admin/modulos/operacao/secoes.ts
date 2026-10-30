@@ -2,8 +2,8 @@
 // só aparece quando há mais de uma. Hoje só Reservas está no ar.
 //
 // Para entrar uma seção nova, sem reconstruir a tela:
-//  - Atendimento: quando o módulo for publicado no backend e liberado em PAINEL_MODULOS, a seção aparece sozinha e leva
-//    ao módulo de Atendimento do painel (as mesmas rotas reais /admin/atendimento*). Nada de conversa inventada.
+//  - Atendimento: no ar no backend; quando liberado em PAINEL_MODULOS, a seção aparece sozinha e leva ao módulo de
+//    Atendimento do painel (as mesmas rotas reais /admin/atendimento*). Nada de conversa inventada.
 //  - Ponto: só quando o backend tiver a API do ponto (registro oficial de jornada) e a permissão no perfil. Até lá
 //    `disponivel` é sempre falso — nenhum botão que pareça registrar ponto aparece. Ver docs/technical/MODO-OPERACAO.md.
 import type { ContextoPainel } from '../../lib/sessao';

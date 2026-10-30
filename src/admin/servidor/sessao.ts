@@ -30,6 +30,15 @@ export function gravarSessao(cookies: AstroCookies, seguro: boolean, token: stri
   });
 }
 
+/**
+ * Unidade de negócio em uso (lida também pela moldura no navegador, por isso sem HttpOnly). O servidor grava a unidade
+ * que escolheu para a página: sem ela, a ponte não mandaria `?unidade=` e o backend usaria a unidade padrão DELE (na
+ * produção, a de testes) — o topo diria "Âmbar Café" com números de outra unidade.
+ */
+export function gravarUnidade(cookies: AstroCookies, seguro: boolean, codigo: string) {
+  cookies.set(COOKIE_UNIDADE, codigo, { path: '/admin', secure: seguro, sameSite: 'strict', maxAge: 31536000 });
+}
+
 export function apagarSessao(cookies: AstroCookies) {
   cookies.delete(COOKIE_SESSAO, { path: '/admin' });
 }

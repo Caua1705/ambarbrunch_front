@@ -1,23 +1,47 @@
 // Gaveta de detalhe da reserva: dados do cliente, situação, histórico de comparecimento e só as ações que o backend aceita
-// para aquele estado (máquina de estados de app/modulos/reservas/estados.py).
+// para aquele estado (máquina de estados de app/modulos/reservas/estados.py) e para o perfil — as mesmas do painel anterior.
 import { useEffect, useState } from 'preact/hooks';
-import { Check, X, UserCheck, UserX, Phone, MessageCircle, Pencil, Undo2, BellRing, AlertTriangle } from 'lucide-preact';
+import { Check, X, UserCheck, UserX, Phone, MessageCircle, Pencil, Undo2, BellRing, AlertTriangle, Lock } from 'lucide-preact';
 import { useConsulta } from '../../lib/consulta';
 import { reservas } from '../../lib/api/reservas';
 import { ErroApi } from '../../lib/api/cliente';
-import { dataLonga, hora, telefone, linkWhatsApp, dataHora, plural } from '../../lib/formato';
+import { dataLonga, hora, telefone, linkWhatsApp, dataHora, plural, hojeISO } from '../../lib/formato';
 import { Gaveta, avisar, avisarErro, type PedidoConfirmacao } from '../../ui/camadas';
 import { Botao, Aviso, Etiqueta } from '../../ui/base';
 import { Dados, Esqueleto } from '../../ui/estados';
 import type { ReservaPainel } from '../../lib/tipos/reservas';
-import { SituacaoReserva, statusDe, emAberto, confirmadaBase, comecou, atualizarReservas, registrarComparecimento, CANAL, STATUS } from './comum';
+import { SituacaoReserva, statusDe, emAberto, confirmadaBase, aceitaChegada, atualizarReservas, registrarComparecimento, CANAL, STATUS } from './comum';
 import { EditarReserva } from './NovaReserva';
 import { pode } from '../../lib/permissoes';
 import type { Papel } from '../../lib/sessao';
 
+/** Cancelar (ou recusar a pendente): motivo opcional, até 300 caracteres (MudancaStatus do backend). */
+export function pedirCancelamento(r: ReservaPainel, confirmar: (p: PedidoConfirmacao) => void) {
+  const pendente = statusDe(r) === 'pendente';
+  confirmar({
+    titulo: pendente ? `Recusar a reserva de ${r.contato_nome}?` : `Cancelar a reserva de ${r.contato_nome}?`,
+    texto: `${dataLonga(r.data)} às ${hora(r.hora)} · ${r.ambiente}. O lugar é liberado na hora e não há como desfazer. O cliente não recebe aviso automático da equipe: o painel lembra de avisar.`,
+    confirmar: pendente ? 'Recusar reserva' : 'Cancelar reserva',
+    perigo: true,
+    motivo: { rotulo: 'Motivo', obrigatorio: false, maximo: 300, ajuda: 'Opcional. Ex.: cliente pediu por telefone. Fica no histórico da reserva.' },
+    acao: async (m) => {
+      try {
+        const nova = await reservas.mudarStatus(r.id, 'cancelada', m || undefined);
+        if (nova.avisar_cliente === 'cancelamento') avisar(`${pendente ? 'Reserva recusada' : 'Reserva cancelada'}. O cliente NÃO foi avisado pelo sistema: avise pelo WhatsApp ou telefone.`, 'info');
+        else avisar(pendente ? 'Reserva recusada.' : 'Reserva cancelada.', 'ok');
+      } finally {
+        // resultado incerto (sem conexão, conflito): a tela relê a reserva antes de alguém repetir
+        atualizarReservas();
+      }
+    },
+  });
+}
+
 export function DetalheReserva({ id, aoFechar, confirmar, papel }: { id: string | null; aoFechar: () => void; confirmar: (p: PedidoConfirmacao) => void; papel: Papel }) {
   // Atendente: só "Chegou" no dia (o backend confere de novo). Gerente e Proprietário: todas as ações do estado.
   const gerencia = pode(papel, 'reservas.mudar_status');
+  const alteraReserva = pode(papel, 'reservas.alterar');
+  const verContato = pode(papel, 'reservas.ver_contato');
   const consulta = useConsulta(id ? `reservas/${id}` : null, () => reservas.obter(id!));
   const comp = useConsulta(id ? `reservas/${id}/comparecimento` : null, () => reservas.comparecimento(id!));
   const [editando, setEditando] = useState(false);
@@ -39,46 +63,46 @@ export function DetalheReserva({ id, aoFechar, confirmar, papel }: { id: string 
   };
 
   const s = r ? statusDe(r) : null;
+  const hoje = hojeISO();
   const ausenciaLiberada = comp.dados ? Date.now() >= new Date(comp.dados.ausencia_liberada_em).getTime() : r ? Date.now() >= new Date(`${r.data}T${r.hora.slice(0, 5)}:00-03:00`).getTime() + 15 * 60_000 : false;
+  const travado = !!ocupado;
 
   const rodape = r && !editando && (
     <>
-      {s === 'pendente' && (
+      {emAberto(r) && alteraReserva && (
+        <Botao variante="fantasma" icone={<Pencil aria-hidden="true" />} disabled={travado} onClick={() => setEditando(true)} title="Contato e observações">Alterar</Botao>
+      )}
+      {s === 'pendente' && gerencia && (
         <>
-          {gerencia && <Botao variante="perigo" icone={<X aria-hidden="true" />} onClick={() => confirmar({ titulo: 'Recusar esta reserva?', confirmar: 'Recusar reserva', perigo: true, motivo: { rotulo: 'Motivo', obrigatorio: false, ajuda: 'Opcional. Fica no histórico.' }, acao: async (m) => { await reservas.mudarStatus(r.id, 'cancelada', m || undefined); atualizarReservas(); }, sucesso: 'Reserva recusada.' })}>
-            Recusar
-          </Botao>}
-          {gerencia && <Botao variante="primario" icone={<Check aria-hidden="true" />} carregando={ocupado === 'aprovar'} onClick={() => executar('aprovar', () => reservas.mudarStatus(r.id, 'confirmada'), 'Reserva aprovada.')} data-autofoco>
+          <Botao variante="perigo" icone={<X aria-hidden="true" />} disabled={travado} onClick={() => pedirCancelamento(r, confirmar)}>Recusar</Botao>
+          <Botao variante="primario" icone={<Check aria-hidden="true" />} carregando={ocupado === 'aprovar'} disabled={travado} onClick={() => executar('aprovar', () => reservas.mudarStatus(r.id, 'confirmada'), 'Reserva aprovada. O cliente recebe a confirmação.')} data-autofoco>
             Aprovar reserva
-          </Botao>}
-        </>
-      )}
-      {confirmadaBase(r) && emAberto(r) && !comecou(r) && (
-        <>
-          {gerencia && <Botao variante="fantasma" icone={<X aria-hidden="true" />} onClick={() => confirmar({ titulo: `Cancelar a reserva de ${r.contato_nome}?`, texto: 'O lugar volta a ficar livre. Esta ação não pode ser desfeita.', confirmar: 'Cancelar reserva', perigo: true, motivo: { rotulo: 'Motivo do cancelamento', ajuda: 'Ex.: cliente pediu por telefone. Fica no histórico.' }, acao: async (m) => { await reservas.mudarStatus(r.id, 'cancelada', m); atualizarReservas(); }, sucesso: 'Reserva cancelada.' })}>
-            Cancelar reserva
-          </Botao>}
-          {pode(papel, 'reservas.alterar') && <Botao icone={<Pencil aria-hidden="true" />} onClick={() => setEditando(true)}>Alterar</Botao>}
-        </>
-      )}
-      {confirmadaBase(r) && emAberto(r) && comecou(r) && (
-        <>
-          {gerencia && <Botao icone={<UserX aria-hidden="true" />} disabled={!ausenciaLiberada} title={ausenciaLiberada ? undefined : 'Liberado depois da tolerância de atraso'} onClick={() => confirmar({ titulo: 'Registrar que o cliente não veio?', texto: 'Isso entra no histórico de frequência do cliente.', confirmar: 'Não veio', acao: () => registrarComparecimento(r.id, 'nao_compareceu'), sucesso: 'Ausência registrada.' })}>
-            Não veio
-          </Botao>}
-          <Botao variante="primario" icone={<UserCheck aria-hidden="true" />} carregando={ocupado === 'chegou'} onClick={() => executar('chegou', () => registrarComparecimento(r.id, 'compareceu'), 'Chegada registrada.')}>
-            Chegou
           </Botao>
         </>
       )}
-      {(s === 'compareceu' || s === 'nao_compareceu') && (
+      {confirmadaBase(r) && emAberto(r) && (
         <>
-          {gerencia && <Botao variante="fantasma" icone={<Undo2 aria-hidden="true" />} onClick={() => confirmar({ titulo: 'Desfazer o registro de comparecimento?', confirmar: 'Desfazer', motivo: { rotulo: 'Justificativa', ajuda: 'Obrigatória: correções ficam no histórico.' }, acao: (m) => registrarComparecimento(r.id, 'nao_registrado', m), sucesso: 'Registro desfeito.' })}>
+          {gerencia && <Botao variante="fantasma" icone={<X aria-hidden="true" />} disabled={travado} onClick={() => pedirCancelamento(r, confirmar)}>Cancelar reserva</Botao>}
+          {gerencia && r.data <= hoje && (
+            <Botao icone={<UserX aria-hidden="true" />} disabled={!ausenciaLiberada || travado} title={ausenciaLiberada ? undefined : 'Liberado depois da tolerância de atraso'} onClick={() => confirmar({ titulo: 'Registrar que o cliente não veio?', texto: `${r.contato_nome} · ${dataLonga(r.data)} às ${hora(r.hora)}. Entra no histórico de frequência do cliente; dá para corrigir depois.`, confirmar: 'Não veio', acao: () => registrarComparecimento(r.id, 'nao_compareceu'), sucesso: 'Ausência registrada.' })}>
+              Não veio
+            </Botao>
+          )}
+          {aceitaChegada(r, papel) && (
+            <Botao variante="primario" icone={<UserCheck aria-hidden="true" />} carregando={ocupado === 'chegou'} disabled={travado} onClick={() => executar('chegou', () => registrarComparecimento(r.id, 'compareceu'), 'Chegada registrada.')}>
+              Chegou
+            </Botao>
+          )}
+        </>
+      )}
+      {(s === 'compareceu' || s === 'nao_compareceu') && gerencia && (
+        <>
+          <Botao variante="fantasma" icone={<Undo2 aria-hidden="true" />} onClick={() => confirmar({ titulo: 'Desfazer o registro de comparecimento?', confirmar: 'Desfazer', motivo: { rotulo: 'Justificativa', ajuda: 'Obrigatória: correções ficam no histórico.' }, acao: (m) => registrarComparecimento(r.id, 'nao_registrado', m), sucesso: 'Registro desfeito.' })}>
             Desfazer
-          </Botao>}
-          {gerencia && <Botao onClick={() => { const novo = s === 'compareceu' ? 'nao_compareceu' : 'compareceu'; confirmar({ titulo: `Corrigir para “${STATUS[novo].rotulo}”?`, confirmar: 'Corrigir', motivo: { rotulo: 'Justificativa', ajuda: 'Obrigatória: correções ficam no histórico.' }, acao: (m) => registrarComparecimento(r.id, novo, m), sucesso: 'Registro corrigido.' }); }}>
+          </Botao>
+          <Botao onClick={() => { const novo = s === 'compareceu' ? 'nao_compareceu' : 'compareceu'; confirmar({ titulo: `Corrigir para “${STATUS[novo].rotulo}”?`, confirmar: 'Corrigir', motivo: { rotulo: 'Justificativa', ajuda: 'Obrigatória: correções ficam no histórico.' }, acao: (m) => registrarComparecimento(r.id, novo, m), sucesso: 'Registro corrigido.' }); }}>
             Corrigir para “{s === 'compareceu' ? 'Não veio' : 'Chegou'}”
-          </Botao>}
+          </Botao>
         </>
       )}
     </>
@@ -103,15 +127,21 @@ export function DetalheReserva({ id, aoFechar, confirmar, papel }: { id: string 
                 <span class="fraco num">{r.codigo}</span>
               </div>
 
-              {r.avisar_cliente && (
+              {/* Quem não altera reservas (Atendente) não tem o contato nem registra o aviso, como no painel anterior. */}
+              {r.avisar_cliente && alteraReserva && (
                 <Aviso tom="atencao" icone={<BellRing aria-hidden="true" />}>
-                  <strong>Avise o cliente da {r.avisar_cliente === 'cancelamento' ? 'cancelamento' : 'alteração'}.</strong> O sistema não enviou mensagem automática desta mudança.
+                  <strong>O cliente NÃO foi avisado {r.avisar_cliente === 'cancelamento' ? 'do cancelamento' : 'da alteração'}.</strong> O sistema não enviou mensagem desta mudança: avise pelo WhatsApp ou por telefone.
                   <div style={{ marginTop: '8px' }}>
-                    {gerencia && <Botao tamanho="p" carregando={ocupado === 'avisado'} onClick={() => executar('avisado', () => reservas.avisoComunicado(r.id), 'Marcado como avisado.')}>Já avisei o cliente</Botao>}
+                    <Botao tamanho="p" carregando={ocupado === 'avisado'} disabled={travado} onClick={() => executar('avisado', () => reservas.avisoComunicado(r.id), 'Registrado: a equipe avisou o cliente.')}>Já avisei o cliente</Botao>
                   </div>
                 </Aviso>
               )}
-              {s === 'pendente' && <Aviso tom="info" icone={<AlertTriangle aria-hidden="true" />}>Este ambiente pede aprovação da equipe. Aprovando, o cliente recebe a confirmação.</Aviso>}
+              {s === 'pendente' && (
+                <Aviso tom="info" icone={<AlertTriangle aria-hidden="true" />}>
+                  {gerencia ? 'Este ambiente pede aprovação da equipe. Aprovando, o cliente recebe a confirmação.' : 'Reserva aguardando aprovação da gerência. A chegada só pode ser registrada depois de aprovada.'}
+                </Aviso>
+              )}
+              {!gerencia && confirmadaBase(r) && emAberto(r) && r.data > hoje && <p class="fraco">A chegada pode ser registrada no dia da reserva.</p>}
 
               <section class="pilha pilha--p">
                 <h3 class="secao-titulo">Reserva</h3>
@@ -125,9 +155,9 @@ export function DetalheReserva({ id, aoFechar, confirmar, papel }: { id: string 
                   <dt>Ambiente</dt>
                   <dd>{r.ambiente}</dd>
                   <dt>Observações</dt>
-                  <dd>{r.observacoes || <span class="fraco">Nenhuma</span>}</dd>
+                  <dd style={{ whiteSpace: 'pre-line' }}>{r.observacoes || <span class="fraco">Nenhuma</span>}</dd>
                   <dt>Origem</dt>
-                  <dd>{CANAL[r.canal] ?? r.canal}{r.importada_de ? ` · importada (${r.importada_de})` : ''}</dd>
+                  <dd>{r.importada_de ? `Importada do Giardini (${r.importada_de})` : CANAL[r.canal] ?? r.canal}</dd>
                   <dt>Criada em</dt>
                   <dd>{dataHora(r.criado_em)}</dd>
                   {r.cancelada_em && (
@@ -136,22 +166,34 @@ export function DetalheReserva({ id, aoFechar, confirmar, papel }: { id: string 
                       <dd>{dataHora(r.cancelada_em)}{r.motivo_cancelamento ? ` — ${r.motivo_cancelamento}` : ''}</dd>
                     </>
                   )}
+                  {r.comparecimento_registrado_em && (
+                    <>
+                      <dt>{r.comparecimento === 'compareceu' ? 'Chegada registrada' : 'Ausência registrada'}</dt>
+                      <dd>{dataHora(r.comparecimento_registrado_em)}{comp.dados?.registrado_por_nome ? ` · ${comp.dados.registrado_por_nome}` : ''}</dd>
+                    </>
+                  )}
                 </dl>
               </section>
 
               <section class="pilha pilha--p">
                 <h3 class="secao-titulo">Contato</h3>
-                <dl class="definicoes">
-                  <dt>Telefone</dt>
-                  <dd class="num">{telefone(r.contato_telefone_e164)}</dd>
-                  <dt>E-mail</dt>
-                  <dd>{r.contato_email || <span class="fraco">Não informado</span>}</dd>
-                </dl>
-                {r.contato_telefone_e164 && (
-                  <div class="linha">
-                    <a class="btn btn--p" href={`tel:${r.contato_telefone_e164}`}><Phone aria-hidden="true" /> Ligar</a>
-                    {linkWhatsApp(r.contato_telefone_e164) && <a class="btn btn--p" href={linkWhatsApp(r.contato_telefone_e164)!} target="_blank" rel="noopener noreferrer"><MessageCircle aria-hidden="true" /> WhatsApp</a>}
-                  </div>
+                {verContato ? (
+                  <>
+                    <dl class="definicoes">
+                      <dt>Telefone</dt>
+                      <dd class="num">{telefone(r.contato_telefone_e164)}</dd>
+                      <dt>E-mail</dt>
+                      <dd>{r.contato_email || <span class="fraco">Não informado</span>}</dd>
+                    </dl>
+                    {r.contato_telefone_e164 && (
+                      <div class="linha">
+                        <a class="btn btn--p" href={`tel:${r.contato_telefone_e164}`}><Phone aria-hidden="true" /> Ligar</a>
+                        {linkWhatsApp(r.contato_telefone_e164) && <a class="btn btn--p" href={linkWhatsApp(r.contato_telefone_e164)!} target="_blank" rel="noopener noreferrer"><MessageCircle aria-hidden="true" /> WhatsApp</a>}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p class="fraco linha" style={{ gap: '6px' }}><Lock size={14} aria-hidden="true" /> Telefone e e-mail: restritos ao perfil de Gerente ou Proprietário.</p>
                 )}
               </section>
 
@@ -172,6 +214,7 @@ export function DetalheReserva({ id, aoFechar, confirmar, papel }: { id: string 
                 </section>
               )}
               {comp.erro && comp.erro.tipo !== 'nao_implantado' && comp.erro.tipo !== 'nao_encontrado' && <p class="fraco">Histórico indisponível: {comp.erro.message}</p>}
+              {s === 'cancelada' && <p class="fraco">Reserva cancelada: não há ações.</p>}
             </>
           )
         }

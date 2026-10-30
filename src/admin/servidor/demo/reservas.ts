@@ -1,7 +1,9 @@
 // DEMONSTRAÇÃO — Reservas fictícias (nomes, telefones e capacidades inventados; o cadastro real vem do backend).
 // Regras imitadas do backend: máquina de estados (estados.py), comparecimento a partir do dia da reserva e ausência só depois da
-// tolerância, motivo obrigatório para corrigir/desfazer, criação manual pela equipe.
+// tolerância, motivo obrigatório para corrigir/desfazer, criação manual pela equipe, e o recorte do Atendente (sem telefone e
+// e-mail do cliente; agenda de hoje até 14 dias à frente).
 import type { Rota } from './roteador';
+import type { Papel } from '../../lib/sessao';
 import { TODOS, GERENCIA, ErroDemo, dia, instante, uuid, sorteio, hojeFortaleza, resposta, exigirMotivo } from './roteador';
 import type { ReservaPainel, AmbienteConfig, StatusReservaBase, Comparecimento, HistoricoComparecimento, PoliticaReserva, RegraReserva } from '../../lib/tipos/reservas';
 
@@ -29,8 +31,14 @@ interface Linha {
   r: ReservaPainel;
   historico: HistoricoComparecimento[];
   avisar: string | null;
+  /** Posição em NOMES = o cliente do cadastro único (demo/clientes.ts); não muda se o contato da reserva mudar. */
+  cliente: number;
 }
 const banco: Linha[] = [];
+
+/** Telefone fixo de cada cliente fictício: as reservas da mesma pessoa repetem o número, como no cadastro real. */
+export const telefoneDemo = (i: number) => `+55859${String(81000000 + i * 413717).slice(0, 8)}`;
+export const NOMES_DEMO = NOMES;
 
 function montar(): void {
   if (banco.length) return;
@@ -58,8 +66,10 @@ function montar(): void {
       } else {
         status = (amb.exige_aprovacao && x < 0.5) || x < 0.04 ? 'pendente' : x < 0.1 ? 'cancelada' : 'confirmada';
       }
-      const nome = NOMES[Math.floor(rnd() * NOMES.length)];
-      const tel = `+55859${String(80000000 + Math.floor(rnd() * 19999999)).slice(0, 8)}`;
+      const iNome = Math.floor(rnd() * NOMES.length);
+      const nome = NOMES[iNome];
+      void rnd(); // mantém a sequência dos dados de antes (o telefone agora é fixo por cliente)
+      const tel = telefoneDemo(iNome);
       const id = uuid();
       const criado = instante(dia(-Math.ceil(rnd() * 6) + Math.min(d, 0), hoje), `${String(8 + Math.floor(rnd() * 13)).padStart(2, '0')}:${String(Math.floor(rnd() * 60)).padStart(2, '0')}`);
       banco.push({
@@ -92,12 +102,27 @@ function montar(): void {
         },
         historico: [],
         avisar: null,
+        cliente: iNome,
       });
     }
   }
 }
 
 const saida = (l: Linha): ReservaPainel => ({ ...l.r, avisar_cliente: l.avisar, status: l.r.comparecimento !== 'nao_registrado' ? l.r.comparecimento : l.r.status_reserva });
+/** Como o backend: quem não tem reservas.ver_contato (Atendente) recebe a reserva sem telefone e sem e-mail. */
+const paraPapel = (r: ReservaPainel, papel: Papel): ReservaPainel => (papel === 'operador' ? { ...r, contato_telefone_e164: null, contato_email: null } : r);
+/** Janela do Atendente (sem reservas.alterar): de hoje até 14 dias à frente; fora dela, 403 como no backend. */
+const ATENDENTE_DIAS = 14;
+function naJanela(papel: Papel, data: string) {
+  if (papel === 'operador' && (data < hojeFortaleza() || data > dia(ATENDENTE_DIAS))) throw new ErroDemo(403, 'sem_permissao', 'Você não tem permissão para acessar esta área.');
+}
+/** Para demo/clientes.ts: as reservas de cada cliente fictício (posição em NOMES), no formato do backend, por data. */
+export function reservasDosClientes(): Map<number, ReservaPainel[]> {
+  montar();
+  const m = new Map<number, ReservaPainel[]>();
+  for (const l of [...banco].sort((a, b) => (a.r.data + a.r.hora).localeCompare(b.r.data + b.r.hora))) m.set(l.cliente, [...(m.get(l.cliente) ?? []), saida(l)]);
+  return m;
+}
 const achar = (id: string) => {
   montar();
   const l = banco.find((x) => x.r.id === id);
@@ -117,6 +142,8 @@ const TRANSICOES: Record<StatusReservaBase, StatusReservaBase[]> = {
 
 function registrar(l: Linha, novo: Comparecimento, motivo: string | null, papel: string) {
   const r = l.r;
+  // so_chegada_no_dia do backend: o Atendente só registra "compareceu", e só no dia da reserva
+  if (papel === 'operador' && !(novo === 'compareceu' && r.data === hojeFortaleza())) throw new ErroDemo(403, 'sem_permissao', 'Você não tem permissão para acessar esta área.');
   if (r.comparecimento === novo) return;
   if (!['confirmada', 'lembrada', 'reconfirmada'].includes(r.status_reserva)) throw new ErroDemo(422, 'regra_violada', 'Só reserva confirmada recebe comparecimento.');
   // como o backend: comparecimento a partir do DIA da reserva (o cliente pode chegar antes do horário)
@@ -151,25 +178,35 @@ export const pendentesAprovacao = () => filtrar(new URLSearchParams({ data_de: h
 const UUID = '([0-9a-f-]{36})';
 
 export const ROTAS_RESERVAS: Rota[] = [
-  ['GET', /^reservas$/, TODOS, ({ query }) => {
-    const itens = filtrar(query).map(saida);
+  ['GET', /^reservas$/, TODOS, ({ query, papel }) => {
+    if (papel === 'operador') {
+      // como o backend: a janela do Atendente corta o filtro (sem erro)
+      const ate = dia(ATENDENTE_DIAS);
+      const de = query.get('data_de');
+      const ateQ = query.get('data_ate');
+      query.set('data_de', !de || de < hojeFortaleza() ? hojeFortaleza() : de);
+      query.set('data_ate', !ateQ || ateQ > ate ? ate : ateQ);
+    }
+    const itens = filtrar(query).map((l) => paraPapel(saida(l), papel));
     const lim = Number(query.get('limite') ?? 50);
     const des = Number(query.get('deslocamento') ?? 0);
     return { total: itens.length, itens: itens.slice(des, des + lim) };
   }],
-  ['GET', /^reservas\/operacao$/, TODOS, ({ query }) => {
+  ['GET', /^reservas\/operacao$/, TODOS, ({ query, papel }) => {
     const data = query.get('data') ?? hojeFortaleza();
+    naJanela(papel, data);
     return filtrar(new URLSearchParams({ data_de: data, data_ate: data })).map((l) => {
       const ini = inicio(l.r);
       const atraso = Math.floor((Date.now() - ini) / 60_000);
       const emAberto = l.r.comparecimento === 'nao_registrado' && l.r.status_reserva !== 'cancelada';
       return {
-        ...saida(l),
+        ...paraPapel(saida(l), papel),
         inicio: new Date(ini).toISOString(),
         fim: new Date(ini + l.r.duracao_min * 60_000).toISOString(),
         minutos_de_atraso: emAberto && atraso > 0 ? atraso : null,
         atrasada: emAberto && atraso > TOLERANCIA_MIN,
-        mensagens: { confirmacao: { status: l.r.status_reserva === 'pendente' ? 'agendada' : 'entregue' } },
+        // como o backend: tipo da mensagem → status (texto), não um objeto
+        mensagens: l.r.status_reserva === 'pendente' ? {} : { confirmacao: 'entregue', ...(l.r.status_reserva === 'lembrada' ? { lembrete_1h: 'lida' } : {}) },
       };
     });
   }],
@@ -187,7 +224,7 @@ export const ROTAS_RESERVAS: Rota[] = [
     });
     return { ambiente_id: amb.id, ambiente: amb.nome, data, capacidade_max: amb.capacidade_max, duracao_min: amb.duracao_min, ativo: amb.ativo, pessoas, horarios };
   }],
-  ['GET', /^reservas\/mensagens$/, TODOS, () => {
+  ['GET', /^reservas\/mensagens$/, GERENCIA, () => {
     montar();
     const falha = banco.filter((l) => l.r.data >= hojeFortaleza()).slice(3, 5);
     return { total: falha.length, itens: falha.map((l) => ({ id: uuid(), tipo: 'confirmacao', status: 'falhou', motivo: null, tentativas: 3, agendada_para: l.r.criado_em, enviada_em: null, entregue_em: null, lida_em: null, erro: 'Número sem WhatsApp', reserva: { id: l.r.id, codigo: l.r.codigo, data: l.r.data, hora: l.r.hora, status: l.r.status, contato_nome: l.r.contato_nome } })) };
@@ -198,7 +235,7 @@ export const ROTAS_RESERVAS: Rota[] = [
       .filter((l) => ['confirmada', 'lembrada', 'reconfirmada'].includes(l.r.status_reserva) && l.r.comparecimento === 'nao_registrado' && inicio(l.r) <= Date.now())
       .map((l) => ({ ...saida(l), inicio: new Date(inicio(l.r)).toISOString(), ausencia_liberada_em: liberacaoAusencia(l.r), pode_registrar_ausencia: Date.now() >= new Date(liberacaoAusencia(l.r)).getTime(), cliente: { perfil: 'recorrente', visitas: 3, faltas: 0, historico_faltas: false, primeira_visita: null, ultima_visita: null, ultima_falta: null } }));
   }],
-  ['POST', /^reservas$/, TODOS, async ({ corpo }) => {
+  ['POST', /^reservas$/, GERENCIA, async ({ corpo }) => {
     montar();
     const e = await corpo<Record<string, string | number>>();
     const amb = AMBIENTES.find((a) => a.id === e.ambiente_id);
@@ -207,11 +244,16 @@ export const ROTAS_RESERVAS: Rota[] = [
     const pessoas = Number(e.pessoas);
     if (pessoas > amb.pessoas_max_por_reserva) throw new ErroDemo(422, 'regra_violada', `No ${amb.nome}, até ${amb.pessoas_max_por_reserva} pessoas por reserva.`);
     const r: ReservaPainel = { id: uuid(), codigo: `AMB-${(1000 + banco.length).toString(36).toUpperCase()}`, unidade: 'ambar_cafe', ambiente_id: amb.id, ambiente: amb.nome, data: String(e.data), hora: String(e.hora).length === 5 ? `${e.hora}:00` : String(e.hora), duracao_min: amb.duracao_min, pessoas, status: amb.exige_aprovacao ? 'pendente' : 'confirmada', status_reserva: amb.exige_aprovacao ? 'pendente' : 'confirmada', comparecimento: 'nao_registrado', comparecimento_registrado_em: null, comparecimento_registrado_por: null, canal: String(e.canal ?? 'painel'), contato_nome: String(e.nome), contato_telefone_e164: `+55${String(e.telefone).replace(/\D/g, '')}`, contato_email: (e.email as string) || null, observacoes: (e.observacoes as string) || null, importada_de: null, cancelada_em: null, motivo_cancelamento: null, fechada_em: null, criado_em: new Date().toISOString() };
-    banco.push({ r, historico: [], avisar: null });
+    // cliente novo (fora dos fictícios) não entra no cadastro de demonstração de Clientes
+    banco.push({ r, historico: [], avisar: null, cliente: NOMES.indexOf(String(e.nome)) });
     return resposta(201, r);
   }],
-  ['GET', new RegExp(`^reservas/${UUID}$`), TODOS, ({ params }) => saida(achar(params[0]))],
-  ['PATCH', new RegExp(`^reservas/${UUID}$`), TODOS, async ({ params, corpo }) => {
+  ['GET', new RegExp(`^reservas/${UUID}$`), TODOS, ({ params, papel }) => {
+    const l = achar(params[0]);
+    naJanela(papel, l.r.data);
+    return paraPapel(saida(l), papel);
+  }],
+  ['PATCH', new RegExp(`^reservas/${UUID}$`), GERENCIA, async ({ params, corpo }) => {
     const l = achar(params[0]);
     const a = await corpo<Record<string, unknown>>();
     if (l.r.status_reserva === 'cancelada') throw new ErroDemo(409, 'reserva_cancelada', 'Reserva cancelada não pode ser alterada.');
@@ -220,7 +262,7 @@ export const ROTAS_RESERVAS: Rota[] = [
       || (a.pessoas && Number(a.pessoas) !== l.r.pessoas) || (a.ambiente_id && a.ambiente_id !== l.r.ambiente_id);
     if (muda) throw new ErroDemo(403, 'alteracao_desativada', 'Nesta versão, data, horário, ambiente e pessoas não mudam pelo painel: cancele e peça ao cliente uma nova reserva pelo site.');
     for (const k of ['observacoes', 'contato_nome', 'contato_email'] as const) if (a[k] !== undefined) (l.r as unknown as Record<string, unknown>)[k] = a[k] === '' ? null : a[k];
-    if (a.contato_telefone) l.r.contato_telefone_e164 = `+55${String(a.contato_telefone).replace(/D/g, '')}`;
+    if (a.contato_telefone) l.r.contato_telefone_e164 = `+55${String(a.contato_telefone).replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '')}`;
     return saida(l);
   }],
   ['PATCH', new RegExp(`^reservas/${UUID}/status$`), TODOS, async ({ params, corpo, papel }) => {
@@ -228,8 +270,9 @@ export const ROTAS_RESERVAS: Rota[] = [
     const { status, motivo } = await corpo<{ status: string; motivo?: string | null }>();
     if (status === 'compareceu' || status === 'nao_compareceu') {
       registrar(l, status, motivo ?? null, papel);
-      return saida(l);
+      return paraPapel(saida(l), papel);
     }
+    if (papel === 'operador') throw new ErroDemo(403, 'sem_permissao', 'Você não tem permissão para acessar esta área.');
     const atual = l.r.status_reserva;
     if (status === atual) return saida(l);
     if (l.r.comparecimento !== 'nao_registrado') throw new ErroDemo(409, 'reserva_fechada', 'O comparecimento já foi registrado: o status não muda mais.');
@@ -242,7 +285,7 @@ export const ROTAS_RESERVAS: Rota[] = [
     }
     return saida(l);
   }],
-  ['POST', new RegExp(`^reservas/${UUID}/aviso-comunicado$`), TODOS, ({ params }) => {
+  ['POST', new RegExp(`^reservas/${UUID}/aviso-comunicado$`), GERENCIA, ({ params }) => {
     const l = achar(params[0]);
     l.avisar = null;
     return saida(l);

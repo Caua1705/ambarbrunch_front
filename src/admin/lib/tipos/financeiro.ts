@@ -20,6 +20,12 @@ export interface AvisoConciliacao {
   rota: string;
 }
 
+export interface Sincronizacao {
+  ultimo_sucesso_em: Instante | null;
+  falhas_seguidas: number;
+  atrasada: boolean;
+}
+
 export interface ResumoFinanceiro {
   hoje: { dia: Data; receita: Dec | null; vendas: number; ticket_medio: Dec | null };
   mes: {
@@ -35,8 +41,10 @@ export interface ResumoFinanceiro {
   };
   contas: ContasResumo;
   revisao: { despesas: number; documentos: number };
-  sincronizacao: { ultimo_sucesso_em: Instante | null; falhas_seguidas: number; atrasada: boolean } | { configurada: false };
+  sincronizacao: Sincronizacao | { configurada: false };
   conciliacao_mes_anterior: AvisoConciliacao | null;
+  /** Unidade em uso (`identificacao` do backend). `teste`: unidade de ensaio. */
+  unidade?: { codigo: string; nome: string; teste: boolean };
 }
 
 export type TipoLancamento = 'venda_dia' | 'despesa' | 'pagamento' | 'outra_receita';
@@ -58,7 +66,20 @@ export interface Lancamento {
   tem_comprovante: boolean;
   compra_id: Uuid | null;
   despesa_id: Uuid | null;
-  detalhes: Record<string, unknown>;
+  /**
+   * Varia com o tipo (consultas.py): venda_dia {vendas, taxa_servico, total_vendido, descontos, recebido_pdv};
+   * despesa {motivos_revisao, valor_a_confirmar, versao}; pagamento {forma, parcela_id, parcela, conciliacao};
+   * outra_receita {recebido_em}.
+   */
+  detalhes: Record<string, unknown> & {
+    vendas?: number;
+    taxa_servico?: Dec | null;
+    forma?: string;
+    parcela_id?: Uuid;
+    parcela?: number;
+    conciliacao?: string;
+    recebido_em?: Data | null;
+  };
 }
 
 export interface ListaLancamentos {
@@ -183,7 +204,7 @@ export interface Recorrencia {
   id: Uuid;
   descricao: string;
   categoria_codigo: string;
-  fornecedor: { id: Uuid; nome: string } | null;
+  fornecedor: { id: Uuid; nome: string; documento?: string | null } | null;
   valor_previsto: Dec;
   valor_variavel: boolean;
   dia_vencimento: number;
@@ -311,7 +332,8 @@ export type ResultadoMes =
       financeiro: Dec;
       resultado_gerencial: Dec | null;
       resultado_gerencial_pct: Dec | null;
-      fora_do_resultado: { investimento: Dec; retirada: Dec; repasse: Dec };
+      /** `retirada` só vem para quem tem financeiro.ver_societario (sigilo.py): sem ela, a chave não existe. */
+      fora_do_resultado: { investimento: Dec; retirada?: Dec; repasse: Dec };
       compras_estoque_no_mes: Dec;
       qualidade: Qualidade;
       observacao: string;
@@ -322,6 +344,113 @@ export interface DespesasPorCategoria {
   total: Dec;
   itens: { grupo: string; categoria: string; nome: string; valor: Dec; despesas: number; pct: Dec | null }[];
 }
+
+// Vendas (GET /relatorios/vendas) ---------------------------------------------------------------------------------------
+
+export type AgrupamentoVendas = 'dia' | 'semana' | 'mes';
+
+export interface SomaVendas {
+  vendas: number;
+  faturamento_bruto: Dec;
+  descontos: Dec;
+  receita_liquida_produtos: Dec;
+  devolucoes: Dec;
+  receita_liquida: Dec;
+  /** Fora da receita (H2). */
+  taxa_servico: Dec;
+  recebido_pdv: Dec;
+  vendas_canceladas: number;
+  ticket_medio: Dec | null;
+}
+
+export interface PeriodoVendas extends SomaVendas {
+  /** Início do dia, da semana (segunda) ou do mês (date_trunc): pode ser antes de `de`. */
+  inicio: Data;
+  primeiro_dia: Data;
+  ultimo_dia: Data;
+}
+
+export type MeioPdv = 'credito' | 'debito' | 'pix' | 'outro';
+
+export type RelatorioVendas =
+  | { disponivel: false; de: Data; ate: Data; agrupar: AgrupamentoVendas; motivo: string }
+  | {
+      disponivel: true;
+      de: Data;
+      ate: Data;
+      agrupar: AgrupamentoVendas;
+      periodos: PeriodoVendas[];
+      totais: SomaVendas;
+      por_meio: { meio: string; pagamentos: number; valor: Dec }[];
+      sincronizacao: Sincronizacao;
+      observacao: string;
+    };
+
+// Outras receitas, taxas e contas fixas (entradas) ----------------------------------------------------------------------
+
+export interface OutraReceitaEntrada {
+  descricao: string;
+  valor: Dec;
+  competencia: Data;
+  recebido_em?: Data | null;
+  arquivo_id?: Uuid | null;
+}
+
+export interface OutraReceitaSaida {
+  id: Uuid;
+  descricao: string;
+  valor: Dec;
+  competencia: Data;
+  recebido_em: Data | null;
+  status: 'confirmada' | 'cancelada';
+}
+
+export interface TaxaPagamento {
+  /** BIGINT no banco (não é UUID). */
+  id: number;
+  meio: MeioPdv;
+  /** Percentual ESTIMADO do contrato da adquirente (a Eyemobile não informa a taxa cobrada). */
+  taxa_percentual: Dec;
+  prazo_dias: number;
+  vigente_de: Data;
+}
+
+export type TaxaEntrada = Omit<TaxaPagamento, 'id'>;
+
+export interface RecorrenciaEntrada {
+  descricao: string;
+  categoria: string;
+  fornecedor?: { documento?: string | null; nome?: string | null } | null;
+  valor_previsto: Dec;
+  valor_variavel: boolean;
+  dia_vencimento: number;
+  intervalo_meses?: number;
+  inicio: Data;
+  fim?: Data | null;
+  antecedencia_dias?: number;
+}
+
+// Participação (GET /apuracoes/{mes}/participacao — só com financeiro.ver_societario) ------------------------------------
+
+export type BaseParticipacao = 'receita_liquida' | 'margem_bruta' | 'resultado_operacional' | 'resultado_gerencial';
+
+export interface ParticipacaoOficial {
+  regra_id: string;
+  beneficiario: string;
+  base: BaseParticipacao;
+  percentual: Dec;
+  valor_base: Dec | null;
+  valor: Dec | null;
+  documento_referencia: string | null;
+}
+
+/** Beneficiário (ou `sem_regra_registrada`) → percentual ainda não aprovado e o valor em cada base possível. */
+export type SimulacaoParticipacao = Record<string, { percentual: Dec | null; bases: Partial<Record<BaseParticipacao, { valor_base: Dec | null; valor: Dec | null }>> }>;
+
+/** 200 = regra aprovada (valores oficiais); 409 `regra_nao_aprovada` = só a simulação (`dados.simulacao`). */
+export type Participacao =
+  | { tipo: 'oficial'; mes: Data; status: string; situacao: 'aprovada'; oficiais: ParticipacaoOficial[]; aviso: string | null }
+  | { tipo: 'simulacao'; mes: string; simulacao: SimulacaoParticipacao; aviso: string };
 
 // Banco e conciliação ---------------------------------------------------------------------------------------------------
 
@@ -340,25 +469,28 @@ export interface ContaBancaria {
   criado_em: Instante;
 }
 
+/** Importação sem movimentações: o backend manda só `{analisadas: 0, por_nivel: {}, creditos: {}, debitos: {}}`
+ *  (api_conciliacao.py) — por isso tudo além de `analisadas` é opcional. */
 export interface ResultadoImportacao {
   analisadas: number;
-  ja_conciliadas: number;
-  correspondencias_fortes: number;
-  possiveis: number;
-  sem_registro: number;
-  conflitos: number;
-  duplicadas: number;
-  por_nivel: Record<NivelConciliacao, number>;
-  creditos: { quantidade: number; valor: Dec; conciliado: Dec };
-  debitos: { quantidade: number; valor: Dec; conciliado: Dec };
+  ja_conciliadas?: number;
+  correspondencias_fortes?: number;
+  possiveis?: number;
+  sem_registro?: number;
+  conflitos?: number;
+  duplicadas?: number;
+  por_nivel: Partial<Record<NivelConciliacao, number>>;
+  creditos: Partial<{ quantidade: number; valor: Dec; conciliado: Dec }>;
+  debitos: Partial<{ quantidade: number; valor: Dec; conciliado: Dec }>;
 }
 
+/** Valores aceitos pelo backend (api_conciliacao.py); qualquer outro é 422. */
 export interface MapeamentoCsv {
-  separador: string;
-  codificacao: string;
+  separador: ';' | ',' | '\t' | '|' | string;
+  codificacao: 'utf-8-sig' | 'utf-8' | 'cp1252' | 'latin-1' | string;
   linha_cabecalho: number | null;
   colunas: Partial<Record<'data' | 'descricao' | 'valor' | 'entrada' | 'saida' | 'tipo' | 'identificador' | 'saldo', number>>;
-  formato_data: string;
+  formato_data: 'dd/mm/aaaa' | 'dd/mm/aa' | 'aaaa-mm-dd' | 'dd-mm-aaaa' | 'dd.mm.aaaa' | 'mm/dd/aaaa' | 'aaaammdd' | string;
   decimal: ',' | '.';
   sinal?: 'valor' | 'invertido';
 }
@@ -388,9 +520,10 @@ export type NivelConciliacao = 'vinculo_confirmado' | 'forte' | 'possivel' | 'am
 export interface CandidatoConciliacao {
   tipo: 'pagamento' | 'parcela' | 'outra_receita' | 'vendas' | 'par';
   acao: string;
-  referencia: string;
-  valor: Dec;
-  data: Data;
+  /** Nulos nos candidatos de vendas (conciliacao.py `Candidato`). */
+  referencia: string | null;
+  valor: Dec | null;
+  data: Data | null;
   descricao: string;
   pontuacao: number;
   valor_exato: boolean;
@@ -412,10 +545,12 @@ export interface MovimentoBancario {
   situacao: 'pendente' | 'parcial' | 'conciliado' | 'duplicado';
   valor_conciliado: Dec;
   saldo_a_conciliar: Dec;
-  conflito: string | null;
+  /** Possível duplicidade: `tipo` (ex.: possivel_duplicidade), com quem e a decisão já tomada. */
+  conflito: { tipo: string; com: Uuid | null; decisao: string | null } | null;
   nivel: NivelConciliacao;
   candidatos: CandidatoConciliacao[];
-  classificacao_sugerida: string | null;
+  /** Sugestão pela descrição do banco (Motor.classificacao_sugerida): despesa com categoria ou classificação. */
+  classificacao_sugerida: { acao: 'registrar_despesa' | 'classificar' | string; texto: string; categoria?: string; classificacao?: string } | null;
   acoes_possiveis: string[];
   versao: number;
   importacao_id: Uuid;
@@ -456,8 +591,28 @@ export interface ItemFechamento {
 }
 
 export interface MovimentoDetalhe extends MovimentoBancario {
-  vinculos?: { id: Uuid; tipo: string; acao: string; valor: Dec; situacao: 'ativa' | 'desfeita'; descricao?: string | null; criado_em: Instante; desfeito_em?: Instante | null; motivo?: string | null }[];
-  arquivos?: { importacao_id: Uuid; linha: number | null; criado_em?: Instante }[];
+  /** `saida_vinculo` do backend (conciliacao.py). */
+  vinculos?: {
+    id: Uuid;
+    /** pagamento · outra_receita · vendas · transferencia_propria · aporte_socio · emprestimo · reembolso · estorno · nao_operacional */
+    tipo: string;
+    valor: Dec;
+    pagamento_id: Uuid | null;
+    outra_receita_id: Uuid | null;
+    movimento_par_id: Uuid | null;
+    vendas: { meio: string; de: Data; ate: Data } | null;
+    criados: Record<string, unknown>;
+    origem: string | null;
+    evidencias: unknown;
+    observacao: string | null;
+    status: 'ativa' | 'desfeita';
+    criado_por: string | null;
+    criado_em: Instante;
+    desfeita_por: string | null;
+    desfeita_em: Instante | null;
+    desfeita_motivo: string | null;
+  }[];
+  arquivos?: { importacao_id: Uuid; linha: number | null; novo: boolean }[];
   historico?: { em: Instante; acao: string; ator: string | null; dados?: unknown }[];
 }
 
@@ -471,7 +626,8 @@ export interface Apuracao {
   mes: Data;
   status: 'rascunho' | 'conferida' | 'fechada' | string;
   congelada?: boolean;
-  qualidade?: NivelQualidade | Qualidade;
+  /** Sempre o objeto completo (apuracao.py), nunca só o nível. */
+  qualidade?: Qualidade;
   excecao_conciliacao?: { motivo: string; por: string } | null;
   [k: string]: unknown;
 }
@@ -482,5 +638,5 @@ export interface Fechamento {
   pendencias: ItemFechamento[];
   itens: ItemFechamento[];
   conciliacao: ConciliacaoMes;
-  apuracao: { status: string; congelada: boolean; qualidade: NivelQualidade; excecao_conciliacao: { motivo: string; por: string } | null };
+  apuracao: { status: string; congelada: boolean; qualidade: NivelQualidade | null; excecao_conciliacao: { motivo: string; por: string } | null };
 }

@@ -11,8 +11,9 @@ import { EnvioArquivo, EntradaMoeda } from '../../ui/entradas';
 import type { ItemManual } from '../../lib/tipos/estoque';
 import { atualizarEstoque } from './comum';
 
-/** Envio de nota: foto (câmera no celular), PDF ou XML. A leitura acontece no backend; a conferência abre em seguida. */
-export function EnviarNota({ aberta, aoFechar, aoEnviar }: { aberta: boolean; aoFechar: () => void; aoEnviar: (id: string) => void }) {
+/** Envio de nota: foto (câmera no celular), PDF ou XML. A leitura acontece no backend; a conferência abre em seguida.
+ *  A unidade vai no próprio formulário: no multipart o backend lê `unidade` do Form, não da query. */
+export function EnviarNota({ aberta, aoFechar, aoEnviar, unidade }: { aberta: boolean; aoFechar: () => void; aoEnviar: (id: string) => void; unidade: string | null }) {
   const [enviando, setEnviando] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   useEffect(() => {
@@ -23,7 +24,7 @@ export function EnviarNota({ aberta, aoFechar, aoEnviar }: { aberta: boolean; ao
     setEnviando(f.name);
     setErro(null);
     try {
-      const r = await estoque.enviarNota(f);
+      const r = await estoque.enviarNota(f, unidade);
       atualizarEstoque();
       avisar(r.ja_existia ? 'Esta nota já tinha sido enviada: abrindo a mesma compra.' : 'Nota recebida. Lendo o documento…', r.ja_existia ? 'info' : 'ok');
       aoEnviar(r.id);
@@ -106,6 +107,8 @@ export function LinhasItens({ linhas, aoMudar }: { linhas: LinhaManual[]; aoMuda
 /** Compra sem documento (feira, mercado sem cupom). Segue a mesma conferência. */
 export function CompraManual({ aberta, aoFechar, aoCriar }: { aberta: boolean; aoFechar: () => void; aoCriar: (id: string) => void }) {
   const [fornecedor, setFornecedor] = useState('');
+  const [documento, setDocumento] = useState('');
+  const [desconto, setDesconto] = useState('');
   const [data, setData] = useState(hojeISO());
   const [total, setTotal] = useState('');
   const [linhas, setLinhas] = useState<LinhaManual[]>([linhaVazia()]);
@@ -115,6 +118,8 @@ export function CompraManual({ aberta, aoFechar, aoCriar }: { aberta: boolean; a
   useEffect(() => {
     if (aberta) {
       setFornecedor('');
+      setDocumento('');
+      setDesconto('');
       setData(hojeISO());
       setTotal('');
       setLinhas([linhaVazia()]);
@@ -128,10 +133,13 @@ export function CompraManual({ aberta, aoFechar, aoCriar }: { aberta: boolean; a
     const { itens, erro: er } = validarLinhas(linhas);
     if (er) return setErro(er);
     const t = paraDecimal(total) ?? soma.toFixed(2);
+    const d = desconto.trim() ? paraDecimal(desconto) : '0';
+    if (d === null) return setErro('Desconto inválido.');
+    const doc = documento.replace(/\D/g, '');
     setEnviando(true);
     setErro(null);
     try {
-      const r = await estoque.compraManual({ fornecedor_nome: fornecedor.trim() || undefined, emitida_em: data, valor_total: t, itens }, chave.current);
+      const r = await estoque.compraManual({ fornecedor_nome: fornecedor.trim() || null, fornecedor_documento: doc || null, emitida_em: data, valor_total: t, desconto: d, itens }, chave.current);
       atualizarEstoque();
       avisar('Compra registrada. Confira os itens para dar entrada.', 'ok');
       aoCriar(r.id);
@@ -159,12 +167,14 @@ export function CompraManual({ aberta, aoFechar, aoCriar }: { aberta: boolean; a
         {erro && <Aviso tom="perigo" icone={<Info aria-hidden="true" />}>{erro}</Aviso>}
         <div class="grade-campos">
           <Campo rotulo="Onde comprou" opcional>{(id) => <input id={id} class="entrada" placeholder="Ex.: Feira do Mucuripe" value={fornecedor} onInput={(e) => setFornecedor(e.currentTarget.value)} />}</Campo>
+          <Campo rotulo="CNPJ ou CPF" opcional ajuda="Ajuda a ligar a compra ao fornecedor certo.">{(id, d) => <input id={id} class="entrada num" inputMode="numeric" maxLength={20} aria-describedby={d} value={documento} onInput={(e) => setDocumento(e.currentTarget.value)} />}</Campo>
           <Campo rotulo="Data da compra">{(id) => <input id={id} type="date" class="entrada" max={hojeISO()} value={data} onChange={(e) => setData(e.currentTarget.value)} />}</Campo>
         </div>
         <LinhasItens linhas={linhas} aoMudar={setLinhas} />
         <Campo rotulo="Total pago" opcional ajuda={soma ? `Soma dos produtos: ${moeda(soma)}. Em branco, vale a soma.` : 'Em branco, vale a soma dos produtos.'}>
           {(id, d) => <EntradaMoeda id={id} descr={d} valor={total} aoMudar={setTotal} />}
         </Campo>
+        <Campo rotulo="Desconto" opcional>{(id) => <EntradaMoeda id={id} valor={desconto} aoMudar={setDesconto} />}</Campo>
       </form>
     </Gaveta>
   );

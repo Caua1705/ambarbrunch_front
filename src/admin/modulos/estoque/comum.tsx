@@ -1,9 +1,39 @@
 // Rótulos do Estoque em português de quem trabalha na cozinha, e utilidades comuns às abas.
-import { invalidar } from '../../lib/consulta';
+import { invalidar, useConsulta } from '../../lib/consulta';
+import { pode, podeVer } from '../../lib/permissoes';
+import { estoque } from '../../lib/api/estoque';
+import type { Usuario } from '../../lib/sessao';
 import { Situacao, Etiqueta, type Tom } from '../../ui/base';
-import type { CompraLista, EtapaCompra, FonteLeitura, Insumo, MotivoNaoConfiavel, SituacaoItem, UnidadeBase } from '../../lib/tipos/estoque';
+import type { CompraLista, DecisaoCancelamento, EtapaCompra, FonteLeitura, Insumo, MotivoNaoConfiavel, SituacaoCancelamento, SituacaoItem, TipoMovimento, UnidadeBase } from '../../lib/tipos/estoque';
 
 export const atualizarEstoque = () => invalidar('estoque');
+
+/** Permissões do Estoque como o backend decide (app/modulos/usuarios/permissoes.py): visualizar (ler, perda, contagem,
+ *  cancelamentos, análises), conferir (compras) e editar (catálogo, fichas, cancelar compra, aceitar nota que não fecha). */
+export interface PermissoesEstoque {
+  visualizar: boolean;
+  conferir: boolean;
+  editar: boolean;
+}
+
+/** Usa a lista que o backend manda em /admin/auth/me; sem ela (backend antigo), o espelho do papel. */
+export function permissoesEstoque(u: Usuario): PermissoesEstoque {
+  const lista = Array.isArray(u.permissoes) ? u.permissoes : null;
+  const tem = (p: string, reserva: boolean) => (lista ? lista.includes(p) : reserva);
+  const modulo = podeVer(u.papel, 'estoque');
+  return {
+    visualizar: tem('estoque.visualizar', modulo),
+    conferir: tem('estoque.conferir', modulo),
+    editar: tem('estoque.editar', pode(u.papel, 'estoque.catalogo')),
+  };
+}
+
+/** Catálogo de insumos ativos: nome e unidade para quem só recebe o id (ex.: itens de um cancelamento). */
+export function useCatalogo() {
+  const c = useConsulta('estoque/insumos?catalogo', () => estoque.insumos({ limite: 200 }));
+  const mapa = new Map((c.dados?.itens ?? []).map((i) => [i.id, i]));
+  return { consulta: c, nome: (id: string) => mapa.get(id)?.nome ?? 'Insumo', unidade: (id: string) => mapa.get(id)?.unidade_base ?? null };
+}
 
 export const UNIDADE: Record<UnidadeBase, string> = { g: 'gramas (g)', ml: 'mililitros (ml)', un: 'unidades (un)' };
 export const UNIDADE_CURTA: Record<UnidadeBase, string> = { g: 'g', ml: 'ml', un: 'un' };
@@ -78,6 +108,46 @@ export const ERRO_LEITURA: Record<string, string> = {
   leitura_falhou: 'Nenhum leitor conseguiu ler o documento.',
   arquivo_ilegivel: 'O arquivo está ilegível.',
 };
+
+export const TIPO_MOVIMENTO: Record<TipoMovimento, string> = {
+  saldo_inicial: 'Saldo inicial',
+  entrada_compra: 'Compra recebida',
+  consumo_venda: 'Venda',
+  estorno_consumo: 'Venda cancelada (volta)',
+  producao_saida: 'Usado em preparo',
+  producao_entrada: 'Preparo produzido',
+  perda: 'Perda',
+  ajuste_inventario: 'Ajuste da contagem',
+  estorno: 'Estorno',
+};
+
+/** O que a operação responde sobre uma venda cancelada depois da baixa (consumo.resolver_cancelamento). */
+export const DECISAO: Record<DecisaoCancelamento, { rotulo: string; explica: string }> = {
+  nao_produzido: { rotulo: 'Não foi preparado', explica: 'Os ingredientes voltam ao estoque (se tinham saído).' },
+  produzido_descartado: { rotulo: 'Preparado e descartado', explica: 'O que saiu vira perda: não volta para a prateleira.' },
+  produzido_aproveitado: { rotulo: 'Preparado e aproveitado', explica: 'Foi aproveitado em outra coisa: os ingredientes voltam (se tinham saído).' },
+  nao_apurado: { rotulo: 'Não deu para apurar', explica: 'Ninguém sabe o que aconteceu: nada é lançado.' },
+};
+export const SITUACAO_CANCELAMENTO: Record<SituacaoCancelamento, { rotulo: string; tom: Tom }> = {
+  pendente: { rotulo: 'Esperando resposta', tom: 'atencao' },
+  sem_efeito: { rotulo: 'Sem efeito', tom: 'apagado' },
+  nao_produzido: { rotulo: DECISAO.nao_produzido.rotulo, tom: 'ok' },
+  produzido_descartado: { rotulo: DECISAO.produzido_descartado.rotulo, tom: 'neutro' },
+  produzido_aproveitado: { rotulo: DECISAO.produzido_aproveitado.rotulo, tom: 'ok' },
+  nao_apurado: { rotulo: DECISAO.nao_apurado.rotulo, tom: 'apagado' },
+};
+
+/** Quantidade digitada → string decimal para o backend ("1,5" → "1.5", "1.250,5" → "1250.5"), sem arredondar.
+ *  Vazio, negativo ou inválido → null. Só converte o texto: nenhuma regra de estoque é calculada aqui. */
+export function quantidadeDigitada(texto: string): string | null {
+  const t = texto.trim().replace(/\s/g, '');
+  if (!t) return null;
+  const normal = t.includes(',') ? t.replace(/\./g, '').replace(',', '.') : t;
+  return /^\d+(\.\d+)?$/.test(normal) ? normal.replace(/^0+(?=\d)/, '') : null;
+}
+
+/** Problemas da conferência aritmética: o backend manda {codigo, texto}. */
+export const textoProblemas = (ps: { codigo: string; texto?: string }[] | undefined) => (ps ?? []).map((p) => p.texto ?? p.codigo).join(' ');
 
 export const PENDENCIA: (p: string) => string = (p) => {
   const m = /^item_(\d+)_sem_insumo$/.exec(p);

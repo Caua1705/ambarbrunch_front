@@ -246,7 +246,7 @@
   align-items: end;
 }
 .linha-edicao--ficha {
-  grid-template-columns: minmax(0, 2.6fr) minmax(90px, 1fr) minmax(70px, 0.7fr) auto;
+  grid-template-columns: minmax(0, 2.6fr) minmax(90px, 1fr) minmax(70px, 0.7fr) auto auto;
 }
 @media (max-width: 640px) {
   .linha-edicao,
@@ -316,4 +316,58 @@
   line-height: 1.35;
   padding-top: 3px;
   padding-bottom: 3px;
+}
+
+/* Ficha: "opcional" alinhado ao pé dos campos da linha. */
+.ficha-opcional {
+  min-height: var(--alvo-toque);
+  white-space: nowrap;
+}
+
+/* Cancelamentos: cada venda é um cartão com os insumos envolvidos e as quatro respostas. */
+.cancelamento {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e-3);
+}
+.cancelamento__itens {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--borda);
+  border-radius: var(--r-l);
+}
+.cancelamento__itens li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--e-3);
+  padding: var(--e-2) var(--e-4);
+  border-bottom: 1px solid var(--borda);
+}
+.cancelamento__itens li:last-child {
+  border-bottom: 0;
+}
+
+/* Contagem por lista: insumos marcáveis, com a categoria e a unidade ao lado. */
+.escolha-insumos {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.escolha-insumos li {
+  border-bottom: 1px solid var(--borda);
+}
+.escolha-insumos li:last-child {
+  border-bottom: 0;
+}
+.escolha-insumos .marcar {
+  display: flex;
+  align-items: center;
+  gap: var(--e-3);
+  min-height: var(--alvo-toque);
+  padding: var(--e-2) 0;
+}
+.escolha-insumos .marcar > .fraco {
+  margin-left: auto;
+  white-space: nowrap;
 }

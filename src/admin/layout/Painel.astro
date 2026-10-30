@@ -1,37 +1,40 @@
 ---
-// Moldura de todas as páginas autenticadas do painel: lateral com os seis módulos, topo com contexto da operação, tema,
+// Moldura de todas as páginas autenticadas do painel: lateral com os módulos, topo com contexto da operação, tema,
 // unidade e perfil. A sessão já foi conferida no middleware; aqui só se desenha o que o papel pode ver.
 import '@fontsource-variable/inter/wght.css';
 import '../estilos/painel.css';
 import logo from '../../assets/media/brand/logo-ambar.png?url';
-import { LayoutDashboard, CalendarCheck, MessagesSquare, Award, Wallet, Package, Settings, Menu, Sun, Moon, PanelLeftClose, LogOut, ChevronDown, Bell, Tablet } from 'lucide-preact';
-import { podeVer, type Modulo } from '../lib/permissoes';
-import { NOME_PAPEL, type ContextoPainel } from '../lib/sessao';
+import { LayoutDashboard, CalendarCheck, MessagesSquare, Award, Wallet, Package, Settings, Users, Menu, Sun, Moon, PanelLeftClose, LogOut, ChevronDown, Bell, Tablet } from 'lucide-preact';
+import { podeVer, type Area, type Modulo } from '../lib/permissoes';
+import { NOME_PAPEL, ehUnidadeTeste, type ContextoPainel } from '../lib/sessao';
 import TemaInicial from './TemaInicial.astro';
 
 interface Props {
   titulo: string;
-  modulo: Modulo | 'configuracoes';
+  modulo: Area;
   contexto: ContextoPainel;
 }
 const { titulo, modulo, contexto } = Astro.props;
 const { usuario, unidade, unidades, modo } = contexto;
 const iniciais = usuario.nome.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]!.toUpperCase()).join('');
 
-const MODULOS: { id: Modulo; rotulo: string; href: string; icone: typeof LayoutDashboard; selo?: string }[] = [
-  { id: 'visao-geral', rotulo: 'Visão Geral', href: '/admin', icone: LayoutDashboard },
-  { id: 'reservas', rotulo: 'Reservas', href: '/admin/reservas', icone: CalendarCheck },
-  { id: 'atendimento', rotulo: 'Atendimento', href: '/admin/atendimento', icone: MessagesSquare },
+// `liberacao`: o módulo de PAINEL_MODULOS de que a área depende (Clientes acompanha Reservas).
+const MODULOS: { id: Exclude<Area, 'configuracoes'>; liberacao: Modulo; rotulo: string; href: string; icone: typeof LayoutDashboard; selo?: string }[] = [
+  { id: 'visao-geral', liberacao: 'visao-geral', rotulo: 'Visão Geral', href: '/admin', icone: LayoutDashboard },
+  { id: 'reservas', liberacao: 'reservas', rotulo: 'Reservas', href: '/admin/reservas', icone: CalendarCheck },
+  { id: 'clientes', liberacao: 'reservas', rotulo: 'Clientes', href: '/admin/clientes', icone: Users },
+  { id: 'atendimento', liberacao: 'atendimento', rotulo: 'Atendimento', href: '/admin/atendimento', icone: MessagesSquare },
   // O Clube ainda não foi lançado ao público: a área existe, discreta, sem destaque.
-  { id: 'clube', rotulo: 'Clube Âmbar', href: '/admin/clube', icone: Award, selo: 'em breve' },
-  { id: 'financeiro', rotulo: 'Financeiro', href: '/admin/financeiro', icone: Wallet },
-  { id: 'estoque', rotulo: 'Estoque', href: '/admin/estoque', icone: Package },
+  { id: 'clube', liberacao: 'clube', rotulo: 'Clube Âmbar', href: '/admin/clube', icone: Award, selo: 'em breve' },
+  { id: 'financeiro', liberacao: 'financeiro', rotulo: 'Financeiro', href: '/admin/financeiro', icone: Wallet },
+  { id: 'estoque', liberacao: 'estoque', rotulo: 'Estoque', href: '/admin/estoque', icone: Package },
 ];
-const visiveis = MODULOS.filter((m) => podeVer(usuario.papel, m.id) && contexto.modulos.includes(m.id));
+const visiveis = MODULOS.filter((m) => podeVer(usuario.papel, m.id) && contexto.modulos.includes(m.liberacao));
 const veConfiguracoes = podeVer(usuario.papel, 'configuracoes');
 // Modo Operação (tablet do café): para quem opera Reservas, quando o módulo está liberado.
 const veOperacao = podeVer(usuario.papel, 'reservas') && contexto.modulos.includes('reservas');
 const sub = unidade ? unidade.nome : 'Sem unidade atribuída';
+const teste = ehUnidadeTeste(unidade);
 ---
 
 <!doctype html>
@@ -49,6 +52,11 @@ const sub = unidade ? unidade.nome : 'Sem unidade atribuída';
   <body style={`--logo:url(${logo})`}>
     <a class="pular" href="#conteudo">Pular para o conteúdo</a>
     {modo === 'demo' && <div class="faixa-demo" role="note">DEMONSTRAÇÃO — dados fictícios, nada é enviado ao sistema do Âmbar</div>}
+    {teste && (
+      <div class="faixa-teste" role="note" data-unidade-teste>
+        AMBIENTE DE TESTE · {unidade?.nome} — lançamentos de teste, separados dos números oficiais do Âmbar Café
+      </div>
+    )}
     <div class="app" id="app">
       <aside class="lateral" id="lateral" aria-label="Navegação do painel">
         <a class="lateral__marca" href="/admin" aria-label="Âmbar — Visão Geral">
@@ -106,7 +114,7 @@ const sub = unidade ? unidade.nome : 'Sem unidade atribuída';
             {unidades.length > 1 && (
               <label class="sr" for="unidade">Unidade de negócio</label>
               <select class="selecao" id="unidade" style="width:auto;min-width:0;min-height:36px" data-unidade>
-                {unidades.map((u) => <option value={u.codigo} selected={u.codigo === unidade?.codigo}>{u.nome}</option>)}
+                {unidades.map((u) => <option value={u.codigo} selected={u.codigo === unidade?.codigo}>{u.nome}{ehUnidadeTeste(u) && !/teste/i.test(u.nome) ? ' · TESTES' : ''}</option>)}
               </select>
             )}
             <a class="btn btn--fantasma btn--icone" href="/admin#atencao" aria-label="Pendências" title="Pendências" style="position:relative">

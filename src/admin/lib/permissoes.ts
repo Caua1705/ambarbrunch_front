@@ -4,7 +4,8 @@
 import type { Papel } from './sessao';
 
 export type Modulo = 'visao-geral' | 'reservas' | 'atendimento' | 'clube' | 'financeiro' | 'estoque';
-export type Area = Modulo | 'configuracoes';
+// Clientes não é módulo próprio de liberação: acompanha Reservas (mesmo cadastro de quem reserva).
+export type Area = Modulo | 'clientes' | 'configuracoes';
 
 const TODOS: Papel[] = ['admin', 'gerente', 'operador'];
 const GERENCIA: Papel[] = ['admin', 'gerente'];
@@ -14,6 +15,7 @@ const ADMIN: Papel[] = ['admin'];
 const MODULOS: Record<Area, Papel[]> = {
   'visao-geral': GERENCIA,
   reservas: TODOS,
+  clientes: GERENCIA,
   atendimento: TODOS,
   clube: GERENCIA,
   financeiro: GERENCIA,
@@ -40,7 +42,9 @@ const ACOES = {
   'financeiro.conciliar_mes': GERENCIA,
   'financeiro.reabrir_mes': ADMIN,
   'financeiro.fechar_apuracao': ADMIN,
-  'financeiro.configurar': GERENCIA,
+  // Parâmetros críticos e retiradas dos sócios: só o Proprietário (o backend omite os campos para o Gerente).
+  'financeiro.configurar': ADMIN,
+  'financeiro.ver_societario': ADMIN,
   'visao.financeiro': GERENCIA,
   'visao.radar': GERENCIA,
   'estoque.catalogo': GERENCIA,

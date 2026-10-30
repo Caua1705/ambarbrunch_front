@@ -12,7 +12,7 @@ import { Botao, Campo, Aviso, Etiqueta, Situacao } from '../../ui/base';
 import { EntradaMoeda } from '../../ui/entradas';
 import { Dados, Esqueleto } from '../../ui/estados';
 import type { DespesaSaida } from '../../lib/tipos/financeiro';
-import { ORIGEM, MOTIVO_REVISAO, FORMAS, useCategorias, nomeCategoria, OpcoesCategoria, atualizarFinanceiro, avisar, avisarFalha } from './comum';
+import { ORIGEM, MOTIVO_REVISAO, FORMAS, useCategorias, nomeCategoria, OpcoesCategoria, atualizarFinanceiro, avisar, avisarFalha, usePermissao } from './comum';
 import { Documento } from './Documento';
 import { Pagar, type ContaParaPagar } from './Pagar';
 
@@ -21,6 +21,7 @@ const brl = (v: string) => Number(v).toLocaleString('pt-BR', { minimumFractionDi
 export function DetalheDespesa({ id, aoFechar, confirmar }: { id: string | null; aoFechar: () => void; confirmar: (p: PedidoConfirmacao) => void }) {
   const consulta = useConsulta(id ? `financeiro/despesa:${id}` : null, () => financeiro.despesa(id!));
   const cats = useCategorias();
+  const lancar = usePermissao('financeiro.lancar');
   const [editando, setEditando] = useState(false);
   const [categoria, setCategoria] = useState('');
   const [ocupado, setOcupado] = useState(false);
@@ -47,7 +48,7 @@ export function DetalheDespesa({ id, aoFechar, confirmar }: { id: string | null;
     }
   }
 
-  const rodape = d && !editando && d.status !== 'cancelada' && (
+  const rodape = d && lancar && !editando && d.status !== 'cancelada' && (
     <>
       <Botao variante="fantasma" icone={<X aria-hidden="true" />} onClick={() => confirmar({ titulo: 'Cancelar esta despesa?', texto: 'A despesa e as contas em aberto dela deixam de valer. Se já houver pagamento, estorne-o antes.', confirmar: 'Cancelar despesa', perigo: true, motivo: { rotulo: 'Motivo do cancelamento' }, acao: async (m) => { await financeiro.cancelarDespesa(d.id, m); atualizarFinanceiro(); }, sucesso: 'Despesa cancelada.' })}>
         Cancelar despesa
@@ -138,7 +139,7 @@ export function DetalheDespesa({ id, aoFechar, confirmar }: { id: string | null;
                       </div>
                       <div class="linha linha--entre fraco">
                         <span>{p.situacao === 'paga' ? 'Paga' : p.situacao === 'cancelada' ? 'Cancelada' : num(p.valor_pago) ? `Pago ${moeda(p.valor_pago)} · falta ${moeda(p.saldo)}` : 'Em aberto'}</span>
-                        {p.situacao === 'aberta' && d.status !== 'cancelada' && (
+                        {lancar && p.situacao === 'aberta' && d.status !== 'cancelada' && (
                           <Botao tamanho="p" icone={<Banknote aria-hidden="true" />} onClick={() => setPagar({ parcela_id: p.id, descricao: d.descricao, fornecedor: d.fornecedor?.nome, vencimento: p.vencimento, valor: p.valor, valor_pago: p.valor_pago, saldo: p.saldo, valor_a_confirmar: d.valor_a_confirmar })}>
                             Pagar
                           </Botao>
@@ -151,7 +152,7 @@ export function DetalheDespesa({ id, aoFechar, confirmar }: { id: string | null;
                             <span class="fraco"> · {ORIGEM[pg.origem] ?? pg.origem}{pg.conciliacao === 'automatica' ? ' (conciliado automaticamente)' : ''}</span>
                             {pg.estornado_em && <span class="fraco"> · estornado: {pg.estorno_motivo}</span>}
                           </span>
-                          {!pg.estornado_em && (
+                          {lancar && !pg.estornado_em && (
                             <Botao tamanho="p" variante="fantasma" icone={<Undo2 aria-hidden="true" />} onClick={() => confirmar({ titulo: `Estornar o pagamento de ${moeda(pg.valor)}?`, texto: 'A conta volta a ficar em aberto. Se o pagamento foi conciliado com o extrato, desfaça a conciliação antes.', confirmar: 'Estornar', perigo: true, motivo: { rotulo: 'Motivo do estorno' }, acao: async (m) => { await financeiro.estornarPagamento(pg.id, m); atualizarFinanceiro(); }, sucesso: 'Pagamento estornado.' })}>
                               Estornar
                             </Botao>

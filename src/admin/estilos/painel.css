@@ -298,6 +298,20 @@ img, svg {
   padding: 6px var(--e-4);
   letter-spacing: 0.02em;
 }
+.faixa-teste {
+  /* Unidade de ensaio: nada dela entra nos números da operação real. Fica no topo ao rolar. */
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: var(--perigo-suave);
+  color: var(--perigo);
+  border-bottom: 1px solid color-mix(in srgb, var(--perigo) 35%, transparent);
+  font-size: var(--t-s);
+  font-weight: 700;
+  text-align: center;
+  padding: 6px var(--e-4);
+  letter-spacing: 0.02em;
+}
 .veu-lateral {
   display: none;
 }
