@@ -13,7 +13,7 @@ import { criarApiSimulada } from '../lib/api/simulado';
 import { criarApiHttp } from '../lib/api/http';
 import { visita } from '../data/visita';
 import { conferirTelefone, mascaraTel, telefoneNacional, uuid } from '../lib/telefone';
-import { FUSO_CAFE, linkIcs, nomeIcs, type ReservaAgenda } from '../lib/agenda';
+import { FUSO_CAFE, linkGoogleAgenda, type ReservaAgenda } from '../lib/agenda';
 import { guardarConfirmacao, ROTA_CONFIRMADA } from '../lib/reserva-confirmada';
 
 type Modo = 'indisponivel' | 'simulado' | 'api';
@@ -613,7 +613,8 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
           </p>
           {resumo}
           <div class="ticket__actions">
-            <a class="btn btn--wine btn--block" href={linkIcs(agendaDe(resultado), fusoCafe)} download={nomeIcs(agendaDe(resultado))}>Adicionar à agenda</a>
+            {/* abre o Google Agenda com o evento preenchido; nada é baixado */}
+            <a class="btn btn--wine btn--block" href={linkGoogleAgenda(agendaDe(resultado), fusoCafe)} target="_blank" rel="noopener">Adicionar à agenda</a>
             {/* nova reserva: mesmos nome e telefone, mas o aceite da política é dado de novo */}
             <button class="ticket__link" type="button" onClick={() => { setResultado(null); setHora(null); setDados((d) => ({ ...d, consentimento: false })); setEtapa('escolha'); setTentativa((t) => t + 1); }}>Fazer outra reserva</button>
           </div>

@@ -7,7 +7,7 @@
 // celular do Playwright) cair numa página que rola.
 import { useEffect, useState } from 'preact/hooks';
 import { lerConfirmacao, type Confirmacao } from '../lib/reserva-confirmada';
-import { linkIcs, nomeIcs } from '../lib/agenda';
+import { linkGoogleAgenda } from '../lib/agenda';
 
 const dataLonga = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
 
@@ -50,8 +50,9 @@ export default function ReservaConfirmada() {
         <div><dt>Horário</dt><dd>{c?.hora ?? ' '}</dd></div>
       </dl>
       <div class="ticket__actions">
-        {/* um botão só: baixa o evento (.ics), que o celular abre na agenda dele. Sem href até os dados chegarem. */}
-        <a class="btn btn--wine btn--block" href={c ? linkIcs(c, c.fuso) : undefined} download={c ? nomeIcs(c) : undefined}>Adicionar à agenda</a>
+        {/* um botão só: abre o Google Agenda (numa aba, ou no app se o aparelho associar) com o evento preenchido; nada é
+            baixado. Sem href até os dados chegarem: um toque nesse instante não abre nada. */}
+        <a class="btn btn--wine btn--block" href={c ? linkGoogleAgenda(c, c.fuso) : undefined} target="_blank" rel="noopener">Adicionar à agenda</a>
         <a class="ticket__link" href="/">Voltar ao início</a>
       </div>
     </article>

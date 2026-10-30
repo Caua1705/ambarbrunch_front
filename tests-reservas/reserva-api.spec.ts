@@ -311,53 +311,50 @@ test.describe('envio: confirmação, clique duplo, erro e horário esgotado', ()
     const texto = (await page.locator('main').innerText()).toLowerCase();
     for (const falso of ['mesa reservada', 'garantida', 'whatsapp']) expect(texto, falso).not.toContain(falso);
     // na agenda, o pedido pendente diz que aguarda a equipe
-    const ics = decodeURIComponent((await page.getByRole('link', { name: 'Adicionar à agenda' }).getAttribute('href'))!);
-    expect(ics.replace(/\r\n /g, '')).toContain('aguardando a aprovação da equipe');
+    const google = new URL((await page.getByRole('link', { name: 'Adicionar à agenda' }).getAttribute('href'))!);
+    expect(google.searchParams.get('details')).toContain('aguardando a aprovação da equipe');
   });
 
-  test('agenda: um botão só, “Adicionar à agenda”, que baixa o evento (.ics) — sem Google Agenda nem segunda opção', async ({ page }) => {
+  test('agenda: um botão só, “Adicionar à agenda”, que abre o Google Agenda preenchido (não baixa arquivo), só no toque', async ({ page, context }) => {
     await abrir(page);
     await escolherData(page, ABERTURA);
     await preencherEConfirmar(page);
     await page.getByRole('button', { name: 'Confirmar reserva' }).click();
     await expect(page.getByText('Mesa reservada')).toBeVisible();
-    const acoes = page.locator('.ticket__actions a');
-    await expect(acoes).toHaveText(['Adicionar à agenda', 'Voltar ao início']);
-    await expect(page.locator('a[href*="calendar.google"]')).toHaveCount(0);
-    await expect(page.getByText(/outros calendários|google agenda/i)).toHaveCount(0);
+    await expect(page.locator('.ticket__actions a')).toHaveText(['Adicionar à agenda', 'Voltar ao início']);
+    await expect(page.getByText(/outros calendários|\.ics/i)).toHaveCount(0);
+    expect(context.pages(), 'nada abre sem o toque').toHaveLength(1);
     const botao = page.getByRole('link', { name: 'Adicionar à agenda' });
     await expect(botao).toHaveClass(/btn--wine/);
-    await expect(botao).toHaveAttribute('download', 'reserva-ambar-2026-11-09.ics');
-    const [arquivo] = await Promise.all([page.waitForEvent('download'), botao.click()]);
-    expect(arquivo.suggestedFilename()).toBe('reserva-ambar-2026-11-09.ics');
+    await expect(botao).not.toHaveAttribute('download');
+    await expect(botao).toHaveAttribute('target', '_blank');
+    await expect(botao).toHaveAttribute('href', /^https:\/\/calendar\.google\.com\//);
+    const url = new URL((await botao.getAttribute('href'))!);
+    expect(`${url.origin}${url.pathname}`).toBe('https://calendar.google.com/calendar/render');
+    expect(url.searchParams.get('action')).toBe('TEMPLATE');
+    expect(url.searchParams.get('text')).toBe('Reserva no Âmbar Café');
+    // 09:00 a 12:00 no horário do café: duracaoMin = 180 veio da resposta do backend (api-falsa: formato real)
+    expect(url.searchParams.get('dates')).toBe('20261109T090000/20261109T120000');
+    expect(url.searchParams.get('ctz')).toBe('America/Fortaleza');
+    expect(url.searchParams.get('location')).toBe('Âmbar Café, Rua Tavares Coutinho, 1580, Meireles, Fortaleza - CE');
+    expect(url.searchParams.get('details')).toBe('Jardim externo · 2 pessoas');
+    // o toque abre o Google Agenda numa aba nova, sem download (o pedido é interceptado: o teste não sai para a internet)
+    let baixou = false; page.on('download', () => { baixou = true; });
+    await context.route('https://calendar.google.com/**', (r) => r.fulfill({ status: 200, contentType: 'text/html', body: '<title>Google Agenda</title>' }));
+    const [aba] = await Promise.all([context.waitForEvent('page'), botao.click()]);
+    await aba.waitForLoadState();
+    expect(aba.url()).toContain('calendar.google.com/calendar/render?action=TEMPLATE');
+    expect(baixou, 'nenhum arquivo baixado').toBe(false);
+    await aba.close();
   });
 
-  test('confirmação não promete WhatsApp; “Adicionar à agenda” (.ics) válido (Fortaleza em UTC, duração, local escapado, linhas ≤ 75 octetos); nova reserva pede o aceite de novo', async ({ page }) => {
+  test('confirmação não promete WhatsApp; nova reserva começa do zero e pede o aceite de novo', async ({ page }) => {
     await abrir(page);
     await escolherData(page, ABERTURA);
     await preencherEConfirmar(page);
     await page.getByRole('button', { name: 'Confirmar reserva' }).click();
     await expect(page.getByText('Mesa reservada')).toBeVisible();
     expect((await page.locator('main').innerText()).toLowerCase()).not.toContain('whatsapp');
-    const link = page.getByRole('link', { name: 'Adicionar à agenda' });
-    await expect(link).toHaveAttribute('download', 'reserva-ambar-2026-11-09.ics');
-    const href = (await link.getAttribute('href'))!;
-    expect(href.startsWith('data:text/calendar;charset=utf-8,')).toBe(true);
-    const ics = decodeURIComponent(href.slice(href.indexOf(',') + 1));
-    // estrutura RFC 5545: CRLF, linhas físicas ≤ 75 octetos, dobras começando por espaço
-    expect(ics.endsWith('\r\n')).toBe(true);
-    const fisicas = ics.split('\r\n').filter(Boolean);
-    for (const l of fisicas) expect(new TextEncoder().encode(l).length, l).toBeLessThanOrEqual(75);
-    const props = Object.fromEntries(ics.replace(/\r\n /g, '').split('\r\n').filter(Boolean).map((l) => [l.slice(0, l.indexOf(':')), l.slice(l.indexOf(':') + 1)]));
-    expect(props.BEGIN).toBe('VEVENT');   // a última BEGIN (VCALENDAR vem antes)
-    expect(props.DTSTART).toBe('20261109T120000Z');  // 09:00 em Fortaleza (UTC−3)
-    expect(props.DURATION).toBe('PT180M');
-    expect(props.DTSTAMP).toMatch(/^\d{8}T\d{6}Z$/);
-    expect(props.SUMMARY).toBe('Reserva no Âmbar Café');
-    expect(props.LOCATION).toBe('Âmbar Café\\, Rua Tavares Coutinho\\, 1580\\, Meireles\\, Fortaleza - CE');
-    expect(props.DESCRIPTION).toBe('Jardim externo · 2 pessoas');
-    expect(props.UID).toBe('AMB-7Q2K@ambarbrunch');
-    // nova reserva: a comanda começa do zero, e o aceite da política é dado de novo
     await page.goto('/reservar/');
     await escolherData(page, ABERTURA);
     await page.getByRole('radio', { name: '10:00', exact: true }).click();
