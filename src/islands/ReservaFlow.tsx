@@ -227,13 +227,16 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
   const passo3 = useRef<HTMLFieldSetElement>(null);
   /** fim do fieldset da data ANTES de o calendário abrir ou fechar (para o deslize do que vem abaixo) */
   const fimDaDataAntes = useRef<number | null>(null);
+  /** horários + dados + botão: o bloco que desliza quando o calendário fecha */
+  const resto = useRef<HTMLDivElement>(null);
   const mudarCal = (aberto: boolean) => {
-    fimDaDataAntes.current = passo3.current?.getBoundingClientRect().bottom ?? null;
+    // só o fechamento (toque no dia) desliza; ao abrir, o calendário aparece e empurra o resto, como um menu
+    fimDaDataAntes.current = aberto ? null : passo3.current?.getBoundingClientRect().bottom ?? null;
     setCalAberto(aberto);
   };
-  // deslizarDepoisDaData — abrir ou fechar o calendário muda a altura de uma vez (sem animar a altura quadro a quadro,
-  // que sobre o papel com textura repinta a página toda e engasga no iPhone). O que vem abaixo do campo (horários, dados,
-  // botão) volta à posição antiga e desliza até a nova só com transform: nada pula, e o navegador não repinta a cada quadro.
+  // deslizarDepoisDaData — fechar o calendário muda a altura de uma vez (sem animar a altura quadro a quadro, que sobre o
+  // papel com textura repinta a página toda e engasga no iPhone). O que vem abaixo do campo — um bloco só (.ticket__resto)
+  // e a nota — volta à posição antiga e desliza até a nova só com transform: nada pula, e são poucas camadas a pintar.
   useLayoutEffect(() => {
     const antes = fimDaDataAntes.current;
     fimDaDataAntes.current = null;
@@ -538,6 +541,8 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
                 : <div class="cal cal--esqueleto" aria-hidden="true"><div class="cal__grade">{Array.from({ length: 35 }, () => <span class="cal__dia chip--skeleton" />)}</div></div>}
             </div>
           </fieldset>
+          {/* horários, dados e botão num bloco só: ao fechar o calendário, é ele que desliza (um elemento, uma camada) */}
+          <div class="ticket__resto" ref={resto}>
           <fieldset aria-busy={horarios.estado === 'carregando'}>
             <legend id={`${px}-l4`} ref={passo4} data-done={hora ? '' : undefined}>04 · horário</legend>
             {!api && <p class="ticket__slots">Os horários aparecem aqui quando as reservas pelo site forem ativadas.</p>}
@@ -587,6 +592,7 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
           {api
             ? <button class="btn btn--wine btn--block" type="submit" disabled={!pronto}>Continuar</button>
             : <button class="btn btn--wine btn--block" type="button" disabled>Reservas online em breve</button>}
+          </div>
         </>
       )}
 
