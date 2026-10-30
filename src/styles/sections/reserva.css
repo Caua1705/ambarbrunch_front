@@ -7,9 +7,17 @@
   overflow: hidden;
 }
 .reserva .ticket { margin-top: var(--s-40); }
-/* a comanda em camada própria: abrir o calendário e escolher o dia repintam só ela, não o vinho com grão em volta
-   (Chromium, rastro do toque: raster ao abrir o calendário de ~90–130 ms para ~40–55 ms). Não muda nada na aparência. */
-.reserva .ticket { will-change: transform; }
+/* Picote da comanda na reserva sem máscara. A máscara (--mask-perforated: dois gradientes repetidos na altura inteira,
+   centrados) é refeita em software no cartão inteiro quando ele muda de altura — no iPhone, a 1ª escolha de data (os
+   horários aparecem e o cartão cresce) travava a tela. Aqui, sobre o vinho, duas faixas de 9 px nas bordas pintam os
+   mesmos meios-círculos, nas mesmas posições: crescer repinta só as faixas. Fora da reserva (Clube), a máscara continua. */
+.reserva .ticket { -webkit-mask: none; mask: none; }
+.reserva .ticket::before, .reserva .ticket::after {
+  content: ""; position: absolute; top: 0; bottom: 0; z-index: 2; width: 9px; pointer-events: none;
+  background: radial-gradient(circle 9px at 0 50%, var(--wine) 97%, #0000) left center / 9px 28px repeat-y;
+}
+.reserva .ticket::before { left: 0; }
+.reserva .ticket::after { right: 0; background-image: radial-gradient(circle 9px at 100% 50%, var(--wine) 97%, #0000); background-position: right center; }
 /* marcador de revisão: com respiro sob a comanda e na mesma largura dela */
 .reserva__pending { max-width: 480px; margin: var(--s-26) auto 0; }
 
