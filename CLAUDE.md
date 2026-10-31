@@ -34,11 +34,16 @@ Decisão definitiva do responsável pelo projeto (2026-10-18): este projeto é m
 
 ## Projeto
 
-- Astro 7 + Preact, mobile-first. Visão geral, comandos e estrutura de pastas: [`README.md`](README.md).
+- Astro 7 + Preact, mobile-first: site público em `src/` e painel da equipe em `src/admin/` (`/admin`).
+- **Onde fica cada coisa, convenções de nome e como acrescentar código:**
+  [`docs/technical/ARCHITECTURE.md`](docs/technical/ARCHITECTURE.md). Ler antes de criar arquivo ou pasta.
 - Copies das seções: `src/data/secoes.ts`. Design system documentado em `docs/design/design-system/`.
-- Builds: `npm run build:revisao` (revisão, `dist/`), `npm run build` (produção; na Vercel com `PUBLIC_REVISAO=0` e
-  `PUBLIC_RESERVAS_MODO=indisponivel`), `npm run build:simulado` (reserva simulada, `dist-sim/`, só testes).
-- Testes: `npx playwright test` (projetos `contrato`, `chromium`, `webkit`, `fidelity`).
+- Builds: `npm run build:revisao` (revisão, `dist/`), `npm run build` (produção; as variáveis vêm da Vercel — reservas
+  em modo `api` desde 29/10/2026), `npm run build:simulado` (reserva simulada, `dist-sim/`, só testes),
+  `npm run build:reservas-api` (`dist-reservas-api/`) e `npm run painel:build` (`dist-painel/`).
+- Antes de commitar: `npm run verificar` (`astro check` + `lint`, que acusa import e variável sem uso).
+- Testes: `npx playwright test` (projetos `contrato`, `chromium`, `webkit`, `fidelity`), `npm run test:reservas-api` e
+  `npm run test:painel` — uma suíte por vez e com 1 worker (a máquina fica sem memória com tudo junto).
   - Se um `astro dev` estiver ocupando a porta 4321, os testes reaproveitam esse servidor por engano: sirva o build com
     `node scripts/serve-dist.mjs dist 4400` (ou `dist-prod`) e rode com `-c playwright.tmp.config.ts`; para a
     fidelidade, `FIDELIDADE_SITE=http://127.0.0.1:4400/`.

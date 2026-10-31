@@ -4,10 +4,11 @@ Novo frontend do **Âmbar Brunch**, com a marca **Roll** integrada à identidade
 
 O objetivo é um site **mobile-first**, editorial e criativo, com acabamento cuidadoso e foco principal em **reservas**.
 
-> **Situação atual (2026-10-17):** frontend do **Conceito B** visualmente completo em **Astro**, publicado pela Vercel a partir da
-> branch **`main`** (única branch de trabalho). Ordem da home: hero · novo capítulo · para sua mesa · direto da fornada · café + roll ·
-> saladas & bowls · quem provou, conta · escolha seu lugar · reserve sua mesa · visite. Reserva em modo **indisponível** (ilustrativa)
-> até o contrato da API ser validado. Copies em [`src/data/secoes.ts`](src/data/secoes.ts).
+> **Situação atual (2026-10-31):** site do **Conceito B** em **Astro**, publicado pela Vercel a partir da branch **`main`**
+> (única branch de trabalho), com a **reserva ligada à API** desde 29/10/2026 e o **painel da equipe** em `/admin`. Ordem da
+> home: hero · novo capítulo · para sua mesa · direto da fornada · café + roll · saladas & bowls · quem provou, conta ·
+> escolha seu lugar · reserve sua mesa · visite. Copies em [`src/data/secoes.ts`](src/data/secoes.ts). Onde fica cada
+> coisa e como acrescentar código: [`docs/technical/ARCHITECTURE.md`](docs/technical/ARCHITECTURE.md).
 
 ## Rodar localmente
 
@@ -28,13 +29,17 @@ npm run preview            # http://localhost:4321
 | `npm run media:kit` | recortes do kit de fotos complementares v2 (extraído em `creative/inbox/kit-complementar-v2/`) para `src/assets/media` |
 | `npm run build` | build de **produção**: sem marcações de revisão, sem mídia não autorizada |
 | `npm run build:simulado` | build só de testes, com a reserva simulada (sempre com aviso) em `dist-sim/` |
+| `npm run build:reservas-api` | build de testes da reserva em modo API (`dist-reservas-api/`) |
 | `npm test` | fidelidade ao v1 + e2e em Chromium e WebKit (precisa de `node experiments/serve.mjs` para a fidelidade) |
-| `npm run check` | checagem de tipos |
+| `npm run test:reservas-api` · `npm run test:painel` | reserva contra a API falsa · painel (depois do `painel:build`) |
+| `npm run check` | checagem de tipos (`astro check`) |
+| `npm run lint` | imports, variáveis e parâmetros sem uso (`tsc`) |
+| `npm run verificar` | `check` + `lint`, antes de cada commit |
 | `npm run perf` | Lighthouse móvel (mediana de 3 rodadas) |
 | `npm run shots` | screenshots de revisão por viewport |
 | `node scripts/scroll-perf.mjs` · `node scripts/peso-pagina.mjs` | fluidez do scroll (CPU 4×) e bytes transferidos |
 
-Produção (Vercel): `PUBLIC_REVISAO=0` e `PUBLIC_RESERVAS_MODO=indisponivel`. Imagens ilustrativas (IA ou arte da proposta) saem sempre com o selo “imagem ilustrativa” (`src/lib/conteudo.ts` → `Origem`); ficha nutricional só com dados validados.
+Produção (Vercel): `PUBLIC_REVISAO=0`, `PUBLIC_RESERVAS_MODO=api` e a URL da API nas variáveis do projeto. A origem de cada imagem (real ou ilustrativa) fica registrada em `src/lib/conteudo.ts` → `Origem` (o selo “imagem ilustrativa” saiu do site na rodada final de 2026-10-17); ficha nutricional só com dados validados.
 
 Variáveis (`.env.example`): `PUBLIC_REVISAO`, `PUBLIC_RESERVAS_MODO` (`indisponivel` · `simulado` · `api`), `PUBLIC_RESERVAS_API_URL` (staging),
 `PUBLIC_CLUBE_MODO` (`indisponivel` · `api` · `simulado`, este só no `astro dev`), `PUBLIC_CLUBE_API_URL`.
@@ -70,7 +75,7 @@ local, `PUBLIC_CLUBE_MODO=api` e `PUBLIC_CLUBE_API_URL=http://localhost:8000/` (
 
 ```bash
 npm run painel:demo     # http://127.0.0.1:4480/admin — dados fictícios (DEMONSTRAÇÃO), entrada por perfil
-npm run painel:build    # build com o painel (dist-painel/); testes: npx playwright test -c playwright.painel.config.ts
+npm run painel:build    # build com o painel (dist-painel/); testes: npm run test:painel
 ```
 
 O painel só entra no build com `PAINEL_ADMIN=1` (os scripts acima já ligam): `npm run build` continua gerando só o site
@@ -118,16 +123,20 @@ ambarbrunch_front/
 │   ├── design/            Decisões de design e design system
 │   ├── content/           Conteúdo e catálogo de assets
 │   └── technical/         Arquitetura e documentação técnica
-├── experiments/           Protótipos visuais independentes para comparação
+├── experiments/           Protótipos visuais congelados (fora do build)
 │   ├── concept-a/
-│   └── concept-b/
-└── src/                   Futura aplicação frontend
-    ├── components/
-    ├── sections/
-    ├── layouts/
-    ├── styles/
-    └── lib/
+│   ├── concept-b-aprovado-v1/   referência da fidelidade (não editar)
+│   └── design-system/
+├── tests/ · tests-reservas/ · tests-reservas-real/ · tests-painel/   suítes Playwright por área
+└── src/                   Aplicação (site público + painel em src/admin/)
+    ├── pages/  layouts/  sections/  components/  islands/
+    ├── lib/               lógica por domínio (reservas/, clube/, medicao/)
+    ├── scripts/           comportamentos de página em JS puro
+    ├── data/  styles/  assets/
+    └── admin/             painel /admin
 ```
+
+Detalhe de cada pasta, convenções e regras: [`docs/technical/ARCHITECTURE.md`](docs/technical/ARCHITECTURE.md).
 
 ## Fluxo de um asset
 
@@ -162,7 +171,7 @@ creative/inbox  →  creative/source  ou  creative/generated
 | [`docs/design/DIRECAO-CRIATIVA-INICIAL.md`](docs/design/DIRECAO-CRIATIVA-INICIAL.md) | Direção criativa inicial recebida no pacote (não aprovada) |
 | [`docs/content/FONTES-PENDENTES.md`](docs/content/FONTES-PENDENTES.md) | Fontes e validações pendentes do pacote |
 | [`docs/content/pacote-v1/`](docs/content/pacote-v1/) | README e especificação originais do pacote de assets v1 |
-| [`docs/technical/ARCHITECTURE.md`](docs/technical/ARCHITECTURE.md) | Arquitetura inicial e relação com a API FastAPI |
+| [`docs/technical/ARCHITECTURE.md`](docs/technical/ARCHITECTURE.md) | Arquitetura, onde fica cada coisa, convenções e como acrescentar código |
 
 ## Git e arquivos grandes
 
