@@ -9,7 +9,7 @@
 | Conceito | Pasta | Ideia |
 | --- | --- | --- |
 | **A · Manhã no Jardim** | [`concept-a/`](concept-a/) | Editorial claro e acolhedor: fotografia dominante, serifa expressiva (Fraunces), creme e verde do jardim com vinho nos destaques. Hero em arco, manifesto com fotos dentro do texto, grade assimétrica, galeria horizontal de ambientes. |
-| **B · Fornada Âmbar** | [`concept-b/`](concept-b/) | Expressivo e artesanal: blocos vinho e cacau, tipografia condensada (Bricolage Grotesque), colagens com fita, anotações com setas (linguagem dos posts da Roll), faixa de categorias em movimento, ambientes em painéis diagonais, reserva em formato de comanda. |
+| **B · Fornada Âmbar** | [`concept-b-aprovado-v1/`](concept-b-aprovado-v1/) | Expressivo e artesanal: blocos vinho e cacau, tipografia condensada (Bricolage Grotesque), colagens com fita, anotações com setas (linguagem dos posts da Roll), faixa de categorias em movimento, ambientes em painéis diagonais, reserva em formato de comanda. |
 
 As duas seguem a mesma estrutura: hero com identidade Âmbar Brunch e CTA → gastronomia com produtos reais → composição editorial → ambientes reais → prévia da reserva → rodapé.
 
@@ -23,7 +23,7 @@ node experiments/serve.mjs
 
 - Comparação lado a lado: <http://127.0.0.1:4173/experiments/>
 - Conceito A: <http://127.0.0.1:4173/experiments/concept-a/>
-- Conceito B: <http://127.0.0.1:4173/experiments/concept-b/>
+- Conceito B: <http://127.0.0.1:4173/experiments/concept-b-aprovado-v1/>
 - Design system (vitrine): <http://127.0.0.1:4173/experiments/design-system/>
 - Prévia com menu e doca: <http://127.0.0.1:4173/experiments/design-system/preview.html>
 - Paridade com o v1: <http://127.0.0.1:4173/experiments/design-system/paridade-v1.html> · teste: `node experiments/design-system/tools/parity.mjs`

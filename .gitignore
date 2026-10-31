@@ -219,3 +219,14 @@ dist-painel/
 # Build de teste da reserva em modo API (tests-reservas/)
 dist-reservas-api/
 dist-reservas-real/
+# -------------------------------------------------------------
+# Mídia solta na raiz (gravações de tela, imagens geradas): o repositório é público e
+# a raiz só guarda configuração. Material de trabalho vai para creative/ (ignorado);
+# o que o site usa vai para src/assets/media ou public/media.
+# -------------------------------------------------------------
+/*.mp4
+/*.mov
+/*.png
+/*.jpg
+/*.jpeg
+/*.webp
