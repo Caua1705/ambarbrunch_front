@@ -1,7 +1,7 @@
 /** @jsxImportSource preact */
 // Peças da tela principal do membro (/clube/conta) — só apresentação: recebem os dados por props (da API, na ilha
 // islands/ClubeArea; de exemplo, só na prévia local). Nada aqui chama a API nem calcula pontos.
-import Carteira from '../Carteira';
+import Carteira from './Carteira';
 import { Icone, type NomeIcone } from './icones';
 import type { MembroClube, SaldoPontos } from '../../lib/clube/acesso';
 

@@ -20,7 +20,7 @@
 // Modos (lib/clube/modo.ts): “indisponivel” (pré-lançamento: bilhete “em breve”, sem campos), “api” e “simulado” (só no
 // `astro dev`). Sessão: cookie HttpOnly da API — o site não vê nem guarda token.
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { PassoCodigo } from './clube-partes';
+import { PassoCodigo } from '../components/clube/PassoCodigo';
 import { ErroClube } from '../lib/clube/erro';
 import type { CadastroPendente, ConclusaoCadastro, ConfigClube, DesafioAcesso, MembroClube, SituacaoClube } from '../lib/clube/acesso';
 import { ROTAS, destinoSeguro, levarDesafio, primeiroNome, trazerDesafio, urlEntrar, useApiClube } from '../lib/clube/cliente';

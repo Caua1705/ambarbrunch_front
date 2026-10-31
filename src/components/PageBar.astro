@@ -1,0 +1,18 @@
+---
+// Barra do logo das páginas fora da landing (reservar, privacidade, confirmação) e da revisão da comanda.
+// `nome` é o texto do logo e do link de volta; `voltar` mostra o "← início"; `prioridade` marca o logo como LCP da
+// página (na comanda, dentro da landing, ele só é eager para não disputar com o hero).
+import Foto from './Foto.astro';
+
+interface Props {
+  nome: 'Âmbar Brunch' | 'Âmbar Café';
+  voltar?: boolean;
+  prioridade?: boolean;
+  class?: string;
+}
+const { nome, voltar = false, prioridade = false, class: cls } = Astro.props;
+---
+<header class:list={['page-bar', cls]}>
+  <a href="/" aria-label={`${nome} — voltar ao início`}><span class="label"><Foto src="brand/logo-ambar.png" alt={nome} sizes="122px" widths={[122, 244, 366]} prioridade={prioridade} eager={!prioridade} qualidade={80} /></span></a>
+  {voltar && <a class="page-back" href="/">← início</a>}
+</header>

@@ -24,7 +24,7 @@
 
 A ilha de acesso é **uma só** (`islands/ClubeAcesso.tsx`, prop `pagina`: `landing` · `entrar` · `cadastro` ·
 `ativar`); a área do membro é `islands/ClubeArea.tsx` (prop `secao`). Peças só de apresentação em
-`src/components/clube/` (conta, histórico, recompensas, resgate, ícones) e `components/Carteira.tsx` (o cartão).
+`src/components/clube/` (conta, histórico, recompensas, resgate, ícones, código de confirmação e `Carteira.tsx`, o cartão).
 
 ## 2. Camada de dados
 

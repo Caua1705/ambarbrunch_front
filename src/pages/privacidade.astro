@@ -6,7 +6,7 @@
 // avisa que o texto aguarda a aprovação do responsável pela empresa — sem os itens pendentes e sem dizer que a política
 // foi aprovada (nem que passou por validação jurídica: decisão do controlador, 29/10/2026).
 import Base from '../layouts/Base.astro';
-import Foto from '../components/Foto.astro';
+import PageBar from '../components/PageBar.astro';
 import Footer from '../sections/Footer.astro';
 import { privacidade, medicao, isRevisar } from '../data/privacidade';
 import { REVISAO, isPendente } from '../lib/conteudo';
@@ -25,10 +25,7 @@ const versao = MEDICAO_LIGADA ? medicao.versao : privacidade.versao;
 const notas = (secao: { id: string }) => rascunho || (previaMedicao && secao === medicao.secao);
 ---
 <Base titulo="Privacidade — Âmbar Brunch" home={false} indexar={false}>
-  <header class="page-bar">
-    <a href="/" aria-label="Âmbar Brunch — voltar ao início"><span class="label"><Foto src="brand/logo-ambar.png" alt="Âmbar Brunch" sizes="122px" widths={[122, 244, 366]} prioridade qualidade={80} /></span></a>
-    <a class="page-back" href="/">← início</a>
-  </header>
+  <PageBar nome="Âmbar Brunch" voltar prioridade />
   <main class="doc">
     <article class="ticket">
       <h1>Privacidade</h1>
