@@ -1,13 +1,13 @@
 /** @jsxImportSource preact */
 // /reserva-confirmada/ — a tela final da reserva feita pelo site, fora da landing: o mesmo cartão da comanda com a
-// mensagem, ambiente, pessoas, data, horário e as agendas. Os dados vêm do sessionStorage da aba (lib/reserva-confirmada):
+// mensagem, ambiente, pessoas, data, horário e as agendas. Os dados vêm do sessionStorage da aba (lib/reservas/confirmacao):
 // recarregar mostra a mesma confirmação e não envia nada; sem dados (aba nova, link direto), um aviso e o início.
 // O HTML do servidor já traz o cartão inteiro (sem os valores): a página nasce com a altura final e a hidratação só
 // preenche textos e links. Trocar um cartão vazio pelo completo logo depois da navegação fazia o WebKit (emulação de
 // celular do Playwright) cair numa página que rola.
 import { useEffect, useState } from 'preact/hooks';
-import { lerConfirmacao, type Confirmacao } from '../lib/reserva-confirmada';
-import { linkGoogleAgenda } from '../lib/agenda';
+import { lerConfirmacao, type Confirmacao } from '../lib/reservas/confirmacao';
+import { linkGoogleAgenda } from '../lib/reservas/agenda';
 
 const dataLonga = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
 

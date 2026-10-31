@@ -1,7 +1,7 @@
 // Reserva → agenda: o botão “Adicionar à agenda” abre o Google Agenda com o evento já preenchido (link de criação de
 // evento do Google; sem login no site nem permissão — a pessoa só salva). Usado pela página de confirmação
 // (/reserva-confirmada/) e pela confirmação dentro da comanda.
-import { visita } from '../data/visita';
+import { visita } from '../../data/visita';
 
 /** O mínimo da reserva confirmada que a agenda usa (dados do backend; nada de nome, telefone ou e-mail). */
 export interface ReservaAgenda {

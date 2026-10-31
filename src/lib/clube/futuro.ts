@@ -4,11 +4,11 @@
 // CLUBE-APIS-FUTURAS.md). Por isso aqui só há:
 //  - os TIPOS que as telas consomem (o formato mínimo de que a interface precisa — a confirmar com o contrato real);
 //  - as BANDEIRAS de cada recurso.
-// O HISTÓRICO saiu daqui (b0b0553): GET /clube/me/movimentos é real — tipos e chamada em clube-acesso.ts; a bandeira
+// O HISTÓRICO saiu daqui (b0b0553): GET /clube/me/movimentos é real — tipos e chamada em acesso.ts; a bandeira
 // fica ligada e a tela continua dependendo do programa ativo.
 // Não há cliente HTTP, rota inventada nem dado de exemplo neste arquivo. As telas (components/clube/) recebem os dados
 // por props; a prévia local (pages/clube/previa) é o único lugar com dados de mentira, e não entra no build de produção.
-// Quando o backend publicar as rotas: tipar a resposta aqui, criar as chamadas em clube-acesso.ts e ligar a bandeira.
+// Quando o backend publicar as rotas: tipar a resposta aqui, criar as chamadas em acesso.ts e ligar a bandeira.
 
 /** cada recurso só aparece com a bandeira ligada E o programa ativo (`/clube/config` → `programaAtivo` e
  *  `/clube/me` → `membro.programa.ativo`). Enquanto falso, a tela mostra o estado “em preparação”. */

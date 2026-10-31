@@ -3,7 +3,7 @@
 // islands/ClubeArea; de exemplo, só na prévia local). Nada aqui chama a API nem calcula pontos.
 import Carteira from '../Carteira';
 import { Icone, type NomeIcone } from './icones';
-import type { MembroClube, SaldoPontos } from '../../lib/api/clube-acesso';
+import type { MembroClube, SaldoPontos } from '../../lib/clube/acesso';
 
 const fmt = new Intl.NumberFormat('pt-BR');
 const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];

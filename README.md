@@ -41,7 +41,7 @@ Variáveis (`.env.example`): `PUBLIC_REVISAO`, `PUBLIC_RESERVAS_MODO` (`indispon
 
 ### Clube Âmbar no computador (simulação e prévia)
 
-`npm run dev:clube` abre `/clube/` com tudo funcionando contra uma **API de mentira** (`src/lib/api/clube-simulado.ts`).
+`npm run dev:clube` abre `/clube/` com tudo funcionando contra uma **API de mentira** (`src/lib/clube/simulado.ts`).
 Nada sai do computador. O painel **“Simulação local”** (canto inferior esquerdo, recolhido) traz o roteiro e os atalhos.
 
 | Número (qualquer DDD, celular) | Depois do código |
@@ -60,7 +60,7 @@ pontos, histórico, recompensas e QR Code): `/clube/previa/`.
 
 Como funciona: `.env.development` (só lido pelo `astro dev`) liga `PUBLIC_CLUBE_MODO=simulado`. **Nenhum build publica
 a simulação nem a prévia**: `npm run build` e `build:revisao` mostram “em breve” em todas as páginas do Clube e não geram
-`/clube/previa/` (`src/lib/clube-modo.ts`). O build de testes (`build:simulado`, `dist-sim`, nunca publicado) usa
+`/clube/previa/` (`src/lib/clube/modo.ts`). O build de testes (`build:simulado`, `dist-sim`, nunca publicado) usa
 `PUBLIC_CLUBE_MODO=api` com um endereço `.invalid` que os testes interceptam, e inclui a prévia. Para ver o
 pré-lançamento no `astro dev`, crie `.env.development.local` com `PUBLIC_CLUBE_MODO=indisponivel`; para a API real
 local, `PUBLIC_CLUBE_MODO=api` e `PUBLIC_CLUBE_API_URL=http://localhost:8000/` (a origem do site em

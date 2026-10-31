@@ -8,14 +8,14 @@
 //    a comanda diz isso, sem datas nem horários, e confere de novo quando a pessoa volta à aba.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
-import { ErroReserva, type ReservaConfig, type ReservaCriada, type ReservasApi } from '../lib/api/contrato';
-import { criarApiSimulada } from '../lib/api/simulado';
-import { criarApiHttp } from '../lib/api/http';
+import { ErroReserva, type ReservaConfig, type ReservaCriada, type ReservasApi } from '../lib/reservas/contrato';
+import { criarApiSimulada } from '../lib/reservas/simulado';
+import { criarApiHttp } from '../lib/reservas/http';
 import { visita } from '../data/visita';
 import { conferirTelefone, mascaraTel, telefoneNacional, uuid } from '../lib/telefone';
-import { FUSO_CAFE, linkGoogleAgenda, type ReservaAgenda } from '../lib/agenda';
-import { guardarConfirmacao, ROTA_CONFIRMADA } from '../lib/reserva-confirmada';
-import { medirReserva } from '../lib/medicao';
+import { FUSO_CAFE, linkGoogleAgenda, type ReservaAgenda } from '../lib/reservas/agenda';
+import { guardarConfirmacao, ROTA_CONFIRMADA } from '../lib/reservas/confirmacao';
+import { medirReserva } from '../lib/medicao/eventos';
 
 type Modo = 'indisponivel' | 'simulado' | 'api';
 export type Etapa = 'escolha' | 'revisao' | 'enviando' | 'confirmada' | 'falha';
@@ -416,7 +416,7 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
       const r = await api.criar(pedido(), chave.current);
       // a próxima reserva (outra mesa, outro dia) nasce com chave nova
       chaveDe.current = '';
-      // conversão no GA4, quando a medição está ligada (sem dados pessoais; lib/medicao.ts) — nunca lança erro
+      // conversão no GA4, quando a medição está ligada (sem dados pessoais; lib/medicao/eventos.ts) — nunca lança erro
       if (modo === 'api' && !demo) medirReserva(r, fusoCafe);
       // No site (API real), a confirmação é uma página própria, sem a landing nem a comanda: a reserva vai para o
       // sessionStorage (sem dados pessoais) e a página é TROCADA (replace) — o “voltar” não reabre a comanda preenchida

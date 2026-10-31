@@ -4,8 +4,8 @@
 // Cardápio tátil: cada etiqueta é um botão (indicador “+” que vira “×”) e abre um cartão de papel logo abaixo, com a foto
 // principal da categoria (só quando há uma foto correta), os itens do cardápio oficial e, nos principais, miniaturas.
 // Sem selo de “imagem ilustrativa” (decisão da rodada final). O cartão dos rolls separa doces e salgados em abas
-// (lib/cardapio-tatil.js).
-// Fotos dos cartões: lazy, mas antecipadas quando o cardápio chega perto da tela (data-antecipar, lib/site.js) — o
+// (scripts/cardapio-tatil.js).
+// Fotos dos cartões: lazy, mas antecipadas quando o cardápio chega perto da tela (data-antecipar, scripts/site.js) — o
 // cartão nunca abre com a foto em branco.
 import Foto from '../components/Foto.astro';
 import MegaTitle from '../components/MegaTitle.astro';
@@ -125,7 +125,7 @@ const s = secoes.mesa;
 </section>
 
 <script>
-  import { initCardapioTatil } from '../lib/cardapio-tatil.js';
+  import { initCardapioTatil } from '../scripts/cardapio-tatil.js';
   const raiz = document.querySelector<HTMLElement>('[data-cardapio]');
   if (raiz) initCardapioTatil(raiz);
 </script>

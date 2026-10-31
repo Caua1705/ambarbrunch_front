@@ -311,8 +311,8 @@
 
 </main>
 <script type="module">
-  import { initMotionPreference, initReveal } from '../../src/lib/motion.js';
-  import { initStories } from '../../src/lib/videos.js';
+  import { initMotionPreference, initReveal } from '../../src/scripts/motion.js';
+  import { initStories } from '../../src/scripts/videos.js';
   initMotionPreference(); initReveal(); initStories();
   document.querySelector('#sg-replay').addEventListener('click', () => {
     document.querySelectorAll('[data-demo]').forEach((el) => { el.classList.remove('is-in'); void el.offsetWidth; requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('is-in'))); });

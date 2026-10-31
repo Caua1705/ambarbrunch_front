@@ -1,8 +1,8 @@
 ---
 // Painel da simulação local (2026-10-23): aviso, roteiro de teste e atalhos para todas as telas do Clube, recolhido num
-// canto, fora da composição que o cliente vê. Só no `astro dev` com a simulação ligada (lib/clube-modo: a simulação
+// canto, fora da composição que o cliente vê. Só no `astro dev` com a simulação ligada (lib/clube/modo: a simulação
 // nunca sai num build) — o bloco inteiro, inclusive o script inline, nem é gerado nos builds.
-import { CLUBE_MODO } from '../../lib/clube-modo';
+import { CLUBE_MODO } from '../../lib/clube/modo';
 ---
 {CLUBE_MODO === 'simulado' && (
   <details class="clube-dev">
@@ -19,7 +19,7 @@ import { CLUBE_MODO } from '../../lib/clube-modo';
       <button type="button" data-zerar-simulacao>Zerar simulação</button>
     </div>
     <script is:inline>
-      // “Zerar” apaga a sessão falsa da aba (lib/api/clube-simulado) e recomeça
+      // “Zerar” apaga a sessão falsa da aba (lib/clube/simulado) e recomeça
       document.querySelector('[data-zerar-simulacao]').addEventListener('click', () => {
         try { sessionStorage.removeItem('ambar:clube:simulacao'); } catch { /* sem armazenamento */ }
         location.assign('/clube/');

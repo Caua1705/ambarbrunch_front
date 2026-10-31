@@ -1,11 +1,11 @@
 /** @jsxImportSource preact */
 // Histórico de pontos (/clube/historico) — só apresentação. Os dados vêm de GET /clube/me/movimentos (contrato real,
-// lib/api/clube-acesso.ts → MovimentoClube) pela ilha ClubeArea; com o programa desligado, a página mostra o estado
+// lib/clube/acesso.ts → MovimentoClube) pela ilha ClubeArea; com o programa desligado, a página mostra o estado
 // “em preparação”. A lista recebe os movimentos por props, com os estados carregando, vazio e erro, e “Ver mais” quando
 // o backend indica outra página. Nada é calculado no navegador: pontos, situação e datas são os do livro; aqui só se
 // escolhe o rótulo de cada tipo e se formata data e valor.
 import { Icone } from './icones';
-import type { MovimentoClube } from '../../lib/api/clube-acesso';
+import type { MovimentoClube } from '../../lib/clube/acesso';
 
 const pts = new Intl.NumberFormat('pt-BR', { signDisplay: 'exceptZero' });
 const real = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });

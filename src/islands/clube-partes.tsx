@@ -2,7 +2,7 @@
 // Peças comuns às ilhas do Clube (ficha de inscrição e área de membro): confirmação do telefone por código.
 // O código é conferido SÓ pela API; o navegador não valida nada além do formato (dígitos e tamanho).
 import { useEffect, useRef, useState } from 'preact/hooks';
-import type { DesafioAcesso } from '../lib/api/clube-acesso';
+import type { DesafioAcesso } from '../lib/clube/acesso';
 
 interface CodigoProps {
   px: string;

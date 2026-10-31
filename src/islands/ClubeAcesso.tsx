@@ -1,7 +1,7 @@
 /** @jsxImportSource preact */
 // Acesso ao Clube Âmbar — ilha Preact compartilhada pelas páginas de entrada (2026-10-23, experiência completa). Uma
 // entrada só, pelo WhatsApp; ninguém escolhe entre “cadastrar” e “entrar”: telefone → código → o BACKEND diz a situação
-// (lib/api/clube-acesso.ts, contrato real). A mesma lógica muda de papel conforme a página (`pagina`):
+// (lib/clube/acesso.ts, contrato real). A mesma lógica muda de papel conforme a página (`pagina`):
 //  - landing (/clube): o cartão de acesso. Pede o código e leva o desafio para /clube/entrar (a pessoa não digita o
 //    número de novo). Com a sessão aberta: “Olá, Maria — Abrir minha conta” (ou “Concluir cadastro”).
 //  - entrar (/clube/entrar): telefone e código, com reenvio, troca de número, código incorreto ou vencido, sessão vencida
@@ -17,15 +17,15 @@
 // cadastro, a ficha mostra “Conta suspensa” com o texto do backend — nunca o erro genérico, sem “tentar de novo” e sem
 // abrir a conta. Pedir o código não revela nada (o backend responde igual para qualquer número).
 // Telefone: máscara e validação de lib/telefone.ts (regras do backend; o nono dígito nunca é posto nem tirado).
-// Modos (lib/clube-modo.ts): “indisponivel” (pré-lançamento: bilhete “em breve”, sem campos), “api” e “simulado” (só no
+// Modos (lib/clube/modo.ts): “indisponivel” (pré-lançamento: bilhete “em breve”, sem campos), “api” e “simulado” (só no
 // `astro dev`). Sessão: cookie HttpOnly da API — o site não vê nem guarda token.
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { PassoCodigo } from './clube-partes';
-import { ErroClube } from '../lib/api/clube-erro';
-import type { CadastroPendente, ConclusaoCadastro, ConfigClube, DesafioAcesso, MembroClube, SituacaoClube } from '../lib/api/clube-acesso';
-import { ROTAS, destinoSeguro, levarDesafio, primeiroNome, trazerDesafio, urlEntrar, useApiClube } from '../lib/clube-cliente';
+import { ErroClube } from '../lib/clube/erro';
+import type { CadastroPendente, ConclusaoCadastro, ConfigClube, DesafioAcesso, MembroClube, SituacaoClube } from '../lib/clube/acesso';
+import { ROTAS, destinoSeguro, levarDesafio, primeiroNome, trazerDesafio, urlEntrar, useApiClube } from '../lib/clube/cliente';
 import { conferirTelefone, mascaraTel, soDigitos, telefoneNacional, uuid } from '../lib/telefone';
-import type { ModoClube } from '../lib/clube-modo';
+import type { ModoClube } from '../lib/clube/modo';
 
 export type PaginaAcesso = 'landing' | 'entrar' | 'cadastro' | 'ativar';
 export type EtapaFicha = 'carregando' | 'fechado' | 'falha' | 'convite' | 'ativando' | 'telefone' | 'enviando' | 'codigo' | 'verificando'

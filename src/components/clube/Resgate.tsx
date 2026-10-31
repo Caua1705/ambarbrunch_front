@@ -3,7 +3,7 @@
 // consumo nem validação de resgate para o site). O QR Code chega PRONTO do backend (`resgate.qr`, uma imagem): o
 // navegador nunca o gera a partir do id. Situações: aguardando retirada, utilizado, expirado e cancelado.
 import { Icone, type NomeIcone } from './icones';
-import type { Resgate } from '../../lib/api/clube-futuro';
+import type { Resgate } from '../../lib/clube/futuro';
 
 const fmt = new Intl.NumberFormat('pt-BR');
 const dataHora = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit' });

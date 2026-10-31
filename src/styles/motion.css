@@ -136,7 +136,7 @@
    a foto principal estala, os itens descem em cascata. @keyframes recomeçam sozinhas quando o conteúdo
    aparece (hidden → visível): trocar de etiqueta com o cartão aberto troca o conteúdo com um esmaecimento curto. */
 .cartao:not([hidden]) .cartao__dentro { animation: cartao-in var(--dur-card-in) var(--ease) backwards; }
-/* a saída é o espelho da entrada, com a altura encolhendo junto (Web Animations em lib/cardapio-tatil.js, com estes tokens) */
+/* a saída é o espelho da entrada, com a altura encolhendo junto (Web Animations em scripts/cardapio-tatil.js, com estes tokens) */
 .cartao { --fechar-dur: var(--dur-card-out); --fechar-curva: var(--ease-fold); }
 .cartao[data-fechando] { pointer-events: none; }
 .cartao[data-trocando] .cartao__cat:not([hidden]) { animation: cat-in var(--dur-s) var(--ease) both; }
@@ -181,7 +181,7 @@
 [data-float="b"] { animation-duration: var(--float-period-b); animation-delay: calc(var(--float-period) * -.5); }
 /* o selo gira inteiro (elemento svg = camada própria); girar um <g> por dentro repintava a cada quadro */
 .selo { animation: spin var(--selo-period) linear infinite; }
-/* fora da tela, nada disso roda (lib/vivo.js marca data-visivel) */
+/* fora da tela, nada disso roda (scripts/vivo.js marca data-visivel) */
 [data-vivo]:not([data-visivel]) [data-float],
 [data-vivo]:not([data-visivel]) .ticker__track,
 [data-vivo]:not([data-visivel]) .selo,

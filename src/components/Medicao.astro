@@ -1,14 +1,14 @@
 ---
-// Google Analytics 4 (2026-10-30). Só é renderizado com MEDICAO_LIGADA (src/lib/medicao-config.ts): ID definido, seção de
+// Google Analytics 4 (2026-10-30). Só é renderizado com MEDICAO_LIGADA (src/lib/medicao/config.ts): ID definido, seção de
 // medição da política aprovada e build de produção. O que garante a ausência de dados pessoais:
 // - nada carrega para quem recusou (botão em /privacidade/, localStorage “ambar:medicao”) ou com Global Privacy Control;
 // - publicidade desligada: consentimento de anúncios negado, sem Google Signals e sem personalização de anúncios;
 // - page_location/page_referrer sem query string (só utm_* passam) e sem fragmento — nenhum token ou dado vai na URL;
-// - eventos só com categorias e números (lib/medicao.ts); o código da reserva nunca vai;
+// - eventos só com categorias e números (lib/medicao/eventos.ts); o código da reserva nunca vai;
 // - cookie do GA de 13 meses (395 dias), não os 2 anos do padrão.
 // O gtag.js (~150 KB) só baixa depois do `load` da página, no tempo ocioso: não pesa no LCP nem na primeira interação.
 // Cliques medidos aqui (delegação, sem tocar nos componentes): “Reservar mesa”, “Como chegar”, Instagram e a agenda.
-import { GA4_ID } from '../lib/medicao-config';
+import { GA4_ID } from '../lib/medicao/config';
 ---
 <script is:inline define:vars={{ id: GA4_ID }}>
 try {

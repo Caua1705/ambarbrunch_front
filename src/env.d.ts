@@ -8,14 +8,14 @@ interface ImportMetaEnv {
   /** URL base da API de reservas (staging). Nunca a de produção antes do contrato validado. */
   readonly PUBLIC_RESERVAS_API_URL?: string;
   /** "indisponivel" (padrão: ficha e carteira fechadas, nada é enviado) · "api" (só com a API do Clube validada).
-   *  “simulado” só no `astro dev` (lib/clube-modo.ts): nenhum build finge cadastro, adesão ou saldo. */
-  readonly PUBLIC_CLUBE_MODO?: 'indisponivel' | 'api' | 'simulado';   // “simulado” só vale no `astro dev` (lib/clube-modo.ts)
+   *  “simulado” só no `astro dev` (lib/clube/modo.ts): nenhum build finge cadastro, adesão ou saldo. */
+  readonly PUBLIC_CLUBE_MODO?: 'indisponivel' | 'api' | 'simulado';   // “simulado” só vale no `astro dev` (lib/clube/modo.ts)
   /** URL base da API do Clube (FastAPI do Âmbar; staging antes de validar). */
   readonly PUBLIC_CLUBE_API_URL?: string;
-  /** "1" = mostra o Clube na home e no menu (lib/clube-modo.ts). Desligado por padrão até o lançamento do Clube. */
+  /** "1" = mostra o Clube na home e no menu (lib/clube/modo.ts). Desligado por padrão até o lançamento do Clube. */
   readonly PUBLIC_CLUBE_HOME?: string;
   /** ID de medição do GA4 (G-XXXXXXXXXX). Público por natureza; só liga com a seção de medição da política aprovada
-   *  (src/lib/medicao-config.ts). Vazio = sem GA4. */
+   *  (src/lib/medicao/config.ts). Vazio = sem GA4. */
   readonly PUBLIC_GA4_ID?: string;
   /** Valor de content="…" da meta google-site-verification (opcional: a verificação recomendada é por DNS). */
   readonly PUBLIC_GSC_VERIFICACAO?: string;

@@ -3,7 +3,7 @@
 > Decisão aprovada em 2026-10-16: **com menu**, discreto e elegante, sem comprometer a composição. **Reservar continua sendo a ação principal.**
 > Revisada na rodada final (2026-10-17): **um único botão fixo** na base da tela, menu no alto, folha sem contatos e com saída animada.
 > Código: [`components/menu.css`](../../../src/styles/components/menu.css), [`components/sticky-cta.css`](../../../src/styles/components/sticky-cta.css),
-> [`lib/nav-sheet.js`](../../../src/lib/nav-sheet.js), [`lib/sticky-cta.js`](../../../src/lib/sticky-cta.js).
+> [`scripts/nav-sheet.js`](../../../src/scripts/nav-sheet.js), [`scripts/sticky-cta.js`](../../../src/scripts/sticky-cta.js).
 > Testes: `tests/e2e/navegacao.spec.ts`.
 
 ## 1. Por que este desenho

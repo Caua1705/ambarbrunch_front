@@ -28,20 +28,20 @@ A ilha de acesso é **uma só** (`islands/ClubeAcesso.tsx`, prop `pagina`: `land
 
 ## 2. Camada de dados
 
-- [`src/lib/api/clube-acesso.ts`](../../src/lib/api/clube-acesso.ts) — tipos e cliente HTTP do contrato real.
-- [`src/lib/api/clube-erro.ts`](../../src/lib/api/clube-erro.ts) — erros normalizados (`sessao`, `codigo`, `versao`, …).
-- [`src/lib/api/clube-futuro.ts`](../../src/lib/api/clube-futuro.ts) — **só tipos e bandeiras** de recompensas e
+- [`src/lib/clube/acesso.ts`](../../src/lib/clube/acesso.ts) — tipos e cliente HTTP do contrato real.
+- [`src/lib/clube/erro.ts`](../../src/lib/clube/erro.ts) — erros normalizados (`sessao`, `codigo`, `versao`, …).
+- [`src/lib/clube/futuro.ts`](../../src/lib/clube/futuro.ts) — **só tipos e bandeiras** de recompensas e
   resgates (`RECURSOS.recompensas` e `.resgates` = `false`). Nenhuma rota inventada. O histórico saiu daqui
   (`RECURSOS.historico` = `true`; a tela ainda depende do programa ativo).
 - [`src/lib/telefone.ts`](../../src/lib/telefone.ts) — máscara e validação do telefone (Clube e reserva) com as regras
   do backend (`app/modulos/clientes/telefone.py`).
-- [`src/lib/clube-cliente.ts`](../../src/lib/clube-cliente.ts) — endereços (`ROTAS`), destino seguro depois do login
+- [`src/lib/clube/cliente.ts`](../../src/lib/clube/cliente.ts) — endereços (`ROTAS`), destino seguro depois do login
   (`?volta=` só aceita `conta`, `historico`, `recompensas`), passagem do desafio da landing para `/clube/entrar` e o
   gancho `useApiClube` (API real, simulação local ou nenhuma).
-- [`src/lib/clube-modo.ts`](../../src/lib/clube-modo.ts) — `indisponivel` (padrão) · `api` · `simulado` (só `astro
+- [`src/lib/clube/modo.ts`](../../src/lib/clube/modo.ts) — `indisponivel` (padrão) · `api` · `simulado` (só `astro
   dev`); `CLUBE_PREVIA` (só `astro dev` e `--mode simulado`).
-- [`src/lib/api/clube-simulado.ts`](../../src/lib/api/clube-simulado.ts) — API de mentira do `astro dev` (nunca num
-  build). [`src/lib/clube-previa.ts`](../../src/lib/clube-previa.ts) — dados de exemplo da prévia (nunca num build
+- [`src/lib/clube/simulado.ts`](../../src/lib/clube/simulado.ts) — API de mentira do `astro dev` (nunca num
+  build). [`src/lib/clube/previa.ts`](../../src/lib/clube/previa.ts) — dados de exemplo da prévia (nunca num build
   publicado).
 
 ## 3. Contrato real usado
@@ -127,5 +127,5 @@ os pontos sozinha quando o backend ligar o programa, sem redesenho).
 3. Regulamento e política de privacidade do Clube publicados.
 4. Na Vercel: `PUBLIC_CLUBE_MODO=api` e `PUBLIC_CLUBE_API_URL` — só com autorização do responsável.
 5. Programa de pontos (regras, recompensas, Eyemobile): com `AMBAR_CLUBE_PROGRAMA_ATIVO=true`, a conta mostra o saldo e o
-   histórico aparece sozinho. Depois, as rotas de catálogo e resgate no backend; então tipar em `clube-futuro.ts`,
-   criar as chamadas em `clube-acesso.ts` e ligar `RECURSOS`.
+   histórico aparece sozinho. Depois, as rotas de catálogo e resgate no backend; então tipar em `src/lib/clube/futuro.ts`,
+   criar as chamadas em `src/lib/clube/acesso.ts` e ligar `RECURSOS`.

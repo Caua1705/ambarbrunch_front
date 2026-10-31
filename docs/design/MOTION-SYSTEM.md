@@ -1,8 +1,8 @@
 # Motion design system — Fornada Âmbar
 
 > Fonte da verdade: [`src/styles/motion.css`](../../src/styles/motion.css), tokens em `tokens.css` §9, gatilhos em
-> [`src/lib/motion.js`](../../src/lib/motion.js), [`sticky-cta.js`](../../src/lib/sticky-cta.js), [`videos.js`](../../src/lib/videos.js),
-> [`nav-sheet.js`](../../src/lib/nav-sheet.js). O plano original (com a coreografia pretendida) é [`MOTION-PLAN.md`](MOTION-PLAN.md);
+> [`src/scripts/motion.js`](../../src/scripts/motion.js), [`sticky-cta.js`](../../src/scripts/sticky-cta.js), [`videos.js`](../../src/scripts/videos.js),
+> [`nav-sheet.js`](../../src/scripts/nav-sheet.js). O plano original (com a coreografia pretendida) é [`MOTION-PLAN.md`](MOTION-PLAN.md);
 > **este documento descreve o que está implementado**. Parte do [design system](DESIGN-SYSTEM.md).
 
 > **Atualização 2026-10-16 (implementação):** durações e atrasos literais viraram tokens em `src/styles/tokens/motion.css` (`--dur-press`, `--dur-chip`, `--dur-cta-in`, `--dur-cta-fade`, `--dur-reduced`, `--dur-loop-busy`, `--reveal-delay-*`, `--sheet-items-delay`, `--hero-t-*`), com os mesmos valores. Demonstrações com “rever”, curvas, durações, linha do tempo do hero, parallax e movimento reduzido simulado: `/design-system/` → Movimento.

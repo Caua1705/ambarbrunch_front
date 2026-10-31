@@ -1,9 +1,9 @@
 ---
 // Folha do menu (<dialog> modal nativo): logo, seções, “Reservar mesa” (o único botão cheio) e fechar.
-// Rodada final: sem endereço, horário e contatos (endereço, horário, WhatsApp e Instagrams ficam no rodapé, que leva o id “visite”). Entrada e saída animadas em lib/nav-sheet.js.
+// Rodada final: sem endereço, horário e contatos (endereço, horário, WhatsApp e Instagrams ficam no rodapé, que leva o id “visite”). Entrada e saída animadas em scripts/nav-sheet.js.
 import Foto from './Foto.astro';
 import MenuButton from './MenuButton.astro';
-import { CLUBE_NA_HOME } from '../lib/clube-modo';
+import { CLUBE_NA_HOME } from '../lib/clube/modo';
 
 interface Props { base?: string }
 const { base = '' } = Astro.props;   // '' na home (âncoras locais), '/' nas páginas internas

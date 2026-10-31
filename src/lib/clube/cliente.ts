@@ -1,8 +1,8 @@
 // Peças comuns às ilhas do Clube (acesso e área do membro): o cliente da API, os endereços do Clube, o destino de volta
 // depois do login (lista fechada — nunca um endereço vindo da URL) e a passagem do desafio da landing para /clube/entrar.
 import { useEffect, useMemo, useState } from 'preact/hooks';
-import { criarAcessoHttp, type AcessoClubeApi, type DesafioAcesso } from './api/clube-acesso';
-import type { ModoClube } from './clube-modo';
+import { criarAcessoHttp, type AcessoClubeApi, type DesafioAcesso } from './acesso';
+import type { ModoClube } from './modo';
 
 /** endereços do Clube (com a barra final: o build estático gera pasta/index.html) */
 export const ROTAS = {
@@ -32,7 +32,7 @@ export function useApiClube(modo: ModoClube, apiUrl?: string, desligada = false)
   const real = useMemo(() => (!desligada && modo === 'api' && apiUrl ? criarAcessoHttp(apiUrl) : null), [modo, apiUrl]);
   const [api, setApi] = useState<AcessoClubeApi | null>(real);
   useEffect(() => {
-    if (import.meta.env.DEV && !desligada && modo === 'simulado') import('./api/clube-simulado').then((m) => setApi(m.criarAcessoSimulado()));
+    if (import.meta.env.DEV && !desligada && modo === 'simulado') import('./simulado').then((m) => setApi(m.criarAcessoSimulado()));
   }, []);
   return api;
 }

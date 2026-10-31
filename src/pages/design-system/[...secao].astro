@@ -2,7 +2,7 @@
 // /design-system/ — página interna do DESIGN SYSTEM (docs/design/PROPOSTA-PAGINA-DOCUMENTACAO.md).
 // Existe só no `astro dev` e nos builds de revisão: no build de produção a rota não é gerada (getStaticPaths vazio).
 // Tudo aqui usa os componentes, as classes e os tokens REAIS do site; os tokens são lidos dos próprios arquivos CSS
-// (no build) e os valores calculados, do navegador (src/lib/design-system.js). Nada é redesenhado nesta página.
+// (no build) e os valores calculados, do navegador (src/scripts/design-system.js). Nada é redesenhado nesta página.
 import Base from '../../layouts/Base.astro';
 import Foto from '../../components/Foto.astro';
 import MegaTitle from '../../components/MegaTitle.astro';
@@ -664,5 +664,5 @@ const SECOES = [
   </main>
 
   <Footer />
-  <script>import '../../lib/design-system.js';</script>
+  <script>import '../../scripts/design-system.js';</script>
 </Base>

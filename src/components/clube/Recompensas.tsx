@@ -1,10 +1,10 @@
 /** @jsxImportSource preact */
 // Catálogo de recompensas (/clube/recompensas) — só apresentação, pronto para os dados reais. Hoje não há catálogo nem
-// resgate no contrato do site (lib/api/clube-futuro.ts): a página mostra “em preparação” e NENHUMA ação de resgate.
+// resgate no contrato do site (lib/clube/futuro.ts): a página mostra “em preparação” e NENHUMA ação de resgate.
 // Estas peças recebem tudo por props; os botões de resgate só aparecem quando a ilha passa a ação (bandeira
 // RECURSOS.resgates ligada e rota real). Sem produto, valor ou estoque inventado: na prévia local, os dados são de exemplo.
 import { Icone } from './icones';
-import type { Recompensa } from '../../lib/api/clube-futuro';
+import type { Recompensa } from '../../lib/clube/futuro';
 
 const fmt = new Intl.NumberFormat('pt-BR');
 

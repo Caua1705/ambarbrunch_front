@@ -1,6 +1,6 @@
 // API DE MENTIRA do acesso ao Clube — SÓ para testar o fluxo no `astro dev` com PUBLIC_CLUBE_MODO=simulado. Nunca entra
 // num build: islands/ClubeCadastro.tsx só a importa dentro de `if (import.meta.env.DEV)`. Nada sai do navegador. Segue o
-// contrato real de clube-acesso.ts. Para a prévia imitar o cookie do backend (recarregar a página volta direto à
+// contrato real de acesso.ts. Para a prévia imitar o cookie do backend (recarregar a página volta direto à
 // situação, pelo GET /clube/me), a sessão de MENTIRA e os cadastros de mentira ficam no sessionStorage desta aba
 // (chave “ambar:clube:simulacao”; somem ao fechar a aba). Isso é só da simulação: o site real nunca guarda sessão.
 // Roteiro pelo final do número (qualquer DDD, celular com 9):
@@ -9,8 +9,8 @@
 // Código: 123456 confere · 000000 = vencido · outro = incorreto (5 erros travam o código). Até 3 envios por número.
 // Convite do caixa (caminho A): /clube/ativar?c=demo-novo · demo-incompleto · demo-ativo · demo-suspenso · demo-vencido.
 // Histórico (GET /clube/me/movimentos): o programa está desligado na simulação — lista vazia, como o backend.
-import { ErroClube, TEXTO_SUSPENSA } from './clube-erro';
-import type { AcessoClubeApi, CadastroPendente, ConfigClube, MembroClube, SituacaoClube } from './clube-acesso';
+import { ErroClube, TEXTO_SUSPENSA } from './erro';
+import type { AcessoClubeApi, CadastroPendente, ConfigClube, MembroClube, SituacaoClube } from './acesso';
 
 const espera = (ms = 450) => new Promise((r) => setTimeout(r, ms));
 const mascara = (t: string) => `(${t.slice(0, 2)}) •••••-${t.slice(-4)}`;

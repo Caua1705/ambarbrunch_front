@@ -13,7 +13,7 @@ export const roll = {
   ] as { id: string; arquivo: string; poster: string; tag: string; descricao: string; autor: string; tipo: 'roll'; autorizado: boolean }[],
   /** Abertura de “Direto da fornada”: espiral de creme, caramelo e canela — vídeo ABSTRATO criado por IA (Veo 3, enviado
    *  pelo responsável do projeto em 2026-10-17). Decorativo, nunca apresentado como produto servido nem como processo real.
-   *  O 1º e o último quadro não se emendam: a volta ao início é um esmaecimento curto sobre a capa (lib/espiral.js).
+   *  O 1º e o último quadro não se emendam: a volta ao início é um esmaecimento curto sobre a capa (scripts/espiral.js).
    *  Sem áudio, sob demanda, só enquanto visível; movimento reduzido = só a capa. */
   espiral: {
     arquivo: 'roll-espiral-caramelo',                 // public/media/video/<arquivo>.web.mp4 — 450×800, 8 s, ~950 KB

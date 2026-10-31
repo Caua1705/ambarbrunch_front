@@ -1,8 +1,8 @@
 // Medição (GA4) e verificação do Search Console no BUILD. Os dois valores são públicos por natureza (vão no HTML de
 // qualquer site que usa GA4 / a meta de verificação) — nenhum segredo: a chave secreta do Measurement Protocol nunca
 // entra no frontend, e este site não a usa. Valor inválido derruba o build (melhor que publicar o site medindo errado).
-import { medicao, privacidade } from '../data/privacidade';
-import { REVISAO } from './conteudo';
+import { medicao, privacidade } from '../../data/privacidade';
+import { REVISAO } from '../conteudo';
 
 const ga4 = (import.meta.env.PUBLIC_GA4_ID ?? '').trim();
 if (ga4 && !/^G-[A-Z0-9]{6,14}$/.test(ga4)) {

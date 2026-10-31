@@ -13,14 +13,14 @@
 | Dados estruturados `CafeOrCoffeeShop` + `WebSite` (nome, endereço, CEP, horário, reserva, Instagram) | `src/pages/index.astro`, `src/data/seo.ts` | no ar com o deploy |
 | `/robots.txt` (só `/admin/` bloqueado) e `/sitemap.xml` (`/` e `/reservar/`) | `src/pages/robots.txt.ts`, `src/pages/sitemap.xml.ts` | no ar com o deploy |
 | Meta de verificação do Search Console (opcional; o recomendado é DNS) | `PUBLIC_GSC_VERIFICACAO` | só se definida |
-| GA4 com conversões, sem dados pessoais | `src/components/Medicao.astro`, `src/lib/medicao.ts`, `src/lib/medicao-config.ts` | **desligado** até as duas condições abaixo |
+| GA4 com conversões, sem dados pessoais | `src/components/Medicao.astro`, `src/lib/medicao/eventos.ts`, `src/lib/medicao/config.ts` | **desligado** até as duas condições abaixo |
 
 Fora de propósito (nada inventado): **telefone público, coordenadas, faixa de preço e avaliações não entram** nos dados
 estruturados até o responsável confirmar. O cardápio para o Google Maps é de outra frente e não foi tocado aqui.
 
 ### Quando o GA4 liga
 
-Só com **as duas coisas** (`MEDICAO_LIGADA` em `src/lib/medicao-config.ts`):
+Só com **as duas coisas** (`MEDICAO_LIGADA` em `src/lib/medicao/config.ts`):
 
 1. `PUBLIC_GA4_ID` = `G-…` na Vercel (Production);
 2. `medicao.aprovada: true` em `src/data/privacidade.ts` — o texto da seção de medição aprovado pelo responsável.

@@ -23,7 +23,7 @@ initDock({
   heroMenu: document.querySelector('.menu-btn--hero'),
   sheet,
 });
-// vídeos da Roll (bastidores); o carrossel de criadores tem a própria lógica (lib/carrossel.js)
+// vídeos da Roll (bastidores); o carrossel de criadores tem a própria lógica (scripts/carrossel.js)
 const bastidores = document.getElementById('roll');
 if (bastidores) initStories(bastidores);
 

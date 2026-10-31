@@ -5,7 +5,7 @@
 // Os benefícios são genéricos de propósito: nada de número, desconto ou recompensa que ainda não foi definida.
 // Foto e selo moram juntos num “palco”: no celular a foto sobe até encostar no botão e o selo girando (só com a marca e a
 // cidade — sem promessa) costura o botão à foto; no desktop o selo fica na divisa entre texto e foto.
-// O botão segue a disponibilidade do Clube (PUBLIC_CLUBE_MODO, lib/clube-modo.ts): aberto (API, ou a simulação do
+// O botão segue a disponibilidade do Clube (PUBLIC_CLUBE_MODO, lib/clube/modo.ts): aberto (API, ou a simulação do
 // `astro dev`), “Quero fazer parte” leva direto à entrada pelo WhatsApp (/clube/#cadastro); fechado (pré-lançamento),
 // “Conheça o Clube” leva à apresentação (/clube/). Aberto, ao lado do botão, “Minha conta” leva quem já é membro direto à
 // conta (/clube/conta/ — sem sessão, a própria conta manda ao login e volta), sem passar de novo pela apresentação.
@@ -14,7 +14,7 @@ import Foto from '../components/Foto.astro';
 import SeloFornada from '../components/SeloFornada.astro';
 import { clube } from '../data/clube';
 import { secoes } from '../data/secoes';
-import { CLUBE_ABERTO } from '../lib/clube-modo';
+import { CLUBE_ABERTO } from '../lib/clube/modo';
 
 const s = secoes.clube;
 const c = clube.convite;

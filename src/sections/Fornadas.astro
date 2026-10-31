@@ -36,7 +36,7 @@ const inicioUrl = inicioMeta ? (await getImage({ src: inicioMeta, width: 450, fo
   </div>
 
   <!-- Abertura: a espiral de creme, caramelo e canela numa janela em arco; um fio de caramelo sai dela, se desenha com a
-       rolagem e leva até o roll finalizado logo abaixo (lib/espiral.js). -->
+       rolagem e leva até o roll finalizado logo abaixo (scripts/espiral.js). -->
   {espiralSrc && (
     <div class="abertura" data-espiral data-vivo>
       <div class="abertura__lado">
@@ -75,7 +75,7 @@ const inicioUrl = inicioMeta ? (await getImage({ src: inicioMeta, width: 450, fo
   {videos.length > 0 && (
     <>
       <!-- Divisor = progresso do carrossel: o pontilhado é a trilha e um fio de caramelo a preenche conforme os vídeos
-           deslizam (posição horizontal do carrossel, nunca o tempo do vídeo; lib/fita.js). Decorativo. -->
+           deslizam (posição horizontal do carrossel, nunca o tempo do vídeo; scripts/fita.js). Decorativo. -->
       <div class="roll__fita" aria-hidden="true" data-fita style={`--n:${videos.length}`}>
         <svg viewBox="0 0 240 240"><path d="M121 219C56 218 19 164 28 103 40 31 127 2 182 51c34 30 31 82-9 105-37 21-80 2-83-30-4-30 26-46 47-33 13 7 15 27 2 35" /></svg>
         <i class="roll__trilha"><b class="roll__fio"></b></i>
@@ -89,8 +89,8 @@ const inicioUrl = inicioMeta ? (await getImage({ src: inicioMeta, width: 450, fo
 </section>
 
 <script>
-  import { initEspiral } from '../lib/espiral.js';
-  import { initFita } from '../lib/fita.js';
+  import { initEspiral } from '../scripts/espiral.js';
+  import { initFita } from '../scripts/fita.js';
   const raiz = document.querySelector<HTMLElement>('[data-espiral]');
   if (raiz) initEspiral(raiz);
   initFita(document.querySelector<HTMLElement>('[data-fita]'), document.querySelector<HTMLElement>('[data-fita-trilho]'));

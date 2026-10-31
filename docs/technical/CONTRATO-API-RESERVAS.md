@@ -4,8 +4,8 @@
 > versão `80af395` em `api.ambarbrunch.com/health`; rotas em `app/modulos/reservas/api_publica.py` e `api_admin.py`,
 > esquemas em `esquemas.py`, erros em `app/nucleo/erros.py`). A regra "painel não muda data/horário/ambiente/pessoas"
 > (`403 alteracao_desativada`) está em implementação no backend (ainda sem commit em 29/10).
-> Código do site: [`contrato.ts`](../../src/lib/api/contrato.ts) (tipos) · [`http.ts`](../../src/lib/api/http.ts) (cliente) ·
-> [`simulado.ts`](../../src/lib/api/simulado.ts) (testes) · [`ReservaFlow.tsx`](../../src/islands/ReservaFlow.tsx) (interface).
+> Código do site: [`contrato.ts`](../../src/lib/reservas/contrato.ts) (tipos) · [`http.ts`](../../src/lib/reservas/http.ts) (cliente) ·
+> [`simulado.ts`](../../src/lib/reservas/simulado.ts) (testes) · [`ReservaFlow.tsx`](../../src/islands/ReservaFlow.tsx) (interface).
 > Testes contra a API falsa no formato real: `tests-reservas/` (`api-falsa.ts`).
 
 ## 1. Fluxo público na interface

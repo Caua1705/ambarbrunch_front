@@ -2,7 +2,7 @@
 // 5 · CAFÉ + ROLL — seção curta e marcante: um gelado da casa + um roll da Roll, numa colagem em camadas.
 // Peças: a caixa REAL da Roll (foto), o roll da dupla (fotos reais da Roll) e um copo DESENHADO (SVG: não é foto nem
 // mockup de embalagem, então não finge ser produto oficial). Trocar a dupla muda o roll, a cor do copo e as etiquetas
-// (lib/cafe-roll.js). Profundidade: as camadas derivam em velocidades diferentes com a rolagem (CSS, onde houver suporte)
+// (scripts/cafe-roll.js). Profundidade: as camadas derivam em velocidades diferentes com a rolagem (CSS, onde houver suporte)
 // e acompanham o ponteiro no desktop. Rodada final: sem a lista repetida de bebidas — só as duplas sugeridas e um link
 // discreto que abre os gelados no cardápio. A embalagem (caixa real) e o copo ficam só aqui.
 // Movimento reduzido: colagem parada; a troca de dupla continua funcionando, sem animação.
@@ -90,7 +90,7 @@ const gelados = cardapio.beber.find((b) => b.id === 'gelados');
 )}
 
 <script>
-  import { initCafeRoll } from '../lib/cafe-roll.js';
+  import { initCafeRoll } from '../scripts/cafe-roll.js';
   const raiz = document.querySelector<HTMLElement>('[data-cafe-roll]');
   if (raiz) initCafeRoll(raiz);
 </script>

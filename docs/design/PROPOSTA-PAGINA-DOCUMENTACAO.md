@@ -1,7 +1,7 @@
 # Proposta — página interna de documentação visual
 
 > **Situação: implementada em 2026-10-16** em `src/pages/design-system/[...secao].astro` (+ `src/styles/docs/design-system.css`,
-> `src/lib/design-system.js`). Uma página só, com navegação por categoria (âncoras), em vez de subpáginas. A auditoria virou o teste
+> `src/scripts/design-system.js`). Uma página só, com navegação por categoria (âncoras), em vez de subpáginas. A auditoria virou o teste
 > `tests/tokens.spec.ts`. No build de produção a rota não é gerada e os arquivos da página são removidos do `_astro/`.
 > Parte do [design system](DESIGN-SYSTEM.md).
 

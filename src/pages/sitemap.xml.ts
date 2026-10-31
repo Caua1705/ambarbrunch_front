@@ -3,7 +3,7 @@
 // Sem <lastmod>: a data do build não é a data em que o conteúdo mudou, e um lastmod falso faz o Google ignorá-lo.
 import type { APIRoute } from 'astro';
 import { SITE } from '../data/seo';
-import { CLUBE_NA_HOME } from '../lib/clube-modo';
+import { CLUBE_NA_HOME } from '../lib/clube/modo';
 import { REVISAO } from '../lib/conteudo';
 
 export const prerender = true;

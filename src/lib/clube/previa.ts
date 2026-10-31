@@ -1,9 +1,9 @@
 // DADOS DE EXEMPLO da prévia local do Clube (/clube/previa/) — SÓ para ver as telas. Importado apenas por
-// pages/clube/previa, que não é gerada nos builds de produção e de revisão (lib/clube-modo.ts → CLUBE_PREVIA). Nomes,
+// pages/clube/previa, que não é gerada nos builds de produção e de revisão (lib/clube/modo.ts → CLUBE_PREVIA). Nomes,
 // pontos e situações são marcações de exemplo: NÃO são recompensas, valores ou regras do Clube.
-import type { CadastroPendente, ConfigClube, DesafioAcesso, MembroClube, MovimentoClube } from './api/clube-acesso';
-import type { Recompensa, Resgate } from './api/clube-futuro';
-import { TEXTO_SUSPENSA } from './api/clube-erro';
+import type { CadastroPendente, ConfigClube, DesafioAcesso, MembroClube, MovimentoClube } from './acesso';
+import type { Recompensa, Resgate } from './futuro';
+import { TEXTO_SUSPENSA } from './erro';
 
 export const cfgExemplo: ConfigClube = {
   inscricoesAbertas: true, programaAtivo: false,

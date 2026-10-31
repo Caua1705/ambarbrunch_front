@@ -12,7 +12,7 @@
 //   Conta (sessão completa): PUT /clube/me/marketing { autorizado, textoVersao } → estado · DELETE /clube/me/mensagens
 //   → 204 (desliga os avisos de serviço; não há rota para religar) · GET /clube/me/movimentos?antesDe=&limite= → o
 //   histórico real do livro de pontos (commit b0b0553; com o programa desligado, lista vazia e saldo null).
-//   Recompensas e resgates: sem rota pública ainda — ver clube-futuro.ts.
+//   Recompensas e resgates: sem rota pública ainda — ver futuro.ts.
 // Conta suspensa pela gerência (b0b0553): 403 `conta_suspensa` no código (/acesso/verificar), no link do convite
 // (/convites/ativar) e em toda rota com sessão (o backend revoga a sessão). → ErroClube “suspensa”, com o `detail`.
 // Sessão: cookie HttpOnly `__Secure-ambar_clube` (SameSite=Strict) — o site NÃO vê nem guarda token: toda chamada vai com
@@ -22,7 +22,7 @@
 // mostra o formulário do telefone.
 // Erros: { detail: "<texto em português, pode ir ao cliente>", codigo } ou, em campo inválido (422), o formato do FastAPI
 // { detail: [{ loc: ["body", "<campo>"], msg, type }], codigo? } — não há chave `campos`. → ErroClube.
-import { ErroClube, TEXTO_SUSPENSA } from './clube-erro';
+import { ErroClube, TEXTO_SUSPENSA } from './erro';
 
 /** GET /clube/config */
 export interface ConfigClube {

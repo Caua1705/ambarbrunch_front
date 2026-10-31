@@ -1,6 +1,6 @@
 # Movimento — Fornada Âmbar
 
-> Implementado em [`src/styles/motion.css`](../../../src/styles/motion.css) e [`src/lib/motion.js`](../../../src/lib/motion.js).
+> Implementado em [`src/styles/motion.css`](../../../src/styles/motion.css) e [`src/scripts/motion.js`](../../../src/scripts/motion.js).
 > A coreografia completa, seção por seção, continua em [`../MOTION-PLAN.md`](../MOTION-PLAN.md). Este documento é o **sistema**:
 > tokens, primitivas e regras que qualquer seção usa.
 

@@ -4,7 +4,7 @@
    960 px: a marca vira a 1ª coluna.
    O botão fixo “Reservar mesa” fica na tela até o fim: a base do rodapé guarda o espaço dele, então no fim da rolagem
    nada fica embaixo do botão (62 px de altura, a 12 px da base no celular/tablet e a 28 px à direita no desktop).
-   2026-10-23: esse espaço só onde o botão existe — a home (o hero com [data-hero] liga o botão, lib/sticky-cta.js). Nas
+   2026-10-23: esse espaço só onde o botão existe — a home (o hero com [data-hero] liga o botão, scripts/sticky-cta.js). Nas
    páginas internas o botão nunca aparece e os 92 px viravam vazio: lá o rodapé termina com o respiro normal. Sem
    suporte a :has, a regra é ignorada e o espaço fica (nunca cobre os créditos). */
 

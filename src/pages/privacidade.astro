@@ -10,7 +10,7 @@ import Foto from '../components/Foto.astro';
 import Footer from '../sections/Footer.astro';
 import { privacidade, medicao, isRevisar } from '../data/privacidade';
 import { REVISAO, isPendente } from '../lib/conteudo';
-import { GA4_ID, MEDICAO_LIGADA } from '../lib/medicao-config';
+import { GA4_ID, MEDICAO_LIGADA } from '../lib/medicao/config';
 
 const rascunho = !privacidade.aprovada && REVISAO;
 const reservasNoSite = import.meta.env.PUBLIC_RESERVAS_MODO === 'api' && !!import.meta.env.PUBLIC_RESERVAS_API_URL;

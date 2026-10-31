@@ -3,7 +3,7 @@
    2. .menu-btn--fixo: o mesmo selo, fixo no alto da tela, que aparece quando o do hero sai (rodada final: saiu da barra
       inferior, que agora é só o botão “Reservar mesa”);
    3. .sheet: <dialog> modal que sobe da base, com borda recortada no topo. “Reservar” continua sendo o botão principal.
-      Entrada e SAÍDA animadas (a saída marca data-fechando; lib/nav-sheet.js só fecha o dialog quando ela termina). */
+      Entrada e SAÍDA animadas (a saída marca data-fechando; scripts/nav-sheet.js só fecha o dialog quando ela termina). */
 
 .menu-btn {
   display: grid; place-items: center;

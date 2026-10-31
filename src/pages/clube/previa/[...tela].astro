@@ -1,9 +1,9 @@
 ---
-// /clube/previa/ — PRÉVIA LOCAL de todas as telas do Clube Âmbar, com dados de exemplo (lib/clube-previa.ts): os
+// /clube/previa/ — PRÉVIA LOCAL de todas as telas do Clube Âmbar, com dados de exemplo (lib/clube/previa.ts): os
 // estados do acesso (código, reenvio, erros, sessão vencida, indisponível), do cadastro, da ativação, da conta (com e
 // sem pontos), do histórico, das recompensas e do resgate por QR Code. Nada é interativo nem enviado: os componentes
 // são renderizados no servidor com estado forçado. Só no `astro dev` e no build de testes (`--mode simulado`); nos
-// builds de produção e de revisão a página nem é gerada (getStaticPaths vazio — lib/clube-modo.ts → CLUBE_PREVIA).
+// builds de produção e de revisão a página nem é gerada (getStaticPaths vazio — lib/clube/modo.ts → CLUBE_PREVIA).
 import { getImage } from 'astro:assets';
 import Base from '../../../layouts/Base.astro';
 import ClubeFoco from '../../../sections/ClubeFoco.astro';
@@ -14,10 +14,10 @@ import { ContaEsqueleto } from '../../../components/clube/Conta';
 import { ListaMovimentos } from '../../../components/clube/Historico';
 import { CatalogoRecompensas, ConfirmacaoResgate, DetalheRecompensa } from '../../../components/clube/Recompensas';
 import { ResgateQr } from '../../../components/clube/Resgate';
-import { CLUBE_PREVIA } from '../../../lib/clube-modo';
+import { CLUBE_PREVIA } from '../../../lib/clube/modo';
 import { imagem } from '../../../lib/media';
-import * as ex from '../../../lib/clube-previa';
-import { TELAS_PREVIA as TELAS } from '../../../lib/clube-previa';
+import * as ex from '../../../lib/clube/previa';
+import { TELAS_PREVIA as TELAS } from '../../../lib/clube/previa';
 
 
 export function getStaticPaths() {

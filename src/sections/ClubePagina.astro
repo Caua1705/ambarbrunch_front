@@ -15,14 +15,14 @@
 //      - pré-lançamento (sem a API): o bilhete “em breve”, SEM campos — nada é pedido nem enviado. A ilha é renderizada
 //        só no servidor (sem JavaScript na página).
 //  · fechamento mínimo (Footer `minimo`): “Âmbar Café · Política de Privacidade · © ano”.
-// Entradas pelas mesas continuam: /clube/?canal=nfc&mesa=12 e /clube/?canal=qr&mesa=12 (lib/clube-origem.ts) — só o
+// Entradas pelas mesas continuam: /clube/?canal=nfc&mesa=12 e /clube/?canal=qr&mesa=12 (lib/clube/origem.ts) — só o
 // cumprimento. Sem pontuação, desconto, brinde ou nível (data/clube.ts).
 import Foto from '../components/Foto.astro';
 import Footer from './Footer.astro';
 import PainelDev from '../components/clube/PainelDev.astro';
 import ClubeAcesso from '../islands/ClubeAcesso';
-import { ROTAS } from '../lib/clube-cliente';
-import { CLUBE_MODO, CLUBE_API_URL, CLUBE_ABERTO } from '../lib/clube-modo';
+import { ROTAS } from '../lib/clube/cliente';
+import { CLUBE_MODO, CLUBE_API_URL, CLUBE_ABERTO } from '../lib/clube/modo';
 import { clube } from '../data/clube';
 
 const aberto = CLUBE_ABERTO;
@@ -72,7 +72,7 @@ const p = clube.pagina;
 <PainelDev />
 
 <script>
-  import { origemDaVisita } from '../lib/clube-origem';
+  import { origemDaVisita } from '../lib/clube/origem';
   // Chegada pela plaquinha da mesa: só um cumprimento. Não registra presença nem soma pontos.
   const chegada = document.querySelector<HTMLElement>('[data-chegada]');
   const o = origemDaVisita();

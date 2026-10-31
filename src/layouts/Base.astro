@@ -8,7 +8,7 @@ import NavSheet from '../components/NavSheet.astro';
 import Medicao from '../components/Medicao.astro';
 import { REVISAO } from '../lib/conteudo';
 import { imagensSeo, seo, SITE } from '../data/seo';
-import { GSC_VERIFICACAO, MEDICAO_LIGADA, paginaMedida } from '../lib/medicao-config';
+import { GSC_VERIFICACAO, MEDICAO_LIGADA, paginaMedida } from '../lib/medicao/config';
 
 interface Props {
   titulo?: string;
@@ -77,7 +77,7 @@ const fontes = `
   <style set:html={fontes}></style>
   <!-- Entrada do hero em TODO carregamento (F5 incluso): o recarregamento volta ao topo e tira a âncora que um clique
        anterior deixou na URL (antes, “#reservar” ou a rolagem restaurada desligavam a cena). Link direto para uma seção
-       continua indo até ela. A classe sai sozinha ao fim da cena (lib/motion.js), então rolar de volta não repete. -->
+       continua indo até ela. A classe sai sozinha ao fim da cena (scripts/motion.js), então rolar de volta não repete. -->
   <script is:inline>(function(d){d.classList.add('js');try{history.scrollRestoration='manual';var n=performance.getEntriesByType('navigation')[0];if(n&&n.type==='reload'&&location.hash)history.replaceState(history.state,'',location.pathname+location.search);}catch(e){}if(!matchMedia('(prefers-reduced-motion: reduce)').matches)d.classList.add('enter');})(document.documentElement);</script>
   <!-- extras de uma página no <head> (ex.: /clube/ativar: referrer e captura do link antes de qualquer pintura) -->
   <slot name="head" />
@@ -88,6 +88,6 @@ const fontes = `
   <slot />
   {!enxuta && <Dock href={home ? '#reservar' : '/#reservar'} />}
   {!enxuta && <NavSheet base={home ? '' : '/'} />}
-  <script>import '../lib/site.js';</script>
+  <script>import '../scripts/site.js';</script>
 </body>
 </html>

@@ -129,7 +129,7 @@ nível de áudio mudo nos dois trechos. Volta a comparação “igual ao pretzel
 - AAC 96 kbps 48 kHz; **volume igualado** em −16 LUFS (loudnorm em 2 passadas; medido depois: −15,2 a −16,0 LUFS, picos ≤ −1,2 dBFS),
   para o botão de som não “estourar” de um criador para outro. Fade de 0,12 s na entrada e 0,2 s na saída, para não estalar no corte.
 - Um arquivo por corte: o player começa **mudo** (`muted`) e o mesmo arquivo toca com som quando o visitante pede.
-- Comportamento no site (ajuste de 2026-10-18, referência Zuzzi; `lib/carrossel.js`, `tests/e2e/carrossel.spec.ts`): palco em laço
+- Comportamento no site (ajuste de 2026-10-18, referência Zuzzi; `scripts/carrossel.js`, `tests/e2e/carrossel.spec.ts`): palco em laço
   com o central inteiro e um vizinho cortado em cada borda, sempre; **os três à vista tocam ao mesmo tempo, mudos** (cada um
   repetindo o próprio corte); **um áudio por vez, sempre o do central** (os vizinhos ficam mudos). Tudo começa mudo; o 1º
   toque no som registra a preferência da visita (em memória, não entre sessões): a partir daí cada card que encaixa no

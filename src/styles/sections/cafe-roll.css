@@ -1,7 +1,7 @@
 /* CAFÉ + ROLL (seção 5, nova). Caramelo entre o cacau da Fornada e o creme de Saladas & bowls.
    Palco da colagem: 358 × 420 px em 390 (aspect-ratio). Camadas: caixa real da Roll (fundo) → copo desenhado → “+” →
    roll da dupla (frente) → selo, adesivo e etiquetas. Cada camada tem uma profundidade --z (1 a 4) que multiplica o
-   deslocamento pela rolagem e pelo ponteiro (--px/--py, de -1 a 1, lib/cafe-roll.js). Contraste: texto cacau/vinho
+   deslocamento pela rolagem e pelo ponteiro (--px/--py, de -1 a 1, scripts/cafe-roll.js). Contraste: texto cacau/vinho
    sobre caramelo (≥ 4,7:1); nada de manteiga sobre caramelo. */
 
 .cafe-roll {

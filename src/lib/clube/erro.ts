@@ -1,4 +1,4 @@
-// Erros do Clube normalizados para a interface (clube-acesso.ts traduz o status HTTP e o corpo do backend para cá).
+// Erros do Clube normalizados para a interface (acesso.ts traduz o status HTTP e o corpo do backend para cá).
 // `sessao` = 401 (sem sessão, sessão vencida ou sessão de ativação onde é preciso a completa).
 // `suspensa` = 403 `conta_suspensa` (a gerência suspendeu a conta): a mensagem é o `detail` do backend; não se tenta de
 // novo e nada da conta é mostrado.

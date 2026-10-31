@@ -36,10 +36,10 @@ Convenção: **forma no componente, posição na seção**. Ex.: `.cut--circle` 
 | Estrutura | mesmo botão, `menu-btn--dock`, começa `aria-hidden="true" tabindex="-1"` |
 | Forma | quadrado 58 px, `--cream`, raio 18, `--shadow-offset` + `--shadow-float`; `left: 12px; bottom: max(12px, safe-area)` |
 | Estados | oculto (`translateY(150%) rotate(2deg)`, sem toque) · visível (`.is-visible`) · pressionado (sombra 2 px) |
-| Regra de visibilidade | selo do hero fora da tela **e** reserva fora da tela **e** nenhum campo de texto em foco **e** menu fechado (`lib/sticky-cta.js`) |
+| Regra de visibilidade | selo do hero fora da tela **e** reserva fora da tela **e** nenhum campo de texto em foco **e** menu fechado (`scripts/sticky-cta.js`) |
 | Desktop | não aparece (`display: none` ≥ 960 px) |
 
-### 1.3 Folha do menu · `NavSheet.astro` + `lib/nav-sheet.js`
+### 1.3 Folha do menu · `NavSheet.astro` + `scripts/nav-sheet.js`
 
 | | |
 | --- | --- |
@@ -86,7 +86,7 @@ Primeiro elemento focável; recortado (invisível) até receber foco; aparece co
 | Link de texto | `.novo__link`, `.ticket__link`, `.roll__cta a` | caixa-alta 14 px sublinhada 2 px (ou Fraunces 22 px na chamada da Roll) |
 | Pausar animações | `.motion-toggle` (`MotionToggle.astro`) | pílula contorno 44 px, ícone ⏸/▶, `aria-pressed` |
 
-### 2.2 CTA fixo de reserva · `.sticky-cta` (dentro de `Dock.astro`) + `lib/sticky-cta.js`
+### 2.2 CTA fixo de reserva · `.sticky-cta` (dentro de `Dock.astro`) + `scripts/sticky-cta.js`
 
 | | |
 | --- | --- |

@@ -33,7 +33,7 @@ Legenda: **v1** = existe no protótipo, visual idêntico · **v1+** = existe, co
 | --- | --- | --- | --- | --- |
 | Botão | `.btn`, `--butter`, `--wine`, `--block` | `button.css` | v1+ | Manteiga sobre escuro, vinho sobre claro. 54 px de altura, sombra deslocada. `:active` = `scale(.96)`. **Novo:** `:disabled` / `[data-disabled]` (opacidade .55, sombra 2 px). No hero o botão não quebra linha |
 | Link de ambiente | `.panel a` | `panel.css` | v1 | Pílula glacê “reservar aqui →”; pré-seleciona o ambiente na comanda |
-| Pausar animações | `.motion-toggle` + `[data-motion-toggle]` | `motion-toggle.css`, `lib/motion.js` | novo | Pílula com contorno; `aria-pressed`; troca ícone e texto. No rodapé e na folha do menu |
+| Pausar animações | `.motion-toggle` + `[data-motion-toggle]` | `motion-toggle.css`, `scripts/motion.js` | novo | Pílula com contorno; `aria-pressed`; troca ícone e texto. No rodapé e na folha do menu |
 | Pular para a reserva | `.skip-link` | `base.css` | novo | Aparece só com foco de teclado |
 
 ## Comanda (reserva)
@@ -68,16 +68,16 @@ Legenda: **v1** = existe no protótipo, visual idêntico · **v1+** = existe, co
 
 | Componente | Classe | Arquivo | Status | Regras |
 | --- | --- | --- | --- | --- |
-| Story (vídeo vertical) | `.stories`, `.story`, `.story__tag` | `story.css`, `lib/videos.js` | v1+ | 9:16, raio 26, contorno caramelo (o 2º em manteiga, 44 px mais baixo). **Novos:** `.story__by` (crédito: quem gravou + “vídeo da própria Roll” ou “@criadora sobre a Roll”), `.story__progress`, `.story__toggle` (tocar/pausar). Um vídeo por vez. Só renderiza com `autorizado: true` |
+| Story (vídeo vertical) | `.stories`, `.story`, `.story__tag` | `story.css`, `scripts/videos.js` | v1+ | 9:16, raio 26, contorno caramelo (o 2º em manteiga, 44 px mais baixo). **Novos:** `.story__by` (crédito: quem gravou + “vídeo da própria Roll” ou “@criadora sobre a Roll”), `.story__progress`, `.story__toggle` (tocar/pausar). Um vídeo por vez. Só renderiza com `autorizado: true` |
 
 ## Navegação
 
 | Componente | Classe | Arquivo | Status | Regras |
 | --- | --- | --- | --- | --- |
-| CTA fixo | `.sticky-cta` | `sticky-cta.css`, `lib/sticky-cta.js` | v1+ | Visual idêntico ao v1. Regra de visibilidade nova (ver [`NAVEGACAO-E-CTA.md`](NAVEGACAO-E-CTA.md)). Oculto = sem clique |
+| CTA fixo | `.sticky-cta` | `sticky-cta.css`, `scripts/sticky-cta.js` | v1+ | Visual idêntico ao v1. Regra de visibilidade nova (ver [`NAVEGACAO-E-CTA.md`](NAVEGACAO-E-CTA.md)). Oculto = sem clique |
 | Menu no hero | `.menu-btn--hero` | `menu.css` | novo | Selo manteiga de 44 px colado na ponta da etiqueta, +8° |
 | Menu na doca | `.menu-btn--dock` | `menu.css` | novo | Quadrado creme de 58 px à esquerda do CTA; aparece quando o selo do hero sai da tela |
-| Folha do menu | `.sheet` (`<dialog>`) | `menu.css`, `lib/nav-sheet.js` | novo | Sobe da base, borda recortada no topo, itens numerados “01…04” como os passos da comanda, alinhamento alternado como os mega títulos. Botão vinho “Reservar mesa” é o único botão cheio |
+| Folha do menu | `.sheet` (`<dialog>`) | `menu.css`, `scripts/nav-sheet.js` | novo | Sobe da base, borda recortada no topo, itens numerados “01…04” como os passos da comanda, alinhamento alternado como os mega títulos. Botão vinho “Reservar mesa” é o único botão cheio |
 
 ## Componentes previstos (desenhar na implementação, com estes mesmos tokens)
 

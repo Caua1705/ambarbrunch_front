@@ -1,13 +1,13 @@
 /** @jsxImportSource preact */
 // Área do membro do Clube Âmbar — ilha Preact de /clube/conta, /clube/historico e /clube/recompensas (`secao`).
-// Contrato real (lib/api/clube-acesso.ts): GET /clube/config + GET /clube/me ao abrir.
-//  - 401 (sem sessão ou vencida) → /clube/entrar/?volta=<seção> (lista fechada de destinos, lib/clube-cliente.ts);
+// Contrato real (lib/clube/acesso.ts): GET /clube/config + GET /clube/me ao abrir.
+//  - 401 (sem sessão ou vencida) → /clube/entrar/?volta=<seção> (lista fechada de destinos, lib/clube/cliente.ts);
 //  - cadastro pela metade ou sessão de ativação do convite → /clube/cadastro/ (a sessão de ativação nunca vê a conta);
 //  - membro → a conta: cartão, programa, atalhos, dados, comunicação (PUT /clube/me/marketing, DELETE
 //    /clube/me/mensagens) e sair (POST /clube/sair).
 // Pontos: só os que /clube/me traz (`membro.programa.saldo`, com o programa ativo). Histórico: GET /clube/me/movimentos
 // (rota real, b0b0553), só com o programa ativo — desligado, “em preparação”. Recompensas e resgates não têm rota pública
-// ainda (lib/api/clube-futuro.ts): a seção mostra “em preparação”, sem dado nem ação.
+// ainda (lib/clube/futuro.ts): a seção mostra “em preparação”, sem dado nem ação.
 // Conta suspensa (403 `conta_suspensa` em qualquer chamada): a tela troca por “Conta suspensa” com o texto do backend —
 // sem cartão, pontos, histórico nem preferências, e sem “tentar de novo” (o backend já revogou a sessão).
 // Modo “indisponivel” (pré-lançamento): nenhum dado é pedido; a página diz que o Clube abre em breve.
@@ -15,11 +15,11 @@ import { useEffect, useState } from 'preact/hooks';
 import { AtalhosConta, ContaEsqueleto, DadosConta, PainelPrograma, PararAvisos, PreferenciasConta, TopoConta, type Atalho } from '../components/clube/Conta';
 import { EmPreparo, ListaMovimentos, type EstadoLista } from '../components/clube/Historico';
 import { Icone } from '../components/clube/icones';
-import { ErroClube } from '../lib/api/clube-erro';
-import { RECURSOS } from '../lib/api/clube-futuro';
-import type { ConfigClube, MembroClube, MovimentoClube, SituacaoClube } from '../lib/api/clube-acesso';
-import { ROTAS, urlEntrar, useApiClube, type Volta } from '../lib/clube-cliente';
-import type { ModoClube } from '../lib/clube-modo';
+import { ErroClube } from '../lib/clube/erro';
+import { RECURSOS } from '../lib/clube/futuro';
+import type { ConfigClube, MembroClube, MovimentoClube, SituacaoClube } from '../lib/clube/acesso';
+import { ROTAS, urlEntrar, useApiClube, type Volta } from '../lib/clube/cliente';
+import type { ModoClube } from '../lib/clube/modo';
 
 export type SecaoArea = 'conta' | 'historico' | 'recompensas';
 type Estado = 'carregando' | 'fechado' | 'falha' | 'suspensa' | 'pronto' | 'saindo';
