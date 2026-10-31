@@ -1,0 +1,22 @@
+# Padrão de formatação do repositório (lido pelos editores; não reformata nada sozinho).
+# O Git guarda LF; no Windows o core.autocrlf converte na cópia de trabalho.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.md]
+# Quebra de linha forçada em Markdown usa dois espaços no fim.
+trim_trailing_whitespace = false
+
+# Protótipos congelados: bytes conferidos por SHA256SUMS (ver .gitattributes).
+[experiments/concept-b-aprovado-v1/**]
+charset = unset
+end_of_line = unset
+insert_final_newline = unset
+trim_trailing_whitespace = unset
