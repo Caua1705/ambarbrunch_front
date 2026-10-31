@@ -7,15 +7,66 @@ import type {
   Importacao, ListaContas, ListaLancamentos, MapeamentoCsv, MesEvolucao, MovimentoBancario, PagamentoEntrada, ParcelaSaida,
   Recorrencia, ResultadoMes, ResumoFinanceiro, NivelConciliacao, Repasses, Apuracao, MovimentoDetalhe, AgrupamentoVendas,
   RelatorioVendas, OutraReceitaEntrada, OutraReceitaSaida, TaxaPagamento, TaxaEntrada, RecorrenciaEntrada, Participacao,
-  SimulacaoParticipacao, EstadoContaMes,
+  SimulacaoParticipacao, EstadoContaMes, DocumentoRevisao, CorrecaoDocumento, ResolucaoDocumento, AnexoDespesa,
+  CategoriaEntrada, CategoriaAlteracao, CandidataRevisao, DespesaCandidata,
 } from '../tipos/financeiro';
+
+const lista = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
+
+/** Documento da revisão sempre com as listas e objetos que a tela percorre. Resposta incompleta (backend antigo, campo
+ *  faltando) não pode derrubar a tela: lista ausente vira vazia. Antes da 0018 a despesa que uma nota podia cobrir vinha
+ *  misturada em `candidatas` (sem parcela nem evidências) e quebrava a lista: ela vai para `despesas_candidatas`. */
+export function normalizarDocumento(d: DocumentoRevisao): DocumentoRevisao {
+  const brutas = lista<Partial<CandidataRevisao> & { valor?: string; competencia?: string; tipo?: string }>(d.candidatas);
+  const candidatas: CandidataRevisao[] = [];
+  const despesasAntigas: DespesaCandidata[] = [];
+  for (const c of brutas) {
+    if (!c || typeof c !== 'object') continue;
+    if (c.parcela_id && (!c.tipo || c.tipo === 'parcela')) candidatas.push({ ...c, evidencias: lista<string>(c.evidencias), faltando: lista<string>(c.faltando) } as CandidataRevisao);
+    else if (c.despesa_id && (!c.tipo || c.tipo === 'despesa')) despesasAntigas.push({ despesa_id: c.despesa_id, descricao: c.descricao ?? 'Despesa', valor: c.valor ?? c.saldo ?? null, competencia: c.competencia ?? c.vencimento ?? null, forca: c.forca });
+  }
+  const objeto = <T extends object>(v: unknown): T | null => (v && typeof v === 'object' && !Array.isArray(v) ? (v as T) : null);
+  const original = objeto<DocumentoRevisao['extraido']>(d.extraido_original);
+  const classificacao = objeto<DocumentoRevisao['classificacao']>(d.classificacao) ?? {};
+  return {
+    ...d,
+    extraido: objeto<DocumentoRevisao['extraido']>(d.extraido) ?? {},
+    extraido_original: original && Object.keys(original).length ? original : null,
+    motivos: lista<string>(d.motivos),
+    candidatas,
+    contas_candidatas: lista(d.contas_candidatas),
+    pagamentos_candidatos: lista(d.pagamentos_candidatos),
+    despesas_candidatas: [...lista<DespesaCandidata>(d.despesas_candidatas), ...despesasAntigas],
+    classificacao: { ...classificacao, opcoes: lista<string>(classificacao.opcoes) },
+  };
+}
+
+function normalizarFila(f: Partial<FilaRevisao> | null | undefined): FilaRevisao {
+  const bloco = <T,>(b: { total?: number; itens?: T[] } | undefined) => {
+    const itens = lista<T>(b?.itens);
+    return { total: typeof b?.total === 'number' ? b.total : itens.length, itens };
+  };
+  const documentos = bloco<DocumentoRevisao>(f?.documentos);
+  const despesas = bloco<FilaRevisao['despesas']['itens'][number]>(f?.despesas);
+  return {
+    despesas: { ...despesas, itens: despesas.itens.filter((d) => d && d.id).map((d) => ({ ...d, motivos_revisao: lista<string>(d.motivos_revisao) })) },
+    documentos: { ...documentos, itens: documentos.itens.filter((d) => d && d.id).map(normalizarDocumento) },
+  };
+}
 
 export const financeiro = {
   resumo: () => pedir<ResumoFinanceiro>('financeiro/resumo'),
-  revisao: () => pedir<FilaRevisao>('financeiro/revisao', { query: { limite: 100 } }),
+  revisao: async () => normalizarFila(await pedir<Partial<FilaRevisao>>('financeiro/revisao', { query: { limite: 100 } })),
   lancamentos: (q: { de: string; ate: string; tipo?: string; categoria?: string; origem?: string; status?: string; busca?: string; limite?: number; deslocamento?: number }) =>
     pedir<ListaLancamentos>('financeiro/lancamentos', { query: { limite: 100, ...q } }),
-  categorias: () => pedir<Categoria[]>('financeiro/categorias'),
+  /** Só as categorias VÁLIDAS na unidade do topo (a ponte manda ?unidade=): o que os seletores oferecem. */
+  categorias: async () => lista<Categoria>(await pedir<Categoria[]>('financeiro/categorias')),
+  /** Cadastro inteiro, com `ativa_na_unidade`, `unidades` e `em_uso` (tela Categorias e nome de lançamento antigo). */
+  cadastroCategorias: async () => lista<Categoria>(await pedir<Categoria[]>('financeiro/categorias', { query: { todas: true, incluir_inativas: true } })),
+  criarCategoria: (c: CategoriaEntrada) => pedir<Categoria>('financeiro/categorias', { metodo: 'POST', corpo: c }),
+  alterarCategoria: (codigo: string, c: CategoriaAlteracao) => pedir<Categoria>(`financeiro/categorias/${encodeURIComponent(codigo)}`, { metodo: 'PATCH', corpo: c }),
+  categoriaNaUnidade: (codigo: string, unidade: string, ativo: boolean) =>
+    pedir<Categoria>(`financeiro/categorias/${encodeURIComponent(codigo)}/unidades/${encodeURIComponent(unidade)}`, { metodo: 'PUT', corpo: { ativo } }),
   fornecedores: (busca?: string) => pedir<{ id: string; nome: string; documento: string | null }[]>('financeiro/fornecedores', { query: { busca, limite: 20 } }),
   despesa: (id: string) => pedir<DespesaSaida>(`financeiro/despesas/${id}`),
   criarDespesa: (d: DespesaEntrada, chave = novaChave()) => pedir<DespesaSaida>('financeiro/despesas', { metodo: 'POST', corpo: d, idempotencia: chave }),
@@ -23,8 +74,15 @@ export const financeiro = {
     pedir<DespesaSaida>(`financeiro/despesas/${id}`, { metodo: 'PATCH', corpo: c }),
   confirmarDespesa: (id: string, categoria?: string) => pedir<DespesaSaida>(`financeiro/despesas/${id}/confirmar`, { metodo: 'POST', corpo: categoria ? { categoria } : null }),
   cancelarDespesa: (id: string, motivo: string) => pedir<DespesaSaida>(`financeiro/despesas/${id}/cancelar`, { metodo: 'POST', corpo: { motivo } }),
-  resolverDocumento: (id: string, r: { acao: 'pagar_parcela' | 'registrar_despesa' | 'descartar'; categoria?: string; parcela_id?: string; motivo?: string }) =>
-    pedir<unknown>(`financeiro/revisao/documentos/${id}/resolver`, { metodo: 'POST', corpo: r }),
+  // Documentos da Júlia (§5.2–5.4): ler, corrigir a leitura (PATCH com versão e motivo) e resolver.
+  documentoRevisao: async (id: string) => normalizarDocumento(await pedir<DocumentoRevisao>(`financeiro/revisao/documentos/${id}`)),
+  corrigirDocumento: async (id: string, c: CorrecaoDocumento) => normalizarDocumento(await pedir<DocumentoRevisao>(`financeiro/revisao/documentos/${id}`, { metodo: 'PATCH', corpo: c })),
+  resolverDocumento: (id: string, r: ResolucaoDocumento) =>
+    pedir<{ id: string; situacao: string; despesa_id: string | null; pagamento_id: string | null; versao?: number }>(`financeiro/revisao/documentos/${id}/resolver`, { metodo: 'POST', corpo: r }),
+  /** Anexos da despesa (§5.5): o dela, os dos pagamentos, o da compra e os documentos vinculados, um por arquivo. */
+  anexosDespesa: async (id: string) => lista<AnexoDespesa>(await pedir<AnexoDespesa[]>(`financeiro/despesas/${id}/documentos`)),
+  /** Despesa lançada na unidade errada (§5.6). 409: despesa_de_compra, despesa_conciliada, apuracao_fechada. */
+  mudarUnidadeDespesa: (id: string, m: { unidade: string; versao: number; motivo: string }) => pedir<DespesaSaida>(`financeiro/despesas/${id}/unidade`, { metodo: 'POST', corpo: m }),
   enviarParaCompras: (id: string) => pedir<{ compra_id: string; compra_nova: boolean }>(`financeiro/comprovantes/${id}/enviar-para-compras`, { metodo: 'POST' }),
   contas: (q: { situacao?: string; de?: string; ate?: string; limite?: number }) => pedir<ListaContas>('financeiro/contas-a-pagar', { query: { limite: 200, ...q } }),
   pagar: (parcelaId: string, p: PagamentoEntrada) => pedir<ParcelaSaida>(`financeiro/parcelas/${parcelaId}/pagamentos`, { metodo: 'POST', corpo: p }),

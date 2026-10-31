@@ -1,8 +1,9 @@
-// Gaveta da despesa: valores, parcelas e pagamentos (com estorno), rateio da compra, documento e histórico.
-// Ações: confirmar (com categoria), corrigir (PATCH com versão e motivo) e cancelar — sempre a MESMA despesa.
+// Gaveta da despesa: valores, parcelas e pagamentos (com estorno), rateio da compra, anexos e histórico.
+// Ações: confirmar (com categoria), corrigir (PATCH com versão e motivo), mudar de unidade (POST …/unidade, §5.6) e
+// cancelar — sempre a MESMA despesa. Anexos: GET …/despesas/{id}/documentos (§5.5), um por arquivo, com o papel de cada.
 import { Fragment } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
-import { Check, Pencil, X, Undo2, Info, Banknote } from 'lucide-preact';
+import { Check, Pencil, X, Undo2, Info, Banknote, Building2 } from 'lucide-preact';
 import { useConsulta } from '../../lib/consulta';
 import { financeiro } from '../../lib/api/financeiro';
 import { ErroApi } from '../../lib/api/cliente';
@@ -12,8 +13,8 @@ import { Botao, Campo, Aviso, Etiqueta, Situacao } from '../../ui/base';
 import { EntradaMoeda } from '../../ui/entradas';
 import { Dados, Esqueleto } from '../../ui/estados';
 import type { DespesaSaida } from '../../lib/tipos/financeiro';
-import { ORIGEM, MOTIVO_REVISAO, FORMAS, useCategorias, nomeCategoria, OpcoesCategoria, atualizarFinanceiro, avisar, avisarFalha, usePermissao } from './comum';
-import { Documento } from './Documento';
+import { ORIGEM, MOTIVO_REVISAO, FORMAS, useCategorias, useNomeCategoria, OpcoesCategoria, atualizarFinanceiro, avisar, avisarFalha, usePermissao, useUnidades } from './comum';
+import { Anexos } from './Anexos';
 import { Pagar, type ContaParaPagar } from './Pagar';
 
 const brl = (v: string) => Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -21,8 +22,10 @@ const brl = (v: string) => Number(v).toLocaleString('pt-BR', { minimumFractionDi
 export function DetalheDespesa({ id, aoFechar, confirmar }: { id: string | null; aoFechar: () => void; confirmar: (p: PedidoConfirmacao) => void }) {
   const consulta = useConsulta(id ? `financeiro/despesa:${id}` : null, () => financeiro.despesa(id!));
   const cats = useCategorias();
+  const nome = useNomeCategoria();
+  const { unidades } = useUnidades();
   const lancar = usePermissao('financeiro.lancar');
-  const [editando, setEditando] = useState(false);
+  const [editando, setEditando] = useState<false | 'dados' | 'unidade'>(false);
   const [categoria, setCategoria] = useState('');
   const [ocupado, setOcupado] = useState(false);
   const [pagar, setPagar] = useState<ContaParaPagar | null>(null);
@@ -53,7 +56,8 @@ export function DetalheDespesa({ id, aoFechar, confirmar }: { id: string | null;
       <Botao variante="fantasma" icone={<X aria-hidden="true" />} onClick={() => confirmar({ titulo: 'Cancelar esta despesa?', texto: 'A despesa e as contas em aberto dela deixam de valer. Se já houver pagamento, estorne-o antes.', confirmar: 'Cancelar despesa', perigo: true, motivo: { rotulo: 'Motivo do cancelamento' }, acao: async (m) => { await financeiro.cancelarDespesa(d.id, m); atualizarFinanceiro(); }, sucesso: 'Despesa cancelada.' })}>
         Cancelar despesa
       </Botao>
-      <Botao icone={<Pencil aria-hidden="true" />} onClick={() => setEditando(true)}>Corrigir</Botao>
+      {unidades.length > 1 && <Botao icone={<Building2 aria-hidden="true" />} onClick={() => setEditando('unidade')}>Mudar unidade</Botao>}
+      <Botao icone={<Pencil aria-hidden="true" />} onClick={() => setEditando('dados')}>Corrigir</Botao>
       {d.status === 'em_revisao' && (
         <Botao variante="primario" icone={<Check aria-hidden="true" />} carregando={ocupado} disabled={!!semCategoria && !categoria} onClick={confirmarDespesa}>
           Confirmar despesa
@@ -64,10 +68,12 @@ export function DetalheDespesa({ id, aoFechar, confirmar }: { id: string | null;
 
   return (
     <>
-      <Gaveta aberta={!!id && !pagar} aoFechar={aoFechar} titulo={d?.descricao ?? 'Despesa'} subtitulo={d ? `${moeda(d.valor)} · ${nomeCategoria(cats.dados, d.categoria_codigo)}` : undefined} rodape={rodape} largura="media">
+      <Gaveta aberta={!!id && !pagar} aoFechar={aoFechar} titulo={d?.descricao ?? 'Despesa'} subtitulo={d ? `${moeda(d.valor)} · ${nome(d.categoria_codigo)}` : undefined} rodape={rodape} largura="media">
         <Dados consulta={consulta} recurso="A despesa" esqueleto={<Esqueleto linhas={8} />}>
           {(d: DespesaSaida) =>
-            editando ? (
+            editando === 'unidade' ? (
+              <MudarUnidade d={d} aoTerminar={(movida) => (movida ? aoFechar() : setEditando(false))} />
+            ) : editando ? (
               <Correcao d={d} aoTerminar={() => setEditando(false)} />
             ) : (
               <>
@@ -102,7 +108,7 @@ export function DetalheDespesa({ id, aoFechar, confirmar }: { id: string | null;
                   <dt>Competência</dt>
                   <dd>{dataCurta(d.competencia, { ano: true })}</dd>
                   <dt>Categoria</dt>
-                  <dd>{nomeCategoria(cats.dados, d.categoria_codigo)}</dd>
+                  <dd>{nome(d.categoria_codigo)}</dd>
                   <dt>Fornecedor</dt>
                   <dd>{d.fornecedor ? `${d.fornecedor.nome}${d.fornecedor.documento ? ` · ${d.fornecedor.documento}` : ''}` : <span class="fraco">Não informado</span>}</dd>
                   <dt>Origem</dt>
@@ -118,7 +124,7 @@ export function DetalheDespesa({ id, aoFechar, confirmar }: { id: string | null;
                     <dl class="definicoes">
                       {d.rateio.map((x) => (
                         <Fragment key={x.categoria}>
-                          <dt>{nomeCategoria(cats.dados, x.categoria)}</dt>
+                          <dt>{nome(x.categoria)}</dt>
                           <dd class="num">{moeda(x.valor)}</dd>
                         </Fragment>
                       ))}
@@ -163,17 +169,14 @@ export function DetalheDespesa({ id, aoFechar, confirmar }: { id: string | null;
                   ))}
                 </section>
 
-                <section class="pilha pilha--p">
-                  <h3 class="secao-titulo">Documento</h3>
-                  <Documento arquivoId={d.arquivo_id} altura={360} />
-                </section>
+                <Anexos despesaId={d.id} arquivoId={d.arquivo_id} />
 
                 {(d.historico?.length ?? 0) > 0 && (
                   <section class="pilha pilha--p">
                     <h3 class="secao-titulo">Histórico</h3>
                     <ul class="lista fraco">
                       {d.historico!.map((h, i) => (
-                        <li key={i} style={{ padding: '6px 0' }}>{dataHora(h.em)} · {h.acao.replace(/_/g, ' ')}{h.ator ? ` · ${h.ator}` : ''}</li>
+                        <li key={i} style={{ padding: '6px 0' }}>{dataHora(h.em)} · {h.acao.replace(/_/g, ' ')}{h.ator ? ` · ${h.ator}` : ''}{motivoDo(h.dados) ? <span> — “{motivoDo(h.dados)}”</span> : null}</li>
                       ))}
                     </ul>
                   </section>
@@ -191,6 +194,7 @@ export function DetalheDespesa({ id, aoFechar, confirmar }: { id: string | null;
 /** Correção auditada: só os campos mudados vão ao backend, com a versão lida e o motivo. */
 function Correcao({ d, aoTerminar }: { d: DespesaSaida; aoTerminar: () => void }) {
   const cats = useCategorias();
+  const nome = useNomeCategoria();
   const [descricao, setDescricao] = useState(d.descricao);
   const [valor, setValor] = useState(brl(d.valor));
   const [competencia, setCompetencia] = useState(d.competencia);
@@ -245,8 +249,8 @@ function Correcao({ d, aoTerminar }: { d: DespesaSaida; aoTerminar: () => void }
         <Campo rotulo="Categoria" class="inteiro">
           {(id) => (
             <select id={id} class="selecao" value={categoria} onChange={(e) => setCategoria(e.currentTarget.value)}>
-              {categoria === 'a_classificar' && <option value="a_classificar">A classificar</option>}
-              <OpcoesCategoria cats={cats.dados ?? []} />
+              {categoria === 'a_classificar' && <option value="a_classificar">Não classificado</option>}
+              <OpcoesCategoria cats={cats.dados ?? []} atual={{ codigo: d.categoria_codigo, nome: nome(d.categoria_codigo) }} />
             </select>
           )}
         </Campo>
@@ -257,6 +261,70 @@ function Correcao({ d, aoTerminar }: { d: DespesaSaida; aoTerminar: () => void }
       <div class="linha" style={{ justifyContent: 'flex-end' }}>
         <Botao onClick={aoTerminar} disabled={enviando}>Voltar</Botao>
         <Botao variante="primario" type="submit" carregando={enviando}>Salvar correção</Botao>
+      </div>
+    </form>
+  );
+}
+
+/** Motivo registrado num evento do histórico (correção, cancelamento, mudança de unidade), quando houver. */
+function motivoDo(dados: unknown): string | null {
+  const m = dados && typeof dados === 'object' ? (dados as { motivo?: unknown }).motivo : null;
+  return typeof m === 'string' && m.trim() ? m : null;
+}
+
+/** Despesa lançada na unidade errada (ex.: teste que entrou sem #teste) vai para a certa, com motivo e auditoria. */
+function MudarUnidade({ d, aoTerminar }: { d: DespesaSaida; aoTerminar: (movida: boolean) => void }) {
+  const { unidade: atual, unidades } = useUnidades();
+  const outras = unidades.filter((u) => u.codigo !== atual?.codigo);
+  const [unidade, setUnidade] = useState(outras[0]?.codigo ?? '');
+  const [motivo, setMotivo] = useState('');
+  const [erro, setErro] = useState<ErroApi | null>(null);
+  const [enviando, setEnviando] = useState(false);
+  const RECUSA: Record<string, string> = {
+    despesa_de_compra: 'Despesa de compra não muda de unidade: o estoque é da unidade. Cancele a compra no Estoque e lance de novo na unidade certa.',
+    despesa_conciliada: 'Um pagamento desta despesa está conciliado com o extrato: desfaça a conciliação antes.',
+    apuracao_fechada: 'O mês desta despesa já foi conferido ou fechado numa das duas unidades: reabra a apuração antes.',
+  };
+
+  async function salvar(e: Event) {
+    e.preventDefault();
+    if (!unidade) return setErro(new ErroApi('validacao', 'Escolha a unidade certa.', 0, null, { unidade: 'Escolha a unidade.' }));
+    if (motivo.trim().length < 5) return setErro(new ErroApi('validacao', 'Explique o motivo.', 0, null, { motivo: 'Pelo menos 5 caracteres.' }));
+    setEnviando(true);
+    setErro(null);
+    try {
+      await financeiro.mudarUnidadeDespesa(d.id, { unidade, versao: d.versao, motivo: motivo.trim() });
+      atualizarFinanceiro();
+      avisar(`Despesa levada para ${unidades.find((u) => u.codigo === unidade)?.nome ?? unidade}.`, 'ok');
+      aoTerminar(true);
+    } catch (err) {
+      const x = err instanceof ErroApi ? err : new ErroApi('servidor', 'Não foi possível mudar a unidade.');
+      if (x.codigo && RECUSA[x.codigo]) x.message = RECUSA[x.codigo];
+      if (x.tipo === 'conflito') atualizarFinanceiro();
+      setErro(x);
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <form class="pilha" onSubmit={salvar} noValidate aria-label="Mudar unidade">
+      <h3 class="secao-titulo">Mudar a despesa de unidade</h3>
+      <p class="fraco">Para lançamento feito na unidade errada. A despesa, as parcelas e os documentos ligados a ela vão juntos; a mudança fica no histórico com o seu motivo.</p>
+      {erro && <Aviso tom="perigo" icone={<Info aria-hidden="true" />}>{erro.message}</Aviso>}
+      <Campo rotulo="Unidade certa" erro={erro?.campos.unidade}>
+        {(id) => (
+          <select id={id} class="selecao" value={unidade} onChange={(e) => setUnidade(e.currentTarget.value)}>
+            {outras.map((u) => <option key={u.codigo} value={u.codigo}>{u.nome}</option>)}
+          </select>
+        )}
+      </Campo>
+      <Campo rotulo="Motivo" erro={erro?.campos.motivo}>
+        {(id) => <textarea id={id} class="area" maxLength={300} value={motivo} onInput={(e) => setMotivo(e.currentTarget.value)} placeholder="Ex.: lançamento de teste enviado sem #teste" />}
+      </Campo>
+      <div class="linha" style={{ justifyContent: 'flex-end' }}>
+        <Botao onClick={() => aoTerminar(false)} disabled={enviando}>Voltar</Botao>
+        <Botao variante="primario" type="submit" carregando={enviando}>Mudar unidade</Botao>
       </div>
     </form>
   );

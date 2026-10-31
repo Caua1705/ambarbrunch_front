@@ -33,7 +33,7 @@ Módulos e abas (paridade com o painel antigo):
 | Clientes (Gerente e Proprietário; acompanha a liberação de Reservas) | lista com busca, ficha com histórico, canais e consentimentos, edição (`clientes.editar`) |
 | Atendimento | caixa, conversa, assumir/transferir, responder, devolver ao assistente, encerrar |
 | Clube Âmbar | (ainda não lançado ao público; selo "em breve") |
-| Financeiro | Resumo, Vendas (Eyemobile), Lançamentos (+ Banco/conciliação), Contas a pagar, Revisão (despesas e documentos da Júlia), Resultado (+ fechamento e participação — Proprietário), Contas fixas e taxas |
+| Financeiro | Resumo, Vendas (Eyemobile), Lançamentos (+ Banco/conciliação), Contas a pagar, Revisão (despesas e documentos da Júlia: corrigir leitura, pago × a pagar, vincular a conta/pagamento/despesa já lançados), Resultado (+ fechamento e participação — Proprietário), Contas fixas e taxas, Categorias (por unidade, do banco) |
 | Estoque | Resumo, Compras, Insumos, Fichas técnicas, Contagem, Cancelamentos, Análises |
 
 **Unidade de negócio.** Toda consulta vai com `?unidade=<codigo>` da unidade do topo — o servidor do painel grava o
@@ -152,7 +152,7 @@ valor indisponível vira "R$ 0,00".
 | Configurações | `reservas/configuracao/{unidade}`, `…/politica`, `reservas/ambientes/{id}`, `reservas/regras/{id}`, `usuarios` (equipe) |
 | Atendimento | `atendimento/resumo`, `atendimento/conversas` (busca com 2+ letras), `…/{id}`, `…/mensagens`, `…/responder`, `…/assumir`, `…/devolver`, `…/encerrar`, `atendimento/falhas` |
 | Visão Geral | `visao-geral`, `visao-geral/radar`, `financeiro/resumo`, `financeiro/relatorios/evolucao`, `estoque/compras`, `atendimento/resumo`, `reservas/operacao` |
-| Financeiro | `financeiro/resumo`, `relatorios/vendas`, `lancamentos`, `despesas` (+ confirmar/cancelar), `outras-receitas` (+ cancelar), `contas-a-pagar`, `parcelas/{id}/pagamentos`, `pagamentos/{id}/estornar`, `revisao`, `revisao/documentos/{id}/resolver`, `comprovantes/{id}/enviar-para-compras`, `relatorios/resultado`, `relatorios/despesas-por-categoria`, `fechamento/{mes}`, `apuracoes/{mes}` (+ conferir/fechar/reabrir, `participacao`), `recorrencias`, `taxas-pagamento`, `conciliacao/*`, `extratos/*`, `contas-bancarias`, `categorias`, `fornecedores`, `arquivos/{id}/url` |
+| Financeiro | `financeiro/resumo`, `relatorios/vendas`, `lancamentos`, `despesas` (+ confirmar/cancelar), `outras-receitas` (+ cancelar), `contas-a-pagar`, `parcelas/{id}/pagamentos`, `pagamentos/{id}/estornar`, `revisao`, `revisao/documentos/{id}` (GET/PATCH) e `…/resolver`, `despesas/{id}/documentos`, `despesas/{id}/unidade`, `comprovantes/{id}/enviar-para-compras`, `relatorios/resultado`, `relatorios/despesas-por-categoria`, `fechamento/{mes}`, `apuracoes/{mes}` (+ conferir/fechar/reabrir, `participacao`), `recorrencias`, `taxas-pagamento`, `conciliacao/*`, `extratos/*`, `contas-bancarias`, `categorias` (GET/POST/PATCH, `PUT …/{codigo}/unidades/{unidade}`), `fornecedores`, `arquivos/{id}/url` |
 | Estoque | `estoque/resumo`, `compras` (+ manual, confirmar, cancelar, reprocessar, itens), `insumos` (+ movimentos), `insumos-sugestoes` (um objeto), `perdas`, `fichas/{produto|preparo}/{id}`, `inventarios` (+ sugestão, itens, fechar, cancelar), `cancelamentos` (+ resolver), `analises/{cmv,produtos,cardapio,fornecedores,reposicao,ruptura}` |
 
 ## 5. Contrato: o que foi conferido e ainda vale saber
@@ -174,6 +174,29 @@ Ainda sem rota no backend (as telas não inventam): auditoria geral/"atividade r
 reservas e compras); recuperação de senha (só CLI); `cliente_id` na reserva (não dá para abrir a ficha do cliente a
 partir da reserva); `atendimento/conversas` sem `total` (até 100 por filtro). O painel não precisa de CORS: quem chama
 a API é o servidor do painel.
+
+## 5a. Financeiro: documentos da Júlia e categorias (backend 3f37bf1, migrações 0018 e 0019)
+
+Implementado no painel conforme `HANDOFF-FRONT-REVISAO-CATEGORIAS.md` e o contrato §5.1–5.7 do backend. **Só publica
+depois do backend 3f37bf1 com as migrações 0018 e 0019 e os workflows da Júlia atualizados**: no backend antigo as rotas
+novas respondem 404/405 (a tela mostra "ainda não está no ar", não quebra).
+
+- **Revisão:** a fila é normalizada em `lib/api/financeiro.ts` (lista ausente vira vazia; a despesa que vinha misturada
+  em `candidatas` antes da 0018 vai para `despesas_candidatas` — era o que quebrava a lista). Cada documento mostra a
+  categoria da Júlia (`categoria_codigo` + `classificacao.origem`/`opcoes`), já escolhida no seletor; "Corrigir leitura"
+  (PATCH com versão e motivo; 409 recarrega; "Leitura original da IA" quando corrigido; mudar a unidade tira o documento
+  da fila); "Marcar como paga" só para comprovante/recibo/ambíguo (`candidatas`); boleto → "Vincular a esta conta"
+  (`contas_candidatas`); comprovante → "Vincular a este pagamento" (`pagamentos_candidatos`); nota → "Vincular a esta
+  despesa" (`despesas_candidatas`). "Registrar como despesa" pede **Já está pago × É uma conta a pagar** (ambíguo exige;
+  nota e boleto começam em "a pagar"), com data do pagamento e forma ou vencimento.
+- **Despesa:** anexos de `despesas/{id}/documentos` (um por arquivo, com o papel) e "Mudar unidade" (409
+  `despesa_de_compra`, `despesa_conciliada`, `apuracao_fechada` explicados); o histórico mostra o motivo.
+- **Categorias (aba nova):** cadastro de `categorias?todas=true&incluir_inativas=true`; criar (código estável, grupo,
+  descrição, apelidos que a Júlia reconhece, padrão, unidades), editar, ativar/desativar na unidade do topo e no
+  cadastro; excluir não existe. **Nenhuma lista de categorias no código:** todo seletor usa `categorias?unidade=` (só as
+  válidas) e os nomes de lançamentos antigos vêm do cadastro (`useNomeCategoria`).
+- **Demonstração:** `servidor/demo/financeiro.ts` imita as rotas novas e tem as duas unidades (`ambar_cafe`,
+  `ambar_teste`); testes em `tests-painel/financeiro-revisao.spec.ts` e `financeiro-categorias.spec.ts`.
 
 ## 5b. Modo Operação (tablet do café)
 

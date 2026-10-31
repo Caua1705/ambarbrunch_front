@@ -1,13 +1,13 @@
-// Rótulos e utilidades do Financeiro, comuns às sete abas.
+// Rótulos e utilidades do Financeiro, comuns às abas.
 import { createContext } from 'preact';
 import { useContext } from 'preact/hooks';
 import { useConsulta, invalidar } from '../../lib/consulta';
 import { financeiro } from '../../lib/api/financeiro';
 import { Situacao, Etiqueta, type Tom } from '../../ui/base';
-import type { Categoria, NivelQualidade, Qualidade, SituacaoConta, EstadoConciliacao, FormaPagamento, NivelConciliacao } from '../../lib/tipos/financeiro';
+import type { Categoria, NivelQualidade, Qualidade, SituacaoConta, EstadoConciliacao, FormaPagamento, NivelConciliacao, TipoDocumento } from '../../lib/tipos/financeiro';
 import { ErroApi } from '../../lib/api/cliente';
 import { avisar, avisarErro } from '../../ui/camadas';
-import type { Papel, Usuario } from '../../lib/sessao';
+import type { Papel, Usuario, Unidade } from '../../lib/sessao';
 
 // Permissões do Financeiro como o backend decide (GET /admin/auth/me → usuario.permissoes). Sem a lista (demonstração,
 // sessão antiga), vale o espelho da matriz do backend (app/modulos/usuarios/permissoes.py). Só esconde o que a pessoa
@@ -149,6 +149,48 @@ export const MOTIVO_REVISAO: Record<string, string> = {
   nota_de_pagamento_lancado: 'Nota de pagamento já lançado',
   valor_a_confirmar: 'Conta de valor variável',
   identificador_repetido: 'Identificador já usado',
+  // 0018 (documentos da Júlia)
+  tipo_em_conflito: 'A legenda não combina com o documento',
+  pode_ser_conta_lancada: 'Pode ser de uma conta já lançada',
+  pode_ser_pagamento_registrado: 'Pode ser de um pagamento já lançado',
+  movimentacao_nao_despesa: 'Troco, aporte, retirada ou transferência (não é despesa)',
+  corrigido: 'Corrigido no painel',
+};
+// Comprovante sem data ou com data estranha: o mesmo aviso nos dois casos (a data fica à mão para corrigir).
+MOTIVO_REVISAO.sem_data = MOTIVO_REVISAO.data_suspeita = 'Data do pagamento a conferir';
+
+export const TIPO_DOC: Record<TipoDocumento, string> = {
+  comprovante_pagamento: 'Comprovante de pagamento',
+  boleto: 'Boleto',
+  recibo: 'Recibo',
+  nota_compra: 'Nota fiscal',
+  ambiguo: 'Documento não identificado',
+};
+
+/** Como a Júlia chegou à categoria (classificacao.origem). */
+export const ORIGEM_CLASSIFICACAO: Record<string, string> = {
+  legenda: 'pela legenda',
+  legenda_ia: 'pela legenda e pela IA',
+  fornecedor: 'pelo fornecedor',
+  ia: 'pela IA',
+  sugestao_ia: 'sugestão da IA, a confirmar',
+  conflito: 'a confirmar (legenda e IA discordam)',
+  ambigua: 'a confirmar (mais de uma possível)',
+  sem_evidencia: 'a confirmar (sem pista)',
+  movimentacao: 'não é despesa',
+  painel: 'corrigida no painel',
+};
+
+/** Em que papel um arquivo aparece numa despesa (GET …/despesas/{id}/documentos → papeis[]). */
+export const PAPEL_ANEXO: Record<string, string> = {
+  despesa: 'Documento do lançamento',
+  pagamento: 'Comprovante do pagamento',
+  compra: 'Nota da compra',
+  comprovante_pagamento: 'Comprovante enviado à Júlia',
+  recibo: 'Recibo enviado à Júlia',
+  boleto: 'Boleto enviado à Júlia',
+  nota_compra: 'Nota fiscal enviada à Júlia',
+  ambiguo: 'Documento enviado à Júlia',
 };
 
 export const CLASSIFICACOES: { valor: string; rotulo: string; ajuda: string; direcao?: 'credito' | 'debito' }[] = [
@@ -160,42 +202,81 @@ export const CLASSIFICACOES: { valor: string; rotulo: string; ajuda: string; dir
   { valor: 'nao_operacional', rotulo: 'Não operacional (explique)', ajuda: 'Fora da operação. Exige observação.' },
 ];
 
-/** Categorias ativas (operador também lê), usadas em filtros e formulários. */
+// Categorias (§5.7): dados do banco, por unidade — nenhuma lista fixa aqui. Duas consultas:
+//  - `useCategorias`: só as VÁLIDAS na unidade do topo (GET …/categorias?unidade=, sem `todas`) → todo seletor de
+//    lançamento (Nova despesa, Revisão, Detalhe, Contas fixas, Banco). Categoria nova ou reativada aparece sozinha.
+//  - `useCadastroCategorias`: o cadastro inteiro (todas=true&incluir_inativas=true) → tela Categorias e o NOME de
+//    lançamentos antigos, que continuam com categorias que não valem mais na unidade (aluguel, energia…).
+
+/** Categorias válidas na unidade (operador também lê): o que os seletores oferecem. */
 export function useCategorias() {
   return useConsulta('financeiro/categorias', () => financeiro.categorias());
 }
 
+export function useCadastroCategorias() {
+  return useConsulta('financeiro/categorias?todas', () => financeiro.cadastroCategorias());
+}
+
+/** Nome de qualquer categoria (inclusive fora de uso), pelo cadastro; sem ele, pelas válidas; sem nada, o código. */
+export function useNomeCategoria() {
+  const cadastro = useCadastroCategorias();
+  const validas = useCategorias();
+  return (codigo: string | null | undefined) => nomeCategoria([...(cadastro.dados ?? []), ...(validas.dados ?? [])], codigo);
+}
+
 export function nomeCategoria(cats: Categoria[] | undefined, codigo: string | null | undefined) {
   if (!codigo) return '—';
+  if (codigo === 'a_classificar') return cats?.find((c) => c.codigo === codigo)?.nome ?? 'Não classificado';
   return cats?.find((c) => c.codigo === codigo)?.nome ?? codigo;
 }
 
+/** Categoria que pode ir num lançamento novo desta unidade. */
+export const categoriaValida = (c: Categoria) => c.ativo && c.ativa_na_unidade !== false && !c.pendencia && c.grupo !== 'pendente';
+
 export const GRUPO: Record<string, string> = {
-  compras_estoque: 'Compras de estoque',
+  compras_estoque: 'Compra para estoque (CMV)',
   pessoal: 'Pessoal',
-  ocupacao: 'Ocupação',
+  ocupacao: 'Fixo / ocupação',
   operacional: 'Operacional',
   marketing: 'Marketing',
-  impostos: 'Impostos',
+  impostos: 'Tributos',
   financeiro: 'Financeiro',
   investimento: 'Investimento',
-  retirada: 'Retirada de sócios',
+  retirada: 'Retirada',
   repasse: 'Repasse',
-  pendente: 'A classificar',
+  pendente: 'Não classificado',
 };
 
-/** Select de categorias agrupadas (só ativas; "A classificar" fica de fora — é o que se está corrigindo). Retiradas de
- *  sócios só para quem tem financeiro.ver_societario: para os outros o backend recusa (403), como no painel antigo. */
-export function OpcoesCategoria({ cats }: { cats: Categoria[] }) {
+/** O que cada grupo significa no resultado (tela Categorias e formulário). */
+export const GRUPO_AJUDA: Record<string, string> = {
+  compras_estoque: 'Entra no CMV pela compra para o estoque.',
+  pessoal: 'Salários, encargos e benefícios.',
+  ocupacao: 'Custos fixos do ponto: aluguel, energia, água, internet.',
+  operacional: 'Despesas do dia a dia: limpeza, xerox, transporte, manutenção.',
+  marketing: 'Divulgação e eventos de marketing.',
+  impostos: 'Impostos e taxas do governo.',
+  financeiro: 'Tarifas bancárias, juros e taxas de cartão.',
+  investimento: 'Aquisição de bem (equipamento, obra): fica fora do resultado.',
+  retirada: 'Retirada dos sócios: fica fora do resultado.',
+  repasse: 'Dinheiro que só passa pelo caixa (ex.: taxa de serviço): fica fora do resultado.',
+};
+
+/** Select de categorias agrupadas: só as válidas na unidade ("Não classificado" fica de fora — é o que se está
+ *  corrigindo). Retiradas de sócios só para quem tem financeiro.ver_societario: para os outros o backend recusa (403).
+ *  `atual`: categoria que o registro já tem e que não vale mais aqui — aparece desabilitada para a tela não mentir. */
+export function OpcoesCategoria({ cats, atual }: { cats: Categoria[]; atual?: { codigo: string; nome: string } | null }) {
   const societario = usePermissao('financeiro.ver_societario');
   const grupos = new Map<string, Categoria[]>();
-  for (const c of cats.filter((c) => c.ativo && c.grupo !== 'pendente' && (societario || c.grupo !== 'retirada'))) {
+  const validas = cats.filter((c) => categoriaValida(c) && (societario || c.grupo !== 'retirada'));
+  for (const c of [...validas].sort((a, b) => (a.ordem ?? 100) - (b.ordem ?? 100))) {
     const g = grupos.get(c.grupo) ?? [];
     g.push(c);
     grupos.set(c.grupo, g);
   }
+  const foraDeUso = atual && atual.codigo !== 'a_classificar' && !validas.some((c) => c.codigo === atual.codigo);
   return (
     <>
+      {foraDeUso && <option value={atual.codigo} disabled>{atual.nome} (fora de uso nesta unidade)</option>}
       {[...grupos].map(([g, lista]) => (
         <optgroup key={g} label={GRUPO[g] ?? g}>
           {lista.map((c) => (
@@ -206,6 +287,10 @@ export function OpcoesCategoria({ cats }: { cats: Categoria[] }) {
     </>
   );
 }
+
+/** Unidades do topo para as partes do módulo que mudam a unidade de um documento ou lançamento. */
+export const UnidadesFinanceiro = createContext<{ unidade: Unidade | null; unidades: Unidade[] }>({ unidade: null, unidades: [] });
+export const useUnidades = () => useContext(UnidadesFinanceiro);
 
 /** Meios de pagamento registrados no PDV (relatório de vendas e taxas do cartão/PIX). */
 export const MEIO: Record<string, string> = {

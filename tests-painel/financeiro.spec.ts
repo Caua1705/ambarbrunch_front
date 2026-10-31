@@ -1,15 +1,15 @@
-// Financeiro na demonstração: as sete abas do painel antigo, os endereços antigos ainda abrindo a aba certa e o que é só
-// do Proprietário (participação da Roll) — a gerente não vê na tela e a rota responde 403, como no backend.
+// Financeiro na demonstração: as sete abas do painel antigo mais Categorias (0019), os endereços antigos ainda abrindo a
+// aba certa e o que é só do Proprietário (participação da Roll) — a gerente não vê na tela e a rota responde 403.
 import { test, expect } from '@playwright/test';
 import { DEMO, entrarDemo } from './apoio';
 
-const ABAS = [/^Resumo/, /^Vendas/, /^Lançamentos/, /^Contas a pagar/, /^Revisão/, /^Resultado/, /^Contas fixas e taxas/];
+const ABAS = [/^Resumo/, /^Vendas/, /^Lançamentos/, /^Contas a pagar/, /^Revisão/, /^Resultado/, /^Contas fixas e taxas/, /^Categorias/];
 
-test('sete abas; endereços antigos (relatorios, revisar=1) caem na aba nova', async ({ page }) => {
+test('oito abas; endereços antigos (relatorios, revisar=1) caem na aba nova', async ({ page }) => {
   await entrarDemo(page, 'gerente');
   await page.goto(`${DEMO}/admin/financeiro`);
   const abas = page.getByRole('tablist', { name: 'Seções' }).getByRole('tab');
-  await expect(abas).toHaveCount(7);
+  await expect(abas).toHaveCount(8);
   for (const [i, nome] of ABAS.entries()) await expect(abas.nth(i)).toHaveText(nome);
 
   await page.goto(`${DEMO}/admin/financeiro?aba=relatorios`);

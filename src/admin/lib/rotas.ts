@@ -24,6 +24,7 @@ export function rotaPainel(rota: string | null | undefined): string | null {
   if (fechamento) return `/admin/financeiro?aba=resultado&vista=fechamento${fechamento[1] ? `&mes=${fechamento[1]}` : ''}`;
   if (caminho.startsWith('/admin/financeiro/relatorios') || caminho.startsWith('/admin/financeiro/apuracoes')) return '/admin/financeiro?aba=resultado';
   if (caminho.startsWith('/admin/financeiro/recorrencias') || caminho.startsWith('/admin/financeiro/taxas-pagamento')) return '/admin/financeiro?aba=contas-fixas';
+  if (caminho.startsWith('/admin/financeiro/categorias')) return '/admin/financeiro?aba=categorias';
   if (caminho.startsWith('/admin/financeiro')) return '/admin/financeiro';
   if (caminho.startsWith('/admin/reservas')) return '/admin/reservas';
   if (caminho.startsWith('/admin/atendimento')) return '/admin/atendimento';

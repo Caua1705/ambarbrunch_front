@@ -14,7 +14,7 @@ import { Botao, Cabecalho, Cartao, Segmentado } from '../../ui/base';
 import { Dados, EsqueletoTabela, Vazio } from '../../ui/estados';
 import { Tabela, type Coluna } from '../../ui/tabela';
 import type { Lancamento, ListaLancamentos, TipoLancamento } from '../../lib/tipos/financeiro';
-import { ORIGEM, TIPO_LANCAMENTO, SituacaoLancamento, useCategorias, nomeCategoria, temPermissao, atualizarFinanceiro } from './comum';
+import { ORIGEM, TIPO_LANCAMENTO, SituacaoLancamento, useCadastroCategorias, nomeCategoria, temPermissao, atualizarFinanceiro } from './comum';
 import { NovaDespesa } from './NovaDespesa';
 import { NovaReceita } from './NovaReceita';
 import { DetalheDespesa } from './DetalheDespesa';
@@ -72,7 +72,8 @@ export function Lancamentos({ contexto, ir }: { contexto: ContextoPainel; ir: Ir
   const [despesa, setDespesa] = useState<string | null>(lerParam('despesa'));
   const [importacao, setImportacao] = useState<string | null>(null);
   const { confirmar, elemento: dialogo } = useConfirmacao();
-  const cats = useCategorias();
+  // Cadastro inteiro: lançamento antigo continua com categoria que não vale mais (aluguel, energia…) e precisa de nome e filtro.
+  const cats = useCadastroCategorias();
 
   useEffect(() => gravarParams({ vista: vista === 'banco' ? 'banco' : null, despesa }), [vista, despesa]);
   useEffect(() => {
@@ -199,7 +200,7 @@ export function Lancamentos({ contexto, ir }: { contexto: ContextoPainel; ir: Ir
             </select>
             <select class="selecao" aria-label="Categoria" value={categoria} onChange={(e) => setCategoria(e.currentTarget.value)}>
               <option value="">Todas as categorias</option>
-              {(cats.dados ?? []).filter((c) => c.ativo).map((c) => <option key={c.codigo} value={c.codigo}>{c.nome}</option>)}
+              {[...(cats.dados ?? [])].sort((a, b) => Number(b.ativa_na_unidade !== false) - Number(a.ativa_na_unidade !== false) || (a.ordem ?? 100) - (b.ordem ?? 100)).map((c) => <option key={c.codigo} value={c.codigo}>{c.nome}{c.ativa_na_unidade === false ? ' (fora de uso)' : ''}</option>)}
             </select>
             <select class="selecao" aria-label="Origem" value={origem} onChange={(e) => setOrigem(e.currentTarget.value)}>
               <option value="">Todas as origens</option>

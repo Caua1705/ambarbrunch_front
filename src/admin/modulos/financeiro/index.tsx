@@ -1,5 +1,6 @@
-// Financeiro: exatamente sete abas, as mesmas do painel antigo do backend (app/painel/financeiro.html): Resumo, Vendas,
-// Lançamentos, Contas a pagar, Revisão, Resultado e Contas fixas e taxas. A conciliação bancária (Banco, extratos) vive
+// Financeiro: as sete abas do painel antigo do backend (app/painel/financeiro.html) — Resumo, Vendas, Lançamentos,
+// Contas a pagar, Revisão, Resultado e Contas fixas e taxas — e Categorias (0019: categorias de despesa por unidade, que
+// a Júlia e os formulários usam). A conciliação bancária (Banco, extratos) vive
 // dentro de Lançamentos e o fechamento do mês dentro de Resultado — nunca como módulo próprio. Gerente e Proprietário;
 // o que é só do Proprietário (participação, fechar/reabrir) segue as permissões que o backend manda.
 import { useEffect, useState } from 'preact/hooks';
@@ -17,11 +18,12 @@ import { Contas } from './Contas';
 import { Revisao } from './Revisao';
 import { Resultado } from './Resultado';
 import { ContasFixas } from './ContasFixas';
-import { UsuarioFinanceiro } from './comum';
+import { Categorias } from './Categorias';
+import { UsuarioFinanceiro, UnidadesFinanceiro } from './comum';
 import '../../estilos/financeiro.css';
 
-export type Aba = 'resumo' | 'vendas' | 'lancamentos' | 'contas' | 'revisao' | 'resultado' | 'contas-fixas';
-const ABAS: Aba[] = ['resumo', 'vendas', 'lancamentos', 'contas', 'revisao', 'resultado', 'contas-fixas'];
+export type Aba = 'resumo' | 'vendas' | 'lancamentos' | 'contas' | 'revisao' | 'resultado' | 'contas-fixas' | 'categorias';
+const ABAS: Aba[] = ['resumo', 'vendas', 'lancamentos', 'contas', 'revisao', 'resultado', 'contas-fixas', 'categorias'];
 
 /** Aba da URL, aceitando os endereços antigos (Visão Geral, Estoque e links salvos ainda usam alguns). */
 function abaDaUrl(): Aba {
@@ -57,6 +59,7 @@ function Conteudo({ contexto }: { contexto: ContextoPainel }) {
 
   return (
     <UsuarioFinanceiro.Provider value={contexto.usuario}>
+      <UnidadesFinanceiro.Provider value={{ unidade: contexto.unidade, unidades: contexto.unidades }}>
       <Raiz>
         <Abas<Aba>
           atual={aba}
@@ -69,6 +72,7 @@ function Conteudo({ contexto }: { contexto: ContextoPainel }) {
             { id: 'revisao', rotulo: 'Revisão', contagem: revisar },
             { id: 'resultado', rotulo: 'Resultado' },
             { id: 'contas-fixas', rotulo: 'Contas fixas e taxas' },
+            { id: 'categorias', rotulo: 'Categorias' },
           ]}
         />
         <div role="tabpanel" id={`painel-${aba}`} aria-labelledby={`aba-${aba}`} class="pilha" style={{ gap: '20px' }}>
@@ -79,8 +83,10 @@ function Conteudo({ contexto }: { contexto: ContextoPainel }) {
           {aba === 'revisao' && <Revisao contexto={contexto} />}
           {aba === 'resultado' && <Resultado contexto={contexto} />}
           {aba === 'contas-fixas' && <ContasFixas contexto={contexto} />}
+          {aba === 'categorias' && <Categorias contexto={contexto} />}
         </div>
       </Raiz>
+      </UnidadesFinanceiro.Provider>
     </UsuarioFinanceiro.Provider>
   );
 }

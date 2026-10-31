@@ -15,7 +15,7 @@ import { Botao, Cabecalho, Cartao, Segmentado, Etiqueta, Campo, Aviso, Situacao 
 import { EntradaMoeda } from '../../ui/entradas';
 import { Dados, EsqueletoTabela, Vazio } from '../../ui/estados';
 import type { MeioPdv, Recorrencia, TaxaPagamento } from '../../lib/tipos/financeiro';
-import { useCategorias, nomeCategoria, OpcoesCategoria, atualizarFinanceiro, avisar, temPermissao, MEIO } from './comum';
+import { useCategorias, useNomeCategoria, OpcoesCategoria, atualizarFinanceiro, avisar, temPermissao, MEIO } from './comum';
 
 const brl = (v: string) => Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -35,7 +35,7 @@ export function ContasFixas({ contexto }: { contexto: ContextoPainel }) {
 function Recorrencias({ lancar }: { lancar: boolean }) {
   const [ver, setVer] = useState<'ativas' | 'todas'>('ativas');
   const consulta = useConsulta(`financeiro/recorrencias:${ver}`, () => financeiro.recorrencias(ver === 'ativas'));
-  const cats = useCategorias();
+  const nome = useNomeCategoria();
   const [editar, setEditar] = useState<Recorrencia | 'nova' | null>(null);
   const [encerrar, setEncerrar] = useState<Recorrencia | null>(null);
   return (
@@ -60,7 +60,7 @@ function Recorrencias({ lancar }: { lancar: boolean }) {
                     <span class="lista__texto" style={{ minWidth: '200px' }}>
                       <strong>{r.descricao}{!r.ativo && <span class="fraco"> · encerrada</span>}</strong>
                       <span>
-                        {[r.fornecedor?.nome, nomeCategoria(cats.dados, r.categoria_codigo), `todo dia ${r.dia_vencimento}`, r.intervalo_meses > 1 ? `a cada ${r.intervalo_meses} meses` : null].filter(Boolean).join(' · ')}
+                        {[r.fornecedor?.nome, nome(r.categoria_codigo), `todo dia ${r.dia_vencimento}`, r.intervalo_meses > 1 ? `a cada ${r.intervalo_meses} meses` : null].filter(Boolean).join(' · ')}
                       </span>
                       <span class="fraco">
                         Desde {dataCurta(r.inicio, { ano: true })}{r.fim ? ` até ${dataCurta(r.fim, { ano: true })}` : ''}

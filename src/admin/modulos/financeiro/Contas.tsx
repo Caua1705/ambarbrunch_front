@@ -13,7 +13,7 @@ import { Botao, Cabecalho, Cartao, Segmentado, Situacao, Etiqueta } from '../../
 import { Dados, EsqueletoTabela, Vazio } from '../../ui/estados';
 import { Tabela, type Coluna } from '../../ui/tabela';
 import type { ContaPagar, ListaContas } from '../../lib/tipos/financeiro';
-import { SITUACAO_CONTA, useCategorias, nomeCategoria, temPermissao } from './comum';
+import { SITUACAO_CONTA, useNomeCategoria, temPermissao } from './comum';
 import { Pagar, type ContaParaPagar } from './Pagar';
 import { DetalheDespesa } from './DetalheDespesa';
 import type { IrPara } from './index';
@@ -28,7 +28,7 @@ export function Contas({ contexto, ir }: { contexto: ContextoPainel; ir: IrPara 
   const [pagar, setPagar] = useState<ContaParaPagar | null>(null);
   const [despesa, setDespesa] = useState<string | null>(null);
   const { confirmar, elemento: dialogo } = useConfirmacao();
-  const cats = useCategorias();
+  const nome = useNomeCategoria();
   useEffect(() => gravarParams({ situacao: filtro === 'abertas' ? null : filtro }), [filtro]);
 
   // Pagas e todas: dos últimos meses (a lista completa não cabe numa tela).
@@ -46,7 +46,7 @@ export function Contas({ contexto, ir }: { contexto: ContextoPainel; ir: IrPara 
           <span class="principal-celula">{c.descricao}{c.numero > 1 || c.compra_id ? <span class="fraco"> · {c.numero}ª</span> : null}</span>
           <span class="sub">
             <span class="fin-so-celular"><strong style={{ color: c.situacao_painel === 'vencida' ? 'var(--perigo)' : undefined }}>{SITUACAO_CONTA[c.situacao_painel].rotulo}</strong> · {dataCurta(c.vencimento)} · </span>
-            {[c.fornecedor, nomeCategoria(cats.dados, c.categoria)].filter(Boolean).join(' · ')}
+            {[c.fornecedor, nome(c.categoria)].filter(Boolean).join(' · ')}
             {c.recorrencia_id && ' · Conta fixa'}
           </span>
         </>

@@ -192,12 +192,45 @@ export interface PagamentoEntrada {
 }
 
 export type GrupoCategoria = 'compras_estoque' | 'pessoal' | 'ocupacao' | 'operacional' | 'marketing' | 'impostos' | 'financeiro' | 'investimento' | 'retirada' | 'repasse' | 'pendente';
+/** Categoria de despesa (§5.7, 0019): dado do banco, por unidade. Os campos depois de `ativo` chegam com a 0019; o
+ *  backend antigo manda só os cinco primeiros (por isso opcionais). */
 export interface Categoria {
   codigo: string;
   nome: string;
   grupo: GrupoCategoria;
   aliases: string[];
+  /** Ativa no cadastro todo. */
   ativo: boolean;
+  descricao?: string | null;
+  /** Nasce ativa em unidade nova. */
+  padrao?: boolean;
+  ordem?: number;
+  /** "Não classificado": a pendência de classificação, nunca uma categoria de despesa. */
+  pendencia?: boolean;
+  /** Ativa na unidade do topo (só com ?unidade=). */
+  ativa_na_unidade?: boolean | null;
+  /** Códigos das unidades onde está ativa. */
+  unidades?: string[];
+  /** Lançamentos que a usam (categoria em uso não se exclui: desativa-se). */
+  em_uso?: number;
+}
+
+export interface CategoriaEntrada {
+  codigo: string;
+  nome: string;
+  grupo: Exclude<GrupoCategoria, 'pendente'>;
+  descricao?: string | null;
+  aliases?: string[];
+  padrao?: boolean;
+  unidades?: string[];
+}
+
+export interface CategoriaAlteracao {
+  nome?: string;
+  descricao?: string | null;
+  aliases?: string[];
+  padrao?: boolean;
+  ativo?: boolean;
 }
 
 export interface Recorrencia {
@@ -219,6 +252,7 @@ export interface Recorrencia {
 
 export type Evidencia = 'mesmo_beneficiario' | 'valor_exato' | 'identificador_da_transacao' | 'mesma_linha_digitavel' | 'sem_boleto_a_conferir' | 'obrigacao_definida';
 
+/** Conta aberta que o COMPROVANTE pode pagar (`candidatas`) → `pagar_parcela`. */
 export interface CandidataRevisao {
   parcela_id: string;
   despesa_id: string;
@@ -229,6 +263,64 @@ export interface CandidataRevisao {
   forca: 'forte' | 'fraca';
   evidencias: string[];
   faltando: string[];
+}
+
+/** Conta a pagar já lançada que o BOLETO pode ser (`contas_candidatas`) → `vincular_despesa`, nunca "marcar como paga". */
+export interface ContaCandidata {
+  parcela_id: string | null;
+  despesa_id: string;
+  descricao: string;
+  fornecedor: string | null;
+  saldo: Dec | null;
+  vencimento: Data | null;
+  valor_a_confirmar?: boolean;
+}
+
+/** Pagamento lançado à mão (sem comprovante) que o COMPROVANTE pode provar (`pagamentos_candidatos`) → `vincular_pagamento`. */
+export interface PagamentoCandidato {
+  pagamento_id: string;
+  parcela_id: string | null;
+  despesa_id: string;
+  pago_em: Data | null;
+  valor: Dec | null;
+  forma: string | null;
+  descricao: string;
+  fornecedor: string | null;
+}
+
+/** Despesa já lançada que a NOTA pode cobrir (`despesas_candidatas`) → `vincular_despesa`. */
+export interface DespesaCandidata {
+  despesa_id: string;
+  descricao: string;
+  valor: Dec | null;
+  competencia: Data | null;
+  forca?: 'forte' | 'fraca';
+}
+
+/** Como a Júlia chegou à categoria do documento (§5.7). */
+export interface ClassificacaoDocumento {
+  codigo?: string | null;
+  origem?: 'legenda' | 'legenda_ia' | 'fornecedor' | 'ia' | 'conflito' | 'ambigua' | 'sugestao_ia' | 'sem_evidencia' | 'movimentacao' | 'painel' | string;
+  confianca?: string | null;
+  opcoes?: string[];
+  motivo?: string | null;
+  anterior?: string | null;
+  ia?: { codigo?: string | null; sugeriu?: string | null; confianca?: string | null; alternativas?: string[]; natureza?: string | null } | null;
+}
+
+export type TipoDocumento = 'comprovante_pagamento' | 'boleto' | 'recibo' | 'nota_compra' | 'ambiguo';
+
+/** Anexo de uma despesa (GET /admin/financeiro/despesas/{id}/documentos, §5.5): um por arquivo. */
+export interface AnexoDespesa {
+  arquivo_id: Uuid;
+  nome: string | null;
+  mime: string | null;
+  tipo_arquivo: string | null;
+  papeis: string[];
+  pagamento_id: Uuid | null;
+  comprovante_id: Uuid | null;
+  compra_id: Uuid | null;
+  criado_em: Instante | null;
 }
 
 export interface DespesaRevisao {
@@ -245,29 +337,76 @@ export interface DespesaRevisao {
   fornecedor: string | null;
 }
 
+export type LeituraDocumento = Partial<{
+  tipo_documento: string;
+  valor: string;
+  data: string;
+  vencimento: string;
+  recebedor_nome: string;
+  recebedor_documento: string;
+  identificador_transacao: string;
+  linha_digitavel: string;
+  descricao: string;
+  categoria_sugerida: string;
+  forma: string;
+}>;
+
+/** Documento do grupo pendente (§5.2). Normalizado em lib/api/financeiro.ts: as listas sempre existem, mesmo quando o
+ *  backend antigo não as manda (ou manda a lista antiga misturada em `candidatas`). */
 export interface DocumentoRevisao {
   id: Uuid;
-  tipo_documento: 'comprovante_pagamento' | 'boleto' | 'recibo' | 'nota_compra' | 'ambiguo';
+  unidade_negocio_id?: number;
+  tipo_documento: TipoDocumento;
+  situacao?: string;
   legenda: string | null;
   autor_nome: string | null;
-  extraido: Partial<{
-    tipo_documento: string;
-    valor: string;
-    data: string;
-    vencimento: string;
-    recebedor_nome: string;
-    recebedor_documento: string;
-    identificador_transacao: string;
-    linha_digitavel: string;
-    descricao: string;
-    categoria_sugerida: string;
-    forma: string;
-  }>;
+  extraido: LeituraDocumento;
+  /** Leitura da IA antes da 1ª correção no painel (null sem correção). */
+  extraido_original?: LeituraDocumento | null;
+  corrigido_por?: string | null;
+  corrigido_em?: Instante | null;
+  versao?: number;
   motivos: string[];
   candidatas: CandidataRevisao[];
+  contas_candidatas: ContaCandidata[];
+  pagamentos_candidatos: PagamentoCandidato[];
+  despesas_candidatas: DespesaCandidata[];
   arquivo_id: Uuid | null;
+  despesa_id?: Uuid | null;
+  pagamento_id?: Uuid | null;
+  compra_id?: Uuid | null;
+  /** Categoria decidida (pela Júlia ou corrigida no painel); null quando ficou para a gerência escolher. */
+  categoria_codigo?: string | null;
+  classificacao: ClassificacaoDocumento;
   criado_em: Instante;
 }
+
+/** PATCH /admin/financeiro/revisao/documentos/{id} (§5.3): campo ausente fica; `null` apaga a leitura errada. */
+export interface CorrecaoDocumento {
+  versao: number;
+  motivo: string;
+  tipo_documento?: TipoDocumento;
+  valor?: Dec | null;
+  data?: Data | null;
+  vencimento?: Data | null;
+  recebedor_nome?: string | null;
+  recebedor_documento?: string | null;
+  identificador_transacao?: string | null;
+  linha_digitavel?: string | null;
+  forma?: FormaPagamento | null;
+  descricao?: string | null;
+  unidade?: string;
+  categoria?: string;
+}
+
+/** POST …/resolver (§5.4). */
+export type ResolucaoDocumento = { versao?: number; motivo?: string; valor?: Dec; data?: Data; vencimento?: Data; forma?: FormaPagamento } & (
+  | { acao: 'pagar_parcela'; parcela_id: string }
+  | { acao: 'registrar_despesa'; categoria?: string; paga?: boolean }
+  | { acao: 'vincular_despesa'; despesa_id: string }
+  | { acao: 'vincular_pagamento'; pagamento_id: string }
+  | { acao: 'descartar'; motivo: string }
+);
 
 export interface FilaRevisao {
   despesas: { total: number; itens: DespesaRevisao[] };

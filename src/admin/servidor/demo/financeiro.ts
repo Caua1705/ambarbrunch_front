@@ -13,7 +13,7 @@ import type {
   Categoria, DespesaSaida, ParcelaSaida, PagamentoSaida, Recorrencia, DocumentoRevisao, ContaBancaria, Importacao,
   MovimentoBancario, NivelConciliacao, ContaPagar, Lancamento, MesEvolucao, ResultadoMes, Qualidade,
   NivelQualidade, ItemFechamento, EstadoConciliacao, EstadoContaMes, FormaPagamento, TaxaPagamento, MeioPdv,
-  AgrupamentoVendas, PeriodoVendas, SimulacaoParticipacao, MovimentoBancario as Mov,
+  AgrupamentoVendas, PeriodoVendas, SimulacaoParticipacao, MovimentoBancario as Mov, TipoDocumento,
 } from '../../lib/tipos/financeiro';
 import type { RadarInsight, VisaoGeral } from '../../lib/tipos/visao-geral';
 
@@ -21,17 +21,52 @@ const TODOS: Papel[] = ['admin', 'gerente', 'operador'];
 const GERENCIA: Papel[] = ['admin', 'gerente'];
 const ADMIN: Papel[] = ['admin'];
 
-const C = (codigo: string, nome: string, grupo: Categoria['grupo']): Categoria => ({ codigo, nome, grupo, aliases: [], ativo: true });
-const CATEGORIAS: Categoria[] = [
-  C('compras_insumos', 'Insumos e mercadorias', 'compras_estoque'), C('embalagens', 'Embalagens e descartáveis', 'compras_estoque'), C('bebidas_revenda', 'Bebidas para revenda', 'compras_estoque'),
-  C('folha', 'Salários', 'pessoal'), C('encargos', 'Encargos (INSS, FGTS)', 'pessoal'), C('diarias_extras', 'Diárias e extras', 'pessoal'), C('beneficios', 'Benefícios (VT, alimentação)', 'pessoal'), C('pro_labore', 'Pró-labore', 'pessoal'),
+// Categorias como no banco depois da 0019 (§5.7): as 7 do Âmbar ativas nas duas unidades; as antigas continuam no
+// cadastro (lançamentos as usam) mas não valem em unidade nenhuma; "Não classificado" é a pendência.
+interface CategoriaDemo extends Categoria { ativas: Set<string> }
+const UNIDADES: Record<string, number> = { ambar_cafe: 1, ambar_teste: 11 };
+const AMBAS = () => new Set(Object.keys(UNIDADES));
+const C = (codigo: string, nome: string, grupo: Categoria['grupo'], extra: Partial<CategoriaDemo> = {}): CategoriaDemo =>
+  ({ codigo, nome, grupo, aliases: [], ativo: true, descricao: null, padrao: false, ordem: 200, pendencia: false, ativas: new Set<string>(), ...extra });
+const CATEGORIAS: CategoriaDemo[] = [
+  C('compras_insumos', 'Insumos', 'compras_estoque', { ordem: 10, padrao: true, ativas: AMBAS(), descricao: 'Alimentos e bebidas que viram produto: hortifruti, laticínios, café, farinhas.', aliases: ['insumo', 'insumos', 'hortifruti', 'mercado', 'atacado', 'feira'] }),
+  C('embalagens', 'Embalagens', 'compras_estoque', { ordem: 20, padrao: true, ativas: AMBAS(), descricao: 'Descartáveis e embalagens de entrega.', aliases: ['embalagem', 'descartavel', 'copo', 'sacola', 'guardanapo'] }),
+  C('folha', 'Folha', 'pessoal', { ordem: 30, padrao: true, ativas: AMBAS(), descricao: 'Salários, diárias, encargos e benefícios da equipe.', aliases: ['salario', 'folha', 'diaria', 'vale transporte', 'fgts', 'inss'] }),
+  C('fixo', 'Fixo', 'ocupacao', { ordem: 35, padrao: true, ativas: AMBAS(), descricao: 'Aluguel, energia, água, gás, internet e sistemas.', aliases: ['aluguel', 'energia', 'luz', 'agua', 'gas', 'internet', 'condominio', 'iptu'] }),
+  C('operacional', 'Operacional', 'operacional', { ordem: 40, padrao: true, ativas: AMBAS(), descricao: 'Xerox, papelaria, limpeza, transporte, manutenção, marketing e despesas gerais.', aliases: ['xerox', 'papelaria', 'limpeza', 'transporte', 'uber', 'manutencao', 'conserto', 'marketing'] }),
+  C('obras_e_equipamentos', 'Obras e equipamentos', 'investimento', { ordem: 50, padrao: true, ativas: AMBAS(), descricao: 'Aquisição de equipamento e obra (fora do resultado). Conserto e manutenção são Operacional.', aliases: ['obra', 'reforma', 'equipamento', 'freezer', 'forno'] }),
+  C('impostos', 'Tributos', 'impostos', { ordem: 60, padrao: true, ativas: AMBAS(), descricao: 'DAS, ISS, taxas e impostos.', aliases: ['imposto', 'das', 'simples', 'iss', 'tributo'] }),
+  // antigas (antes da 0019): no cadastro, fora de uso nas unidades
+  C('bebidas_revenda', 'Bebidas para revenda', 'compras_estoque'), C('encargos', 'Encargos (INSS, FGTS)', 'pessoal'), C('diarias_extras', 'Diárias e extras', 'pessoal'), C('beneficios', 'Benefícios (VT, alimentação)', 'pessoal'), C('pro_labore', 'Pró-labore', 'pessoal'),
   C('aluguel', 'Aluguel', 'ocupacao'), C('condominio_iptu', 'Condomínio e IPTU', 'ocupacao'), C('energia', 'Energia', 'ocupacao'), C('agua', 'Água', 'ocupacao'), C('gas', 'Gás', 'ocupacao'),
   C('limpeza_higiene', 'Limpeza e higiene', 'operacional'), C('manutencao', 'Manutenção', 'operacional'), C('transporte', 'Transporte', 'operacional'), C('sistemas_assinaturas', 'Sistemas e assinaturas', 'operacional'), C('servicos_terceiros', 'Serviços de terceiros', 'operacional'), C('utensilios', 'Utensílios', 'operacional'), C('outras_operacionais', 'Outras despesas operacionais', 'operacional'),
-  C('marketing', 'Marketing', 'marketing'), C('impostos', 'Impostos', 'impostos'), C('tarifas_bancarias', 'Tarifas bancárias', 'financeiro'), C('taxas_cartao', 'Taxas de cartão', 'financeiro'), C('juros', 'Juros e multas', 'financeiro'),
+  C('marketing', 'Marketing', 'marketing'), C('tarifas_bancarias', 'Tarifas bancárias', 'financeiro'), C('taxas_cartao', 'Taxas de cartão', 'financeiro'), C('juros', 'Juros e multas', 'financeiro'),
   C('obras_reformas', 'Obras e reformas', 'investimento'), C('equipamentos', 'Equipamentos', 'investimento'), C('distribuicao_socios', 'Distribuição aos sócios', 'retirada'), C('repasse_taxa_servico', 'Repasse da taxa de serviço', 'repasse'),
-  C('a_classificar', 'A classificar', 'pendente'),
+  C('a_classificar', 'Não classificado', 'pendente', { ordem: 999, pendencia: true }),
 ];
 const grupoDe = (cat: string) => CATEGORIAS.find((c) => c.codigo === cat)?.grupo ?? 'operacional';
+
+/** Unidade da consulta (a ponte manda ?unidade= do topo). */
+function unidadeDa(q: URLSearchParams): string {
+  const u = q.get('unidade') ?? 'ambar_cafe';
+  if (!(u in UNIDADES)) throw new ErroDemo(403, 'acesso_negado', 'Você não tem acesso a esta unidade.');
+  return u;
+}
+const idUnidade = (q: URLSearchParams) => UNIDADES[unidadeDa(q)];
+const codigoUnidade = (id: number) => Object.entries(UNIDADES).find(([, v]) => v === id)?.[0] ?? 'ambar_cafe';
+const valeNa = (c: CategoriaDemo, unidade: string) => c.ativo && !c.pendencia && c.ativas.has(unidade);
+function saidaCategoria(c: CategoriaDemo, unidade: string | null): Categoria {
+  const { ativas, ...resto } = c;
+  const em_uso = E.despesas.filter((d) => d.categoria_codigo === c.codigo).length + E.recorrencias.filter((r) => r.categoria_codigo === c.codigo).length;
+  return { ...resto, aliases: [...c.aliases], ativa_na_unidade: unidade === null ? null : c.pendencia || ativas.has(unidade), unidades: [...ativas], em_uso };
+}
+/** Lançamento novo só com categoria ativa na unidade (a pendência sempre vale): senão 422, como o backend. */
+function exigirCategoria(codigo: string | undefined | null, unidade: string) {
+  if (!codigo || codigo === 'a_classificar') return;
+  const c = CATEGORIAS.find((x) => x.codigo === codigo);
+  if (!c) throw new ErroDemo(422, 'categoria_inexistente', 'Categoria inexistente.');
+  if (!valeNa(c, unidade)) throw new ErroDemo(422, 'categoria_inativa_na_unidade', `A categoria “${c.nome}” não está ativa nesta unidade.`);
+}
 
 interface Fornecedor { id: string; nome: string; documento: string | null }
 interface Despesa extends DespesaSaida { historico: NonNullable<DespesaSaida['historico']> }
@@ -48,7 +83,7 @@ const E: {
   receitas: { id: string; descricao: string; valor: string; competencia: string; recebido_em: string | null; status: 'confirmada' | 'cancelada'; chave?: string | null }[];
   taxas: TaxaPagamento[];
   recorrencias: Recorrencia[];
-  documentos: (DocumentoRevisao & { resolvido?: string })[];
+  documentos: DocDemo[];
   contas: ContaBancaria[];
   importacoes: Importacao[];
   movimentos: MovimentoBancario[];
@@ -70,6 +105,18 @@ function arquivoFalso(titulo: string, linhas: string[]): string {
   const a: Arquivo = { id: id(), mime: 'image/svg+xml', titulo, linhas };
   E.arquivos.set(a.id, a);
   return a.id;
+}
+
+/** Documento do grupo como a Júlia grava (§5.2), pendente na unidade dada. `resolvido` = situação depois de resolver. */
+type DocDemo = DocumentoRevisao & { resolvido?: string; unidade: string };
+function docJulia(o: Partial<DocumentoRevisao> & Pick<DocumentoRevisao, 'tipo_documento' | 'extraido' | 'arquivo_id' | 'criado_em'>, unidade = 'ambar_cafe'): DocDemo {
+  const d: DocDemo = {
+    id: id(), unidade_negocio_id: UNIDADES[unidade], situacao: 'pendente', legenda: null, autor_nome: null, extraido_original: null, corrigido_por: null, corrigido_em: null, versao: 1,
+    motivos: [], candidatas: [], contas_candidatas: [], pagamentos_candidatos: [], despesas_candidatas: [], despesa_id: null, pagamento_id: null, compra_id: null,
+    categoria_codigo: null, classificacao: {}, ...o, unidade,
+  };
+  E.documentos.push(d);
+  return d;
 }
 
 function fornecedor(nome: string, documento: string | null = null): Fornecedor {
@@ -172,25 +219,72 @@ function montar() {
   // Comprovantes da Júlia pendentes
   const energiaAberta = E.despesas.find((d) => d.categoria_codigo === 'energia' && d.parcelas[0].situacao === 'aberta')!;
   const contab = E.despesas.find((d) => d.categoria_codigo === 'servicos_terceiros' && d.parcelas[0].situacao === 'aberta');
-  E.documentos.push({
-    id: id(), tipo_documento: 'comprovante_pagamento', legenda: 'paguei a luz', autor_nome: 'Otávio (equipe)', motivos: ['conta_compativel', 'valor_a_confirmar'],
-    extraido: { valor: '2481.37', data: dia(0, hoje), recebedor_nome: 'ENEL DISTRIBUICAO CEARA', recebedor_documento: '07.047.251/0001-70', identificador_transacao: 'E00416968202610281342abcdEF12', forma: 'pix', categoria_sugerida: 'energia' },
+  void contab;
+  const minutos = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
+  // Comprovante que paga a conta de energia em aberto (pagar_parcela).
+  docJulia({
+    tipo_documento: 'comprovante_pagamento', legenda: 'paguei a luz', autor_nome: 'Otávio (equipe)', motivos: ['conta_compativel', 'valor_a_confirmar'],
+    extraido: { valor: '2481.37', data: dia(0, hoje), recebedor_nome: 'ENEL DISTRIBUICAO CEARA', recebedor_documento: '07.047.251/0001-70', identificador_transacao: 'E00416968202610281342abcdEF12', forma: 'pix', categoria_sugerida: 'fixo' },
+    categoria_codigo: 'fixo', classificacao: { codigo: 'fixo', origem: 'legenda', confianca: 'alta', opcoes: [] },
     candidatas: [{ parcela_id: energiaAberta.parcelas[0].id, despesa_id: energiaAberta.id, vencimento: energiaAberta.parcelas[0].vencimento, saldo: energiaAberta.parcelas[0].saldo, descricao: energiaAberta.descricao, fornecedor: 'Enel Distribuição Ceará', forca: 'forte', evidencias: ['mesmo_beneficiario', 'identificador_da_transacao'], faltando: ['valor_exato', 'obrigacao_definida'] }],
-    arquivo_id: arquivoFalso('Comprovante Pix', ['Pix enviado', 'R$ 2.481,37', 'ENEL DISTRIBUICAO CEARA', 'CNPJ 07.047.251/0001-70']), criado_em: new Date(Date.now() - 50 * 60_000).toISOString(),
+    arquivo_id: arquivoFalso('Comprovante Pix', ['Pix enviado', 'R$ 2.481,37', 'ENEL DISTRIBUICAO CEARA', 'CNPJ 07.047.251/0001-70']), criado_em: minutos(50),
   });
-  E.documentos.push({
-    id: id(), tipo_documento: 'boleto', legenda: null, autor_nome: 'Gabriela (demo)', motivos: ['documento_ambiguo'],
-    extraido: { valor: '1350.00', vencimento: dia(3, hoje), recebedor_nome: 'CONTABIL FORTALEZA LTDA', linha_digitavel: '23793.38128 60000.000003 00000.000400 1 98760000135000', categoria_sugerida: 'servicos_terceiros' },
-    candidatas: contab ? [
-      { parcela_id: contab.parcelas[0].id, despesa_id: contab.id, vencimento: contab.parcelas[0].vencimento, saldo: contab.parcelas[0].saldo, descricao: contab.descricao, fornecedor: 'Contábil Fortaleza', forca: 'fraca', evidencias: ['valor_exato', 'obrigacao_definida'], faltando: ['mesmo_beneficiario', 'mesma_linha_digitavel'] },
-    ] : [],
-    arquivo_id: arquivoFalso('Boleto', ['Boleto bancário', 'Contábil Fortaleza', 'R$ 1.350,00']), criado_em: new Date(Date.now() - 26 * 3600_000).toISOString(),
+  // Boleto que pode ser uma conta já lançada (vincular_despesa; nunca "marcar como paga").
+  const honorarios = novaDespesa({ descricao: 'Honorários contábeis', valor: 1350, competencia: dia(-2, hoje), categoria: 'operacional', fornecedor: fornecedor('Contábil Fortaleza', '22333444000155'), origem: 'painel', parcelas: [{ vencimento: dia(3, hoje), valor: 1350 }] });
+  docJulia({
+    tipo_documento: 'boleto', legenda: 'boleto da contabilidade', autor_nome: 'Gabriela (demo)', motivos: ['pode_ser_conta_lancada'],
+    extraido: { valor: '1350.00', vencimento: dia(3, hoje), recebedor_nome: 'CONTABIL FORTALEZA LTDA', linha_digitavel: '23793.38128 60000.000003 00000.000400 1 98760000135000', categoria_sugerida: 'operacional' },
+    categoria_codigo: 'operacional', classificacao: { codigo: 'operacional', origem: 'fornecedor', confianca: 'alta', opcoes: [] },
+    contas_candidatas: [{ parcela_id: honorarios.parcelas[0].id, despesa_id: honorarios.id, descricao: honorarios.descricao, fornecedor: 'Contábil Fortaleza', saldo: honorarios.parcelas[0].saldo, vencimento: honorarios.parcelas[0].vencimento, valor_a_confirmar: false }],
+    arquivo_id: arquivoFalso('Boleto', ['Boleto bancário', 'Contábil Fortaleza', 'R$ 1.350,00']), criado_em: minutos(26 * 60),
   });
-  E.documentos.push({
-    id: id(), tipo_documento: 'nota_compra', legenda: 'nota do hortifruti', autor_nome: 'Otávio (equipe)', motivos: ['nota_sem_sinal_objetivo'],
-    extraido: { valor: '418.90', data: dia(-1, hoje), recebedor_nome: 'HORTIFRUTI MUCURIPE', descricao: 'NFC-e 004512', categoria_sugerida: 'compras_insumos' },
-    candidatas: [], arquivo_id: arquivoFalso('NFC-e', ['Hortifruti Mucuripe', 'NFC-e 004512', 'Banana, morango, hortelã…', 'Total R$ 418,90']), criado_em: new Date(Date.now() - 4 * 3600_000).toISOString(),
+  // Nota fiscal: vira conta a pagar (nunca paga sozinha).
+  docJulia({
+    tipo_documento: 'nota_compra', legenda: 'nota do hortifruti', autor_nome: 'Otávio (equipe)', motivos: ['nota_sem_sinal_objetivo'],
+    extraido: { valor: '418.90', data: dia(-1, hoje), vencimento: dia(14, hoje), recebedor_nome: 'HORTIFRUTI MUCURIPE', descricao: 'NFC-e 004512', categoria_sugerida: 'compras_insumos' },
+    categoria_codigo: 'compras_insumos', classificacao: { codigo: 'compras_insumos', origem: 'fornecedor', confianca: 'alta', opcoes: [] },
+    arquivo_id: arquivoFalso('NFC-e', ['Hortifruti Mucuripe', 'NFC-e 004512', 'Banana, morango, hortelã…', 'Total R$ 418,90']), criado_em: minutos(4 * 60),
   });
+  // Xerox: a legenda decide a categoria (Operacional); a data lida veio errada (ano trocado).
+  docJulia({
+    tipo_documento: 'comprovante_pagamento', legenda: 'xerox dos cardápios', autor_nome: 'Otávio (equipe)', motivos: ['data_suspeita'],
+    extraido: { valor: '18.50', data: dia(-730, hoje), recebedor_nome: 'COPIADORA CENTRAL', forma: 'pix', categoria_sugerida: 'operacional' },
+    categoria_codigo: 'operacional', classificacao: { codigo: 'operacional', origem: 'legenda', confianca: 'alta', opcoes: [], ia: { codigo: 'operacional', sugeriu: 'operacional', confianca: 'alta', alternativas: [], natureza: 'despesa' } },
+    arquivo_id: arquivoFalso('Comprovante Pix', ['Pix enviado', 'R$ 18,50', 'Copiadora Central', 'xerox']), criado_em: minutos(35),
+  });
+  // Comprovante sem data: fica pendente até a gerência dizer quando foi pago.
+  docJulia({
+    tipo_documento: 'comprovante_pagamento', legenda: 'produtos de limpeza', autor_nome: 'Gabriela (demo)', motivos: ['sem_data'],
+    extraido: { valor: '64.00', recebedor_nome: 'LIMPEZA TOTAL DISTRIBUIDORA', forma: 'pix', categoria_sugerida: 'operacional' },
+    categoria_codigo: 'operacional', classificacao: { codigo: 'operacional', origem: 'legenda_ia', confianca: 'alta', opcoes: [] },
+    arquivo_id: arquivoFalso('Comprovante Pix', ['Pix enviado', 'R$ 64,00', 'Limpeza Total', 'data ilegível']), criado_em: minutos(80),
+  });
+  // Comprovante de um pagamento já lançado à mão (vincular_pagamento).
+  const gas = novaDespesa({ descricao: 'Gás de cozinha — botijões', valor: 180, competencia: dia(-1, hoje), categoria: 'fixo', fornecedor: fornecedor('Gás do Bairro', null), origem: 'painel', parcelas: [{ vencimento: dia(-1, hoje), valor: 180, paga_em: dia(-1, hoje), forma: 'pix' }] });
+  const pgGas = gas.parcelas[0].pagamentos[0];
+  docJulia({
+    tipo_documento: 'comprovante_pagamento', legenda: 'pix do gás', autor_nome: 'Otávio (equipe)', motivos: ['pode_ser_pagamento_registrado'],
+    extraido: { valor: '180.00', data: dia(-1, hoje), recebedor_nome: 'GAS DO BAIRRO', identificador_transacao: 'E00416968202610291200gasGAS1', forma: 'pix', categoria_sugerida: 'fixo' },
+    categoria_codigo: 'fixo', classificacao: { codigo: 'fixo', origem: 'legenda', confianca: 'alta', opcoes: [] },
+    pagamentos_candidatos: [{ pagamento_id: pgGas.id, parcela_id: gas.parcelas[0].id, despesa_id: gas.id, pago_em: pgGas.pago_em, valor: pgGas.valor, forma: pgGas.forma, descricao: gas.descricao, fornecedor: 'Gás do Bairro' }],
+    arquivo_id: arquivoFalso('Comprovante Pix', ['Pix enviado', 'R$ 180,00', 'Gás do Bairro']), criado_em: minutos(20),
+  });
+  // Documento ambíguo: a legenda fala de boleto, a IA leu um Pix. Ninguém sabe se está pago: a gerência diz.
+  docJulia({
+    tipo_documento: 'ambiguo', legenda: 'boleto do toldo', autor_nome: 'Gabriela (demo)', motivos: ['tipo_em_conflito', 'documento_ambiguo'],
+    extraido: { valor: '350.00', data: dia(-1, hoje), recebedor_nome: 'TOLDOS CEARA' },
+    categoria_codigo: null, classificacao: { codigo: null, origem: 'ambigua', confianca: 'baixa', opcoes: ['operacional', 'obras_e_equipamentos'] },
+    arquivo_id: arquivoFalso('Documento', ['Toldos Ceará', 'R$ 350,00', 'boleto? pix?']), criado_em: minutos(15),
+  });
+  // Teste que entrou na unidade real sem #teste: a gerência leva para a unidade de testes.
+  docJulia({
+    tipo_documento: 'comprovante_pagamento', legenda: 'teste de envio da Júlia', autor_nome: 'Gabriela (demo)', motivos: ['documento_ambiguo'],
+    extraido: { valor: '1.00', data: dia(0, hoje), recebedor_nome: 'TESTE JULIA', forma: 'pix' },
+    categoria_codigo: null, classificacao: { codigo: null, origem: 'sem_evidencia', confianca: 'baixa', opcoes: [] },
+    arquivo_id: arquivoFalso('Comprovante Pix', ['Pix enviado', 'R$ 1,00', 'teste']), criado_em: minutos(5),
+  });
+  // Despesa de teste lançada na unidade real (para "Mudar unidade").
+  novaDespesa({ descricao: 'Teste lançado sem #teste', valor: 1, competencia: dia(0, hoje), categoria: 'operacional', origem: 'julia', parcelas: [{ vencimento: dia(0, hoje), valor: 1, paga_em: dia(0, hoje) }] });
 
   // Banco
   const conta: ContaBancaria = { id: id(), unidade_negocio_id: 1, instituicao: 'Itaú', codigo_banco: '341', apelido: 'Itaú principal', agencia: '…0421', conta: '…5520', reconhece_ofx: true, escopo: 'operacional', status: 'ativa', versao: 1, criado_em: instante(dia(-90, hoje)) };
@@ -278,7 +372,7 @@ function situacaoPainel(p: ParcelaSaida): ContaPagar['situacao_painel'] {
 function contasAPagar(): ContaPagar[] {
   return vivas().flatMap((d) =>
     d.parcelas.filter((p) => p.situacao !== 'cancelada').map((p) => ({
-      parcela_id: p.id, despesa_id: d.id, unidade_negocio_id: 1, descricao: d.descricao, categoria: d.categoria_codigo, grupo: d.grupo, fornecedor_id: d.fornecedor?.id ?? null, fornecedor: d.fornecedor?.nome ?? null,
+      parcela_id: p.id, despesa_id: d.id, unidade_negocio_id: d.unidade_negocio_id, descricao: d.descricao, categoria: d.categoria_codigo, grupo: d.grupo, fornecedor_id: d.fornecedor?.id ?? null, fornecedor: d.fornecedor?.nome ?? null,
       numero: p.numero, vencimento: p.vencimento, valor: p.valor, valor_pago: p.valor_pago, saldo: p.saldo, situacao: p.situacao === 'paga' ? 'paga' : 'aberta', status_despesa: d.status === 'em_revisao' ? 'em_revisao' : 'confirmada',
       valor_a_confirmar: d.valor_a_confirmar, recorrencia_id: d.recorrencia_id, compra_id: d.compra_id, situacao_painel: situacaoPainel(p),
     } as ContaPagar)),
@@ -292,7 +386,7 @@ function resumoContas() {
   return { vencidas: g((c) => c.vencimento < hoje), hoje: g((c) => c.vencimento === hoje), proximas: g((c) => c.vencimento > hoje && c.vencimento <= dia(7, hoje)) };
 }
 
-const pendentesRevisao = () => ({ despesas: vivas().filter((d) => d.status === 'em_revisao').length, documentos: E.documentos.filter((d) => !d.resolvido).length });
+const pendentesRevisao = (un = 'ambar_cafe') => ({ despesas: vivas().filter((d) => d.status === 'em_revisao' && d.unidade_negocio_id === UNIDADES[un]).length, documentos: E.documentos.filter((d) => !d.resolvido && d.unidade === un).length });
 
 function calcularMes(mes: string): ResultadoMes {
   const hoje = hojeFortaleza();
@@ -565,6 +659,60 @@ function pagarParcela(parcelaId: string, valor: number, pago_em: string, forma: 
   return { d, p, pg };
 }
 
+function achaDoc(i: string) {
+  montar();
+  const doc = E.documentos.find((x) => x.id === i);
+  if (!doc) throw new ErroDemo(404, 'nao_encontrado', 'Documento não encontrado.');
+  return doc;
+}
+/** Documento como a API devolve (sem os campos internos da demonstração). */
+function saidaDoc(doc: DocDemo): DocumentoRevisao {
+  const { resolvido, unidade, ...d } = doc;
+  void unidade;
+  return { ...d, situacao: resolvido ?? 'pendente' };
+}
+const CORRIGIVEIS = ['valor', 'data', 'vencimento', 'recebedor_nome', 'recebedor_documento', 'identificador_transacao', 'linha_digitavel', 'forma', 'descricao'] as const;
+/** Correção da leitura (§5.3): só pendente, com versão e motivo; a leitura da IA fica em extraido_original (uma vez). */
+function corrigirDoc(doc: DocDemo, c: Record<string, unknown> & { versao?: number; tipo_documento?: TipoDocumento | null; unidade?: string | null; categoria?: string | null }, motivo: unknown) {
+  if (doc.resolvido) throw new ErroDemo(409, 'ja_resolvido', 'Este documento já foi resolvido.');
+  conferirVersao(doc.versao ?? 1, c.versao);
+  exigirMotivo(motivo);
+  const novo = { ...doc.extraido } as Record<string, string>;
+  for (const k of CORRIGIVEIS) {
+    if (!(k in c)) continue;
+    const v = c[k];
+    if (v == null || v === '') delete novo[k];
+    else novo[k] = String(v);
+  }
+  if (novo.valor != null && !(Number(novo.valor) > 0)) throw new ErroDemo(422, 'regra_violada', 'O valor precisa ser maior que zero.');
+  if (c.unidade && !(c.unidade in UNIDADES)) throw new ErroDemo(403, 'acesso_negado', 'Você não tem acesso a esta unidade.');
+  const unidade = c.unidade ?? doc.unidade;
+  if (c.categoria) exigirCategoria(c.categoria, unidade);
+  doc.extraido_original ??= { ...doc.extraido };
+  doc.extraido = novo;
+  if (c.tipo_documento) doc.tipo_documento = c.tipo_documento;
+  if (unidade !== doc.unidade) {
+    doc.unidade = unidade;
+    doc.unidade_negocio_id = UNIDADES[unidade];
+    const cat = CATEGORIAS.find((x) => x.codigo === doc.categoria_codigo);
+    if (cat && !valeNa(cat, unidade)) doc.categoria_codigo = null;
+  }
+  if (c.categoria) {
+    doc.classificacao = { ...doc.classificacao, codigo: c.categoria, origem: 'painel', confianca: 'alta', opcoes: [], motivo: null, anterior: doc.categoria_codigo ?? null };
+    doc.categoria_codigo = c.categoria;
+  }
+  // Motivos recalculados: data e valor conferidos saem; a correção fica marcada.
+  const hoje = hojeFortaleza();
+  const dataBoa = !!novo.data && novo.data <= hoje && novo.data >= dia(-365, hoje);
+  doc.motivos = doc.motivos.filter((m) => !((m === 'sem_data' || m === 'data_suspeita') && dataBoa) && !(m === 'sem_valor' && novo.valor));
+  if (!doc.motivos.includes('corrigido')) doc.motivos.push('corrigido');
+  // Boleto e nota não pagam conta: as candidatas de pagamento deixam de valer.
+  if (doc.tipo_documento === 'boleto' || doc.tipo_documento === 'nota_compra') { doc.candidatas = []; doc.pagamentos_candidatos = []; }
+  doc.corrigido_por = 'Usuário (demo)';
+  doc.corrigido_em = agora();
+  doc.versao = (doc.versao ?? 1) + 1;
+}
+
 async function lerMultipart(c: Contexto) {
   try {
     return await c.request.formData();
@@ -574,13 +722,59 @@ async function lerMultipart(c: Contexto) {
 }
 
 export const ROTAS_FINANCEIRO: Rota[] = [
-  ['GET', R('financeiro/categorias'), TODOS, () => CATEGORIAS],
+  // Categorias (§5.7): com ?unidade= só as válidas nela (seletores); todas=true o cadastro (tela Categorias).
+  ['GET', R('financeiro/categorias'), TODOS, ({ query }) => {
+    montar();
+    const un = query.has('unidade') ? unidadeDa(query) : null;
+    const todas = query.get('todas') === 'true';
+    const lista = todas || !un ? CATEGORIAS.filter((c) => c.ativo || query.get('incluir_inativas') === 'true') : CATEGORIAS.filter((c) => valeNa(c, un));
+    return [...lista].sort((a, b) => (a.ordem ?? 100) - (b.ordem ?? 100) || a.nome.localeCompare(b.nome)).map((c) => saidaCategoria(c, un));
+  }],
+  ['POST', R('financeiro/categorias'), GERENCIA, async ({ corpo }) => {
+    montar();
+    const e = await corpo<{ codigo?: string; nome?: string; grupo?: string; descricao?: string | null; aliases?: string[]; padrao?: boolean; unidades?: string[] }>();
+    if (!e.codigo || !/^[a-z][a-z0-9_]{1,39}$/.test(e.codigo)) throw new ErroDemo(422, 'regra_violada', 'Código inválido: letras minúsculas, números e _, começando por letra.');
+    if (!e.nome?.trim()) throw new ErroDemo(422, 'regra_violada', 'Informe o nome.');
+    if (!e.grupo || !['compras_estoque', 'pessoal', 'ocupacao', 'operacional', 'marketing', 'impostos', 'financeiro', 'investimento', 'retirada', 'repasse'].includes(e.grupo)) throw new ErroDemo(422, 'regra_violada', 'Grupo inválido.');
+    if (CATEGORIAS.some((c) => c.codigo === e.codigo)) throw new ErroDemo(409, 'categoria_existe', 'Já existe uma categoria com este código.');
+    for (const u of e.unidades ?? []) if (!(u in UNIDADES)) throw new ErroDemo(403, 'acesso_negado', 'Você não tem acesso a esta unidade.');
+    const c = C(e.codigo, e.nome.trim(), e.grupo as Categoria['grupo'], { descricao: e.descricao ?? null, aliases: [...new Set((e.aliases ?? []).map((a) => a.trim().toLowerCase()).filter(Boolean))], padrao: !!e.padrao, ordem: 100, ativas: new Set(e.unidades ?? []) });
+    CATEGORIAS.push(c);
+    return resposta(201, saidaCategoria(c, null));
+  }],
+  ['PATCH', R('financeiro/categorias/([a-z][a-z0-9_]{1,39})'), GERENCIA, async ({ params, corpo }) => {
+    montar();
+    const c = CATEGORIAS.find((x) => x.codigo === params[0]);
+    if (!c) throw new ErroDemo(404, 'nao_encontrado', 'Categoria não encontrada.');
+    const e = await corpo<{ nome?: string | null; descricao?: string | null; aliases?: string[] | null; ativo?: boolean | null; padrao?: boolean | null }>();
+    if (c.pendencia && (e.ativo === false || e.padrao)) throw new ErroDemo(422, 'regra_violada', 'A pendência de classificação não pode ser desativada nem marcada como padrão.');
+    if (e.nome != null) { if (!e.nome.trim()) throw new ErroDemo(422, 'regra_violada', 'Informe o nome.'); c.nome = e.nome.trim(); }
+    if (e.descricao !== undefined) c.descricao = e.descricao;
+    if (e.aliases != null) c.aliases = [...new Set(e.aliases.map((a) => a.trim().toLowerCase()).filter(Boolean))];
+    if (e.ativo != null) c.ativo = e.ativo;
+    if (e.padrao != null) c.padrao = e.padrao;
+    return saidaCategoria(c, null);
+  }],
+  ['PUT', R('financeiro/categorias/([a-z][a-z0-9_]{1,39})/unidades/([a-z0-9_]+)'), GERENCIA, async ({ params, corpo }) => {
+    montar();
+    const c = CATEGORIAS.find((x) => x.codigo === params[0]);
+    if (!c) throw new ErroDemo(404, 'nao_encontrado', 'Categoria não encontrada.');
+    if (!(params[1] in UNIDADES)) throw new ErroDemo(403, 'acesso_negado', 'Você não tem acesso a esta unidade.');
+    if (c.pendencia) throw new ErroDemo(422, 'regra_violada', 'A pendência de classificação vale em todas as unidades.');
+    const { ativo } = await corpo<{ ativo?: boolean }>();
+    if (typeof ativo !== 'boolean') throw new ErroDemo(422, 'regra_violada', 'Informe ativo.');
+    if (ativo) c.ativas.add(params[1]); else c.ativas.delete(params[1]);
+    return saidaCategoria(c, params[1]);
+  }],
+  // Como o backend: categoria não se exclui (405).
+  ['DELETE', R('financeiro/categorias/([a-z][a-z0-9_]{1,39})'), GERENCIA, () => { throw new ErroDemo(405, 'metodo', 'Categoria não se exclui: desative.'); }],
   ['GET', R('financeiro/fornecedores'), TODOS, ({ query }) => { montar(); const b = (query.get('busca') ?? '').toLowerCase(); return E.fornecedores.filter((f) => f.nome.toLowerCase().includes(b)).slice(0, 20); }],
   ['GET', R('financeiro/resumo'), GERENCIA, () => { montar(); return resumoFinanceiro(); }],
-  ['GET', R('financeiro/revisao'), GERENCIA, () => {
+  ['GET', R('financeiro/revisao'), GERENCIA, ({ query }) => {
     montar();
-    const desp = vivas().filter((d) => d.status === 'em_revisao').map((d) => ({ id: d.id, descricao: d.descricao, valor: d.valor, competencia: d.competencia, categoria: d.categoria_codigo, motivos_revisao: d.motivos_revisao, origem: d.origem, arquivo_id: d.arquivo_id, criado_em: d.criado_em, versao: d.versao, fornecedor: d.fornecedor?.nome ?? null }));
-    const docs = E.documentos.filter((d) => !d.resolvido).map(({ resolvido, ...d }) => { void resolvido; return d; });
+    const un = unidadeDa(query);
+    const desp = vivas().filter((d) => d.status === 'em_revisao' && d.unidade_negocio_id === UNIDADES[un]).map((d) => ({ id: d.id, descricao: d.descricao, valor: d.valor, competencia: d.competencia, categoria: d.categoria_codigo, motivos_revisao: d.motivos_revisao, origem: d.origem, arquivo_id: d.arquivo_id, criado_em: d.criado_em, versao: d.versao, fornecedor: d.fornecedor?.nome ?? null }));
+    const docs = E.documentos.filter((d) => !d.resolvido && d.unidade === un).map(saidaDoc);
     return { despesas: { total: desp.length, itens: desp }, documentos: { total: docs.length, itens: docs } };
   }],
   ['GET', R('financeiro/lancamentos'), GERENCIA, ({ query, papel }) => {
@@ -589,8 +783,9 @@ export const ROTAS_FINANCEIRO: Rota[] = [
     const ate = query.get('ate') ?? '';
     const itens: Lancamento[] = [];
     for (const v of E.vendas.filter((x) => x.dia >= de && x.dia <= ate)) itens.push({ tipo: 'venda_dia', id: `1:${v.dia}`, data: v.dia, descricao: 'Vendas PDV', valor: d2(v.total), sinal: 1, categoria: null, origem: 'eyemobile', fornecedor_id: null, fornecedor: null, status: 'confirmada', tem_comprovante: false, compra_id: null, despesa_id: null, detalhes: { vendas: v.vendas, taxa_servico: d2(v.total * 0.08), total_vendido: d2(v.total * 1.035), descontos: d2(v.total * 0.03), recebido_pdv: d2(v.total * 1.08) } });
-    for (const d of E.despesas.filter((x) => x.competencia >= de && x.competencia <= ate)) itens.push({ tipo: 'despesa', id: d.id, data: d.competencia, descricao: d.descricao, valor: d.valor, sinal: -1, categoria: d.categoria_codigo, origem: d.origem, fornecedor_id: d.fornecedor?.id ?? null, fornecedor: d.fornecedor?.nome ?? null, status: d.status, tem_comprovante: !!d.arquivo_id, compra_id: d.compra_id, despesa_id: d.id, detalhes: { motivos_revisao: d.motivos_revisao, valor_a_confirmar: d.valor_a_confirmar, versao: d.versao } });
-    for (const d of E.despesas) for (const p of d.parcelas) for (const pg of p.pagamentos.filter((x) => x.pago_em >= de && x.pago_em <= ate)) itens.push({ tipo: 'pagamento', id: pg.id, data: pg.pago_em, descricao: d.descricao, valor: pg.valor, sinal: -1, categoria: d.categoria_codigo, origem: pg.origem, fornecedor_id: d.fornecedor?.id ?? null, fornecedor: d.fornecedor?.nome ?? null, status: pg.estornado_em ? 'estornado' : 'confirmado', tem_comprovante: !!pg.arquivo_id, compra_id: d.compra_id, despesa_id: d.id, detalhes: { forma: pg.forma, parcela_id: p.id, parcela: p.numero, conciliacao: pg.conciliacao } });
+    const un = idUnidade(query);
+    for (const d of E.despesas.filter((x) => x.competencia >= de && x.competencia <= ate && x.unidade_negocio_id === un)) itens.push({ tipo: 'despesa', id: d.id, data: d.competencia, descricao: d.descricao, valor: d.valor, sinal: -1, categoria: d.categoria_codigo, origem: d.origem, fornecedor_id: d.fornecedor?.id ?? null, fornecedor: d.fornecedor?.nome ?? null, status: d.status, tem_comprovante: !!d.arquivo_id, compra_id: d.compra_id, despesa_id: d.id, detalhes: { motivos_revisao: d.motivos_revisao, valor_a_confirmar: d.valor_a_confirmar, versao: d.versao } });
+    for (const d of E.despesas.filter((x) => x.unidade_negocio_id === un)) for (const p of d.parcelas) for (const pg of p.pagamentos.filter((x) => x.pago_em >= de && x.pago_em <= ate)) itens.push({ tipo: 'pagamento', id: pg.id, data: pg.pago_em, descricao: d.descricao, valor: pg.valor, sinal: -1, categoria: d.categoria_codigo, origem: pg.origem, fornecedor_id: d.fornecedor?.id ?? null, fornecedor: d.fornecedor?.nome ?? null, status: pg.estornado_em ? 'estornado' : 'confirmado', tem_comprovante: !!pg.arquivo_id, compra_id: d.compra_id, despesa_id: d.id, detalhes: { forma: pg.forma, parcela_id: p.id, parcela: p.numero, conciliacao: pg.conciliacao } });
     for (const r of E.receitas.filter((x) => x.competencia >= de && x.competencia <= ate)) itens.push({ tipo: 'outra_receita', id: r.id, data: r.competencia, descricao: r.descricao, valor: r.valor, sinal: 1, categoria: null, origem: 'painel', fornecedor_id: null, fornecedor: null, status: r.status, tem_comprovante: false, compra_id: null, despesa_id: null, detalhes: { recebido_em: r.recebido_em } });
     const tipo = query.get('tipo');
     const cat = query.get('categoria');
@@ -601,15 +796,18 @@ export const ROTAS_FINANCEIRO: Rota[] = [
     const soma = (fn: (l: Lancamento) => boolean) => d2(f.filter(fn).reduce((s, l) => s + Number(l.valor), 0));
     return { ...paginar(f, query), totais: { receita_pdv: soma((l) => l.tipo === 'venda_dia'), outras_receitas: soma((l) => l.tipo === 'outra_receita' && l.status === 'confirmada'), despesas_confirmadas: soma((l) => l.tipo === 'despesa' && l.status === 'confirmada'), despesas_em_revisao: soma((l) => l.tipo === 'despesa' && l.status === 'em_revisao'), pagamentos: soma((l) => l.tipo === 'pagamento' && l.status === 'confirmado') } };
   }],
-  ['POST', R('financeiro/despesas'), GERENCIA, async ({ corpo }) => {
+  ['POST', R('financeiro/despesas'), GERENCIA, async ({ corpo, query }) => {
     montar();
+    const un = unidadeDa(query);
     const e = await corpo<{ descricao?: string; valor?: string; competencia?: string; categoria?: string; fornecedor?: { nome?: string | null; documento?: string | null } | null; arquivo_id?: string | null; parcelas?: { vencimento: string; valor: string }[] | null; pagamento?: { pago_em: string; forma: FormaPagamento } | null }>();
     if (!e.descricao || !e.valor || Number(e.valor) <= 0 || !e.competencia || !e.categoria) throw new ErroDemo(422, 'regra_violada', 'Preencha descrição, valor, data e categoria.');
+    exigirCategoria(e.categoria, un);
     if (e.parcelas && Math.abs(e.parcelas.reduce((s, p) => s + Number(p.valor), 0) - Number(e.valor)) > 0.009) throw new ErroDemo(422, 'regra_violada', 'A soma das parcelas difere do valor.');
     const forn = e.fornecedor?.nome ? fornecedor(e.fornecedor.nome, e.fornecedor.documento ?? null) : null;
     const acima = Number(e.valor) > 5000;
     const d = novaDespesa({ descricao: e.descricao, valor: Number(e.valor), competencia: e.competencia, categoria: e.categoria, fornecedor: forn, origem: 'painel', arquivo_id: e.arquivo_id ?? null, status: acima ? 'em_revisao' : 'confirmada', motivos: acima ? ['acima_do_limite'] : [], parcelas: e.pagamento ? [{ vencimento: e.competencia, valor: Number(e.valor), paga_em: e.pagamento.pago_em, forma: e.pagamento.forma }] : e.parcelas ? e.parcelas.map((p) => ({ vencimento: p.vencimento, valor: Number(p.valor) })) : [{ vencimento: e.competencia, valor: Number(e.valor) }] });
     d.criado_em = agora();
+    d.unidade_negocio_id = UNIDADES[un];
     return resposta(201, d);
   }],
   ['GET', R(`financeiro/despesas/${UUID}`), GERENCIA, ({ params }) => achaDespesa(params[0])],
@@ -619,6 +817,7 @@ export const ROTAS_FINANCEIRO: Rota[] = [
     conferirVersao(d.versao, c.versao);
     exigirMotivo(c.motivo);
     if (c.categoria && d.rateio.length) throw new ErroDemo(409, 'despesa_com_rateio', 'A categoria desta despesa vem dos itens da compra.');
+    if (c.categoria && c.categoria !== d.categoria_codigo) exigirCategoria(c.categoria, codigoUnidade(d.unidade_negocio_id));
     const antes = { descricao: d.descricao, valor: d.valor, competencia: d.competencia, categoria: d.categoria_codigo };
     if (c.descricao) d.descricao = c.descricao;
     if (c.valor) {
@@ -638,6 +837,7 @@ export const ROTAS_FINANCEIRO: Rota[] = [
     if (d.status === 'cancelada') throw new ErroDemo(409, 'despesa_cancelada', 'Despesa cancelada.');
     if (categoria) { d.categoria_codigo = categoria; d.grupo = grupoDe(categoria); }
     if (d.categoria_codigo === 'a_classificar') throw new ErroDemo(422, 'categoria_obrigatoria', 'Escolha a categoria antes de confirmar.');
+    exigirCategoria(d.categoria_codigo, codigoUnidade(d.unidade_negocio_id));
     d.status = 'confirmada';
     d.motivos_revisao = [];
     d.confirmado_em = agora();
@@ -657,27 +857,118 @@ export const ROTAS_FINANCEIRO: Rota[] = [
     d.versao++;
     return d;
   }],
+  // Documentos da Júlia (§5.2–5.4) ---------------------------------------------------------------------------------
+  ['GET', R(`financeiro/revisao/documentos/${UUID}`), GERENCIA, ({ params }) => saidaDoc(achaDoc(params[0]))],
+  ['PATCH', R(`financeiro/revisao/documentos/${UUID}`), GERENCIA, async ({ params, corpo }) => {
+    const doc = achaDoc(params[0]);
+    const c = await corpo<Record<string, unknown> & { versao?: number; motivo?: string; tipo_documento?: TipoDocumento | null; unidade?: string | null; categoria?: string | null }>();
+    corrigirDoc(doc, c, c.motivo);
+    return saidaDoc(doc);
+  }],
   ['POST', R(`financeiro/revisao/documentos/${UUID}/resolver`), GERENCIA, async ({ params, corpo }) => {
-    montar();
-    const doc = E.documentos.find((x) => x.id === params[0]);
-    if (!doc) throw new ErroDemo(404, 'nao_encontrado', 'Documento não encontrado.');
-    const r = await corpo<{ acao: string; categoria?: string; parcela_id?: string; motivo?: string }>();
-    if (doc.resolvido && doc.resolvido !== r.acao) throw new ErroDemo(409, 'ja_resolvido', 'Este documento já foi resolvido com outra decisão.');
-    if (doc.resolvido) return { id: doc.id, situacao: doc.resolvido };
-    const valor = Number(doc.extraido.valor ?? 0);
+    const doc = achaDoc(params[0]);
+    const r = await corpo<{ acao: string; categoria?: string; parcela_id?: string; despesa_id?: string; pagamento_id?: string; paga?: boolean | null; valor?: string; data?: string; vencimento?: string; forma?: FormaPagamento; versao?: number; motivo?: string }>();
+    if (doc.resolvido) throw new ErroDemo(409, 'ja_resolvido', 'Este documento já foi resolvido.');
+    conferirVersao(doc.versao ?? 1, r.versao);
+    // valor/data/vencimento/forma junto da resolução: viram uma correção registrada (como no backend).
+    const ajustes = Object.fromEntries((['valor', 'data', 'vencimento', 'forma'] as const).filter((k) => r[k] != null).map((k) => [k, r[k]]));
+    if (Object.keys(ajustes).length) corrigirDoc(doc, { ...ajustes, versao: doc.versao }, (r.motivo ?? '').trim().length >= 5 ? r.motivo : 'corrigido na resolução');
+    const x = doc.extraido;
+    const tipo = doc.tipo_documento;
+    const valor = x.valor ? Number(x.valor) : null;
+    const naoPaga = tipo === 'boleto' || tipo === 'nota_compra';
+    const despesaDaUnidade = (despesaId?: string) => {
+      const d = E.despesas.find((y) => y.id === despesaId);
+      if (!d) throw new ErroDemo(404, 'nao_encontrado', 'Despesa não encontrada.');
+      if (d.unidade_negocio_id !== UNIDADES[doc.unidade]) throw new ErroDemo(409, 'unidade_diferente', 'A despesa é de outra unidade. Corrija a unidade do documento antes.');
+      if (d.status === 'cancelada') throw new ErroDemo(409, 'despesa_cancelada', 'Despesa cancelada não recebe documento.');
+      return d;
+    };
     if (r.acao === 'pagar_parcela') {
-      if (!r.parcela_id) throw new ErroDemo(422, 'regra_violada', 'Escolha a conta.');
-      const { pg } = pagarParcela(r.parcela_id, valor, doc.extraido.data ?? hojeFortaleza(), (doc.extraido.forma as FormaPagamento) ?? 'pix', 'julia', doc.extraido.identificador_transacao ?? null);
+      if (naoPaga) throw new ErroDemo(409, 'documento_nao_comprova_pagamento', 'Boleto ou nota não comprova pagamento. Se o documento é um comprovante, corrija o tipo antes.', { tipo });
+      if (!r.parcela_id || valor == null) throw new ErroDemo(422, 'regra_violada', 'Escolha a conta e confira o valor.');
+      if (!x.data) throw new ErroDemo(422, 'data_obrigatoria', 'Informe a data do pagamento.');
+      const { d, pg } = pagarParcela(r.parcela_id, valor, x.data, (x.forma as FormaPagamento) ?? 'pix', 'julia', x.identificador_transacao ?? null);
       pg.arquivo_id = doc.arquivo_id;
+      Object.assign(doc, { resolvido: 'pagou_conta', despesa_id: d.id, pagamento_id: pg.id });
     } else if (r.acao === 'registrar_despesa') {
-      if (!r.categoria) throw new ErroDemo(422, 'regra_violada', 'Escolha a categoria.');
-      if (!valor) throw new ErroDemo(422, 'regra_violada', 'O documento não tem valor legível.');
-      const dt = doc.extraido.data ?? hojeFortaleza();
-      novaDespesa({ descricao: doc.extraido.recebedor_nome ?? doc.extraido.descricao ?? 'Comprovante da Júlia', valor, competencia: dt, categoria: r.categoria, origem: 'julia', arquivo_id: doc.arquivo_id, parcelas: [{ vencimento: dt, valor, paga_em: dt }] });
-    } else if (r.acao === 'descartar') exigirMotivo(r.motivo);
-    else throw new ErroDemo(422, 'regra_violada', 'Ação desconhecida.');
-    doc.resolvido = r.acao;
-    return { id: doc.id, situacao: r.acao };
+      let paga = r.paga;
+      if (paga == null) {
+        if (tipo === 'ambiguo') throw new ErroDemo(422, 'informe_se_paga', 'Diga se o documento já está pago ou é uma conta a pagar.');
+        paga = !naoPaga;
+      }
+      const categoria = r.categoria || doc.categoria_codigo;
+      if (valor == null || !categoria) throw new ErroDemo(422, 'regra_violada', 'Informe a categoria (e o valor precisa estar legível).');
+      exigirCategoria(categoria, doc.unidade);
+      if (paga && !x.data) throw new ErroDemo(422, 'data_obrigatoria', 'Informe a data do pagamento.');
+      const diaDoc = x.data ?? x.vencimento;
+      if (!diaDoc) throw new ErroDemo(422, 'data_obrigatoria', 'Informe a data ou o vencimento.');
+      if (tipo === 'boleto' && x.linha_digitavel && E.documentos.some((o) => o !== doc && o.extraido.linha_digitavel === x.linha_digitavel && o.despesa_id)) throw new ErroDemo(409, 'boleto_ja_lancado', 'Este boleto já está nas contas a pagar: vincule a ele.');
+      const forn = x.recebedor_nome ? fornecedor(x.recebedor_nome.replace(/\b\w/g, (l) => l.toUpperCase()).replace(/\B\w/g, (l) => l.toLowerCase()), x.recebedor_documento ?? null) : null;
+      const d = novaDespesa({ descricao: doc.legenda ?? x.descricao ?? 'Documento do grupo', valor, competencia: x.data ?? diaDoc, categoria, fornecedor: forn, origem: 'julia', arquivo_id: doc.arquivo_id, parcelas: [paga ? { vencimento: x.data!, valor, paga_em: x.data!, forma: (x.forma as FormaPagamento) ?? 'pix' } : { vencimento: x.vencimento ?? diaDoc, valor }] });
+      d.unidade_negocio_id = UNIDADES[doc.unidade];
+      if (paga) d.parcelas[0].pagamentos[0].arquivo_id = doc.arquivo_id;
+      Object.assign(doc, { resolvido: 'registrou_despesa', despesa_id: d.id, pagamento_id: paga ? d.parcelas[0].pagamentos[0].id : null });
+    } else if (r.acao === 'vincular_despesa') {
+      if (tipo === 'comprovante_pagamento' || tipo === 'recibo') throw new ErroDemo(422, 'comprovante_vincula_pagamento', 'Comprovante se vincula a um pagamento, não a uma despesa.');
+      const d = despesaDaUnidade(r.despesa_id);
+      d.historico.push({ em: agora(), acao: 'vincular_documento', ator: 'Usuário (demo)', ator_tipo: 'usuario', dados: { tipo } });
+      Object.assign(doc, { resolvido: 'vinculado', despesa_id: d.id });
+    } else if (r.acao === 'vincular_pagamento') {
+      if (naoPaga) throw new ErroDemo(409, 'documento_nao_comprova_pagamento', 'Boleto ou nota não comprova pagamento. Se o documento é um comprovante, corrija o tipo antes.', { tipo });
+      const d = E.despesas.find((y) => y.parcelas.some((p) => p.pagamentos.some((pg) => pg.id === r.pagamento_id)));
+      const pg = d?.parcelas.flatMap((p) => p.pagamentos).find((p) => p.id === r.pagamento_id);
+      if (!d || !pg) throw new ErroDemo(404, 'nao_encontrado', 'Pagamento não encontrado.');
+      despesaDaUnidade(d.id);
+      if (valor != null && Math.abs(Number(pg.valor) - valor) > 0.005) throw new ErroDemo(409, 'valor_diferente', `O comprovante é de R$ ${valor.toFixed(2).replace('.', ',')} e o pagamento, de R$ ${pg.valor.replace('.', ',')}.`);
+      if (pg.arquivo_id) throw new ErroDemo(409, 'pagamento_ja_comprovado', 'Este pagamento já tem comprovante.');
+      pg.arquivo_id = doc.arquivo_id;
+      if (x.identificador_transacao) pg.identificador_transacao = x.identificador_transacao;
+      d.historico.push({ em: agora(), acao: 'comprovar_pagamento', ator: 'Usuário (demo)', ator_tipo: 'usuario', dados: { pagamento_id: pg.id } });
+      Object.assign(doc, { resolvido: 'vinculado', despesa_id: d.id, pagamento_id: pg.id });
+    } else if (r.acao === 'descartar') {
+      exigirMotivo(r.motivo);
+      doc.resolvido = 'descartado';
+    } else throw new ErroDemo(422, 'regra_violada', 'Ação desconhecida.');
+    doc.versao = (doc.versao ?? 1) + 1;
+    return { id: doc.id, situacao: doc.resolvido, despesa_id: doc.despesa_id ?? null, pagamento_id: doc.pagamento_id ?? null, versao: doc.versao };
+  }],
+  // Anexos da despesa (§5.5): um por arquivo, com os papéis.
+  ['GET', R(`financeiro/despesas/${UUID}/documentos`), GERENCIA, ({ params }) => {
+    const d = achaDespesa(params[0]);
+    const linhas: { arquivo_id: string; papel: string; pagamento_id: string | null; comprovante_id: string | null; compra_id: string | null }[] = [];
+    if (d.arquivo_id) linhas.push({ arquivo_id: d.arquivo_id, papel: 'despesa', pagamento_id: null, comprovante_id: null, compra_id: null });
+    for (const p of d.parcelas) for (const pg of p.pagamentos) if (pg.arquivo_id && !pg.estornado_em) linhas.push({ arquivo_id: pg.arquivo_id, papel: 'pagamento', pagamento_id: pg.id, comprovante_id: null, compra_id: null });
+    for (const doc of E.documentos) if (doc.despesa_id === d.id && doc.arquivo_id && doc.resolvido !== 'descartado') linhas.push({ arquivo_id: doc.arquivo_id, papel: doc.tipo_documento, pagamento_id: doc.pagamento_id ?? null, comprovante_id: doc.id, compra_id: null });
+    const vistos = new Map<string, { arquivo_id: string; nome: string; mime: string; tipo_arquivo: string; papeis: string[]; pagamento_id: string | null; comprovante_id: string | null; compra_id: string | null; criado_em: string }>();
+    for (const l of linhas) {
+      const v = vistos.get(l.arquivo_id);
+      if (v) {
+        if (!v.papeis.includes(l.papel)) v.papeis.push(l.papel);
+        v.pagamento_id ??= l.pagamento_id;
+        v.comprovante_id ??= l.comprovante_id;
+      } else {
+        const a = E.arquivos.get(l.arquivo_id);
+        vistos.set(l.arquivo_id, { arquivo_id: l.arquivo_id, nome: a?.titulo ?? 'Documento', mime: a?.mime ?? 'image/svg+xml', tipo_arquivo: l.papel === 'pagamento' || l.papel === 'comprovante_pagamento' ? 'comprovante' : 'documento', papeis: [l.papel], pagamento_id: l.pagamento_id, comprovante_id: l.comprovante_id, compra_id: l.compra_id, criado_em: d.criado_em });
+      }
+    }
+    return [...vistos.values()];
+  }],
+  // Despesa na unidade errada (§5.6).
+  ['POST', R(`financeiro/despesas/${UUID}/unidade`), GERENCIA, async ({ params, corpo }) => {
+    const d = achaDespesa(params[0]);
+    const m = await corpo<{ unidade?: string; versao?: number; motivo?: string }>();
+    conferirVersao(d.versao, m.versao);
+    exigirMotivo(m.motivo);
+    if (!m.unidade || !(m.unidade in UNIDADES)) throw new ErroDemo(403, 'acesso_negado', 'Você não tem acesso a esta unidade.');
+    if (d.status === 'cancelada') throw new ErroDemo(409, 'despesa_cancelada', 'Despesa cancelada.');
+    if (d.compra_id) throw new ErroDemo(409, 'despesa_de_compra', 'Despesa de compra não muda de unidade: o estoque é da unidade.');
+    const antes = codigoUnidade(d.unidade_negocio_id);
+    d.unidade_negocio_id = UNIDADES[m.unidade];
+    for (const doc of E.documentos) if (doc.despesa_id === d.id) { doc.unidade = m.unidade; doc.unidade_negocio_id = d.unidade_negocio_id; }
+    d.versao++;
+    d.historico.push({ em: agora(), acao: 'mudar_unidade', ator: 'Usuário (demo)', ator_tipo: 'usuario', dados: { antes, depois: m.unidade, motivo: m.motivo } });
+    return d;
   }],
   ['POST', R(`financeiro/comprovantes/${UUID}/enviar-para-compras`), GERENCIA, ({ params }) => {
     montar();
@@ -692,7 +983,8 @@ export const ROTAS_FINANCEIRO: Rota[] = [
     const hoje = hojeFortaleza();
     const s = query.get('situacao') ?? 'abertas';
     const de = query.get('de');
-    let l = contasAPagar();
+    const un = idUnidade(query);
+    let l = contasAPagar().filter((c) => c.unidade_negocio_id === un);
     if (s === 'vencidas') l = l.filter((c) => c.situacao === 'aberta' && c.vencimento < hoje);
     else if (s === 'hoje') l = l.filter((c) => c.situacao === 'aberta' && c.vencimento === hoje);
     else if (s === 'proximas') l = l.filter((c) => c.situacao === 'aberta' && c.vencimento > hoje && c.vencimento <= dia(7, hoje));
@@ -772,6 +1064,7 @@ export const ROTAS_FINANCEIRO: Rota[] = [
     montar();
     const e = await corpo<{ descricao: string; categoria: string; valor_previsto: string; valor_variavel?: boolean; dia_vencimento: number; intervalo_meses?: number; inicio: string; fim?: string | null; fornecedor?: { nome?: string | null } | null; antecedencia_dias?: number }>();
     if (!e.descricao || !e.categoria || !e.valor_previsto) throw new ErroDemo(422, 'regra_violada', 'Preencha os campos.');
+    exigirCategoria(e.categoria, 'ambar_cafe');
     const forn = e.fornecedor?.nome ? fornecedor(e.fornecedor.nome) : null;
     const r: Recorrencia = { id: id(), descricao: e.descricao, categoria_codigo: e.categoria, fornecedor: forn ? { id: forn.id, nome: forn.nome } : null, valor_previsto: d2(Number(e.valor_previsto)), valor_variavel: !!e.valor_variavel, dia_vencimento: e.dia_vencimento, intervalo_meses: e.intervalo_meses ?? 1, inicio: e.inicio, fim: e.fim ?? null, antecedencia_dias: e.antecedencia_dias ?? 45, ativo: true, versao: 1, proximas: [] };
     E.recorrencias.push(r);
@@ -952,6 +1245,7 @@ export const ROTAS_FINANCEIRO: Rota[] = [
       else v.descricao = m.candidatos.find((c) => c.parametros.parcela_id === a.parcela_id)?.descricao ?? 'Conta paga';
     } else if (a.acao === 'registrar_despesa') {
       if (!a.descricao || !a.categoria) throw new ErroDemo(422, 'regra_violada', 'Informe descrição e categoria.');
+      exigirCategoria(a.categoria, 'ambar_cafe');
       const d = novaDespesa({ descricao: a.descricao, valor: Number(m.valor), competencia: a.competencia ?? m.data, categoria: a.categoria, origem: 'extrato', parcelas: [{ vencimento: m.data, valor: Number(m.valor), paga_em: m.data }] });
       v.despesa_criada = d.id;
       v.descricao = `Despesa nova: ${a.descricao}`;

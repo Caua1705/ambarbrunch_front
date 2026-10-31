@@ -11,7 +11,7 @@ import { Botao, Cartao, Campo, Aviso, Situacao, Etiqueta, Segmentado } from '../
 import { Dados, EsqueletoTabela, Esqueleto, Vazio } from '../../ui/estados';
 import { Tabela, type Coluna } from '../../ui/tabela';
 import type { MovimentoBancario, MovimentoDetalhe, CandidatoConciliacao } from '../../lib/tipos/financeiro';
-import { NIVEL, ESTADO_CONCILIACAO, CLASSIFICACOES, useCategorias, OpcoesCategoria, atualizarFinanceiro, avisar, avisarFalha } from './comum';
+import { NIVEL, ESTADO_CONCILIACAO, CLASSIFICACOES, useCategorias, OpcoesCategoria, categoriaValida, atualizarFinanceiro, avisar, avisarFalha } from './comum';
 
 type Filtro = 'pendente' | 'parcial' | 'conciliado' | 'todas';
 
@@ -200,7 +200,9 @@ function Movimento({ id, aoFechar, confirmar }: { id: string | null; aoFechar: (
     setDecisao(m.candidatos.length ? 'candidato' : sug?.acao === 'classificar' ? 'classificar' : m.direcao === 'debito' ? 'despesa' : 'receita');
     setClassificacao(sug?.classificacao ?? '');
     setDescricao(m.descricao);
-    setCategoria(sug?.acao === 'registrar_despesa' ? sug.categoria ?? '' : '');
+    // A sugestão pelo texto do banco só vale se a categoria ainda for válida na unidade.
+    const sugerida = sug?.acao === 'registrar_despesa' ? sug.categoria ?? '' : '';
+    setCategoria(sugerida && (cats.dados ?? []).some((c) => c.codigo === sugerida && categoriaValida(c)) ? sugerida : '');
     setVDe(m.data);
     setVAte(m.data);
     setObservacao('');

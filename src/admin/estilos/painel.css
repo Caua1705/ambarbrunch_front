@@ -405,6 +405,16 @@ img, svg {
   .perfil__nome {
     display: none;
   }
+  /* Com mais de uma unidade (Âmbar Café e TESTES), o seletor do topo encolhe em vez de empurrar a página para o lado. */
+  .topo__acoes {
+    min-width: 0;
+    flex-shrink: 1;
+    gap: var(--e-1);
+  }
+  .topo__acoes [data-unidade] {
+    max-width: 28vw;
+    text-overflow: ellipsis;
+  }
 }
 
 /* Botões ------------------------------------------------------------------------------------------------------------ */
