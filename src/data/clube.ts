@@ -6,7 +6,7 @@
 import { pendente, type Pendente } from '../lib/conteudo';
 
 export interface Passo { titulo: string; texto: string }
-/** marco da Jornada Âmbar (Passaporte, components/ClubeJornada.astro). `definicao` = campo pendente que decide o texto */
+/** marco da Jornada Âmbar (Passaporte; o componente saiu em 2026-10-31 e o texto fica para o lançamento do Clube). `definicao` = campo pendente que decide o texto */
 export interface Marco { id: string; titulo: string; texto: string; icone: 'telefone' | 'xicara' | 'espiral' | 'bolo' | 'presente'; definicao?: 'aniversario' | 'recompensas' }
 
 export const clube = {

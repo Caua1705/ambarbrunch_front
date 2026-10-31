@@ -254,11 +254,6 @@
 @keyframes onda { 0% { opacity: 0; translate: -4px 0; } 25% { opacity: 1; } 60%, 100% { opacity: 0; translate: 6px 0; } }
 [data-vivo]:not([data-visivel]) .plq__ondas path, [data-motion="paused"] .plq__ondas path { animation-play-state: paused; }
 .clube-chegada:not([hidden]) { animation: sticker-in var(--dur-m) var(--ease-paper) var(--reveal-delay-stamp) both; }
-/* Passaporte Âmbar (2026-10-22): quando a página assenta, cada carimbo bate em sequência (escala 1,5 → 1, como o carimbo
-   do Novo capítulo). Só transform/opacity; o texto está lá desde o 1º quadro. */
-.js .jornada[data-reveal] .marco__selo { opacity: 0; transform: scale(1.5) rotate(14deg); transition: opacity var(--dur-s) linear, transform var(--dur-m) var(--ease-paper); transition-delay: calc(var(--reveal-delay-stamp) + var(--i, 0) * 2 * var(--stagger)); }
-.js .jornada[data-reveal].is-in .marco__selo { opacity: 1; transform: none; }
 @media (prefers-reduced-motion: reduce) {
   .plq__ondas path { opacity: 1; }
-  .js .jornada[data-reveal] .marco__selo { opacity: 1; transform: none; }
 }
