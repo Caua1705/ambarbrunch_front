@@ -7,20 +7,21 @@
 //    os anteriores à abertura, AMBAR_RESERVAS_ABERTURA) e horários. Reservas fechadas na API (503 reservas_indisponiveis):
 //    a comanda diz isso, sem datas nem horários, e confere de novo quando a pessoa volta à aba.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
-import type { JSX } from 'preact';
 import { ErroReserva, type ReservaConfig, type ReservaCriada, type ReservasApi } from '../lib/reservas/contrato';
 import { criarApiSimulada } from '../lib/reservas/simulado';
 import { criarApiHttp } from '../lib/reservas/http';
-import { visita } from '../data/visita';
-import { conferirTelefone, mascaraTel, telefoneNacional, uuid } from '../lib/telefone';
+import { mascaraTel, telefoneNacional, uuid } from '../lib/telefone';
 import { FUSO_CAFE, linkGoogleAgenda, type ReservaAgenda } from '../lib/reservas/agenda';
 import { guardarConfirmacao, ROTA_CONFIRMADA } from '../lib/reservas/confirmacao';
 import { medirReserva } from '../lib/medicao/eventos';
+import { dataPermitida, hojeNoFuso, iso, PRIMEIRA_DATA } from '../lib/reservas/datas';
+import { NOME_MAX, validar, type DadosContato } from '../lib/reservas/validacao';
+import { Calendario } from '../components/reserva/Calendario';
+import { Escolha } from '../components/reserva/Escolha';
 
 type Modo = 'indisponivel' | 'simulado' | 'api';
 export type Etapa = 'escolha' | 'revisao' | 'enviando' | 'confirmada' | 'falha';
 type Horarios = { estado: 'ocioso' | 'carregando' | 'ok' | 'vazio' | 'erro'; lista: { hora: string; disponivel: boolean }[]; msg?: string };
-interface Dados { nome: string; telefone: string; email: string; observacoes: string; consentimento: boolean }
 /**
  * Estado inicial forçado — SÓ para a página interna /design-system/ (nunca no site): mostra cada etapa da comanda
  * com a API simulada (o aviso de simulação aparece). Sem esta prop, o comportamento é o de sempre.
@@ -29,7 +30,7 @@ export interface DemoComanda {
   etapa?: Etapa;
   horarios?: Exclude<Horarios['estado'], 'ocioso'>;
   hora?: string;
-  dados?: Partial<Dados>;
+  dados?: Partial<DadosContato>;
   erros?: Record<string, string>;
   falha?: string;
   resultado?: ReservaCriada;
@@ -52,135 +53,7 @@ function horariosDemo(estado: DemoComanda['horarios']): Horarios {
 
 /** Janela de datas sem API: dois meses à frente (calendário mensal; a API define a dela em config()). */
 const DIAS_PADRAO = 60;
-const pad = (n: number) => String(n).padStart(2, '0');
-const iso = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-/** Primeira data de visita aceita (inclusive), em qualquer modo: o calendário começa nela e nenhum caminho (teclado,
- *  troca de mês, estado antigo) leva a horários ou envio antes dela. A API recusa o mesmo (422 antes_da_abertura). */
-const PRIMEIRA_DATA = visita.reservasDesde;
-/** A data pode ser reservada? Mesma janela do calendário: [max(hoje, PRIMEIRA_DATA), hoje + diasMax], sem dias fechados. */
-function dataPermitida(v: string, hoje: Date, diasMax: number, fechadas?: ReadonlySet<string>): boolean {
-  const fim = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + diasMax);
-  return /^\d{4}-\d{2}-\d{2}$/.test(v) && v >= PRIMEIRA_DATA && v >= iso(hoje) && v <= iso(fim) && !fechadas?.has(v);
-}
-const mesAno = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' });
-const SEMANA = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
-const SEMANA_LONGA = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
 const dataLonga = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
-/** “Hoje” no fuso do restaurante (config.fusoHorario), não no do navegador: quem abre o site à noite noutro fuso
- *  não pode ver liberado um dia que em Fortaleza já passou (nem perder o dia que lá ainda é hoje). */
-function hojeNoFuso(fuso?: string): Date {
-  const agora = new Date();
-  if (!fuso) return agora;
-  try {
-    const [a, m, d] = new Intl.DateTimeFormat('en-CA', { timeZone: fuso, year: 'numeric', month: '2-digit', day: '2-digit' })
-      .format(agora).split('-').map(Number);
-    return new Date(a, m - 1, d);
-  } catch {
-    return agora;
-  }
-}
-/** Limites do backend (esquemas.py: nome até 120; e-mail validado como EmailStr, com domínio e terminação). */
-const NOME_MAX = 120;
-const EMAIL = /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)*\.[a-z]{2,}$/i;
-
-function validar(d: Dados, exigeEmail: boolean): Record<string, string> {
-  const e: Record<string, string> = {};
-  if (d.nome.trim().length < 2) e.nome = 'Diga como podemos chamar você.';
-  else if (d.nome.trim().length > NOME_MAX) e.nome = `Use até ${NOME_MAX} caracteres.`;
-  // as regras do backend (lib/telefone.ts): celular sem o nono dígito é recusado com a explicação, nunca completado
-  const tel = conferirTelefone(d.telefone);
-  if (!tel.ok) e.telefone = tel.mensagem;
-  if (exigeEmail && !d.email.trim()) e.email = 'Informe o e-mail.';
-  else if (d.email.trim() && !EMAIL.test(d.email.trim())) e.email = 'Confira o e-mail.';
-  if (!d.consentimento) e.consentimento = 'Para reservar, é preciso concordar com o uso dos dados.';
-  return e;
-}
-
-/** Grupo de chips com papel de radiogroup e setas do teclado. `ocupado`: a lista está sendo atualizada — fica à vista,
- *  apagada e inerte (sem toque, teclado nem foco), no lugar de sumir. */
-function Escolha<T extends string>(p: { rotulo: string; id: string; opcoes: { valor: T; texto: JSX.Element | string; desabilitado?: boolean }[]; valor: T | null; aoEscolher: (v: T) => void; datas?: boolean; ocupado?: boolean }) {
-  const grupo = useRef<HTMLDivElement>(null);
-  const ativos = p.opcoes.filter((o) => !o.desabilitado);
-  const aoTeclar = (ev: KeyboardEvent) => {
-    const passo = ev.key === 'ArrowRight' || ev.key === 'ArrowDown' ? 1 : ev.key === 'ArrowLeft' || ev.key === 'ArrowUp' ? -1 : 0;
-    if (!passo || !ativos.length || p.ocupado) return;
-    ev.preventDefault();
-    const i = Math.max(0, ativos.findIndex((o) => o.valor === p.valor));
-    const prox = ativos[(i + passo + ativos.length) % ativos.length];
-    p.aoEscolher(prox.valor);
-    requestAnimationFrame(() => grupo.current?.querySelector<HTMLElement>(`[data-valor="${prox.valor}"]`)?.focus());
-  };
-  return (
-    <div ref={grupo} class={`chips${p.datas ? ' chips--dates' : ''}`} role="radiogroup" aria-labelledby={p.id} onKeyDown={aoTeclar}
-      aria-busy={p.ocupado || undefined} inert={p.ocupado || undefined}>
-      {p.opcoes.map((o) => {
-        const marcado = o.valor === p.valor;
-        const foco = marcado || (!p.valor && o === ativos[0]);
-        return (
-          <button type="button" class="chip" role="radio" aria-checked={marcado} data-valor={o.valor}
-            tabIndex={foco ? 0 : -1} disabled={o.desabilitado} onClick={() => { if (!p.ocupado) p.aoEscolher(o.valor); }}>{o.texto}</button>
-        );
-      })}
-    </div>
-  );
-}
-
-/**
- * Calendário mensal da comanda (rodada final: substitui a fileira de 10 dias). Dias fora da janela [hoje, hoje + diasMax]
- * (a mesma da API: hoje + 60 dias inclusive), antes de PRIMEIRA_DATA e dias fechados do ambiente (`fechadas`, vindos da
- * API) ficam riscados; abre no mês da primeira data possível; setas trocam o mês; no teclado, ←/→ andam um dia e ↑/↓
- * uma semana (radiogroup, um dia focável).
- */
-function Calendario(p: { id: string; hoje: Date; diasMax: number; fechadas?: ReadonlySet<string>; valor: string | null; aoEscolher: (v: string) => void; aoConfirmar?: () => void }) {
-  const hoje = new Date(p.hoje.getFullYear(), p.hoje.getMonth(), p.hoje.getDate());
-  const primeira = new Date(`${PRIMEIRA_DATA}T00:00:00`);
-  const inicio = primeira > hoje ? primeira : hoje;
-  const fim = new Date(hoje); fim.setDate(hoje.getDate() + p.diasMax);
-  const [mes, setMes] = useState(() => { const v = p.valor ? new Date(`${p.valor}T12:00:00`) : inicio; return new Date(v.getFullYear(), v.getMonth(), 1); });
-  const grade = useRef<HTMLDivElement>(null);
-  const primeiroMes = new Date(inicio.getFullYear(), inicio.getMonth(), 1);
-  const ultimoMes = new Date(fim.getFullYear(), fim.getMonth(), 1);
-  const valido = (d: Date) => dataPermitida(iso(d), hoje, p.diasMax, p.fechadas);
-  const diasNoMes = new Date(mes.getFullYear(), mes.getMonth() + 1, 0).getDate();
-  const dias = Array.from({ length: diasNoMes }, (_, i) => new Date(mes.getFullYear(), mes.getMonth(), i + 1));
-  const selecionado = p.valor && dias.some((d) => iso(d) === p.valor) ? p.valor : null;
-  const focavel = selecionado ?? iso(dias.find(valido) ?? dias[0]);
-  const mudarMes = (passo: number) => setMes((m) => new Date(m.getFullYear(), m.getMonth() + passo, 1));
-  const aoTeclar = (ev: KeyboardEvent) => {
-    const passo = ({ ArrowRight: 1, ArrowLeft: -1, ArrowDown: 7, ArrowUp: -7 } as Record<string, number>)[ev.key];
-    if (!passo) return;
-    ev.preventDefault();
-    const atual = new Date(`${(ev.target as HTMLElement).dataset.valor ?? focavel}T12:00:00`);
-    const prox = new Date(atual.getFullYear(), atual.getMonth(), atual.getDate() + passo);
-    if (!valido(prox)) return;
-    p.aoEscolher(iso(prox));
-    if (prox.getMonth() !== mes.getMonth()) setMes(new Date(prox.getFullYear(), prox.getMonth(), 1));
-    requestAnimationFrame(() => grade.current?.querySelector<HTMLElement>(`[data-valor="${iso(prox)}"]`)?.focus());
-  };
-  return (
-    <div class="cal">
-      <div class="cal__head">
-        <button type="button" class="cal__nav" aria-label="Mês anterior" disabled={mes <= primeiroMes} onClick={() => mudarMes(-1)}><span aria-hidden="true">‹</span></button>
-        <p class="cal__mes" aria-live="polite">{mesAno.format(mes)}</p>
-        <button type="button" class="cal__nav" aria-label="Próximo mês" disabled={mes >= ultimoMes} onClick={() => mudarMes(1)}><span aria-hidden="true">›</span></button>
-      </div>
-      <div class="cal__semana" aria-hidden="true">{SEMANA.map((d) => <span>{d}</span>)}</div>
-      <div class="cal__grade" role="radiogroup" aria-labelledby={p.id} ref={grade} onKeyDown={aoTeclar}>
-        {Array.from({ length: mes.getDay() }, () => <span class="cal__vazio" aria-hidden="true" />)}
-        {dias.map((d) => {
-          const v = iso(d);
-          const ok = valido(d);
-          return (
-            <button type="button" role="radio" class="cal__dia" data-valor={v} aria-checked={v === p.valor} tabIndex={v === focavel && ok ? 0 : -1}
-              disabled={!ok} data-hoje={v === iso(hoje) ? '' : undefined}
-              aria-label={`${v === iso(hoje) ? 'hoje, ' : ''}${SEMANA_LONGA[d.getDay()]}, ${d.getDate()}`}
-              onClick={() => { if (!ok) return; p.aoEscolher(v); p.aoConfirmar?.(); }}>{d.getDate()}</button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
 export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, privacidadeUrl, ids: px = 'rf', demo }: Props) {
   const nota = px === 'rf' ? 'ticket-note' : `${px}-note`;
@@ -209,7 +82,7 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
   const [data, setData] = useState<string | null>(null);
   const [hora, setHora] = useState<string | null>(demo?.hora ?? null);
   const [horarios, setHorarios] = useState<Horarios>(horariosDemo(demo?.horarios));
-  const [dados, setDados] = useState<Dados>({ nome: '', telefone: '', email: '', observacoes: '', consentimento: false, ...demo?.dados });
+  const [dados, setDados] = useState<DadosContato>({ nome: '', telefone: '', email: '', observacoes: '', consentimento: false, ...demo?.dados });
   const [erros, setErros] = useState<Record<string, string>>(demo?.erros ?? {});
   const [etapa, setEtapa] = useState<Etapa>(demo?.etapa ?? 'escolha');
   const [resultado, setResultado] = useState<ReservaCriada | null>(demo?.resultado ?? null);
@@ -372,7 +245,7 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
   useEffect(() => { if (etapa === 'escolha' && falha) topo.current?.focus(); }, [falha]);
 
   const dataTexto = data ? dataLonga.format(new Date(`${data}T12:00:00`)) : '';
-  const mudarDado = (campo: keyof Dados) => (ev: Event) => {
+  const mudarDado = (campo: keyof DadosContato) => (ev: Event) => {
     const alvo = ev.currentTarget as HTMLInputElement;
     const valor = campo === 'consentimento' ? alvo.checked : campo === 'telefone' ? mascaraTel(alvo.value) : alvo.value;
     setDados((d) => ({ ...d, [campo]: valor }));
