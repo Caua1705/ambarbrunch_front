@@ -132,12 +132,6 @@ img, svg {
   padding: 0;
   list-style: none;
 }
-.nav__titulo {
-  font-size: var(--t-xs);
-  color: var(--texto-3);
-  padding: var(--e-3) var(--e-3) var(--e-1);
-  font-weight: 500;
-}
 .nav__item {
   display: flex;
   align-items: center;
@@ -211,8 +205,7 @@ img, svg {
 }
 [data-recolhida='1'] .app .lateral__op,
 [data-recolhida='1'] .app .nav__rotulo,
-[data-recolhida='1'] .app .nav__selo,
-[data-recolhida='1'] .app .nav__titulo {
+[data-recolhida='1'] .app .nav__selo {
   display: none;
 }
 [data-recolhida='1'] .app .marca-logo {
@@ -378,8 +371,7 @@ img, svg {
   }
   [data-recolhida='1'] .app .lateral__op,
   [data-recolhida='1'] .app .nav__rotulo,
-  [data-recolhida='1'] .app .nav__selo,
-  [data-recolhida='1'] .app .nav__titulo {
+  [data-recolhida='1'] .app .nav__selo {
     display: revert;
   }
   [data-recolhida='1'] .app .nav__item {

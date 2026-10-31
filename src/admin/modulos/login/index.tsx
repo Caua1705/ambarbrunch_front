@@ -1,8 +1,8 @@
 // Formulário de entrada. Recuperação de senha não existe no backend (usuários são criados pela CLI): a tela diz isso.
 import { useState } from 'preact/hooks';
 import { LogIn, AlertCircle, Eye, EyeOff, PlugZap, LogOut, CheckCircle2 } from 'lucide-preact';
-import { Botao, Campo, Aviso } from '../ui/base';
-import { NOME_PAPEL, type ModoPainel, type Papel } from '../lib/sessao';
+import { Botao, Campo, Aviso } from '../../ui/base';
+import { NOME_PAPEL, type ModoPainel, type Papel } from '../../lib/sessao';
 
 export default function Login({ modo, volta, sessaoAberta = false, saiu = false }: { modo: ModoPainel; volta: string; sessaoAberta?: boolean; saiu?: boolean }) {
   const [email, setEmail] = useState('');
