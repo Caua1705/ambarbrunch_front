@@ -1,7 +1,7 @@
 // Confirmação do recebimento: como a compra aparece no Financeiro. A candidata forte (o pagamento que a Júlia já
 // registrou, mesmo fornecedor e valor) vem pré-selecionada para não criar despesa em dobro; criar outra conta exige
 // motivo (409 despesa_ja_registrada). Tudo vai numa única chamada: POST /admin/estoque/compras/{id}/confirmar.
-import { useState } from 'preact/hooks';
+import { useRef, useState } from 'preact/hooks';
 import { Info, Link2, CalendarClock, BadgeCheck, AlertTriangle } from 'lucide-preact';
 import { estoque } from '../../lib/api/estoque';
 import { ErroApi } from '../../lib/api/cliente';
@@ -26,6 +26,8 @@ export function ConfirmarCompra({ c, perm, form, aoConfirmar, aoEnviando }: { c:
   const [motivoNova, setMotivoNova] = useState('');
   const [motivoDiv, setMotivoDiv] = useState('');
   const [erro, setErro] = useState<ErroApi | null>(null);
+  // Um envio por vez, mesmo com dois cliques antes de o botão desabilitar (o backend também é idempotente).
+  const enviandoRef = useRef(false);
   const precisaNova = erro?.codigo === 'despesa_ja_registrada' || escolha === 'nova';
   // Nota que não fecha (e ainda não aceita): só quem tem estoque.editar confirma, com o motivo.
   const divergencia = !!c.conferencia && !c.conferencia.ok && !c.divergencia_aceita;
@@ -40,6 +42,8 @@ export function ConfirmarCompra({ c, perm, form, aoConfirmar, aoEnviando }: { c:
     else if (escolha === 'nova') despesa = { criar_nova: true, motivo_nova: motivoNova.trim() };
     if (escolha === 'nova' && motivoNova.trim().length < 5) return setErro(new ErroApi('validacao', 'Explique por que esta compra precisa de outra conta (pelo menos 5 caracteres).'));
     if (divergencia && motivoDiv.trim().length < 5) return setErro(new ErroApi('validacao', 'Explique a diferença da nota (pelo menos 5 caracteres).'));
+    if (enviandoRef.current) return;
+    enviandoRef.current = true;
     aoEnviando(true);
     setErro(null);
     try {
@@ -50,8 +54,9 @@ export function ConfirmarCompra({ c, perm, form, aoConfirmar, aoEnviando }: { c:
       const er = x instanceof ErroApi ? x : new ErroApi('servidor', 'Não foi possível confirmar.');
       setErro(er);
       if (er.codigo === 'despesa_ja_registrada' && fortes[0]) setEscolha(`vincular:${fortes[0].despesa_id}`);
-      if (er.codigo === 'conflito_versao' || er.codigo === 'pendencias') atualizarEstoque();
+      if (er.codigo === 'conflito_versao' || er.codigo === 'pendencias' || er.codigo === 'total_diverge_do_financeiro') atualizarEstoque();
     } finally {
+      enviandoRef.current = false;
       aoEnviando(false);
     }
   }

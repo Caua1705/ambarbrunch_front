@@ -48,8 +48,16 @@ export const estoque = {
   },
   /** 201 com a compra inteira (mesmo formato do detalhe). */
   compraManual: (c: CompraManualEntrada, chave = novaChave()) => pedir<CompraDetalhe>('estoque/compras/manual', { metodo: 'POST', corpo: c, idempotencia: chave }),
-  /** Só para compra em conferência ainda sem itens (ex.: veio do comprovante do Pix); senão 409 compra_ja_lida. */
+  /** Compra em conferência sem itens da nota (ex.: veio do comprovante do Pix) ou rascunho digitado: refazer devolve a
+   *  compra que substituiu o rascunho (`id` novo). Itens lidos da nota: 409 compra_ja_lida. */
   preencherManual: (id: string, c: CompraManualEntrada & { versao: number }) => pedir<CompraDetalhe>(`estoque/compras/${id}/manual`, { metodo: 'PUT', corpo: c }),
+  /** Nota fiscal da compra pendente de um pagamento, enviada no painel: nasce a compra da nota (`id`), que confere o MESMO
+   *  pagamento (nenhuma despesa nova); a pendência anterior é cancelada. */
+  anexarNota: (id: string, arquivo: File) => {
+    const f = new FormData();
+    f.set('arquivo', arquivo);
+    return pedir<{ id: string; etapa: EtapaCompra; substitui: string; ja_existia: boolean }>(`estoque/compras/${id}/nota`, { metodo: 'POST', formulario: f });
+  },
   resolverItem: (compraId: string, itemId: string, r: ResolucaoItem) => pedir<CompraDetalhe>(`estoque/compras/${compraId}/itens/${itemId}`, { metodo: 'PATCH', corpo: r }),
   confirmarCompra: (id: string, c: { versao: number; despesa?: DespesaDaCompra; motivo_divergencia?: string }) => pedir<ConfirmacaoCompra>(`estoque/compras/${id}/confirmar`, { metodo: 'POST', corpo: c }),
   cancelarCompra: (id: string, motivo: string) => pedir<CompraDetalhe>(`estoque/compras/${id}/cancelar`, { metodo: 'POST', corpo: { motivo } }),

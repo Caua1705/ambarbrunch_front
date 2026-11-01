@@ -180,6 +180,9 @@ export interface CompraDetalhe {
   itens: ItemCompra[];
   despesa: { despesa_id: Uuid | null; candidatas: CandidataDespesa[] };
   despesa_origem_id: Uuid | null;
+  /** Produtos × pagamento do Financeiro que a compra confere (null: não confere nenhum ou ainda sem itens). Com
+   *  `confere: false` a confirmação é recusada (pendência `total_diverge_do_financeiro`). */
+  financeiro?: { despesa_id: Uuid; valor_financeiro: Dec; total_itens: Dec; diferenca: Dec; confere: boolean } | null;
   aviso: string | null;
   pendencias: string[];
   pode_confirmar: boolean;
@@ -205,6 +208,8 @@ export interface ItemManual {
   unidade: string;
   valor_total: Dec;
   codigo?: string | null;
+  /** Insumo escolhido no seletor (cadastro de insumos e materiais): a linha já nasce associada. */
+  insumo_id?: Uuid | null;
 }
 
 export interface CompraManualEntrada {

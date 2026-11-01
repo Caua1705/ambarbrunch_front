@@ -132,6 +132,8 @@ const DETALHE: Partial<Record<EtapaCompra, string>> = { recebida: 'Documento rec
 
 interface CompraDemo extends CompraDetalhe {
   arquivo_mime: string | null;
+  /** Valor do pagamento no Financeiro que a compra confere (despesa_origem_id): os produtos têm de somá-lo. */
+  valor_pagamento?: number;
   /** Avança uma etapa a cada consulta enquanto lê (o backend lê em segundo plano). */
   leitura?: { proximos: ItemCompra[]; fonte: CompraDetalhe['fonte_leitura']; fornecedor: string };
 }
@@ -200,7 +202,7 @@ function montarCompras() {
   compras.push(compraBase({
     id: 'e2000000-0000-4000-8000-000000000003', etapa: 'aguardando_conferencia', origem: 'julia', fonte_leitura: 'comprovante', arquivo_id: 'demo-doc-3', arquivo_mime: 'image/svg+xml',
     fornecedor: { id: 'e4000000-0000-4000-8000-000000000003', nome: 'Hortifruti Bom Preço', documento: null }, fornecedor_lido: { documento: null, nome: 'Hortifruti Bom Preço' }, emitida_em: instante(hoje, '06:55'),
-    totais: { produtos: null, desconto: '0.00', frete: '0.00', outros: '0.00', total: '186.40' }, despesa_origem_id: DESPESA_JULIA_HORTI, conferencia: { ok: false, motivo: 'sem_itens' },
+    totais: { produtos: null, desconto: '0.00', frete: '0.00', outros: '0.00', total: '186.40' }, despesa_origem_id: DESPESA_JULIA_HORTI, valor_pagamento: 186.4, conferencia: { ok: false, motivo: 'sem_itens' },
     aviso: 'Só há o comprovante do pagamento: informe os produtos e as quantidades (ou envie a nota). O documento já está aqui; não precisa mandar de novo.', pendencias: ['sem_itens'], versao: 1, criado_em: agoraMenos(140),
   }));
   // 4. Nota sendo lida agora (avança a cada consulta)
@@ -232,6 +234,14 @@ function recalcular(c: CompraDemo) {
   });
   if (!c.itens.length) pend.push('sem_itens');
   if (c.itens.length && c.conferencia && !c.conferencia.ok && !c.divergencia_aceita) pend.push('conferencia_aritmetica');
+  // Produtos × pagamento do Financeiro (compras.divergencia_financeira): fora do centavo, não confirma.
+  c.financeiro = null;
+  if (c.despesa_origem_id && c.valor_pagamento !== undefined && c.itens.length) {
+    const total = c.itens.filter((i) => i.situacao !== 'ignorado').reduce((s, i) => s + Number(i.valor_liquido), 0);
+    const diferenca = Math.round((total - c.valor_pagamento) * 100) / 100;
+    c.financeiro = { despesa_id: c.despesa_origem_id, valor_financeiro: d2(c.valor_pagamento), total_itens: d2(total), diferenca: d2(diferenca), confere: Math.abs(diferenca) <= 0.01 };
+    if (!c.financeiro.confere) pend.push('total_diverge_do_financeiro');
+  }
   c.pendencias = pend;
   c.pode_confirmar = !pend.length;
   c.etapa_painel = c.etapa === 'aguardando_conferencia' && !pend.length ? 'pronta' : c.etapa;
@@ -269,8 +279,8 @@ function acharCompra(id: string) {
   return c;
 }
 /** Detalhe (api_compras.detalhe): candidatas de despesa só aparecem em conferência. */
-const saidaCompra = ({ leitura: _l, arquivo_mime: _m, ...c }: CompraDemo): CompraDetalhe => {
-  void _l; void _m;
+const saidaCompra = ({ leitura: _l, arquivo_mime: _m, valor_pagamento: _v, ...c }: CompraDemo): CompraDetalhe => {
+  void _l; void _m; void _v;
   return { ...c, despesa: { ...c.despesa, candidatas: c.etapa === 'aguardando_conferencia' ? c.despesa.candidatas : [] } };
 };
 function listaCompra(c: CompraDemo) {
@@ -291,16 +301,30 @@ function novaLeitura(origem: 'painel' | 'julia', arquivo?: { id: string | null; 
 }
 
 /** Itens digitados (preenchimento manual / compra sem nota) com a sugestão de insumo pelo nome. */
-function itensManuais(lista: { descricao: string; quantidade: string | number; unidade: string; valor_total: string | number }[]): ItemCompra[] {
+function itensManuais(lista: { descricao: string; quantidade: string | number; unidade: string; valor_total: string | number; insumo_id?: string | null }[]): ItemCompra[] {
   if (!Array.isArray(lista) || !lista.length) throw new ErroDemo(422, 'regra_violada', 'Informe pelo menos um item.');
   return lista.map((x, k) => {
     const nome = String(x.descricao ?? '').trim();
     if (!nome) throw new ErroDemo(422, 'regra_violada', `Informe a descrição do item ${k + 1}.`);
-    const ins = insumos.find((i) => i.tipo === 'comprado' && i.nome.toLowerCase().split(' ')[0] && nome.toLowerCase().includes(i.nome.toLowerCase().split(' ')[0]));
+    if (!(Number(x.quantidade) > 0)) throw new ErroDemo(422, 'regra_violada', `Quantidade inválida no item ${k + 1}.`);
+    if (!(Number(x.valor_total) >= 0)) throw new ErroDemo(422, 'regra_violada', `Valor inválido no item ${k + 1}.`);
+    const ins = x.insumo_id ? acharInsumo(x.insumo_id) : insumos.find((i) => i.tipo === 'comprado' && i.nome.toLowerCase().split(' ')[0] && nome.toLowerCase().includes(i.nome.toLowerCase().split(' ')[0]));
     const un = String(x.unidade ?? 'UN').toUpperCase();
     const fator = ins ? (un === 'KG' && ins.unidade_base === 'g' ? 1000 : un === 'L' && ins.unidade_base === 'ml' ? 1000 : un === 'G' || un === 'ML' ? 1 : un === 'UN' && ins.unidade_base === 'un' ? 1 : undefined) : undefined;
     return item(k + 1, nome.toUpperCase(), Number(x.quantidade), un, Number(x.valor_total), ins ? { nome: ins.nome, confianca: fator ? 'alta' : 'media', fator, motivo: 'nome_parecido' } : {});
   });
+}
+type PreenchimentoDemo = { emitida_em: string; valor_total: string; desconto?: string; fornecedor_nome?: string | null; itens: { descricao: string; quantidade: string; unidade: string; valor_total: string; insumo_id?: string | null }[] };
+function preencher(c: CompraDemo, e: PreenchimentoDemo) {
+  c.itens = itensManuais(e.itens);
+  if (e.fornecedor_nome && !c.fornecedor) c.fornecedor = { id: uuid(), nome: e.fornecedor_nome, documento: null };
+  if (e.emitida_em) c.emitida_em = instante(e.emitida_em);
+  conferirTotais(c, Number(e.valor_total || c.totais.total), Number(e.desconto ?? 0));
+  c.fonte_leitura = 'manual';
+  c.aviso = null;
+  c.versao++;
+  recalcular(c);
+  return saidaCompra(c);
 }
 /** Conferência aritmética da nota digitada: {ok, problemas: [{codigo, texto}]}. */
 function conferirTotais(c: CompraDemo, total: number, desconto: number) {
@@ -692,17 +716,33 @@ export const ROTAS_ESTOQUE: Rota[] = [
   }],
   ['PUT', new RegExp(`^estoque/compras/${U}/manual$`), GERENCIA, async ({ params, corpo }) => {
     const c = acharCompra(params[0]);
-    const e = await corpo<{ versao: number; fornecedor_nome?: string | null; fornecedor_documento?: string | null; emitida_em: string; valor_total: string; desconto?: string; itens: { descricao: string; quantidade: string; unidade: string; valor_total: string }[] }>();
+    const e = await corpo<PreenchimentoDemo & { versao: number }>();
     if (Number(e.versao) !== c.versao) throw new ErroDemo(409, 'conflito_versao', 'A compra mudou. Recarregue.', { versao: c.versao });
-    if (c.etapa !== 'aguardando_conferencia' || c.itens.length) throw new ErroDemo(409, 'compra_ja_lida', 'Só uma compra sem itens lidos aceita preenchimento manual.');
-    c.itens = itensManuais(e.itens);
-    if (e.fornecedor_nome && !c.fornecedor) c.fornecedor = { id: uuid(), nome: e.fornecedor_nome, documento: null };
-    if (e.emitida_em) c.emitida_em = instante(e.emitida_em);
-    conferirTotais(c, Number(e.valor_total || c.totais.total), Number(e.desconto ?? 0));
-    c.aviso = null;
-    c.versao++;
-    recalcular(c);
-    return saidaCompra(c);
+    if (c.etapa !== 'aguardando_conferencia' || (c.itens.length && c.fonte_leitura !== 'manual')) throw new ErroDemo(409, 'compra_ja_lida', 'Só uma compra sem itens lidos da nota aceita preenchimento manual.');
+    if (c.itens.length) {
+      // Rascunho digitado corrigido: nova compra (mesmo pagamento), a antiga cancelada (compras._refazer).
+      const nova = compraBase({ ...c, id: uuid(), itens: [], versao: 1, etapas: [{ etapa: 'aguardando_conferencia', em: new Date().toISOString() }], criado_em: new Date().toISOString() });
+      c.etapa = 'cancelada';
+      c.etapa_painel = 'cancelada';
+      c.cancelada_em = new Date().toISOString();
+      c.cancelada_motivo = 'itens corrigidos na conferência';
+      compras.unshift(nova);
+      return preencher(nova, e);
+    }
+    return preencher(c, e);
+  }],
+  ['POST', new RegExp(`^estoque/compras/${U}/nota$`), GERENCIA, ({ params }) => {
+    const c = acharCompra(params[0]);
+    if (c.etapa !== 'aguardando_conferencia' || !c.despesa_origem_id) throw new ErroDemo(409, 'compra_sem_pagamento', 'Só a conferência de um pagamento ainda não confirmada recebe a nota.');
+    if (c.fonte_leitura !== 'comprovante' && c.fonte_leitura !== 'manual') throw new ErroDemo(409, 'compra_ja_lida', 'Esta compra já tem a nota lida.');
+    const nota = novaLeitura('painel');
+    nota.despesa_origem_id = c.despesa_origem_id;
+    nota.valor_pagamento = c.valor_pagamento;
+    c.etapa = 'cancelada';
+    c.etapa_painel = 'cancelada';
+    c.cancelada_em = new Date().toISOString();
+    c.cancelada_motivo = `substituída pela nota da compra ${nota.id}`;
+    return resposta(202, { id: nota.id, etapa: nota.etapa, substitui: c.id, ja_existia: false });
   }],
   ['POST', new RegExp(`^estoque/compras/${U}/confirmar$`), GERENCIA, async ({ params, corpo }) => {
     const c = acharCompra(params[0]);

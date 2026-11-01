@@ -154,6 +154,7 @@ export const PENDENCIA: (p: string) => string = (p) => {
   if (m) return `Item ${m[1]} sem insumo associado`;
   if (p === 'conferencia_aritmetica') return 'A soma da nota não fecha com o total';
   if (p === 'sem_itens') return 'Faltam os produtos e as quantidades';
+  if (p === 'total_diverge_do_financeiro') return 'Os produtos não somam o valor do pagamento';
   if (p.startsWith('etapa_')) return 'A leitura ainda não terminou';
   return p;
 };

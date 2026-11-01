@@ -8,16 +8,16 @@ import { useConsulta } from '../../lib/consulta';
 import { estoque } from '../../lib/api/estoque';
 import { financeiro } from '../../lib/api/financeiro';
 import { ErroApi } from '../../lib/api/cliente';
-import { moeda, dataCurta, dataHora, quantidade, hojeISO, paraDecimal, plural, num } from '../../lib/formato';
+import { moeda, dataCurta, dataHora, quantidade, hojeISO, plural, num } from '../../lib/formato';
 import { Gaveta, useConfirmacao, avisar, avisarErro } from '../../ui/camadas';
 import { Botao, Aviso, Etiqueta, Campo } from '../../ui/base';
 import { Dados, Esqueleto, Falha } from '../../ui/estados';
-import { EntradaMoeda } from '../../ui/entradas';
+import { EnvioArquivo } from '../../ui/entradas';
 import type { CompraDetalhe } from '../../lib/tipos/estoque';
 import { ETAPA, LENDO, FONTE, ERRO_LEITURA, PENDENCIA, atualizarEstoque, textoProblemas, type PermissoesEstoque } from './comum';
 import { ItemConferencia } from './ItemConferencia';
 import { ConfirmarCompra, type Confirmado } from './ConfirmarCompra';
-import { LinhasItens, linhaVazia, validarLinhas, type LinhaManual } from './EntradaCompra';
+import { LinhasItens, linhaVazia, validarLinhas, somaLinhas, type LinhaManual } from './EntradaCompra';
 
 export function Conferencia({ id, perm, aoFechar, aoAbrir }: { id: string | null; perm: PermissoesEstoque; aoFechar: () => void; aoAbrir: (id: string) => void }) {
   const [lendo, setLendo] = useState(false);
@@ -27,18 +27,22 @@ export function Conferencia({ id, perm, aoFechar, aoAbrir }: { id: string | null
   const [recibo, setRecibo] = useState<Confirmado | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [ocupado, setOcupado] = useState(false);
+  const [corrigindo, setCorrigindo] = useState(false);
   const { confirmar, elemento } = useConfirmacao();
 
   useEffect(() => {
     setPasso('itens');
     setRecibo(null);
+    setCorrigindo(false);
   }, [id]);
   useEffect(() => setLendo(!!c && LENDO.includes(c.etapa)), [c?.etapa]);
 
   const titulo = c ? c.fornecedor?.nome ?? c.fornecedor_lido?.nome ?? (LENDO.includes(c.etapa) ? 'Lendo a nota…' : 'Fornecedor não identificado') : 'Compra';
   const sub = c ? [c.numero ? `Nota ${c.numero}` : null, c.emitida_em ? dataCurta(c.emitida_em.slice(0, 10), { ano: true }) : null, c.totais.total ? moeda(c.totais.total) : null].filter(Boolean).join(' · ') : undefined;
   const aguardando = c?.etapa === 'aguardando_conferencia';
-  const semItens = aguardando && !c!.itens.length;
+  const semItens = aguardando && (!c!.itens.length || corrigindo);
+  // Rascunho digitado de um pagamento (ainda sem estoque): pode ser refeito ou trocado pela nota.
+  const rascunho = !!c && aguardando && c.fonte_leitura === 'manual' && !!c.despesa_origem_id && c.itens.length > 0;
   // A gerência pode confirmar uma nota que não fecha, com motivo; os itens precisam estar resolvidos.
   const podeSeguir = !!c && aguardando && (c.pode_confirmar || (perm.editar && c.pendencias.every((p) => p === 'conferencia_aritmetica') && c.itens.length > 0));
 
@@ -134,7 +138,7 @@ export function Conferencia({ id, perm, aoFechar, aoAbrir }: { id: string | null
                 {c.etapa === 'confirmada' ? (
                   <Confirmada c={c} />
                 ) : semItens ? (
-                  perm.conferir ? <PreencherItens c={c} /> : <Aviso tom="atencao" icone={<PackageX aria-hidden="true" />}>Faltam os produtos desta compra. Quem confere compras precisa informá-los.</Aviso>
+                  perm.conferir ? <PreencherItens c={c} aoAbrir={(n) => { setCorrigindo(false); aoAbrir(n); }} aoSalvar={() => setCorrigindo(false)} /> : <Aviso tom="atencao" icone={<PackageX aria-hidden="true" />}>Faltam os produtos desta compra. Quem confere compras precisa informá-los.</Aviso>
                 ) : passo === 'confirmar' ? (
                   <ConfirmarCompra c={c} perm={perm} form="form-confirmar-compra" aoEnviando={setEnviando} aoConfirmar={(r) => { setRecibo(r); avisar('Compra confirmada. Estoque atualizado.', 'ok'); }} />
                 ) : (
@@ -145,6 +149,10 @@ export function Conferencia({ id, perm, aoFechar, aoAbrir }: { id: string | null
                       </Aviso>
                     )}
                     {c.aviso && <Aviso tom="info" icone={<Info aria-hidden="true" />}>{c.aviso}</Aviso>}
+                    <Financeiro c={c} />
+                    {rascunho && perm.conferir && (
+                      <Botao tamanho="p" style={{ alignSelf: 'flex-start' }} onClick={() => setCorrigindo(true)}>Corrigir os produtos ou enviar a nota</Botao>
+                    )}
                     {c.conferencia && !c.conferencia.ok && (
                       <Aviso tom="atencao" icone={<AlertTriangle aria-hidden="true" />}>
                         <strong>A nota não fecha{c.divergencia_aceita ? ` (aceita: ${c.divergencia_aceita})` : ''}.</strong> {textoProblemas(c.conferencia.problemas)}
@@ -318,24 +326,61 @@ function Falhou({ c }: { c: CompraDetalhe }) {
   );
 }
 
-/** Compra que veio só do comprovante do pagamento: a pessoa digita os produtos aqui, sem reenviar o comprovante. */
-function PreencherItens({ c }: { c: CompraDetalhe }) {
-  const [linhas, setLinhas] = useState<LinhaManual[]>([linhaVazia(), linhaVazia()]);
+/** Produtos × pagamento do Financeiro: a confirmação só passa com o total batendo (o backend recusa de novo). */
+function Financeiro({ c }: { c: CompraDetalhe }) {
+  const f = c.financeiro;
+  if (!f) return null;
+  if (f.confere)
+    return <Aviso tom="ok" icone={<CheckCircle2 aria-hidden="true" />}>Os produtos somam {moeda(f.total_itens)}, igual ao pagamento no Financeiro.</Aviso>;
+  return (
+    <Aviso tom="perigo" icone={<AlertTriangle aria-hidden="true" />}>
+      <strong>Os produtos não batem com o pagamento.</strong> Pagamento no Financeiro: {moeda(f.valor_financeiro)} · produtos: {moeda(f.total_itens)} · diferença: {moeda(Math.abs(Number(f.diferenca)))}. A confirmação fica bloqueada até corrigir os produtos (ou o lançamento no Financeiro). Nada entrou no estoque.
+    </Aviso>
+  );
+}
+
+/** Linhas iniciais: as do rascunho digitado (para corrigir) ou duas em branco. */
+function linhasDe(c: CompraDetalhe): LinhaManual[] {
+  if (!c.itens.length) return [linhaVazia(), linhaVazia()];
+  return [...c.itens].sort((a, b) => a.ordem - b.ordem).map((i) => {
+    const q = Number(i.quantidade);
+    const unit = q > 0 ? Number(i.valor_liquido) / q : 0;
+    return {
+      insumo: i.sugestao?.insumo_id && i.sugestao.insumo ? { valor: i.sugestao.insumo_id, rotulo: i.sugestao.insumo } : null,
+      descricao: i.sugestao?.insumo ?? i.descricao,
+      quantidade: String(q).replace('.', ','),
+      unidade: i.unidade,
+      unitario: unit.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      total: Number(i.valor_liquido).toFixed(2),
+    };
+  });
+}
+
+/** Compra que veio só do comprovante do pagamento (ou rascunho digitado): a pessoa informa os produtos aqui, sem reenviar
+ *  o comprovante, ou envia a nota fiscal (opcional), lida só aqui no painel. O total é o do pagamento no Financeiro. */
+function PreencherItens({ c, aoAbrir, aoSalvar }: { c: CompraDetalhe; aoAbrir: (id: string) => void; aoSalvar: () => void }) {
+  const [linhas, setLinhas] = useState<LinhaManual[]>(() => linhasDe(c));
   const [data, setData] = useState(c.emitida_em?.slice(0, 10) ?? hojeISO());
-  const [total, setTotal] = useState(c.totais.total ? Number(c.totais.total).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '');
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
-  const soma = linhas.reduce((s, l) => s + Number(paraDecimal(l.valor) ?? 0), 0);
-  const t = Number(paraDecimal(total) ?? 0);
+  const [notaEnviando, setNotaEnviando] = useState<string | null>(null);
+  const soma = somaLinhas(linhas);
+  // Pagamento que esta compra confere: o valor da despesa no Financeiro (a pendência nasce com ele).
+  const pago = c.financeiro ? Number(c.financeiro.valor_financeiro) : c.despesa_origem_id && c.totais.total ? Number(c.totais.total) : null;
+  const diferenca = pago !== null ? Math.round((soma - pago) * 100) / 100 : 0;
+  const diverge = pago !== null && Math.abs(diferenca) > 0.009;
   async function salvar(e: Event) {
     e.preventDefault();
+    if (enviando) return;
     const { itens, erro: er } = validarLinhas(linhas);
     if (er) return setErro(er);
     setEnviando(true);
     setErro(null);
     try {
-      await estoque.preencherManual(c.id, { versao: c.versao, emitida_em: data, valor_total: paraDecimal(total) ?? soma.toFixed(2), itens });
-      avisar('Produtos registrados. Agora confira cada item.', 'ok');
+      const r = await estoque.preencherManual(c.id, { versao: c.versao, emitida_em: data, valor_total: soma.toFixed(2), itens });
+      avisar(diverge ? 'Rascunho salvo. A confirmação fica bloqueada até os produtos somarem o valor do pagamento.' : 'Produtos registrados. Agora confira cada item.', diverge ? 'info' : 'ok');
+      if (r.id !== c.id) aoAbrir(r.id);
+      else aoSalvar();
     } catch (x) {
       setErro(x instanceof ErroApi ? x.message : 'Não foi possível salvar.');
     } finally {
@@ -343,21 +388,54 @@ function PreencherItens({ c }: { c: CompraDetalhe }) {
       atualizarEstoque();
     }
   }
+  async function enviarNota(f: File) {
+    if (f.size > 15 * 1024 * 1024) return setErro('O arquivo passa de 15 MB. Tire a foto de novo ou envie o PDF/XML.');
+    setNotaEnviando(f.name);
+    setErro(null);
+    try {
+      const r = await estoque.anexarNota(c.id, f);
+      avisar('Nota recebida. Lendo os produtos… O pagamento continua o mesmo.', 'ok');
+      aoAbrir(r.id);
+    } catch (x) {
+      setErro(x instanceof ErroApi ? x.message : 'Não foi possível enviar a nota.');
+    } finally {
+      setNotaEnviando(null);
+      atualizarEstoque();
+    }
+  }
   return (
     <form class="pilha" onSubmit={salvar} noValidate>
       <Aviso tom="atencao" icone={<PackageX aria-hidden="true" />}>
-        <strong>Produtos e quantidades ainda não informados.</strong> Esta compra veio do comprovante do pagamento{c.origem === 'julia' ? ' enviado à Júlia' : ''}. Informe o que chegou para dar entrada no estoque — não precisa reenviar o comprovante.
+        <strong>{c.itens.length ? 'Corrija os produtos desta compra.' : 'Produtos e quantidades ainda não informados.'}</strong> Esta compra veio do comprovante do pagamento{c.origem === 'julia' ? ' enviado à Júlia' : ''}. Escolha os produtos no cadastro e informe quantidade e valor — não precisa reenviar o comprovante.
       </Aviso>
       <LinhasItens linhas={linhas} aoMudar={setLinhas} />
       <div class="grade-campos">
         <Campo rotulo="Data da compra">{(id) => <input id={id} type="date" class="entrada" max={hojeISO()} value={data} onChange={(e) => setData(e.currentTarget.value)} />}</Campo>
-        <Campo rotulo="Total pago" ajuda={soma ? `Soma dos produtos: ${moeda(soma)}${t && Math.abs(soma - t) > 0.05 ? ' — não bate com o total' : ''}` : undefined}>
-          {(id, d) => <EntradaMoeda id={id} descr={d} valor={total} aoMudar={setTotal} />}
-        </Campo>
+        <div class="pilha pilha--p" role="status" aria-live="polite" data-teste="soma-produtos">
+          <span class="fraco">Soma dos produtos</span>
+          <strong class="num">{moeda(soma)}</strong>
+          {pago !== null && (
+            <span class={diverge ? undefined : 'fraco'} style={diverge ? { color: 'var(--perigo)' } : undefined}>
+              Pagamento no Financeiro: {moeda(pago)}{diverge ? ` · diferença de ${moeda(Math.abs(diferenca))} — a confirmação fica bloqueada` : ' · confere'}
+            </span>
+          )}
+        </div>
       </div>
       {erro && <Aviso tom="perigo" icone={<Info aria-hidden="true" />}>{erro}</Aviso>}
-      <p class="fraco">Tem a nota fiscal? Envie a foto em “Enviar nota”: a leitura vira uma conferência própria e, na confirmação, sugere ligar a nota a este pagamento.</p>
       <Botao type="submit" variante="primario" carregando={enviando} style={{ alignSelf: 'flex-start' }}>Salvar produtos</Botao>
+      {c.despesa_origem_id && (
+        <section class="pilha pilha--p" aria-label="Enviar a nota fiscal (opcional)">
+          <h3 class="secao-titulo">Ou envie a nota fiscal (opcional)</h3>
+          <EnvioArquivo
+            aceitar="image/jpeg,image/png,image/webp,image/heic,application/pdf,.xml,text/xml,application/xml"
+            captura
+            desativado={!!notaEnviando}
+            titulo={notaEnviando ? `Enviando ${notaEnviando}…` : 'Foto, PDF ou XML da nota desta compra'}
+            detalhe="A leitura propõe os produtos e você revisa antes de confirmar. Não cria outra despesa."
+            aoEscolher={enviarNota}
+          />
+        </section>
+      )}
     </form>
   );
 }

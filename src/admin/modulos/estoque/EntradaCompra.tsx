@@ -1,5 +1,6 @@
-// Entradas de compra pelo painel: enviar nota (foto/PDF/XML) e compra sem nota; e as linhas de produtos digitados,
-// usadas também quando a compra veio só do comprovante do Pix.
+// Entradas de compra pelo painel: enviar nota (foto/PDF/XML) e compra sem nota; e as linhas de produtos (seletor do
+// cadastro de insumos e materiais, quantidade, unidade, valor unitário e subtotal), usadas também quando a compra veio
+// só do comprovante do Pix.
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { Info, Plus, Trash2, Camera } from 'lucide-preact';
 import { estoque } from '../../lib/api/estoque';
@@ -7,9 +8,9 @@ import { ErroApi, novaChave } from '../../lib/api/cliente';
 import { moeda, hojeISO, paraDecimal } from '../../lib/formato';
 import { Gaveta, avisar } from '../../ui/camadas';
 import { Botao, Campo, Aviso } from '../../ui/base';
-import { EnvioArquivo, EntradaMoeda } from '../../ui/entradas';
+import { EnvioArquivo, EntradaMoeda, Autocompletar, type OpcaoAuto } from '../../ui/entradas';
 import type { ItemManual } from '../../lib/tipos/estoque';
-import { atualizarEstoque } from './comum';
+import { atualizarEstoque, UNIDADE_CURTA } from './comum';
 
 /** Envio de nota: foto (câmera no celular), PDF ou XML. A leitura acontece no backend; a conferência abre em seguida.
  *  A unidade vai no próprio formulário: no multipart o backend lê `unidade` do Form, não da query. */
@@ -48,45 +49,83 @@ export function EnviarNota({ aberta, aoFechar, aoEnviar, unidade }: { aberta: bo
       <Aviso icone={<Camera aria-hidden="true" />}>
         <strong>Dica:</strong> o XML da nota é o mais preciso. Na foto, enquadre a nota inteira, com o QR Code visível e sem reflexo. Nada entra no estoque até alguém conferir.
       </Aviso>
-      <p class="fraco">Já pagou pela Júlia? Não precisa reenviar o comprovante: o pagamento já está na lista de compras. Envie só a nota; na confirmação, o painel sugere ligar a nota ao pagamento.</p>
+      <p class="fraco">Já pagou pela Júlia? Não envie aqui: abra a compra pendente desse pagamento na lista e envie a nota dentro dela — ela confere o mesmo pagamento, sem criar outra despesa.</p>
     </Gaveta>
   );
 }
 
 export interface LinhaManual {
+  /** Insumo do cadastro escolhido no seletor (null: nome novo, cadastrado na conferência). */
+  insumo: OpcaoAuto | null;
   descricao: string;
   quantidade: string;
   unidade: string;
-  valor: string;
+  /** Valor unitário (R$ por unidade de compra); o subtotal é quantidade × unitário. */
+  unitario: string;
+  /** Subtotal já gravado (rascunho reaberto): vale até a pessoa mudar quantidade ou valor, para o centavo do unitário
+   *  arredondado não mudar a soma sozinho. */
+  total?: string;
 }
-export const linhaVazia = (): LinhaManual => ({ descricao: '', quantidade: '', unidade: 'UN', valor: '' });
+export const linhaVazia = (): LinhaManual => ({ insumo: null, descricao: '', quantidade: '', unidade: 'UN', unitario: '' });
 
-/** Validação comum aos itens digitados. */
+const qtd = (t: string) => Number(t.replace(',', '.'));
+/** Subtotal da linha em reais, arredondado ao centavo (0 se faltar quantidade ou valor). */
+export const subtotal = (l: LinhaManual) => {
+  if (l.total !== undefined) return Number(l.total);
+  const q = qtd(l.quantidade);
+  const u = Number(paraDecimal(l.unitario) ?? NaN);
+  return q > 0 && u >= 0 ? Math.round(q * u * 100) / 100 : 0;
+};
+export const somaLinhas = (linhas: LinhaManual[]) => Math.round(linhas.reduce((s, l) => s + subtotal(l), 0) * 100) / 100;
+
+/** Validação comum aos itens digitados (o backend valida de novo: quantidade > 0, valor ≥ 0). */
 export function validarLinhas(linhas: LinhaManual[]): { itens: ItemManual[]; erro: string | null } {
-  const usadas = linhas.filter((l) => l.descricao.trim() || l.quantidade || l.valor);
+  const usadas = linhas.filter((l) => l.descricao.trim() || l.quantidade || l.unitario);
   if (!usadas.length) return { itens: [], erro: 'Adicione pelo menos um produto.' };
   const itens: ItemManual[] = [];
   for (const [k, l] of usadas.entries()) {
-    const q = Number(l.quantidade.replace(',', '.'));
-    const v = paraDecimal(l.valor);
-    if (!l.descricao.trim()) return { itens, erro: `Produto ${k + 1}: informe o nome.` };
-    if (!(q > 0)) return { itens, erro: `${l.descricao}: informe a quantidade.` };
-    if (v === null || Number(v) < 0) return { itens, erro: `${l.descricao}: informe o valor pago.` };
-    itens.push({ descricao: l.descricao.trim(), quantidade: String(q), unidade: l.unidade.trim().toUpperCase() || 'UN', valor_total: v });
+    const q = qtd(l.quantidade);
+    const u = paraDecimal(l.unitario);
+    const nome = l.descricao.trim();
+    if (!nome) return { itens, erro: `Produto ${k + 1}: escolha o produto no cadastro (ou digite o nome).` };
+    if (!(q > 0) || !Number.isFinite(q)) return { itens, erro: `${nome}: informe uma quantidade maior que zero.` };
+    if (u === null || !(Number(u) >= 0)) return { itens, erro: `${nome}: informe o valor unitário.` };
+    itens.push({ descricao: nome, quantidade: String(q), unidade: l.unidade.trim().toUpperCase() || 'UN', valor_total: subtotal(l).toFixed(2), insumo_id: l.insumo?.valor ?? null });
   }
   return { itens, erro: null };
 }
 
 const UNIDADES_COMPRA = ['UN', 'KG', 'G', 'L', 'ML', 'CX', 'PCT', 'BDJ', 'DZ', 'SC'];
 
-/** Linhas editáveis de produtos: descrição, quantidade, unidade de compra e valor total pago. */
+/** Busca no cadastro de insumos e materiais COMPRADOS (nunca os produtos do cardápio). */
+async function buscarInsumo(texto: string): Promise<OpcaoAuto[]> {
+  const r = await estoque.insumos({ busca: texto.trim() || undefined, tipo: 'comprado', limite: 20 });
+  return r.itens.map((i) => ({ valor: i.id, rotulo: i.nome, detalhe: `em ${UNIDADE_CURTA[i.unidade_base]}` }));
+}
+
+/** Linhas editáveis de produtos: produto do cadastro (seletor pesquisável), quantidade, unidade, valor unitário e subtotal. */
 export function LinhasItens({ linhas, aoMudar }: { linhas: LinhaManual[]; aoMudar: (l: LinhaManual[]) => void }) {
-  const set = (k: number, m: Partial<LinhaManual>) => aoMudar(linhas.map((l, i) => (i === k ? { ...l, ...m } : l)));
+  // Mudou quantidade ou valor: o subtotal volta a ser quantidade × unitário.
+  const set = (k: number, m: Partial<LinhaManual>) =>
+    aoMudar(linhas.map((l, i) => (i === k ? { ...l, ...m, ...('quantidade' in m || 'unitario' in m ? { total: undefined } : {}) } : l)));
   return (
     <div class="linhas-edicao">
       {linhas.map((l, k) => (
         <div class="linha-edicao" key={k}>
-          <Campo rotulo={`Produto ${k + 1}`}>{(id) => <input id={id} class="entrada" placeholder="Ex.: Morango bandeja" value={l.descricao} onInput={(e) => set(k, { descricao: e.currentTarget.value })} />}</Campo>
+          <Campo rotulo={`Produto ${k + 1}`} ajuda={!l.insumo && l.descricao.trim() ? 'Fora do cadastro: será cadastrado na conferência.' : undefined}>
+            {(id, d) => (
+              <Autocompletar
+                id={id}
+                descr={d}
+                rotulo={`Produto ${k + 1}`}
+                placeholder="Buscar no cadastro (ex.: leite)"
+                valor={l.insumo ?? (l.descricao ? { valor: '', rotulo: l.descricao } : null)}
+                buscar={buscarInsumo}
+                aoEscolher={(o) => set(k, o ? { insumo: o, descricao: o.rotulo } : { insumo: null })}
+                criar={{ rotulo: (t) => `Usar “${t}” (cadastrar na conferência)`, acao: (t) => set(k, { insumo: null, descricao: t }) }}
+              />
+            )}
+          </Campo>
           <Campo rotulo="Qtd.">{(id) => <input id={id} class="entrada num" inputMode="decimal" value={l.quantidade} onInput={(e) => set(k, { quantidade: e.currentTarget.value })} />}</Campo>
           <Campo rotulo="Unid.">
             {(id) => (
@@ -95,7 +134,8 @@ export function LinhasItens({ linhas, aoMudar }: { linhas: LinhaManual[]; aoMuda
               </select>
             )}
           </Campo>
-          <Campo rotulo="Valor total">{(id) => <EntradaMoeda id={id} valor={l.valor} aoMudar={(v) => set(k, { valor: v })} />}</Campo>
+          <Campo rotulo="Valor unit.">{(id) => <EntradaMoeda id={id} valor={l.unitario} aoMudar={(v) => set(k, { unitario: v })} />}</Campo>
+          <Campo rotulo="Subtotal">{(id) => <output id={id} class="entrada num" style={{ display: 'flex', alignItems: 'center' }}>{moeda(subtotal(l))}</output>}</Campo>
           <Botao so_icone variante="fantasma" aria-label={`Remover o produto ${k + 1}`} icone={<Trash2 aria-hidden="true" />} disabled={linhas.length === 1} onClick={() => aoMudar(linhas.filter((_, i) => i !== k))} />
         </div>
       ))}
@@ -127,7 +167,7 @@ export function CompraManual({ aberta, aoFechar, aoCriar }: { aberta: boolean; a
       chave.current = novaChave();
     }
   }, [aberta]);
-  const soma = linhas.reduce((s, l) => s + Number(paraDecimal(l.valor) ?? 0), 0);
+  const soma = somaLinhas(linhas);
   async function criar(e: Event) {
     e.preventDefault();
     const { itens, erro: er } = validarLinhas(linhas);
