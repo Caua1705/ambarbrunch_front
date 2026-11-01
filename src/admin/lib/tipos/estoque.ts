@@ -144,6 +144,14 @@ export interface CandidataDespesa {
   origem: string;
   paga: boolean;
   forca: 'forte' | 'fraca';
+  /** Despesa − compra (aparece com até 2% de diferença). Ausente no backend anterior ao B3 (1f38f88). */
+  diferenca?: Dec;
+  /** Total ao centavo: só estas podem ser vinculadas. A que não bate se resolve corrigindo itens/desconto (ou o valor no
+   *  Financeiro), nunca com outra despesa. */
+  vinculavel?: boolean;
+  /** O pagamento já tem uma compra pendente de conferência (Pix de insumos): "outra compra" → 409
+   *  pagamento_aguarda_conferencia; o caminho é anexar esta nota à pendência dele. */
+  aguarda_conferencia?: boolean;
 }
 
 /** Problema da conferência aritmética da nota (extracao/nota.py: {codigo, texto, ordem?}). */

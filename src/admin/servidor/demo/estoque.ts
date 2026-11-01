@@ -9,7 +9,7 @@ import type { Rota } from './roteador';
 import { TODOS, GERENCIA, ErroDemo, dia, instante, agoraMenos, uuid, resposta, exigirMotivo, hojeFortaleza } from './roteador';
 import type {
   Insumo, InsumoCadastro, CompraDetalhe, ItemCompra, MovimentoEstoque, FichaLista, FichaDetalhe, FichaSalva, UnidadeBase, Inventario, InventarioResumo,
-  CancelamentoEstoque, EtapaCompra, TipoMovimento, DecisaoCancelamento, FechamentoInventario, SugestaoInsumo,
+  CancelamentoEstoque, EtapaCompra, TipoMovimento, DecisaoCancelamento, FechamentoInventario, SugestaoInsumo, CandidataDespesa,
 } from '../../lib/tipos/estoque';
 
 const d2 = (v: number) => v.toFixed(2);
@@ -154,6 +154,7 @@ function item(ordem: number, descricao: string, quantidade: number, unidade: str
 
 const DESPESA_JULIA_LATICINIOS = 'f1000000-0000-4000-8000-000000000101';
 const DESPESA_JULIA_HORTI = 'f1000000-0000-4000-8000-000000000102';
+const DESPESA_JULIA_PADARIA = 'f1000000-0000-4000-8000-000000000104';
 
 function compraBase(p: Partial<CompraDemo> & Pick<CompraDemo, 'id' | 'etapa' | 'origem' | 'fonte_leitura'>): CompraDemo {
   return {
@@ -224,6 +225,23 @@ function montarCompras() {
     itens: [item(1, 'FARINHA TRIGO T1 25KG', 1, 'SC', 128.0, { nome: 'Farinha de trigo', fator: 25000 }), item(2, 'ACUCAR REFINADO 5KG', 4, 'PCT', 120.0, { nome: 'Açúcar refinado', fator: 5000 }), item(3, 'MUCARELA PECA KG', 4, 'KG', 152.0, { nome: 'Muçarela', fator: 1000 })].map((x) => ({ ...x, situacao: 'confirmado' as const })),
     despesa: { despesa_id: 'f1000000-0000-4000-8000-000000000103', candidatas: [] }, confirmada_em: agoraMenos(60 * 24 * 3), criado_em: agoraMenos(60 * 24 * 3 + 30), versao: 9,
   }));
+  // 7 e 8 (B3). Pix de R$ 150,00 da padaria só com o comprovante, esperando conferência; e a nota da mesma padaria enviada
+  // no painel com R$ 152,40: parecida (até 2%), mas não vinculável, e não pode virar "outra compra".
+  compras.push(compraBase({
+    id: 'e2000000-0000-4000-8000-000000000008', etapa: 'aguardando_conferencia', origem: 'julia', fonte_leitura: 'comprovante', arquivo_id: 'demo-doc-8', arquivo_mime: 'image/svg+xml',
+    fornecedor: { id: 'e4000000-0000-4000-8000-000000000005', nome: 'Padaria Trigo de Ouro', documento: null }, fornecedor_lido: { documento: null, nome: 'Padaria Trigo de Ouro' }, emitida_em: instante(hoje, '07:05'),
+    totais: { produtos: null, desconto: '0.00', frete: '0.00', outros: '0.00', total: '150.00' }, despesa_origem_id: DESPESA_JULIA_PADARIA, valor_pagamento: 150, conferencia: { ok: false, motivo: 'sem_itens' },
+    aviso: 'Só há o comprovante do pagamento: informe os produtos e as quantidades (ou envie a nota). O documento já está aqui; não precisa mandar de novo.', pendencias: ['sem_itens'], versao: 1, criado_em: agoraMenos(120),
+  }));
+  compras.push(compraBase({
+    id: 'e2000000-0000-4000-8000-000000000007', etapa: 'aguardando_conferencia', etapa_painel: 'pronta', origem: 'painel', fonte_leitura: 'foto_ia', arquivo_id: 'demo-doc-7', arquivo_mime: 'image/svg+xml',
+    fornecedor: { id: 'e4000000-0000-4000-8000-000000000005', nome: 'Padaria Trigo de Ouro', documento: null }, fornecedor_lido: { documento: null, nome: 'PADARIA TRIGO DE OURO' }, numero: '5120', emitida_em: instante(hoje, '07:00'),
+    totais: { produtos: '152.40', desconto: '0.00', frete: '0.00', outros: '0.00', total: '152.40' },
+    itens: [item(1, 'PAO FERMENTACAO NATURAL', 24, 'UN', 152.4, { nome: 'Pão de fermentação natural', fator: 1 })],
+    despesa: { despesa_id: null, candidatas: [{ despesa_id: DESPESA_JULIA_PADARIA, descricao: 'Pix Padaria Trigo de Ouro', valor: '150.00', competencia: hoje, origem: 'julia', paga: true, forca: 'fraca' }] },
+    pode_confirmar: true, versao: 2, criado_em: agoraMenos(100),
+    etapas: ['recebida', 'processando', 'itens_extraidos', 'associacoes_sugeridas', 'aguardando_conferencia'].map((e, k) => ({ etapa: e, em: agoraMenos(100 - k) })),
+  }));
 }
 
 function recalcular(c: CompraDemo) {
@@ -278,10 +296,20 @@ function acharCompra(id: string) {
   if (!c) throw new ErroDemo(404, 'nao_encontrado', 'Compra não encontrada.');
   return c;
 }
+/** Candidatas como em compras.candidatas_de_despesa (B3): diferença (despesa − compra), vinculável só ao centavo e se o
+ *  pagamento já tem uma compra viva esperando conferência. */
+function candidatasDe(c: CompraDemo): CandidataDespesa[] {
+  const total = Number(c.totais.total ?? 0);
+  return c.despesa.candidatas.map((d) => {
+    const diferenca = Math.round((Number(d.valor) - total) * 100) / 100;
+    const aguarda = compras.some((o) => o.id !== c.id && o.despesa_origem_id === d.despesa_id && ETAPAS.includes(o.etapa));
+    return { ...d, diferenca: d2(diferenca), vinculavel: Math.abs(diferenca) <= 0.01, aguarda_conferencia: aguarda };
+  });
+}
 /** Detalhe (api_compras.detalhe): candidatas de despesa só aparecem em conferência. */
 const saidaCompra = ({ leitura: _l, arquivo_mime: _m, valor_pagamento: _v, ...c }: CompraDemo): CompraDetalhe => {
   void _l; void _m; void _v;
-  return { ...c, despesa: { ...c.despesa, candidatas: c.etapa === 'aguardando_conferencia' ? c.despesa.candidatas : [] } };
+  return { ...c, despesa: { ...c.despesa, candidatas: c.etapa === 'aguardando_conferencia' ? candidatasDe(c as CompraDemo) : [] } };
 };
 function listaCompra(c: CompraDemo) {
   return {
@@ -759,9 +787,17 @@ export const ROTAS_ESTOQUE: Rota[] = [
     }
     if (c.pendencias.length) throw new ErroDemo(409, 'pendencias', 'Ainda há pendências na conferência.', { pendencias: c.pendencias });
     const d = e.despesa ?? {};
-    const forte = c.despesa.candidatas.find((x) => x.forca === 'forte');
-    if (!c.despesa_origem_id && forte && !d.vincular_despesa_id && !d.criar_nova) throw new ErroDemo(409, 'despesa_ja_registrada', 'Já existe uma despesa registrada que parece ser esta compra.', { candidata: forte });
-    if (d.criar_nova) exigirMotivo(d.motivo_nova);
+    // compras.confirmar: qualquer candidata pede uma decisão; "outra compra" nunca passa por cima de um pagamento que espera
+    // a conferência (B3); vincular exige o total ao centavo.
+    const possiveis = candidatasDe(c);
+    if (!c.despesa_origem_id && !d.vincular_despesa_id) {
+      if (possiveis.length && !d.criar_nova) throw new ErroDemo(409, 'despesa_ja_registrada', 'Já existe uma despesa registrada que parece ser esta compra. Vincule a ela, ou confirme que é outra compra (com motivo).', { candidatas: possiveis });
+      if (d.criar_nova) exigirMotivo(d.motivo_nova);
+      const esperando = possiveis.filter((x) => x.aguarda_conferencia);
+      if (esperando.length) throw new ErroDemo(409, 'pagamento_aguarda_conferencia', 'Este pagamento já espera a conferência desta compra. Anexe a nota à pendência dele ou corrija os itens; não crie outra despesa.', { candidatas: esperando });
+    }
+    const vinculada = d.vincular_despesa_id ? possiveis.find((x) => x.despesa_id === d.vincular_despesa_id) : undefined;
+    if (vinculada && !vinculada.vinculavel) throw new ErroDemo(409, 'total_diverge_do_financeiro', `Os produtos somam ${c.totais.total}, mas o pagamento no Financeiro é ${vinculada.valor}. Corrija os itens ou o lançamento antes de confirmar.`);
     for (const it of c.itens) {
       if ((it.situacao === 'confirmado' || it.situacao === 'sugerido') && it.sugestao?.insumo_id && it.sugestao.quantidade_base) {
         movimentar(acharInsumo(it.sugestao.insumo_id), 'entrada_compra', Number(it.sugestao.quantidade_base), Number(it.sugestao.custo_unitario_base), null);

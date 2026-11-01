@@ -140,7 +140,7 @@ export function Conferencia({ id, perm, aoFechar, aoAbrir }: { id: string | null
                 ) : semItens ? (
                   perm.conferir ? <PreencherItens c={c} aoAbrir={(n) => { setCorrigindo(false); aoAbrir(n); }} aoSalvar={() => setCorrigindo(false)} /> : <Aviso tom="atencao" icone={<PackageX aria-hidden="true" />}>Faltam os produtos desta compra. Quem confere compras precisa informá-los.</Aviso>
                 ) : passo === 'confirmar' ? (
-                  <ConfirmarCompra c={c} perm={perm} form="form-confirmar-compra" aoEnviando={setEnviando} aoConfirmar={(r) => { setRecibo(r); avisar('Compra confirmada. Estoque atualizado.', 'ok'); }} />
+                  <ConfirmarCompra c={c} perm={perm} form="form-confirmar-compra" aoEnviando={setEnviando} aoAbrir={aoAbrir} aoConfirmar={(r) => { setRecibo(r); avisar('Compra confirmada. Estoque atualizado.', 'ok'); }} />
                 ) : (
                   <>
                     {c.fonte_leitura === 'foto_ia' && (
