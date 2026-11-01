@@ -5,7 +5,7 @@ import { DEMO, entrarDemo } from './apoio';
 test('Gerente: busca, abre a ficha e corrige o e-mail', async ({ page }) => {
   await entrarDemo(page, 'gerente');
   await page.goto(`${DEMO}/admin/clientes`);
-  await expect(page.getByRole('heading', { name: 'Clientes' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Clientes', level: 1 })).toBeVisible();
   await expect(page.locator('[data-linha]:visible').first()).toBeVisible();
   await page.getByRole('searchbox', { name: 'Buscar cliente' }).fill('zzzz-ninguem');
   await expect(page.getByText('Ninguém encontrado com essa busca')).toBeVisible();
