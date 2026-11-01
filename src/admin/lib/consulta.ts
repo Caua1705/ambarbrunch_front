@@ -38,6 +38,8 @@ function buscar(chave: string, fn: () => Promise<unknown>) {
 }
 
 export function invalidar(...prefixos: string[]) {
+  // Uma ação mudou dados: o sino do topo (layout/avisos.ts) reconta as pendências.
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('painel:invalidar', { detail: prefixos }));
   for (const chave of [...cache.keys()]) {
     if (prefixos.some((p) => chave === p || chave.startsWith(`${p}:`) || chave.startsWith(`${p}?`) || chave.startsWith(`${p}/`))) {
       const e = cache.get(chave)!;

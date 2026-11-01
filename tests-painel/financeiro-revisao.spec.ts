@@ -190,6 +190,7 @@ test('unidade errada: o documento e a despesa de teste vão para a unidade de te
   expect((await recusa.json()).codigo).toBe('despesa_de_compra');
 
   // Na unidade de testes, o documento está na fila e a faixa de teste aparece.
+  await page.locator('#perfil button.perfil').click();
   await page.locator('[data-unidade]').selectOption('ambar_teste');
   await expect(page.locator('[data-unidade-teste]')).toBeVisible();
   await abrirRevisao(page);

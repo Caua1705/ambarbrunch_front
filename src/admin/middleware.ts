@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 import { modoPainel, clubeConvites, modulosLiberados, DEMO_PERMITIDO } from './servidor/config';
 import { lerSessao, apagarSessao, gravarUnidade, COOKIE_UNIDADE, ehHttps } from './servidor/sessao';
 import { chamarBackend, lerJson, BackendForaDoAr } from './servidor/backend';
-import type { ContextoPainel, Unidade, Usuario } from './lib/sessao';
+import { unidadePadrao, type ContextoPainel, type Unidade, type Usuario } from './lib/sessao';
 
 const PUBLICAS = new Set(['/admin/login', '/admin/api/sessao']);
 
@@ -69,7 +69,7 @@ async function carregarContexto(token: string, demoPapel: ContextoPainel['usuari
     }
   }
   const ativas = unidades.filter((u) => u.ativo);
-  const unidade = ativas.find((u) => u.codigo === unidadeCookie) ?? ativas.find((u) => u.codigo === 'ambar_cafe') ?? ativas[0] ?? null;
+  const unidade = ativas.find((u) => u.codigo === unidadeCookie) ?? unidadePadrao(ativas);
   return { usuario, unidades: ativas, unidade, clubeConvites: clubeConvites(), modulos: modulosLiberados() };
 }
 

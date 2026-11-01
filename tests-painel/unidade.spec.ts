@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { API, BACKEND_FALSO } from './apoio';
+import { API, BACKEND_FALSO, escolherUnidade } from './apoio';
 
 // Unidade de negócio: o topo e os dados precisam falar da MESMA unidade. Sem `?unidade=`, o backend usa a unidade padrão
 // dele (na produção, a de testes) — por isso o painel manda a unidade escolhida desde o primeiro acesso.
@@ -24,14 +24,14 @@ test('primeiro acesso: a ponte já manda a unidade que o topo mostra', async ({ 
 
 test('unidade de testes: faixa de ambiente de teste e dados pedidos dela', async ({ page }) => {
   await entrarApi(page);
-  await page.locator('[data-unidade]').selectOption('ambar_teste');
-  await page.waitForLoadState('load');
+  await escolherUnidade(page, 'ambar_teste');
   await expect(page.locator('[data-unidade-teste]')).toContainText('AMBIENTE DE TESTE · Âmbar · TESTES');
+  // a faixa vermelha já diz a unidade: sem selo repetido no topo
+  await expect(page.locator('[data-unidade-atual]')).toHaveCount(0);
   await expect(page.getByText('Cliente Real de Teste').filter({ visible: true })).toBeVisible();
   expect(await consultada(page)).toBe('ambar_teste');
   // voltar à operação real tira a faixa
-  await page.locator('[data-unidade]').selectOption('ambar_cafe');
-  await page.waitForLoadState('load');
+  await escolherUnidade(page, 'ambar_cafe');
   await expect(page.locator('[data-unidade-teste]')).toHaveCount(0);
 });
 
@@ -52,8 +52,7 @@ test('B4: cada aba fica na unidade que mostra — trocar a unidade em outra aba 
   // Aba B troca para a unidade de testes: o cookie (compartilhado entre as abas) passa a dizer ambar_teste.
   const b = await context.newPage();
   await b.goto(`${API}/admin/reservas`);
-  await b.locator('[data-unidade]').selectOption('ambar_teste');
-  await b.waitForLoadState('load');
+  await escolherUnidade(b, 'ambar_teste');
   await expect(b.locator('[data-unidade-teste]')).toBeVisible();
   expect((await context.cookies()).find((c) => c.name === 'ambar_painel_unidade')?.value).toBe('ambar_teste');
   expect(await consultada(b)).toBe('ambar_teste');

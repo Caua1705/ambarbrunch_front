@@ -46,3 +46,10 @@ export const ehUnidadeTeste = (u: Pick<Unidade, 'codigo'> | null | undefined) =>
   !!u && (u.codigo.startsWith('teste') || u.codigo.endsWith('_teste'));
 
 export const NOME_PAPEL: Record<Papel, string> = { admin: 'Proprietário', gerente: 'Gerente', operador: 'Atendente' };
+
+/**
+ * Unidade em que o painel abre quando a pessoa não escolheu outra: a operação do Café (`ambar_cafe`, o mesmo padrão do
+ * middleware desde a B4) ou, sem ela, a primeira ativa. O topo só mostra a unidade quando a aba está em OUTRA — assim
+ * ninguém lança na Noite ou na Roll achando que está no Café.
+ */
+export const unidadePadrao = (ativas: Unidade[]) => ativas.find((u) => u.codigo === 'ambar_cafe') ?? ativas[0] ?? null;

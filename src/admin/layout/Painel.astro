@@ -1,12 +1,14 @@
 ---
-// Moldura de todas as páginas autenticadas do painel: lateral com os módulos, topo com contexto da operação, tema,
-// unidade e perfil. A sessão já foi conferida no middleware; aqui só se desenha o que o papel pode ver.
+// Moldura de todas as páginas autenticadas do painel: lateral só com a marca e os módulos, topo só com o título da tela,
+// as pendências (sino), o tema e o perfil. A sessão já foi conferida no middleware; aqui só se desenha o que o papel pode ver.
+// A unidade de negócio não fica mais exposta em toda página: a escolha mora no menu do perfil e o topo só a mostra quando a
+// aba está numa unidade diferente da padrão (B4: cada aba continua mandando a SUA unidade em toda chamada).
 import '@fontsource-variable/inter/wght.css';
 import '../estilos/painel.css';
 import logo from '../../assets/media/brand/logo-ambar.png?url';
-import { LayoutDashboard, CalendarCheck, MessagesSquare, Award, Wallet, Package, Settings, Users, Menu, Sun, Moon, PanelLeftClose, LogOut, ChevronDown, Bell, Tablet } from 'lucide-preact';
+import { LayoutDashboard, CalendarCheck, MessagesSquare, Wallet, Package, Settings, Users, Menu, Sun, Moon, PanelLeftClose, LogOut, ChevronDown, Bell, Tablet, Building2 } from 'lucide-preact';
 import { podeVer, type Area, type Modulo } from '../lib/permissoes';
-import { NOME_PAPEL, ehUnidadeTeste, type ContextoPainel } from '../lib/sessao';
+import { NOME_PAPEL, ehUnidadeTeste, unidadePadrao, type ContextoPainel } from '../lib/sessao';
 import TemaInicial from './TemaInicial.astro';
 
 interface Props {
@@ -19,22 +21,26 @@ const { usuario, unidade, unidades, modo } = contexto;
 const iniciais = usuario.nome.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]!.toUpperCase()).join('');
 
 // `liberacao`: o módulo de PAINEL_MODULOS de que a área depende (Clientes acompanha Reservas).
-const MODULOS: { id: Exclude<Area, 'configuracoes'>; liberacao: Modulo; rotulo: string; href: string; icone: typeof LayoutDashboard; selo?: string }[] = [
+// O Clube Âmbar fica FORA da navegação nesta fase (ainda não lançado): a rota /admin/clube, as telas e os contratos seguem
+// intactos e quem tem o link continua entrando.
+const MODULOS: { id: Exclude<Area, 'configuracoes' | 'clube'>; liberacao: Modulo; rotulo: string; href: string; icone: typeof LayoutDashboard }[] = [
   { id: 'visao-geral', liberacao: 'visao-geral', rotulo: 'Visão Geral', href: '/admin', icone: LayoutDashboard },
   { id: 'reservas', liberacao: 'reservas', rotulo: 'Reservas', href: '/admin/reservas', icone: CalendarCheck },
   { id: 'clientes', liberacao: 'reservas', rotulo: 'Clientes', href: '/admin/clientes', icone: Users },
   { id: 'atendimento', liberacao: 'atendimento', rotulo: 'Atendimento', href: '/admin/atendimento', icone: MessagesSquare },
-  // O Clube ainda não foi lançado ao público: a área existe, discreta, sem destaque.
-  { id: 'clube', liberacao: 'clube', rotulo: 'Clube Âmbar', href: '/admin/clube', icone: Award, selo: 'em breve' },
   { id: 'financeiro', liberacao: 'financeiro', rotulo: 'Financeiro', href: '/admin/financeiro', icone: Wallet },
   { id: 'estoque', liberacao: 'estoque', rotulo: 'Estoque', href: '/admin/estoque', icone: Package },
 ];
-const visiveis = MODULOS.filter((m) => podeVer(usuario.papel, m.id) && contexto.modulos.includes(m.liberacao));
+const liberado = (m: Modulo) => contexto.modulos.includes(m);
+const visiveis = MODULOS.filter((m) => podeVer(usuario.papel, m.id) && liberado(m.liberacao));
 const veConfiguracoes = podeVer(usuario.papel, 'configuracoes');
 // Modo Operação (tablet do café): para quem opera Reservas, quando o módulo está liberado.
-const veOperacao = podeVer(usuario.papel, 'reservas') && contexto.modulos.includes('reservas');
-const sub = unidade ? unidade.nome : 'Sem unidade atribuída';
+const veOperacao = podeVer(usuario.papel, 'reservas') && liberado('reservas');
 const teste = ehUnidadeTeste(unidade);
+// Fontes de pendência do sino: só módulos liberados e permitidos ao papel (o backend confere de novo em cada consulta).
+const fontes = (['reservas', 'atendimento', 'financeiro', 'estoque'] as const).filter((m) => podeVer(usuario.papel, m) && liberado(m));
+const padrao = unidadePadrao(unidades);
+const foraDaPadrao = !!unidade && !!padrao && unidade.codigo !== padrao.codigo && !teste;
 ---
 
 <!doctype html>
@@ -43,9 +49,9 @@ const teste = ehUnidadeTeste(unidade);
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="robots" content="noindex, nofollow" />
-    <!-- B4: a unidade que ESTA aba mostra no topo; toda chamada à ponte vai com ela (o cookie é compartilhado entre abas). -->
+    <!-- B4: a unidade que ESTA aba mostra; toda chamada à ponte vai com ela (o cookie é compartilhado entre abas). -->
     <meta name="painel-unidade" content={unidade?.codigo ?? ''} />
-    <meta name="theme-color" content="#f7f5f2" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#f6f3ef" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#141110" media="(prefers-color-scheme: dark)" />
     <title>{titulo} · Painel Âmbar</title>
     <link rel="icon" href="/favicon-48.png" type="image/png" sizes="48x48" />
@@ -61,12 +67,8 @@ const teste = ehUnidadeTeste(unidade);
     )}
     <div class="app" id="app">
       <aside class="lateral" id="lateral" aria-label="Navegação do painel">
-        <a class="lateral__marca" href="/admin" aria-label="Âmbar — Visão Geral">
+        <a class="lateral__marca" href="/admin" aria-label="Âmbar — início do painel">
           <span class="marca-logo" aria-hidden="true"></span>
-          <span class="lateral__op">
-            <strong>Painel</strong>
-            <span>{sub}</span>
-          </span>
         </a>
         <nav aria-label="Módulos">
           <ul class="nav">
@@ -75,7 +77,6 @@ const teste = ehUnidadeTeste(unidade);
                 <a class="nav__item" href={m.href} aria-current={m.id === modulo ? 'page' : undefined} title={m.rotulo} data-modulo={m.id}>
                   <m.icone aria-hidden="true" />
                   <span class="nav__rotulo">{m.rotulo}</span>
-                  {m.selo && <span class="nav__selo">{m.selo}</span>}
                   {m.id === 'reservas' && <span class="nav__conta" data-pendentes hidden></span>}
                 </a>
               </li>
@@ -95,9 +96,9 @@ const teste = ehUnidadeTeste(unidade);
               <span class="nav__rotulo">Configurações</span>
             </a>
           )}
-          <button type="button" class="nav__item btn--fantasma recolher" id="recolher" style="border:0;background:none;cursor:pointer;width:100%" aria-label="Recolher o menu" title="Recolher o menu">
+          <button type="button" class="nav__item recolher" id="recolher" aria-label="Recolher o menu" title="Recolher o menu">
             <PanelLeftClose aria-hidden="true" />
-            <span class="nav__rotulo">Recolher menu</span>
+            <span class="nav__rotulo">Recolher</span>
           </button>
         </div>
       </aside>
@@ -108,29 +109,36 @@ const teste = ehUnidadeTeste(unidade);
           <button type="button" class="btn btn--fantasma btn--icone menu-movel" id="abrir-menu" aria-controls="lateral" aria-expanded="false" aria-label="Abrir menu">
             <Menu aria-hidden="true" />
           </button>
-          <div class="topo__titulo">
-            <h1>{titulo}</h1>
-            <span>{sub}</span>
-          </div>
+          <h1 class="topo__titulo">{titulo}</h1>
+          {foraDaPadrao && (
+            <span class="topo__unidade" title="Esta aba consulta e lança nesta unidade" data-unidade-atual>
+              <Building2 aria-hidden="true" />
+              {unidade!.nome}
+            </span>
+          )}
           <div class="topo__acoes">
-            {unidades.length > 1 && (
-              <label class="sr" for="unidade">Unidade de negócio</label>
-              <select class="selecao" id="unidade" style="width:auto;min-width:0;min-height:36px" data-unidade>
-                {unidades.map((u) => <option value={u.codigo} selected={u.codigo === unidade?.codigo}>{u.nome}{ehUnidadeTeste(u) && !/teste/i.test(u.nome) ? ' · TESTES' : ''}</option>)}
-              </select>
-            )}
-            <a class="btn btn--fantasma btn--icone" href="/admin#atencao" aria-label="Pendências" title="Pendências" style="position:relative">
-              <Bell aria-hidden="true" />
-              <span data-sino hidden style="position:absolute;top:9px;right:10px;width:8px;height:8px;border-radius:50%;background:var(--marca);box-shadow:0 0 0 2px var(--fundo)"></span>
-            </a>
+            <div class="suspenso" id="avisos" data-fontes={fontes.join(',')}>
+              <button type="button" class="btn btn--fantasma btn--icone sino" aria-haspopup="dialog" aria-expanded="false" aria-controls="avisos-painel" aria-label="Pendências" title="Pendências">
+                <Bell aria-hidden="true" />
+                <span class="sino__conta" data-sino hidden></span>
+              </button>
+              <div class="suspenso__painel avisos" id="avisos-painel" role="dialog" aria-label="Pendências" hidden>
+                <div class="avisos__topo">
+                  <strong>Pendências</strong>
+                  <span data-avisos-estado class="fraco">Consultando…</span>
+                </div>
+                <ul class="avisos__lista" data-avisos-lista></ul>
+                <p class="avisos__rodape fraco" data-avisos-rodape hidden></p>
+              </div>
+            </div>
             <button type="button" class="btn btn--fantasma btn--icone" id="tema" aria-label="Alternar tema claro/escuro" title="Tema claro/escuro">
               <Sun aria-hidden="true" data-icone-claro />
               <Moon aria-hidden="true" data-icone-escuro />
             </button>
             <div class="suspenso" id="perfil">
-              <button type="button" class="perfil" aria-haspopup="menu" aria-expanded="false" aria-controls="perfil-menu">
+              <button type="button" class="perfil" aria-haspopup="menu" aria-expanded="false" aria-controls="perfil-menu" aria-label={`${usuario.nome} · ${NOME_PAPEL[usuario.papel]} — conta e unidade`}>
                 <span class="avatar" aria-hidden="true">{iniciais}</span>
-                <span class="perfil__nome">{usuario.nome}</span>
+                <span class="perfil__nome">{usuario.nome.split(/\s+/)[0]}</span>
                 <ChevronDown size={14} aria-hidden="true" />
               </button>
               <div class="suspenso__painel" id="perfil-menu" role="menu" hidden>
@@ -139,6 +147,18 @@ const teste = ehUnidadeTeste(unidade);
                   <span>{usuario.email}</span>
                   <span>{NOME_PAPEL[usuario.papel]}</span>
                 </div>
+                {unidades.length > 1 && (
+                  <>
+                    <div class="suspenso__sep"></div>
+                    <div class="suspenso__campo">
+                      <label for="unidade">Unidade de trabalho</label>
+                      <select class="selecao" id="unidade" data-unidade>
+                        {unidades.map((u) => <option value={u.codigo} selected={u.codigo === unidade?.codigo}>{u.nome}{ehUnidadeTeste(u) && !/teste/i.test(u.nome) ? ' · TESTES' : ''}</option>)}
+                      </select>
+                      <span class="fraco">Vale só para esta aba: consultas e lançamentos vão para a unidade escolhida.</span>
+                    </div>
+                  </>
+                )}
                 <div class="suspenso__sep"></div>
                 {veConfiguracoes && <a class="suspenso__item" role="menuitem" href="/admin/configuracoes"><Settings aria-hidden="true" /> Configurações</a>}
                 <button type="button" class="suspenso__item suspenso__item--perigo" role="menuitem" id="sair"><LogOut aria-hidden="true" /> Sair</button>

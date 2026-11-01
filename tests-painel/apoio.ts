@@ -17,3 +17,10 @@ export async function semRolagemHorizontal(page: Page) {
 
 export const post = (req: APIRequestContext, url: string, data: unknown, headers: Record<string, string> = {}) =>
   req.post(url, { data, headers: { 'Content-Type': 'application/json', ...headers } });
+
+/** A unidade de trabalho mora no menu do perfil (não fica mais exposta no topo de toda página). */
+export async function escolherUnidade(page: Page, codigo: string) {
+  await page.locator('#perfil button.perfil').click();
+  await page.locator('[data-unidade]').selectOption(codigo);
+  await page.waitForLoadState('load');
+}

@@ -20,6 +20,7 @@ test('B4: com a aba B na Noite, a aba A (Café) consulta e lança no Café', asy
   await a.goto(`${PAINEL}/admin/financeiro?aba=lancamentos`);
   const topoA = a.locator('[data-unidade]');
   if ((await topoA.inputValue()) !== 'ambar_cafe') {
+    await a.locator('#perfil button.perfil').click(); // a unidade mora no menu do perfil
     await topoA.selectOption('ambar_cafe');
     await a.waitForLoadState('load');
   }
@@ -28,9 +29,12 @@ test('B4: com a aba B na Noite, a aba A (Café) consulta e lança no Café', asy
 
   const b = await context.newPage();
   await b.goto(`${PAINEL}/admin/financeiro?aba=lancamentos`);
+  await b.locator('#perfil button.perfil').click();
   await b.locator('[data-unidade]').selectOption('ambar_noite');
   await b.waitForLoadState('load');
   await expect(b.locator('[data-unidade]')).toHaveValue('ambar_noite');
+  // fora da unidade padrão, o topo diz onde a aba está
+  await expect(b.locator('[data-unidade-atual]')).toContainText(/Noite/i);
   expect((await context.cookies()).find((c) => c.name === 'ambar_painel_unidade')?.value).toBe('ambar_noite');
 
   // Aba A: continua mostrando o Café. Lança uma despesa por ela.

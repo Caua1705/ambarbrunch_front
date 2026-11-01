@@ -1,7 +1,8 @@
 import { sair } from './sair';
+import { iniciarAvisos } from './avisos';
 
-// Comportamento da moldura do painel (sem framework): menu no celular, recolher a lateral, tema, unidade, perfil, sair e o
-// contador de reservas pendentes (uma consulta leve por página; nada de polling).
+// Comportamento da moldura do painel (sem framework): menu no celular, recolher a lateral, tema, unidade (no menu do
+// perfil), perfil, sair e o sino de pendências (layout/avisos.ts).
 const raiz = document.documentElement;
 
 function guardar(chave: string, valor: string | null) {
@@ -79,25 +80,5 @@ menuPerfil?.addEventListener('keydown', (e) => {
 
 document.getElementById('sair')?.addEventListener('click', () => void sair());
 
-// Reservas pendentes de aprovação (de hoje em diante) -------------------------------------------------------------------
-(async () => {
-  const conta = document.querySelector<HTMLElement>('[data-pendentes]');
-  if (!conta) return;
-  const hoje = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Fortaleza' }).format(new Date());
-  try {
-    // B4: a contagem é da unidade que esta aba mostra, não da que o cookie (compartilhado) diz.
-    const unidade = document.querySelector<HTMLMetaElement>('meta[name="painel-unidade"]')?.content;
-    const r = await fetch(`/admin/api/reservas?status=pendente&data_de=${hoje}&limite=1`, { credentials: 'same-origin', headers: unidade ? { 'X-Painel-Unidade': unidade } : {} });
-    if (!r.ok) return;
-    const { total } = (await r.json()) as { total: number };
-    if (total > 0) {
-      conta.textContent = String(total);
-      conta.hidden = false;
-      conta.setAttribute('aria-label', `${total} pendentes de aprovação`);
-      const sino = document.querySelector<HTMLElement>('[data-sino]');
-      if (sino) sino.hidden = false;
-    }
-  } catch {
-    /* sem contador: nada de errado na página */
-  }
-})();
+// Pendências (sino) e contador de Reservas da lateral -------------------------------------------------------------------
+iniciarAvisos();
