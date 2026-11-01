@@ -3,16 +3,19 @@
 // Rotas reais /admin/atendimento/* (no ar em produção). Ações iguais às do painel anterior (app/painel/js/atendimento.js):
 // assumir, assumir no lugar de outra pessoa, responder (responder também assume), devolver ao assistente e encerrar.
 // O servidor decide tudo (pausa do robô, dono da conversa, janela de 24 h); a tela só mostra e pede.
+// Uma central de mensagens, não um painel de números: sem cartões de indicador nem título repetido. Filtros principais
+// (Todas · Esperando · Com assistente · Com equipe), as encerradas num atalho discreto e as falhas de envio num aviso
+// que só aparece quando existem.
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { Search, Bot, UserRound, Headset, Send, ArrowLeft, Hand, Undo2, CheckCheck, AlertCircle, Clock, Phone, MessageSquareOff, Mic, Inbox, ArrowLeftRight } from 'lucide-preact';
 import type { ContextoPainel } from '../../lib/sessao';
 import { useConsulta, invalidar } from '../../lib/consulta';
 import { atendimento } from '../../lib/api/atendimento-clube';
 import { ErroApi } from '../../lib/api/cliente';
-import { telefone, relativo, horaDe, dataHora, plural, inteiro } from '../../lib/formato';
+import { telefone, relativo, horaDe, dataHora, plural } from '../../lib/formato';
 import { lerParam, gravarParams } from '../../lib/rotas';
 import { Raiz, Gaveta, useConfirmacao, avisar, avisarErro } from '../../ui/camadas';
-import { Botao, Cabecalho, Indicador, Segmentado, Situacao, Aviso, Etiqueta } from '../../ui/base';
+import { Botao, Segmentado, Situacao, Aviso, Etiqueta } from '../../ui/base';
 import { Dados, Esqueleto, Vazio, Falha } from '../../ui/estados';
 import type { ConversaDetalhe, ConversaResumo, MensagemPainel, ModoConversa } from '../../lib/tipos/atendimento-clube';
 
@@ -48,7 +51,6 @@ export default function Atendimento({ contexto }: { contexto: ContextoPainel }) 
   if (resumo.erro?.tipo === 'nao_implantado' && lista.erro?.tipo === 'nao_implantado') {
     return (
       <Raiz>
-        <Cabecalho titulo="Atendimento" descricao="WhatsApp oficial do Âmbar" />
         <div class="cartao">
           <Falha erro={lista.erro} recurso="O Atendimento pelo WhatsApp" />
         </div>
@@ -59,40 +61,34 @@ export default function Atendimento({ contexto }: { contexto: ContextoPainel }) 
   const r = resumo.dados;
   return (
     <Raiz>
-      <Cabecalho titulo="Atendimento" descricao="Conversas do WhatsApp oficial do Âmbar. O assistente virtual responde; a equipe assume quando precisa." />
-
-      <section class="indicadores" aria-label="Resumo do atendimento">
-        <Indicador rotulo="Esperando a equipe" icone={<Hand aria-hidden="true" />} carregando={resumo.carregando} valor={r ? inteiro(r.aguardando_equipe) : '—'} rodape="Cliente escreveu e ninguém respondeu" />
-        <Indicador rotulo="Com o assistente" icone={<Bot aria-hidden="true" />} carregando={resumo.carregando} valor={r ? inteiro(r.por_modo.robo) : '—'} rodape="Respondidas automaticamente" />
-        <Indicador rotulo="Com a equipe" icone={<Headset aria-hidden="true" />} carregando={resumo.carregando} valor={r ? inteiro(r.por_modo.humano) : '—'} rodape={r?.inativas ? plural(r.inativas, 'parada há 30+ min', 'paradas há 30+ min') : 'Assistente pausado nelas'} />
-        <Indicador
-          rotulo="Falhas de envio (24 h)"
-          icone={<MessageSquareOff aria-hidden="true" />}
-          carregando={resumo.carregando}
-          valor={r ? inteiro(r.falhas_de_envio_24h) : '—'}
-          rodape={r?.falhas_de_envio_24h ? <button class="btn btn--p btn--fantasma" style={{ margin: '-6px -8px', whiteSpace: 'normal', textAlign: 'left' }} onClick={() => setVerFalhas(true)}>Ver quais</button> : 'Tudo entregue'}
-        />
-      </section>
-
       <div class="cartao caixa" data-aberta={aberta ? '1' : undefined}>
         <div class="caixa__lista">
-          <div class="pilha pilha--p" style={{ padding: '12px', borderBottom: '1px solid var(--borda)', position: 'sticky', top: 0, background: 'var(--superficie)', zIndex: 1 }}>
+          <div class="caixa__filtros">
             <div class="entrada-grupo">
               <Search aria-hidden="true" />
               <input class="entrada" type="search" placeholder="Nome ou telefone" aria-label="Buscar conversa" value={busca} onInput={(e) => setBusca(e.currentTarget.value)} />
             </div>
             <Segmentado
               rotulo="Filtrar conversas"
-              valor={filtro}
+              valor={filtro === 'encerrada' ? ('' as Filtro) : filtro}
               aoMudar={setFiltro}
               opcoes={[
                 { valor: 'todas', rotulo: 'Todas' },
-                { valor: 'aguardando', rotulo: `Esperando${r?.aguardando_equipe ? ` (${r.aguardando_equipe})` : ''}` },
-                { valor: 'humano', rotulo: 'Equipe' },
-                { valor: 'robo', rotulo: 'Assistente' },
-                { valor: 'encerrada', rotulo: 'Encerradas' },
+                { valor: 'aguardando', rotulo: <>Esperando{r?.aguardando_equipe ? <span class="contador">{r.aguardando_equipe}</span> : null}</> },
+                { valor: 'robo', rotulo: <span title="Com o assistente virtual">Assistente</span> },
+                { valor: 'humano', rotulo: <span title="Com alguém da equipe">Equipe</span> },
               ]}
             />
+            <div class="caixa__extras">
+              <button type="button" class="link link--discreto" aria-pressed={filtro === 'encerrada'} onClick={() => setFiltro(filtro === 'encerrada' ? 'todas' : 'encerrada')}>
+                {filtro === 'encerrada' ? 'Voltar às ativas' : 'Ver encerradas'}
+              </button>
+              {r?.falhas_de_envio_24h ? (
+                <button type="button" class="pilula pilula--perigo" onClick={() => setVerFalhas(true)}>
+                  <MessageSquareOff aria-hidden="true" /> {plural(r.falhas_de_envio_24h, 'falha de envio', 'falhas de envio')} (24 h)
+                </button>
+              ) : null}
+            </div>
           </div>
           <Dados consulta={lista} recurso="A caixa de entrada" compacto esqueleto={<div style={{ padding: '16px' }}><Esqueleto linhas={6} altura={36} /></div>}>
             {(conversas) =>
@@ -128,22 +124,23 @@ export default function Atendimento({ contexto }: { contexto: ContextoPainel }) 
 }
 
 function ItemConversa({ c, ativa, aoAbrir }: { c: ConversaResumo; ativa: boolean; aoAbrir: () => void }) {
+  // Uma marca de estado por conversa — a mais urgente — em vez de várias etiquetas empilhadas.
+  const alerta = c.inativa ? { tom: 'perigo' as const, texto: 'Parada há 30+ min' } : c.modo === 'humano' && !c.atendente_id ? { tom: 'atencao' as const, texto: 'Ninguém assumiu' } : c.aguardando_equipe ? { tom: 'marca' as const, texto: 'Esperando resposta' } : null;
   return (
-    <button class="lista__item" style={{ alignItems: 'flex-start', background: ativa ? 'var(--marca-suave)' : undefined, padding: '12px 14px' }} onClick={aoAbrir} aria-current={ativa ? 'true' : undefined}>
-      <span class="avatar" aria-hidden="true" style={{ marginTop: '2px' }}>{(c.nome_contato ?? '?').slice(0, 1).toUpperCase()}</span>
-      <span class="lista__texto">
-        <span class="linha linha--entre" style={{ flexWrap: 'nowrap' }}>
-          <strong style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: c.aguardando_equipe ? 650 : 500 }}>{c.nome_contato || telefone(c.telefone_e164)}</strong>
-          <span class="fraco" style={{ flex: 'none' }}>{relativo(c.ultima_atividade_em)}</span>
+    <button class={`conversa-item${ativa ? ' conversa-item--ativa' : ''}${c.aguardando_equipe ? ' conversa-item--nova' : ''}`} onClick={aoAbrir} aria-current={ativa ? 'true' : undefined}>
+      <span class="avatar" aria-hidden="true">{(c.nome_contato ?? '?').slice(0, 1).toUpperCase()}</span>
+      <span class="conversa-item__texto">
+        <span class="conversa-item__topo">
+          <strong>{c.nome_contato || telefone(c.telefone_e164)}</strong>
+          <span class="fraco">{relativo(c.ultima_atividade_em)}</span>
         </span>
-        <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: c.aguardando_equipe ? 'var(--texto)' : undefined }}>{c.ultima_mensagem ?? 'Sem mensagens'}</span>
-        <span class="linha" style={{ marginTop: '4px', gap: '6px' }}>
+        <span class="conversa-item__ultima">{c.ultima_mensagem ?? 'Sem mensagens'}</span>
+        <span class="conversa-item__estado">
           <Situacao tom={MODO[c.modo].tom}>{c.modo === 'humano' && c.atendente_nome ? c.atendente_nome : MODO[c.modo].rotulo}</Situacao>
-          {c.aguardando_equipe && <Etiqueta tom="marca">Esperando resposta</Etiqueta>}
-          {c.modo === 'humano' && !c.atendente_id && <Etiqueta tom="atencao">Encaminhada: ninguém assumiu</Etiqueta>}
-          {c.inativa && <Etiqueta tom="perigo">Parada há 30+ min</Etiqueta>}
+          {alerta && <Etiqueta tom={alerta.tom}>{alerta.texto}</Etiqueta>}
         </span>
       </span>
+      {c.aguardando_equipe && <span class="conversa-item__ponto" aria-label="Mensagem sem resposta" />}
     </button>
   );
 }

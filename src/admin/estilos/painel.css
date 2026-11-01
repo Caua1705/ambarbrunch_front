@@ -2577,3 +2577,160 @@ button.lista__item {
     padding: 0;
   }
 }
+
+/* Atendimento: central de conversas -------------------------------------------------------------------------------- */
+.caixa {
+  min-height: calc(100dvh - var(--topo) - 64px);
+}
+.caixa__lista,
+.caixa__conversa {
+  max-height: calc(100dvh - var(--topo) - 64px);
+}
+.caixa__filtros {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--e-2);
+  padding: var(--e-3);
+  background: var(--superficie);
+  border-bottom: 1px solid var(--borda);
+}
+.caixa__filtros .segmentado {
+  width: 100%;
+}
+.caixa__filtros .segmentado button {
+  flex: 1;
+  justify-content: center;
+  padding-inline: var(--e-2);
+}
+.caixa__extras {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e-2);
+  flex-wrap: wrap;
+  min-height: 24px;
+}
+.contador {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--r-pilula);
+  background: var(--marca);
+  color: var(--marca-contraste);
+  font-size: 11px;
+  font-weight: 700;
+}
+.link--discreto {
+  font-size: var(--t-xs);
+  font-weight: 600;
+  color: var(--texto-2);
+  text-decoration: none;
+}
+.link--discreto:hover,
+.link--discreto[aria-pressed='true'] {
+  color: var(--marca-texto);
+  text-decoration: underline;
+}
+.pilula--perigo {
+  background: var(--perigo-suave);
+  color: var(--perigo);
+  border-color: color-mix(in srgb, var(--perigo) 25%, transparent);
+}
+.pilula--perigo:hover {
+  border-color: var(--perigo);
+}
+.conversa-item {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--e-3);
+  width: 100%;
+  padding: var(--e-3) var(--e-4);
+  border: 0;
+  border-bottom: 1px solid var(--borda);
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  color: var(--texto-2);
+}
+.conversa-item:hover {
+  background: var(--sobre-hover);
+}
+.conversa-item--ativa,
+.conversa-item--ativa:hover {
+  background: var(--marca-suave);
+}
+.conversa-item--ativa::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--marca);
+}
+.conversa-item .avatar {
+  margin-top: 2px;
+}
+.conversa-item__texto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.conversa-item__topo {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--e-2);
+}
+.conversa-item__topo strong {
+  color: var(--texto);
+  font-weight: 550;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.conversa-item__topo .fraco {
+  flex: none;
+  font-size: var(--t-xs);
+}
+.conversa-item__ultima {
+  font-size: var(--t-s);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.conversa-item--nova .conversa-item__topo strong {
+  font-weight: 700;
+}
+.conversa-item--nova .conversa-item__ultima {
+  color: var(--texto);
+}
+.conversa-item__estado {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+.conversa-item__ponto {
+  position: absolute;
+  right: var(--e-4);
+  bottom: 16px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--marca);
+}
+@media (max-width: 860px) {
+  .caixa__lista,
+  .caixa__conversa {
+    max-height: none;
+  }
+}
