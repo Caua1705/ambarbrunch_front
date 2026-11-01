@@ -29,10 +29,13 @@ export const ALL: APIRoute = async ({ params, request, cookies, url }) => {
   // Liberação controlada (PAINEL_MODULOS): rota de módulo não liberado nem chega ao backend.
   if (!rotaLiberada(caminho, modulosLiberados())) return erro(403, 'Este módulo ainda não foi liberado no painel.', 'modulo_nao_liberado');
 
-  // A unidade de negócio escolhida no topo vale para toda consulta que não disser outra.
+  // A unidade de negócio escolhida no topo vale para toda consulta que não disser outra. B4: vale a da PÁGINA que fez a
+  // chamada (X-Painel-Unidade, gravada no HTML da aba); o cookie, compartilhado entre as abas, só quando ela não vem.
+  // O backend continua conferindo se a pessoa tem acesso à unidade.
   const query = new URLSearchParams(url.search);
-  const unidade = cookies.get(COOKIE_UNIDADE)?.value;
-  if (unidade && !query.has('unidade') && /^[a-z0-9_]+$/.test(unidade)) query.set('unidade', unidade);
+  const valida = (u: string | null | undefined) => (u && /^[a-z0-9_]+$/.test(u) ? u : null);
+  const unidade = valida(request.headers.get('x-painel-unidade')) ?? valida(cookies.get(COOKIE_UNIDADE)?.value);
+  if (unidade && !query.has('unidade')) query.set('unidade', unidade);
   const alvo = query.size ? `${caminho}?${query}` : caminho;
 
   if (DEMO_PERMITIDO && modoPainel() === 'demo') {

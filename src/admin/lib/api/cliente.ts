@@ -55,11 +55,20 @@ export function montarQuery(query: Pedido['query']): string {
   return s ? `?${s}` : '';
 }
 
+/** B4: a unidade que esta página mostra no topo (cada aba a sua, gravada no HTML). A ponte usa este cabeçalho antes do
+ *  cookie, que é compartilhado entre as abas: trocar a unidade numa aba não redireciona consultas e lançamentos de outra. */
+export function unidadeDaPagina(): string | null {
+  if (typeof document === 'undefined') return null;
+  return document.querySelector<HTMLMetaElement>('meta[name="painel-unidade"]')?.content || null;
+}
+
 export async function pedir<T>(caminho: string, p: Pedido = {}): Promise<T> {
   const metodo = p.metodo ?? 'GET';
   const tempo = AbortSignal.timeout(TEMPO_LIMITE);
   const signal = p.sinal ? AbortSignal.any([p.sinal, tempo]) : tempo;
   const headers: Record<string, string> = { Accept: 'application/json' };
+  const unidade = unidadeDaPagina();
+  if (unidade) headers['X-Painel-Unidade'] = unidade;
   if (metodo !== 'GET') headers['X-Painel'] = '1';
   if (p.idempotencia) headers['Idempotency-Key'] = p.idempotencia;
   let body: BodyInit | undefined;

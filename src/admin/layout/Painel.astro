@@ -43,6 +43,8 @@ const teste = ehUnidadeTeste(unidade);
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="robots" content="noindex, nofollow" />
+    <!-- B4: a unidade que ESTA aba mostra no topo; toda chamada à ponte vai com ela (o cookie é compartilhado entre abas). -->
+    <meta name="painel-unidade" content={unidade?.codigo ?? ''} />
     <meta name="theme-color" content="#f7f5f2" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#141110" media="(prefers-color-scheme: dark)" />
     <title>{titulo} · Painel Âmbar</title>

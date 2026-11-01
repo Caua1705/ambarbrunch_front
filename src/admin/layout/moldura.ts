@@ -85,7 +85,9 @@ document.getElementById('sair')?.addEventListener('click', () => void sair());
   if (!conta) return;
   const hoje = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Fortaleza' }).format(new Date());
   try {
-    const r = await fetch(`/admin/api/reservas?status=pendente&data_de=${hoje}&limite=1`, { credentials: 'same-origin' });
+    // B4: a contagem é da unidade que esta aba mostra, não da que o cookie (compartilhado) diz.
+    const unidade = document.querySelector<HTMLMetaElement>('meta[name="painel-unidade"]')?.content;
+    const r = await fetch(`/admin/api/reservas?status=pendente&data_de=${hoje}&limite=1`, { credentials: 'same-origin', headers: unidade ? { 'X-Painel-Unidade': unidade } : {} });
     if (!r.ok) return;
     const { total } = (await r.json()) as { total: number };
     if (total > 0) {

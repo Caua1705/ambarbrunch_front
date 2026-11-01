@@ -24,6 +24,8 @@ const pode = liberado && podeVer(contexto.usuario.papel, 'reservas');
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="robots" content="noindex, nofollow" />
+    <!-- B4: a unidade desta aba (ver layout/Painel.astro). -->
+    <meta name="painel-unidade" content={contexto.unidade?.codigo ?? ''} />
     <meta name="theme-color" content="#f7f5f2" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#141110" media="(prefers-color-scheme: dark)" />
     <title>Operação · Painel Âmbar</title>
