@@ -1,232 +1,60 @@
-// Visão Geral: "o que está acontecendo no Âmbar e o que exige minha atenção agora?"
-// Fontes: /admin/reservas/operacao (no ar) + /admin/visao-geral, /financeiro/resumo, /financeiro/relatorios/evolucao e
-// /estoque/compras (código pronto, ainda não publicados). Cada bloco cai sozinho no estado "ainda não está no ar".
-import { statusBase } from '../reservas/comum';
+// Visão Geral: o painel executivo. Responde "quanto vendemos, quanto gastamos, estamos positivos e o que mais pesou?"
+// com UM filtro de período para tudo. Pendências não moram aqui: ficam no sino do topo (layout/avisos.ts).
+//
+// Fontes (todas oficiais do backend; nada é recalculado aqui):
+//  - Receita e ticket médio: GET /financeiro/relatorios/vendas (view v_vendas_dia — a venda da Eyemobile, uma vez só; o
+//    repasse da Stone é recebimento, não receita).
+//  - Despesas: GET /financeiro/relatorios/despesas-por-categoria (confirmadas, por competência). O gráfico distribui as
+//    MESMAS despesas por data com GET /financeiro/lancamentos (tipo=despesa, status=confirmada; data = competência): só
+//    soma para desenhar, o total do indicador é o do backend.
+//  - Resultado gerencial: GET /financeiro/relatorios/resultado?mes= — o backend apura por mês civil; em outro período o
+//    indicador diz isso em vez de inventar um resultado.
+//  - Produtos mais vendidos: GET /estoque/analises/produtos (vendas da Eyemobile por produto). Sem eles, as vendas por
+//    forma de pagamento do próprio relatório de vendas.
 import { useState } from 'preact/hooks';
-import { CalendarCheck, Users, Wallet, Scale, BellRing, ChevronRight, CalendarClock, Receipt, PackageCheck, Landmark, MessagesSquare, UserCheck, Radar, FileWarning, ArrowRight, Sparkles } from 'lucide-preact';
+import { CalendarCheck, Users } from 'lucide-preact';
 import type { ContextoPainel } from '../../lib/sessao';
 import { pode, type Modulo } from '../../lib/permissoes';
 import { useConsulta } from '../../lib/consulta';
 import { reservas } from '../../lib/api/reservas';
 import { financeiro } from '../../lib/api/financeiro';
-import { estoque, visaoGeral } from '../../lib/api/estoque';
-import { atendimento } from '../../lib/api/atendimento-clube';
-import { moeda, num, hojeISO, dataLonga, hora, mesCurto, relativo, plural, inteiro } from '../../lib/formato';
-import { rotaPainel } from '../../lib/rotas';
+import { estoque } from '../../lib/api/estoque';
+import { moeda, num, hojeISO, dataLonga, dataCurta, inteiro, plural, relativo, mesAno, mesCurto, decimal } from '../../lib/formato';
+import { lerParam, gravarParams } from '../../lib/rotas';
 import { Raiz } from '../../ui/camadas';
-import { Indicador, Cartao, Segmentado, Variacao, Etiqueta, Situacao } from '../../ui/base';
-import { Dados, Esqueleto, Vazio, Falha } from '../../ui/estados';
-import { GraficoLinhas, Legenda } from '../../ui/graficos';
-import type { RadarInsight } from '../../lib/tipos/visao-geral';
-import type { NivelQualidade } from '../../lib/tipos/financeiro';
+import { Indicador, Cartao, Segmentado, Variacao, Situacao, Aviso } from '../../ui/base';
+import { Dados, Esqueleto, Vazio } from '../../ui/estados';
+import { GraficoBarras, Legenda, Ranking } from '../../ui/graficos';
+import type { Lancamento, NivelQualidade, RelatorioVendas } from '../../lib/tipos/financeiro';
+import { statusBase } from '../reservas/comum';
+import { OPCOES, MAX_DIAS, periodoDe, anterior, mesDoPeriodo, agrupamento, baldes, inicioBalde, janelaGrafico, dias, type TipoPeriodo, type Periodo } from './periodo';
 
-export const QUALIDADE: Record<NivelQualidade, { rotulo: string; tom: 'ok' | 'atencao' | 'perigo' | 'apagado' }> = {
+const QUALIDADE: Record<NivelQualidade, { rotulo: string; tom: 'ok' | 'atencao' | 'perigo' | 'apagado' }> = {
   completo: { rotulo: 'Completo', tom: 'ok' },
   parcial: { rotulo: 'Parcial', tom: 'atencao' },
   estimado: { rotulo: 'Estimado', tom: 'atencao' },
   indisponivel: { rotulo: 'Indisponível', tom: 'apagado' },
 };
 
+const COR_RECEITA = 'var(--grafico-1)';
+const COR_DESPESA = 'var(--grafico-2)';
+
+const lerTipo = (v: string | null): TipoPeriodo => (OPCOES.some((o) => o.valor === v) ? (v as TipoPeriodo) : 'mes');
+
 export default function VisaoGeral({ contexto }: { contexto: ContextoPainel }) {
   const papel = contexto.usuario.papel;
-  // Só consulta e mostra o que está liberado neste ambiente (PAINEL_MODULOS) e permitido ao papel.
   const liberado = (m: Modulo) => contexto.modulos.includes(m);
-  const comReservas = liberado('reservas');
   const gerencia = pode(papel, 'visao.financeiro') && liberado('financeiro');
-  const hoje = hojeISO();
-  const [periodo, setPeriodo] = useState<'hoje' | 'mes'>('mes');
-
-  const operacao = useConsulta(comReservas ? `reservas/operacao:${hoje}` : null, () => reservas.operacao(hoje));
-  const pendentesAprov = useConsulta(comReservas ? `reservas?pendentes:${hoje}` : null, () => reservas.listar({ data_de: hoje, status: ['pendente'], limite: 50 }));
-  const visao = useConsulta('visao-geral', () => visaoGeral.obter());
-  const resumoFin = useConsulta(gerencia ? 'financeiro/resumo' : null, () => financeiro.resumo());
-  const evolucao = useConsulta(gerencia ? 'financeiro/evolucao:6' : null, () => financeiro.evolucao(6));
-  const compras = useConsulta(liberado('estoque') ? 'estoque/compras?conferir' : null, () => estoque.compras({ etapa: 'aguardando_conferencia', limite: 20 }));
-  const comparecimento = useConsulta(comReservas ? `reservas/comparecimento:${hoje}` : null, () => reservas.pendentesComparecimento({ data_de: hoje, data_ate: hoje }));
-  const atend = useConsulta(liberado('atendimento') ? 'atendimento/resumo' : null, () => atendimento.resumo());
-
-  const ativas = operacao.dados?.filter((r) => statusBase(r) !== 'cancelada') ?? [];
-  const pessoas = ativas.reduce((s, r) => s + r.pessoas, 0);
-  // o bloco financeiro da Visão Geral só aparece com o Financeiro liberado, mesmo que o backend o envie
-  const fin = gerencia ? visao.dados?.financeiro ?? null : null;
-
-  // Atenção necessária: só o que tem tela para resolver, do mais urgente para o menos.
-  type Item = { id: string; icone: preact.ComponentChildren; tom: 'perigo' | 'atencao' | 'marca' | 'info'; titulo: string; detalhe: string; href: string };
-  const itens: Item[] = [];
-  const nPend = pendentesAprov.dados?.total ?? 0;
-  if (nPend) itens.push({ id: 'aprovar', icone: <CalendarClock />, tom: 'marca', titulo: plural(nPend, 'reserva aguardando aprovação', 'reservas aguardando aprovação'), detalhe: 'Aprovar ou recusar antes do horário', href: '/admin/reservas?status=pendente' });
-  const nComp = comparecimento.dados?.length ?? 0;
-  if (nComp) itens.push({ id: 'comparecimento', icone: <UserCheck />, tom: 'info', titulo: plural(nComp, 'chegada para registrar', 'chegadas para registrar'), detalhe: 'Reservas de hoje que já começaram', href: '/admin/reservas' });
-  if (fin?.contas.vencidas.qtd) itens.push({ id: 'vencidas', icone: <Receipt />, tom: 'perigo', titulo: plural(fin.contas.vencidas.qtd, 'conta vencida', 'contas vencidas'), detalhe: `${moeda(fin.contas.vencidas.valor)} em aberto`, href: '/admin/financeiro?aba=contas&situacao=vencidas' });
-  if (fin?.contas.hoje.qtd) itens.push({ id: 'hoje', icone: <Receipt />, tom: 'atencao', titulo: plural(fin.contas.hoje.qtd, 'conta vence hoje', 'contas vencem hoje'), detalhe: moeda(fin.contas.hoje.valor), href: '/admin/financeiro?aba=contas&situacao=hoje' });
-  const rev = resumoFin.dados?.revisao;
-  if (rev && rev.despesas + rev.documentos > 0) itens.push({ id: 'revisao', icone: <FileWarning />, tom: 'atencao', titulo: plural(rev.despesas + rev.documentos, 'lançamento para revisar', 'lançamentos para revisar'), detalhe: 'Comprovantes da Júlia e despesas sem categoria', href: '/admin/financeiro?aba=lancamentos&revisar=1' });
-  const nCompras = compras.dados?.total ?? 0;
-  if (nCompras) itens.push({ id: 'compras', icone: <PackageCheck />, tom: 'atencao', titulo: plural(nCompras, 'compra aguardando conferência', 'compras aguardando conferência'), detalhe: 'Conferir itens antes de entrar no estoque', href: '/admin/estoque?aba=compras' });
-  const conc = fin?.conciliacao_mes_anterior;
-  if (conc) itens.push({ id: 'conciliacao', icone: <Landmark />, tom: 'info', titulo: 'Conciliação bancária incompleta', detalhe: conc.texto, href: rotaPainel(conc.rota) ?? '/admin/financeiro?aba=relatorios' });
-  const nAtend = atend.dados?.aguardando_equipe ?? 0;
-  if (nAtend) itens.push({ id: 'atendimento', icone: <MessagesSquare />, tom: 'marca', titulo: plural(nAtend, 'conversa esperando a equipe', 'conversas esperando a equipe'), detalhe: 'Clientes no WhatsApp aguardando resposta', href: '/admin/atendimento?filtro=aguardando' });
-
-  const carregandoAtencao = operacao.carregando || pendentesAprov.carregando;
-  const foraDoAr = [gerencia ? visao : null, compras, atend].filter((c) => c?.erro?.tipo === 'nao_implantado').length;
 
   return (
     <Raiz>
-      <header class="cabecalho">
+      <header class="cabecalho cabecalho--saudacao">
         <div>
           <h2>{saudacao()}, {contexto.usuario.nome.split(' ')[0]}</h2>
-          <p>{dataLonga(hoje)}</p>
+          <p>{dataLonga(hojeISO())}</p>
         </div>
-        {gerencia && <Segmentado rotulo="Período dos indicadores" valor={periodo} aoMudar={setPeriodo} opcoes={[{ valor: 'hoje', rotulo: 'Hoje' }, { valor: 'mes', rotulo: 'Este mês' }]} />}
       </header>
-
-      <section class="indicadores" aria-label="Indicadores principais">
-        {gerencia ? (
-          <>
-            <Indicador
-              rotulo={periodo === 'hoje' ? 'Faturamento de hoje' : 'Faturamento do mês'}
-              icone={<Wallet aria-hidden="true" />}
-              href="/admin/financeiro"
-              carregando={visao.carregando}
-              valor={fin ? moeda(periodo === 'hoje' ? fin.receita_hoje : fin.receita_mes) : '—'}
-              rodape={
-                !fin ? (visao.erro?.tipo === 'nao_implantado' ? 'Financeiro ainda não está no ar' : 'Indisponível') : periodo === 'mes' ? (
-                  <>
-                    <Variacao atual={num(fin.receita_mes)} anterior={num(fin.receita_mes_anterior_ate_o_mesmo_dia)} /> vs. mês anterior até hoje
-                  </>
-                ) : (
-                  'Vendas do PDV de hoje'
-                )
-              }
-            />
-            <Indicador
-              rotulo="Resultado gerencial parcial"
-              icone={<Scale aria-hidden="true" />}
-              href="/admin/financeiro?aba=relatorios"
-              carregando={visao.carregando}
-              valor={fin ? moeda(fin.resultado_parcial) : '—'}
-              rodape={fin ? <><Situacao tom={QUALIDADE[fin.qualidade].tom}>{QUALIDADE[fin.qualidade].rotulo}</Situacao> · receita menos despesas do mês, não é lucro</> : 'Indisponível'}
-            />
-          </>
-        ) : (
-          <>
-            <Indicador rotulo="Pessoas esperadas hoje" icone={<Users aria-hidden="true" />} href="/admin/reservas" carregando={operacao.carregando} valor={operacao.dados ? inteiro(pessoas) : '—'} rodape={operacao.dados ? `${plural(ativas.length, 'reserva', 'reservas')}` : 'Indisponível'} />
-            {liberado('estoque') ? (
-              <Indicador rotulo="Compras para conferir" icone={<PackageCheck aria-hidden="true" />} href="/admin/estoque?aba=compras" carregando={compras.carregando} valor={compras.dados ? inteiro(nCompras) : '—'} rodape={compras.dados ? 'Notas e pagamentos de insumos' : compras.erro?.tipo === 'nao_implantado' ? 'Estoque ainda não está no ar' : 'Indisponível'} />
-            ) : (
-              <Indicador rotulo="Aguardando aprovação" icone={<CalendarClock aria-hidden="true" />} href="/admin/reservas?status=pendente" carregando={pendentesAprov.carregando} valor={pendentesAprov.dados ? inteiro(nPend) : '—'} rodape="Hoje e próximos dias" />
-            )}
-          </>
-        )}
-        <Indicador
-          rotulo="Reservas de hoje"
-          icone={<CalendarCheck aria-hidden="true" />}
-          href="/admin/reservas"
-          carregando={operacao.carregando}
-          valor={operacao.dados ? inteiro(ativas.length) : '—'}
-          rodape={operacao.dados ? `${plural(pessoas, 'pessoa', 'pessoas')} · ${plural(ativas.filter((r) => statusBase(r) === 'pendente').length, 'pendente', 'pendentes')}` : operacao.erro?.message}
-        />
-        <Indicador
-          rotulo="Pendências"
-          icone={<BellRing aria-hidden="true" />}
-          href="#atencao"
-          carregando={carregandoAtencao}
-          valor={inteiro(itens.length)}
-          rodape={itens.length ? 'Itens que precisam de alguém' : 'Nada urgente agora'}
-        />
-      </section>
-
-      <div class="duas-colunas">
-        <div class="pilha">
-          {gerencia && (
-            <Cartao titulo="Evolução do faturamento" descricao="Receita líquida e resultado gerencial dos últimos 6 meses" acoes={<a class="btn btn--p btn--fantasma" href="/admin/financeiro?aba=relatorios">Relatórios <ChevronRight size={14} aria-hidden="true" /></a>}>
-              <Dados consulta={evolucao} recurso="O relatório financeiro" esqueleto={<Esqueleto linhas={6} altura={28} />} compacto>
-                {(meses) =>
-                  meses.every((m) => m.receita_liquida === null) ? (
-                    <Vazio compacto titulo="Sem vendas sincronizadas ainda">As vendas do PDV aparecem aqui assim que a sincronização com a Eyemobile começar.</Vazio>
-                  ) : (
-                    <div class="pilha">
-                      <GraficoLinhas
-                        rotulo="Receita líquida e resultado gerencial por mês"
-                        rotulos={meses.map((m) => mesCurto(m.mes))}
-                        formatar={(v) => moeda(v)}
-                        series={[
-                          { nome: 'Receita líquida', cor: 'var(--grafico-1)', valores: meses.map((m) => num(m.receita_liquida)) },
-                          { nome: 'Resultado gerencial', cor: 'var(--grafico-2)', valores: meses.map((m) => num(m.resultado_gerencial)), tracejada: true },
-                        ]}
-                      />
-                      <div class="linha linha--entre">
-                        <Legenda series={[{ nome: 'Receita líquida', cor: 'var(--grafico-1)' }, { nome: 'Resultado gerencial', cor: 'var(--grafico-2)', tracejada: true }]} />
-                        {meses.some((m) => m.qualidade !== 'completo') && <span class="fraco">Meses parciais ou estimados estão marcados nos Relatórios</span>}
-                      </div>
-                    </div>
-                  )
-                }
-              </Dados>
-            </Cartao>
-          )}
-
-          <Cartao titulo="Hoje no salão" descricao="Próximas chegadas" justo acoes={<a class="btn btn--p btn--fantasma" href="/admin/reservas">Ver todas <ChevronRight size={14} aria-hidden="true" /></a>}>
-            <Dados consulta={operacao} recurso="A agenda" compacto esqueleto={<div class="cartao__corpo"><Esqueleto linhas={4} /></div>}>
-              {(lista) => {
-                const agora = Date.now();
-                const proximas = lista.filter((r) => statusBase(r) !== 'cancelada' && (r.comparecimento ?? 'nao_registrado') === 'nao_registrado' && !['compareceu', 'nao_compareceu'].includes(r.status) && new Date(r.fim).getTime() > agora).slice(0, 6);
-                return proximas.length ? (
-                  <ul class="lista">
-                    {proximas.map((r) => (
-                      <li key={r.id}>
-                        <a class="lista__item" href={`/admin/reservas?reserva=${r.id}`}>
-                          <span class="lista__icone num forte" style={{ width: '52px', fontSize: '13px', color: 'var(--texto)' }}>{hora(r.hora)}</span>
-                          <span class="lista__texto">
-                            <strong>{r.contato_nome}</strong>
-                            <span>{plural(r.pessoas, 'pessoa', 'pessoas')} · {r.ambiente}</span>
-                          </span>
-                          <span class="lista__fim">
-                            {statusBase(r) === 'pendente' ? <Situacao tom="atencao" destaque>Aguardando aprovação</Situacao> : r.atrasada ? <Situacao tom="perigo">Atrasada</Situacao> : <Situacao tom="ok">Confirmada</Situacao>}
-                          </span>
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <Vazio compacto icone={<CalendarCheck aria-hidden="true" />} titulo="Nenhuma chegada pendente hoje">As reservas do dia aparecem aqui por ordem de horário.</Vazio>
-                );
-              }}
-            </Dados>
-          </Cartao>
-        </div>
-
-        <div class="pilha">
-          <Cartao titulo="Atenção necessária" descricao="Do mais urgente para o menos" justo id="atencao">
-            {carregandoAtencao ? (
-              <div class="cartao__corpo"><Esqueleto linhas={3} /></div>
-            ) : itens.length ? (
-              <ul class="lista">
-                {itens.map((i) => (
-                  <li key={i.id}>
-                    <a class="lista__item" href={i.href}>
-                      <span class={`lista__icone lista__icone--${i.tom}`} aria-hidden="true">{i.icone}</span>
-                      <span class="lista__texto">
-                        <strong>{i.titulo}</strong>
-                        <span>{i.detalhe}</span>
-                      </span>
-                      <span class="lista__fim"><ChevronRight aria-hidden="true" /></span>
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <Vazio compacto icone={<Sparkles aria-hidden="true" />} titulo="Tudo em dia">Nenhuma pendência nas áreas disponíveis.</Vazio>
-            )}
-            {foraDoAr > 0 && <div class="cartao__rodape">Algumas áreas liberadas ainda não estão no ar no sistema do Âmbar e não entram nesta lista.</div>}
-          </Cartao>
-
-          {pode(papel, 'visao.radar') && (liberado('financeiro') || liberado('estoque')) && <RadarLucro consulta={visao} />}
-
-          <AtividadeRecente reservasLiberadas={comReservas} estoqueLiberado={liberado('estoque')} />
-        </div>
-      </div>
+      {gerencia ? <Executiva produtos={liberado('estoque') && pode(papel, 'estoque.analises_custo')} /> : liberado('reservas') ? <SoReservas /> : null}
     </Raiz>
   );
 }
@@ -236,79 +64,254 @@ function saudacao() {
   return h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
 }
 
-const SEVERIDADE: Record<RadarInsight['severidade'], { rotulo: string; tom: 'perigo' | 'atencao' | 'info' }> = {
-  critico: { rotulo: 'Crítico', tom: 'perigo' },
-  atencao: { rotulo: 'Atenção', tom: 'atencao' },
-  info: { rotulo: 'Informativo', tom: 'info' },
-};
+function rotuloPeriodo(p: Periodo) {
+  if (p.tipo === 'hoje') return 'hoje';
+  if (p.tipo === '7d') return 'nos últimos 7 dias';
+  if (p.tipo === '30d') return 'nos últimos 30 dias';
+  if (p.tipo === 'mes') return `em ${mesAno(p.de).toLowerCase()} até hoje`;
+  return p.de === p.ate ? `em ${dataCurta(p.de, { ano: true })}` : `de ${dataCurta(p.de)} a ${dataCurta(p.ate, { ano: true })}`;
+}
 
-function RadarLucro({ consulta }: { consulta: ReturnType<typeof useConsulta<import('../../lib/tipos/visao-geral').VisaoGeral>> }) {
+/** Todas as despesas confirmadas do período, página a página (o backend devolve até 200 por vez). */
+async function despesasDoPeriodo(de: string, ate: string): Promise<{ itens: Lancamento[]; completo: boolean }> {
+  const itens: Lancamento[] = [];
+  for (let pagina = 0; pagina < 10; pagina++) {
+    const r = await financeiro.lancamentos({ de, ate, tipo: 'despesa', status: 'confirmada', limite: 200, deslocamento: pagina * 200 });
+    itens.push(...r.itens);
+    if (itens.length >= r.total || r.itens.length === 0) return { itens, completo: true };
+  }
+  return { itens, completo: false };
+}
+
+function Executiva({ produtos }: { produtos: boolean }) {
+  const hoje = hojeISO();
+  const [tipo, setTipoEstado] = useState<TipoPeriodo>(() => lerTipo(lerParam('periodo')));
+  const [pers, setPers] = useState(() => ({ de: lerParam('de') ?? periodoDe('30d').de, ate: lerParam('ate') ?? hoje }));
+  const setTipo = (t: TipoPeriodo) => {
+    setTipoEstado(t);
+    gravarParams({ periodo: t === 'mes' ? null : t, de: t === 'personalizado' ? pers.de : null, ate: t === 'personalizado' ? pers.ate : null });
+  };
+  const persValido = pers.de <= pers.ate && pers.ate <= hoje && dias(pers.de, pers.ate) <= MAX_DIAS;
+  const p = periodoDe(tipo === 'personalizado' && !persValido ? '30d' : tipo, pers);
+  const ant = anterior(p);
+  const mes = mesDoPeriodo(p);
+  const janela = janelaGrafico(p);
+  const agrupar = agrupamento(janela.de, janela.ate);
+
+  const vendas = useConsulta(`financeiro/relatorios/vendas:${p.de}:${p.ate}`, () => financeiro.vendas(p.de, p.ate, 'dia'));
+  const vendasAnt = useConsulta(`financeiro/relatorios/vendas:${ant.de}:${ant.ate}`, () => financeiro.vendas(ant.de, ant.ate, 'dia'));
+  const categorias = useConsulta(`financeiro/relatorios/despesas-por-categoria:${p.de}:${p.ate}`, () => financeiro.porCategoria(p.de, p.ate));
+  const categoriasAnt = useConsulta(`financeiro/relatorios/despesas-por-categoria:${ant.de}:${ant.ate}`, () => financeiro.porCategoria(ant.de, ant.ate));
+  const resultado = useConsulta(mes ? `financeiro/relatorios/resultado:${mes}` : null, () => financeiro.resultado(mes!));
+  const vendasGrafico = useConsulta(`financeiro/relatorios/vendas:${janela.de}:${janela.ate}:${agrupar}`, () => financeiro.vendas(janela.de, janela.ate, agrupar));
+  const despesasGrafico = useConsulta(`financeiro/lancamentos?grafico:${janela.de}:${janela.ate}`, () => despesasDoPeriodo(janela.de, janela.ate));
+  const maisVendidos = useConsulta(produtos ? `estoque/analises/produtos:${p.de}:${p.ate}` : null, () => estoque.produtos(p.de, p.ate, 'quantidade'));
+
+  const v = vendas.dados?.disponivel ? vendas.dados : null;
+  const va = vendasAnt.dados?.disponivel ? vendasAnt.dados : null;
+  const res = resultado.dados;
+  const naPeriodo = rotuloPeriodo(p);
+
   return (
-    <Cartao titulo={<span class="linha"><Radar size={16} aria-hidden="true" /> Radar de Lucro</span>} descricao="Os achados mais importantes, com a evidência" justo>
-      {consulta.erro && !consulta.dados ? (
-        <Falha erro={consulta.erro} compacto recurso="O Radar de Lucro" aoTentar={consulta.recarregar} />
-      ) : consulta.carregando ? (
-        <div class="cartao__corpo"><Esqueleto linhas={3} /></div>
-      ) : !consulta.dados?.radar?.length ? (
-        <Vazio compacto icone={<Radar aria-hidden="true" />} titulo="Nenhum achado aberto">
-          O Radar só aponta algo com dados suficientes (vendas, fichas e compras). Sem achado não quer dizer sem problema.
-        </Vazio>
-      ) : (
-        <ul class="lista">
-          {consulta.dados.radar.slice(0, 3).map((a) => (
-            <li key={a.id} style={{ padding: '14px 20px' }} class="pilha pilha--p">
-              <div class="linha">
-                <Etiqueta tom={SEVERIDADE[a.severidade].tom}>{SEVERIDADE[a.severidade].rotulo}</Etiqueta>
-                <span class="fraco">{a.qualidade === 'confiavel' ? 'Dados confiáveis' : 'Dados parciais'}</span>
-              </div>
-              <strong style={{ fontWeight: 600 }}>{a.titulo}</strong>
-              <span class="suave pequeno">{a.problema}</span>
-              <span class="fraco">Fonte: {a.fonte}</span>
-              {rotaPainel(a.rota) && (
-                <a class="btn btn--p" style={{ alignSelf: 'flex-start' }} href={rotaPainel(a.rota)!}>
-                  Investigar <ArrowRight size={14} aria-hidden="true" />
-                </a>
-              )}
-            </li>
-          ))}
-        </ul>
+    <>
+      <div class="filtro-periodo">
+        <Segmentado rotulo="Período" valor={tipo} aoMudar={setTipo} opcoes={OPCOES} />
+        {tipo === 'personalizado' && (
+          <div class="filtro-periodo__datas">
+            <label class="sr" for="vg-de">De</label>
+            <input id="vg-de" class="entrada entrada--data" type="date" value={pers.de} max={hoje} onChange={(e) => { const de = e.currentTarget.value; setPers((x) => ({ ...x, de })); gravarParams({ de }); }} />
+            <span aria-hidden="true">até</span>
+            <label class="sr" for="vg-ate">Até</label>
+            <input id="vg-ate" class="entrada entrada--data" type="date" value={pers.ate} max={hoje} onChange={(e) => { const ate = e.currentTarget.value; setPers((x) => ({ ...x, ate })); gravarParams({ ate }); }} />
+            {!persValido && <span class="campo__erro" role="alert">Escolha até {MAX_DIAS} dias, sem datas futuras. Mostrando os últimos 30 dias.</span>}
+          </div>
+        )}
+      </div>
+
+      {vendas.dados && !vendas.dados.disponivel && (
+        <Aviso tom="atencao">
+          <strong>Aguardando dados de vendas.</strong> {vendas.dados.motivo} Receita, ticket médio e resultado aparecem quando a sincronização com a Eyemobile estiver ligada.
+        </Aviso>
       )}
-    </Cartao>
+      {v?.sincronizacao.atrasada && p.ate === hoje && (
+        <Aviso tom="atencao">
+          <strong>Vendas desatualizadas.</strong> {v.sincronizacao.ultimo_sucesso_em ? `Última sincronização com a Eyemobile ${relativo(v.sincronizacao.ultimo_sucesso_em)}.` : 'A sincronização com a Eyemobile ainda não concluiu.'} Os números de hoje podem estar incompletos.
+        </Aviso>
+      )}
+
+      <section class="indicadores" aria-label="Indicadores do período">
+        <Indicador
+          rotulo="Receita"
+          carregando={vendas.carregando}
+          valor={v ? moeda(v.totais.receita_liquida) : '—'}
+          rodape={
+            vendas.erro && !vendas.dados ? vendas.erro.message
+            : !v ? 'Aguardando dados de vendas'
+            : <><Variacao atual={num(v.totais.receita_liquida)} anterior={va ? num(va.totais.receita_liquida) : null} /> <span>Vendas líquidas {naPeriodo}</span></>
+          }
+          href="/admin/financeiro?aba=relatorios&relatorio=vendas"
+        />
+        <Indicador
+          rotulo="Despesas"
+          carregando={categorias.carregando}
+          valor={categorias.dados ? moeda(categorias.dados.total) : '—'}
+          rodape={
+            categorias.erro && !categorias.dados ? categorias.erro.message
+            : categorias.dados ? <><Variacao inverter atual={num(categorias.dados.total)} anterior={categoriasAnt.dados ? num(categoriasAnt.dados.total) : null} /> <span>Confirmadas por competência</span></>
+            : null
+          }
+          href="/admin/financeiro?aba=lancamentos"
+        />
+        <Indicador
+          rotulo="Resultado gerencial"
+          carregando={!!mes && resultado.carregando}
+          valor={
+            !mes ? '—'
+            : res?.disponivel && res.resultado_gerencial !== null ? <span class={num(res.resultado_gerencial)! < 0 ? 'negativo' : 'positivo'}>{moeda(res.resultado_gerencial)}</span>
+            : '—'
+          }
+          rodape={
+            !mes ? <span>Apurado por mês. <button type="button" class="link" onClick={() => setTipo('mes')}>Ver este mês</button></span>
+            : resultado.erro && !res ? resultado.erro.message
+            : res ? <><Situacao tom={QUALIDADE[res.qualidade.nivel].tom}>{QUALIDADE[res.qualidade.nivel].rotulo}</Situacao> <span>{res.disponivel ? 'Não é lucro contábil' : res.qualidade.motivos[0]?.texto ?? 'Indisponível'}</span></>
+            : null
+          }
+          href={mes ? `/admin/financeiro?aba=relatorios&relatorio=resultado&mes=${mes}` : undefined}
+        />
+        <Indicador
+          rotulo="Ticket médio"
+          carregando={vendas.carregando}
+          valor={v && v.totais.ticket_medio !== null ? moeda(v.totais.ticket_medio) : '—'}
+          rodape={!v ? 'Aguardando dados de vendas' : v.totais.vendas ? <><Variacao atual={num(v.totais.ticket_medio)} anterior={va ? num(va.totais.ticket_medio) : null} /> <span>{plural(v.totais.vendas, 'venda', 'vendas')}</span></> : 'Nenhuma venda no período'}
+        />
+      </section>
+
+      <Cartao titulo="Receitas × despesas" descricao={`${agrupar === 'dia' ? 'Por dia' : agrupar === 'semana' ? 'Por semana' : 'Por mês'}${janela.ampliada ? ' · últimos 7 dias' : ''}`} acoes={<Legenda series={[{ nome: 'Receita', cor: COR_RECEITA }, { nome: 'Despesas', cor: COR_DESPESA }]} />}>
+        <Dados consulta={despesasGrafico} recurso="O gráfico" esqueleto={<Esqueleto linhas={6} altura={28} />} compacto>
+          {(desp) => (
+            <GraficoEvolucao de={janela.de} ate={janela.ate} agrupar={agrupar} vendas={vendasGrafico.dados ?? null} despesas={desp.itens} completo={desp.completo} />
+          )}
+        </Dados>
+      </Cartao>
+
+      <div class="colunas-iguais">
+        {produtos && !(maisVendidos.dados && maisVendidos.dados.length === 0 && v?.por_meio.length) && !maisVendidos.erro ? (
+          <Cartao titulo="Produtos mais vendidos" descricao={`Top 5 por quantidade, ${naPeriodo}`}>
+            <Dados consulta={maisVendidos} recurso="A análise de produtos" esqueleto={<Esqueleto linhas={5} />} compacto>
+              {(lista) =>
+                lista.length ? (
+                  <Ranking
+                    rotulo="Produtos mais vendidos"
+                    itens={lista
+                      .slice()
+                      .sort((a, b) => (num(b.quantidade) ?? 0) - (num(a.quantidade) ?? 0))
+                      .slice(0, 5)
+                      .map((x) => ({ nome: x.produto, valor: num(x.quantidade) ?? 0, texto: `${decimal(x.quantidade, 0)} un.`, detalhe: moeda(x.receita_liquida) }))}
+                  />
+                ) : (
+                  <Vazio compacto titulo="Sem vendas por produto no período">Os produtos aparecem quando houver vendas sincronizadas da Eyemobile.</Vazio>
+                )
+              }
+            </Dados>
+          </Cartao>
+        ) : (
+          <Cartao titulo="Vendas por forma de pagamento" descricao={`Registrado no PDV, ${naPeriodo}`}>
+            <Dados consulta={vendas} recurso="O relatório de vendas" esqueleto={<Esqueleto linhas={4} />} compacto>
+              {(r) => <PorMeio relatorio={r} />}
+            </Dados>
+          </Cartao>
+        )}
+
+        <Cartao titulo="Despesas por categoria" descricao={`Confirmadas, ${naPeriodo}`} acoes={<a class="btn btn--p btn--fantasma" href="/admin/financeiro?aba=lancamentos">Lançamentos</a>}>
+          <Dados consulta={categorias} recurso="O relatório de despesas" esqueleto={<Esqueleto linhas={5} />} compacto>
+            {(c) =>
+              c.itens.length ? (
+                <Ranking
+                  rotulo="Despesas por categoria"
+                  cor={COR_DESPESA}
+                  itens={c.itens
+                    .slice()
+                    .sort((a, b) => (num(b.valor) ?? 0) - (num(a.valor) ?? 0))
+                    .slice(0, 6)
+                    .map((x) => ({ nome: x.nome, valor: num(x.valor) ?? 0, texto: moeda(x.valor), detalhe: x.pct !== null ? `${decimal(x.pct, 1)}%` : undefined }))}
+                />
+              ) : (
+                <Vazio compacto titulo="Nenhuma despesa confirmada no período" />
+              )
+            }
+          </Dados>
+        </Cartao>
+      </div>
+    </>
   );
 }
 
-/** Não há rota de auditoria geral no backend: a atividade vem dos próprios registros (reservas criadas e compras recebidas). */
-function AtividadeRecente({ reservasLiberadas, estoqueLiberado }: { reservasLiberadas: boolean; estoqueLiberado: boolean }) {
-  const hoje = hojeISO();
-  const recentes = useConsulta(reservasLiberadas ? `reservas?recentes:${hoje}` : null, () => reservas.listar({ data_de: hoje, limite: 200 }));
-  const compras = useConsulta(estoqueLiberado ? 'estoque/compras?recentes' : null, () => estoque.compras({ limite: 5 }));
-  type Ev = { id: string; em: string; texto: string; detalhe: string; href: string; icone: preact.ComponentChildren };
-  const ev: Ev[] = [];
-  for (const r of recentes.dados?.itens ?? []) ev.push({ id: r.id, em: r.criado_em, texto: `Reserva de ${r.contato_nome}`, detalhe: `${plural(r.pessoas, 'pessoa', 'pessoas')} · ${r.data.split('-').reverse().slice(0, 2).join('/')} às ${hora(r.hora)}`, href: `/admin/reservas?reserva=${r.id}`, icone: <CalendarCheck /> });
-  for (const c of compras.dados?.itens ?? []) ev.push({ id: c.id, em: c.criado_em, texto: `Compra ${c.fornecedor ? `de ${c.fornecedor}` : 'recebida'}`, detalhe: `${c.origem === 'julia' ? 'Pela Júlia' : 'Pelo painel'} · ${moeda(c.valor_total)}`, href: `/admin/estoque?aba=compras&compra=${c.id}`, icone: <PackageCheck /> });
-  ev.sort((a, b) => b.em.localeCompare(a.em));
+function rotuloBalde(iso: string, agrupar: 'dia' | 'semana' | 'mes') {
+  if (agrupar === 'mes') return mesCurto(iso);
+  return iso.slice(8, 10) + '/' + iso.slice(5, 7);
+}
+
+function GraficoEvolucao({ de, ate, agrupar, vendas, despesas, completo }: { de: string; ate: string; agrupar: 'dia' | 'semana' | 'mes'; vendas: RelatorioVendas | null; despesas: Lancamento[]; completo: boolean }) {
+  const eixo = baldes(de, ate, agrupar);
+  const receita = new Map<string, number>();
+  if (vendas?.disponivel) for (const pv of vendas.periodos) receita.set(pv.inicio, num(pv.receita_liquida) ?? 0);
+  const gasto = new Map<string, number>();
+  for (const d of despesas) {
+    const b = inicioBalde(d.data, agrupar);
+    gasto.set(b, (gasto.get(b) ?? 0) + (num(d.valor) ?? 0));
+  }
+  const semVendas = !vendas?.disponivel;
+  if (semVendas && gasto.size === 0) return <Vazio compacto titulo="Sem dados no período">Vendas sincronizadas e despesas confirmadas aparecem aqui.</Vazio>;
   return (
-    <Cartao titulo="Atividade recente" justo>
-      {recentes.carregando ? (
-        <div class="cartao__corpo"><Esqueleto linhas={3} /></div>
-      ) : ev.length ? (
-        <ul class="lista">
-          {ev.slice(0, 6).map((e) => (
-            <li key={e.id}>
-              <a class="lista__item" href={e.href}>
-                <span class="lista__icone" aria-hidden="true">{e.icone}</span>
-                <span class="lista__texto">
-                  <strong>{e.texto}</strong>
-                  <span>{e.detalhe}</span>
-                </span>
-                <span class="lista__fim">{relativo(e.em)}</span>
-              </a>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <Vazio compacto titulo="Sem atividade recente" />
+    <div class="pilha pilha--p">
+      <GraficoBarras
+        rotulo="Receitas e despesas no período"
+        rotulos={eixo.map((b) => rotuloBalde(b, agrupar))}
+        formatar={(x) => moeda(x)}
+        altura={260}
+        series={[
+          // Dia sem linha no relatório de vendas: sem venda registrada (0); sem a loja ligada, sem dado (null).
+          { nome: 'Receita', cor: COR_RECEITA, valores: eixo.map((b) => (semVendas ? null : receita.get(b) ?? 0)) },
+          { nome: 'Despesas', cor: COR_DESPESA, valores: eixo.map((b) => gasto.get(b) ?? 0) },
+        ]}
+      />
+      {(semVendas || !completo) && (
+        <span class="fraco">
+          {semVendas ? 'Receita indisponível: as vendas da Eyemobile ainda não estão sincronizadas. ' : ''}
+          {!completo ? 'Período com muitas despesas: o gráfico mostra as 2.000 mais recentes; o total do indicador é o oficial.' : ''}
+        </span>
       )}
-    </Cartao>
+      <span class="fraco">Despesas pela data de competência; receita pela data da venda. Contas ainda não pagas entram pela competência, não pelo pagamento.</span>
+    </div>
+  );
+}
+
+const MEIOS: Record<string, string> = { credito: 'Crédito', debito: 'Débito', pix: 'Pix', dinheiro: 'Dinheiro', outro: 'Outros' };
+
+function PorMeio({ relatorio }: { relatorio: RelatorioVendas }) {
+  if (!relatorio.disponivel) return <Vazio compacto titulo="Aguardando dados de vendas">{relatorio.motivo}</Vazio>;
+  if (!relatorio.por_meio.length) return <Vazio compacto titulo="Nenhuma venda no período" />;
+  return (
+    <Ranking
+      rotulo="Vendas por forma de pagamento"
+      itens={relatorio.por_meio
+        .slice()
+        .sort((a, b) => (num(b.valor) ?? 0) - (num(a.valor) ?? 0))
+        .map((m) => ({ nome: MEIOS[m.meio] ?? m.meio, valor: num(m.valor) ?? 0, texto: moeda(m.valor), detalhe: plural(m.pagamentos, 'pagamento', 'pagamentos') }))}
+    />
+  );
+}
+
+/** Sem o Financeiro liberado neste ambiente: só o que Reservas sabe dizer de hoje, sem cifras inventadas. */
+function SoReservas() {
+  const hoje = hojeISO();
+  const operacao = useConsulta(`reservas/operacao:${hoje}`, () => reservas.operacao(hoje));
+  const ativas = operacao.dados?.filter((r) => statusBase(r) !== 'cancelada') ?? [];
+  const pessoas = ativas.reduce((s, r) => s + r.pessoas, 0);
+  return (
+    <section class="indicadores indicadores--2" aria-label="Indicadores de hoje">
+      <Indicador rotulo="Reservas de hoje" icone={<CalendarCheck aria-hidden="true" />} href="/admin/reservas" carregando={operacao.carregando} valor={operacao.dados ? inteiro(ativas.length) : '—'} rodape={operacao.dados ? plural(ativas.filter((r) => statusBase(r) === 'pendente').length, 'aguardando aprovação', 'aguardando aprovação') : operacao.erro?.message} />
+      <Indicador rotulo="Pessoas previstas" icone={<Users aria-hidden="true" />} href="/admin/reservas" carregando={operacao.carregando} valor={operacao.dados ? inteiro(pessoas) : '—'} rodape={operacao.dados ? 'Reservas ativas de hoje' : undefined} />
+    </section>
   );
 }

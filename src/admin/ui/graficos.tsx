@@ -214,3 +214,29 @@ export function BarraParte({ valor, total, cor }: { valor: number; total: number
     </div>
   );
 }
+
+/**
+ * Ranking em barras horizontais (top 5 produtos, despesas por categoria). Rótulo e valor sempre escritos: a barra só
+ * ajuda a comparar. `valor` define o comprimento; `texto` e `detalhe` são o que se lê (ex.: "32 un." e "R$ 480,00").
+ */
+export function Ranking({ itens, rotulo, cor = 'var(--grafico-1)' }: { itens: { nome: string; valor: number; texto: string; detalhe?: string }[]; rotulo: string; cor?: string }) {
+  const max = Math.max(0, ...itens.map((i) => i.valor));
+  return (
+    <ol class="ranking" aria-label={rotulo}>
+      {itens.map((i) => (
+        <li key={i.nome} class="ranking__item">
+          <div class="ranking__linha">
+            <span class="ranking__nome" title={i.nome}>{i.nome}</span>
+            <span class="ranking__valor num">
+              {i.texto}
+              {i.detalhe && <small> · {i.detalhe}</small>}
+            </span>
+          </div>
+          <span class="ranking__barra" aria-hidden="true">
+            <i style={{ width: `${max > 0 ? Math.max(2, (i.valor / max) * 100) : 0}%`, '--c': cor }} />
+          </span>
+        </li>
+      ))}
+    </ol>
+  );
+}

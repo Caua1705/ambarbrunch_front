@@ -2275,3 +2275,102 @@ button.lista__item {
     top: calc(var(--topo) - 4px);
   }
 }
+
+/* Ranking (barras horizontais) ------------------------------------------------------------------------------------ */
+.ranking {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--e-4);
+}
+.ranking__linha {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--e-3);
+  margin-bottom: 6px;
+  font-size: var(--t-s);
+}
+.ranking__nome {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--texto);
+  font-weight: 500;
+}
+.ranking__valor {
+  flex: none;
+  font-weight: 600;
+  color: var(--texto);
+}
+.ranking__valor small {
+  font-size: var(--t-xs);
+  font-weight: 500;
+  color: var(--texto-3);
+}
+.ranking__barra {
+  display: block;
+  height: 6px;
+  border-radius: var(--r-pilula);
+  background: var(--afundado);
+  overflow: hidden;
+}
+.ranking__barra i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--c);
+}
+
+/* Visão Geral e utilitários de valor ------------------------------------------------------------------------------- */
+.filtro-periodo {
+  display: flex;
+  align-items: center;
+  gap: var(--e-3);
+  flex-wrap: wrap;
+  margin-top: calc(var(--e-2) * -1);
+}
+@media (max-width: 560px) {
+  .filtro-periodo .segmentado {
+    flex-wrap: wrap;
+  }
+}
+.filtro-periodo__datas {
+  display: flex;
+  align-items: center;
+  gap: var(--e-2);
+  flex-wrap: wrap;
+  color: var(--texto-3);
+  font-size: var(--t-s);
+}
+.entrada--data {
+  width: auto;
+  min-width: 150px;
+}
+.indicadores--2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.positivo {
+  color: var(--ok);
+}
+.negativo {
+  color: var(--perigo);
+}
+/* Botão com cara de link (ação secundária dentro de um texto) */
+.link {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--marca-texto);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.cartao__topo .legenda {
+  margin-left: auto;
+}

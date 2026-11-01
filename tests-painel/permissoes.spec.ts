@@ -38,14 +38,18 @@ test('Gerente: Configurações sem Equipe e sem regras da casa', async ({ page }
   expect((await page.request.get(`${DEMO}/admin/api/usuarios`)).status()).toBe(403);
 });
 
-test('gerência: vê os seis módulos e Clientes e o financeiro na Visão Geral', async ({ page }) => {
+test('gerência: vê os módulos e Clientes e o financeiro na Visão Geral; o Clube sai do menu, mas a rota segue', async ({ page }) => {
   await entrarDemo(page, 'gerente');
   await page.goto(`${DEMO}/admin`);
   const nav = page.getByRole('navigation', { name: 'Módulos' });
-  for (const m of ['Visão Geral', 'Reservas', 'Atendimento', 'Clube Âmbar', 'Financeiro', 'Estoque']) await expect(nav.getByRole('link', { name: new RegExp(m) })).toBeVisible();
-  await expect(nav.getByRole('listitem')).toHaveCount(7);
-  await expect(nav.getByRole('link', { name: 'Clientes' })).toBeVisible();
-  await expect(page.getByText(/Faturamento do mês/)).toBeVisible();
+  for (const m of ['Visão Geral', 'Reservas', 'Clientes', 'Atendimento', 'Financeiro', 'Estoque']) await expect(nav.getByRole('link', { name: m })).toBeVisible();
+  await expect(nav.getByRole('listitem')).toHaveCount(6);
+  await expect(nav.getByRole('link', { name: /Clube/ })).toHaveCount(0);
+  const kpis = page.getByRole('region', { name: 'Indicadores do período' });
+  for (const k of ['Receita', 'Despesas', 'Resultado gerencial', 'Ticket médio']) await expect(kpis.getByText(k, { exact: true })).toBeVisible();
+  // Clube oculto da navegação, não apagado: quem tem o link continua entrando.
+  await page.goto(`${DEMO}/admin/clube`);
+  await expect(page.getByRole('heading', { name: 'Clube Âmbar', level: 1 })).toBeVisible();
 });
 
 test('gerência não reativa membro suspenso do Clube; administrador sim', async ({ page }) => {
