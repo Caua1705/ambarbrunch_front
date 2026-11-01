@@ -10,7 +10,7 @@ import { Gaveta, avisar } from '../../ui/camadas';
 import { Botao, Campo, Aviso } from '../../ui/base';
 import { Esqueleto } from '../../ui/estados';
 import type { ReservaPainel, CanalEquipe } from '../../lib/tipos/reservas';
-import { atualizarReservas } from './comum';
+import { atualizarReservas, lembrarCriacaoDesligada } from './comum';
 
 interface Form {
   ambiente_id: string;
@@ -196,6 +196,9 @@ export function NovaReserva({ aberta, aoFechar, unidade, dataInicial, aoCriar }:
   }
 
   const desligada = erroGeral?.codigo === 'criacao_manual_desativada';
+  useEffect(() => {
+    if (desligada) lembrarCriacaoDesligada();
+  }, [desligada]);
   return (
     <Gaveta
       aberta={aberta}

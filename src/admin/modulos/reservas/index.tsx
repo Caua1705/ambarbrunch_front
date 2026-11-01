@@ -1,20 +1,21 @@
-// Reservas: a gerente abre e entende o movimento do dia em segundos. Visões do painel anterior, cada uma numa aba: Dia
-// (principal, com resumo e ações), Semana, Mês (calendário), Lista (Hoje/Amanhã/Próximos 7 dias/Todas, com busca) e
-// Ambientes. Aprovações pendentes em destaque, detalhe em gaveta. Tudo pelas rotas reais /admin/reservas* (no ar).
+// Reservas: a agenda primeiro. Uma barra só com a navegação (‹ Hoje ›), o intervalo na tela e a visualização — Dia (por
+// horário, com as ações), Semana, Mês (calendário), Lista (com busca) e Por ambiente. Sem cartões de indicador: o resumo
+// do dia é uma linha (reservas · pessoas) e as aprovações pendentes abrem numa gaveta. Detalhe em gaveta. Rotas reais
+// /admin/reservas* (no ar); o fluxo público e as mensagens do WhatsApp não passam por aqui.
 // Sem tempo real no backend: a agenda é relida a cada minuto com a aba visível, ao voltar para a aba e no Atualizar.
 import { useEffect, useMemo, useState } from 'preact/hooks';
-import { ChevronLeft, ChevronRight, Plus, Search, CalendarClock, Check, UserCheck, MoreHorizontal, X, Users, CalendarCheck, CalendarX2, Phone, RotateCw, Lock } from 'lucide-preact';
+import { ChevronLeft, ChevronRight, Plus, Search, CalendarClock, Check, UserCheck, MoreHorizontal, X, CalendarCheck, Phone, RotateCw, Lock } from 'lucide-preact';
 import type { ContextoPainel } from '../../lib/sessao';
 import { useConsulta } from '../../lib/consulta';
 import { reservas } from '../../lib/api/reservas';
-import { hojeISO, somarDias, dataLonga, dataCurta, hora, plural, inteiro, telefone, inicioMes } from '../../lib/formato';
+import { hojeISO, somarDias, somarMeses, dataLonga, dataCurta, mesAno, hora, plural, inteiro, telefone, inicioMes } from '../../lib/formato';
 import { lerParam, gravarParams } from '../../lib/rotas';
 import { Raiz, useConfirmacao, Suspenso, avisar, avisarErro } from '../../ui/camadas';
-import { Botao, Cabecalho, Indicador, Segmentado, Cartao, Aviso, Abas } from '../../ui/base';
+import { Botao, Segmentado, Cartao, Aviso } from '../../ui/base';
 import { Dados, EsqueletoTabela, Vazio } from '../../ui/estados';
 import { Tabela, type Coluna } from '../../ui/tabela';
 import type { OperacaoReserva, ReservaPainel } from '../../lib/tipos/reservas';
-import { statusBase, SituacaoReserva, statusDe, emAberto, confirmadaBase, comecou, aceitaChegada, atualizarReservas, registrarComparecimento, janelaDe, CANAL } from './comum';
+import { statusBase, SituacaoReserva, statusDe, emAberto, confirmadaBase, comecou, aceitaChegada, atualizarReservas, registrarComparecimento, janelaDe, CANAL, criacaoManualDesligada, segundaDe } from './comum';
 import { DetalheReserva, pedirCancelamento } from './Detalhe';
 import { pode } from '../../lib/permissoes';
 import { NovaReserva } from './NovaReserva';
@@ -32,7 +33,7 @@ const VISTAS: { id: Vista; rotulo: string }[] = [
   { id: 'semana', rotulo: 'Semana' },
   { id: 'mes', rotulo: 'Mês' },
   { id: 'lista', rotulo: 'Lista' },
-  { id: 'ambientes', rotulo: 'Ambientes' },
+  { id: 'ambientes', rotulo: 'Por ambiente' },
 ];
 const lerVista = (v: string | null): Vista => (VISTAS.some((x) => x.id === v) ? (v as Vista) : 'dia');
 const ehData = (v: string | null) => /^\d{4}-\d{2}-\d{2}$/.test(v ?? '');
@@ -85,9 +86,7 @@ export default function Reservas({ contexto }: { contexto: ContextoPainel }) {
     reservas: ativas.length,
     pessoas: ativas.reduce((s, r) => s + r.pessoas, 0),
     pendentes: lista.filter((r) => statusDe(r) === 'pendente').length,
-    confirmadas: lista.filter((r) => confirmadaBase(r) && emAberto(r)).length,
     chegaram: lista.filter((r) => r.comparecimento === 'compareceu').length,
-    canceladas: lista.filter((r) => statusBase(r) === 'cancelada').length,
   };
 
   const filtradas = useMemo(() => {
@@ -177,52 +176,84 @@ export default function Reservas({ contexto }: { contexto: ContextoPainel }) {
 
   const nPend = pendentes.dados?.total ?? 0;
   const ehHoje = data === hoje;
-  const titulo = vista === 'dia' ? (ehHoje ? 'Reservas de hoje' : 'Reservas') : 'Reservas';
+  const calendario = vista === 'dia' || vista === 'semana' || vista === 'mes';
+  const inicioSemana = segundaDe(data);
+  // Navegação única para Dia, Semana e Mês: ‹ Hoje › mais o título do intervalo que está na tela.
+  const passo = (n: number) => {
+    if (vista === 'mes') return setMes(somarMeses(mes, n));
+    setData(limitar(somarDias(data, vista === 'semana' ? 7 * n : n)));
+  };
+  const irHoje = () => {
+    setData(hoje);
+    setMes(inicioMes(hoje));
+    setDiaMes(hoje);
+  };
+  const noHoje = vista === 'mes' ? mes === inicioMes(hoje) : vista === 'semana' ? inicioSemana === segundaDe(hoje) : ehHoje;
+  const tituloIntervalo =
+    vista === 'dia' ? (ehHoje ? `Hoje, ${dataLonga(data).toLowerCase()}` : dataLonga(data))
+    : vista === 'semana' ? `${dataCurta(inicioSemana)} – ${dataCurta(somarDias(inicioSemana, 6), { ano: true })}`
+    : mesAno(mes);
+  const podeCriar = pode(papel, 'reservas.criar');
+  const criacaoDesligada = podeCriar && criacaoManualDesligada();
 
   return (
     <Raiz>
-      <Cabecalho
-        titulo={titulo}
-        descricao={vista === 'dia' ? dataLonga(data) : janela ? 'De hoje até 14 dias à frente' : 'Agenda, calendário, lista e ambientes'}
-        acoes={
-          <>
-            <Botao variante="fantasma" so_icone aria-label="Atualizar agora" icone={<RotateCw aria-hidden="true" />} onClick={atualizarReservas} />
-            {pode(papel, 'reservas.criar') && <Botao variante="primario" icone={<Plus aria-hidden="true" />} onClick={() => setNova(true)}>Nova reserva</Botao>}
-          </>
-        }
-      />
-
-      {nPend > 0 && (
-        <div class="aviso aviso--atencao" style={{ alignItems: 'center' }}>
-          <CalendarClock aria-hidden="true" />
-          <div style={{ flex: 1 }}>
-            <strong>{plural(nPend, 'reserva aguarda', 'reservas aguardam')} aprovação</strong> <span class="suave">— hoje e próximos dias</span>
+      <div class="agenda-barra">
+        {calendario ? (
+          <div class="agenda-barra__nav">
+            <Botao so_icone variante="fantasma" aria-label={vista === 'mes' ? 'Mês anterior' : vista === 'semana' ? 'Semana anterior' : 'Dia anterior'} icone={<ChevronLeft aria-hidden="true" />} disabled={vista !== 'mes' && !!janela && data <= janela.de} onClick={() => passo(-1)} />
+            <Botao tamanho="p" onClick={irHoje} disabled={noHoje}>Hoje</Botao>
+            <Botao so_icone variante="fantasma" aria-label={vista === 'mes' ? 'Próximo mês' : vista === 'semana' ? 'Próxima semana' : 'Próximo dia'} icone={<ChevronRight aria-hidden="true" />} disabled={vista !== 'mes' && !!janela && data >= janela.ate} onClick={() => passo(1)} />
+            <h2 class="agenda-barra__titulo" aria-live="polite">{tituloIntervalo}</h2>
+            {vista === 'dia' && (
+              <>
+                <label class="sr" for="data-reservas">Escolher data</label>
+                <input id="data-reservas" type="date" class="entrada entrada--data entrada--p" min={janela?.de} max={janela?.ate} value={data} onChange={(e) => e.currentTarget.value && setData(limitar(e.currentTarget.value))} />
+              </>
+            )}
           </div>
-          <Botao tamanho="p" variante="primario" onClick={() => setVerPendentes(true)}>Revisar</Botao>
+        ) : (
+          <h2 class="agenda-barra__titulo">{vista === 'lista' ? 'Lista de reservas' : 'Reservas por ambiente'}</h2>
+        )}
+        <div class="agenda-barra__acoes">
+          <Segmentado rotulo="Visualização" valor={vista} aoMudar={setVista} opcoes={VISTAS.map((v) => ({ valor: v.id, rotulo: v.rotulo }))} />
+          <Botao variante="fantasma" so_icone aria-label="Atualizar agora" title="Atualizar agora" icone={<RotateCw aria-hidden="true" />} onClick={atualizarReservas} />
+          {podeCriar && (
+            <Botao variante="primario" icone={<Plus aria-hidden="true" />} onClick={() => setNova(true)} title={criacaoDesligada ? 'A criação de reservas pelo painel está desligada no sistema do Âmbar' : undefined} aria-describedby={criacaoDesligada ? 'criacao-desligada' : undefined}>
+              Nova reserva
+            </Botao>
+          )}
+        </div>
+      </div>
+
+      {(vista === 'dia' || (gerencia && nPend > 0) || criacaoDesligada) && (
+        <div class="agenda-resumo">
+          {vista === 'dia' && (
+            <span aria-live="polite">
+              {dia.dados ? (
+                <>
+                  <strong class="num">{inteiro(resumo.reservas)}</strong> {resumo.reservas === 1 ? 'reserva' : 'reservas'} · <strong class="num">{inteiro(resumo.pessoas)}</strong> {resumo.pessoas === 1 ? 'pessoa' : 'pessoas'}
+                  {resumo.chegaram > 0 && <span class="fraco"> · {plural(resumo.chegaram, 'chegou', 'chegaram')}</span>}
+                  {ehHoje && proxima && <span class="fraco"> · próxima às {hora(proxima.hora)}</span>}
+                  {dia.atualizando && <span class="fraco"> · atualizando…</span>}
+                </>
+              ) : dia.carregando ? (
+                <span class="fraco">Carregando o dia…</span>
+              ) : null}
+            </span>
+          )}
+          {gerencia && nPend > 0 && (
+            <button type="button" class="pilula pilula--atencao" onClick={() => setVerPendentes(true)}>
+              <CalendarClock aria-hidden="true" /> {plural(nPend, 'aguardando aprovação', 'aguardando aprovação')}
+            </button>
+          )}
+          {criacaoDesligada && <span id="criacao-desligada" class="fraco">Criação pelo painel desligada no sistema: reservas novas só pelo site.</span>}
         </div>
       )}
 
-      <Abas abas={VISTAS} atual={vista} aoMudar={setVista} />
-
-      <div role="tabpanel" id={`painel-${vista}`} aria-labelledby={`aba-${vista}`} class="pilha">
+      <div class="pilha">
         {vista === 'dia' && (
           <>
-            <div class="linha" style={{ gap: '8px' }}>
-              <Botao so_icone aria-label="Dia anterior" icone={<ChevronLeft aria-hidden="true" />} disabled={!!janela && data <= janela.de} onClick={() => setData(limitar(somarDias(data, -1)))} />
-              <Botao onClick={() => setData(hoje)} disabled={ehHoje}>Hoje</Botao>
-              <Botao so_icone aria-label="Próximo dia" icone={<ChevronRight aria-hidden="true" />} disabled={!!janela && data >= janela.ate} onClick={() => setData(limitar(somarDias(data, 1)))} />
-              <label class="sr" for="data-reservas">Escolher data</label>
-              <input id="data-reservas" type="date" class="entrada" style={{ width: 'auto' }} min={janela?.de} max={janela?.ate} value={data} onChange={(e) => e.currentTarget.value && setData(limitar(e.currentTarget.value))} />
-              {dia.atualizando && <span class="fraco">Atualizando…</span>}
-            </div>
-
-            <section class="indicadores" aria-label="Resumo do dia">
-              <Indicador rotulo="Reservas" icone={<CalendarCheck aria-hidden="true" />} carregando={dia.carregando} valor={inteiro(resumo.reservas)} rodape={ehHoje && proxima ? `Próxima às ${hora(proxima.hora)} · ${proxima.contato_nome.split(' ')[0]}` : `${plural(resumo.confirmadas, 'confirmada', 'confirmadas')} a chegar`} />
-              <Indicador rotulo="Pessoas" icone={<Users aria-hidden="true" />} carregando={dia.carregando} valor={inteiro(resumo.pessoas)} rodape={resumo.chegaram ? `${plural(resumo.chegaram, 'reserva chegou', 'reservas chegaram')}` : 'Total esperado no dia'} />
-              <Indicador rotulo="Aguardando aprovação" icone={<CalendarClock aria-hidden="true" />} carregando={dia.carregando} valor={inteiro(resumo.pendentes)} rodape={resumo.pendentes ? 'Neste dia' : 'Nenhuma neste dia'} />
-              <Indicador rotulo="Canceladas" icone={<CalendarX2 aria-hidden="true" />} carregando={dia.carregando} valor={inteiro(resumo.canceladas)} rodape="Não ocupam lugar" />
-            </section>
-
             <Cartao justo>
               <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--borda)' }} class="filtros">
                 <div class="entrada-grupo">
@@ -289,8 +320,8 @@ export default function Reservas({ contexto }: { contexto: ContextoPainel }) {
           </>
         )}
 
-        {vista === 'semana' && <Semana inicio={data} aoEscolherDia={(d) => { setData(limitar(d)); setVista('dia'); }} aoAbrir={setAberta} />}
-        {vista === 'mes' && <Mes mes={mes} aoMudarMes={setMes} dia={diaMes} aoEscolherDia={setDiaMes} aoAbrirDia={(d) => { setData(limitar(d)); setVista('dia'); }} aoAbrir={setAberta} />}
+        {vista === 'semana' && <Semana inicio={inicioSemana} aoEscolherDia={(d) => { setData(limitar(d)); setVista('dia'); }} aoAbrir={setAberta} />}
+        {vista === 'mes' && <Mes mes={mes} dia={diaMes} aoEscolherDia={setDiaMes} aoAbrirDia={(d) => { setData(limitar(d)); setVista('dia'); }} aoAbrir={setAberta} />}
         {vista === 'lista' && <Lista periodo={periodo} aoMudarPeriodo={setPeriodo} papel={papel} ambientes={ambientesAtivos} aoAbrir={setAberta} confirmar={confirmar} />}
         {vista === 'ambientes' && <Ambientes periodo={periodo} aoMudarPeriodo={setPeriodo} ambientes={ambientes.dados ?? []} aoAbrir={setAberta} />}
         {ambientes.erro && <Aviso tom="atencao">Não foi possível carregar os ambientes: {ambientes.erro.message}</Aviso>}

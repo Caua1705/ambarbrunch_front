@@ -5,16 +5,17 @@ import { DEMO, entrarDemo } from './apoio';
 test.beforeEach(async ({ page }) => {
   await entrarDemo(page, 'gerente');
   await page.goto(`${DEMO}/admin/reservas`);
-  await expect(page.getByRole('heading', { name: 'Reservas de hoje' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /^Hoje, / })).toBeVisible();
 });
 
-test('mostra o resumo e a lista do dia', async ({ page }) => {
-  await expect(page.getByRole('region', { name: 'Resumo do dia' })).toContainText('Pessoas');
+test('mostra o resumo e a lista do dia (sem cartões de indicador)', async ({ page }) => {
+  await expect(page.locator('.agenda-resumo')).toContainText(/\d+ reservas? · \d+ pessoas?/);
+  await expect(page.locator('.indicador')).toHaveCount(0);
   await expect(page.locator('[data-linha]:visible').first()).toBeVisible();
 });
 
 test('aprova uma reserva pendente pela gaveta de pendentes', async ({ page }) => {
-  await page.getByRole('button', { name: 'Revisar' }).click();
+  await page.getByRole('button', { name: /aguardando aprovação/ }).click();
   const gaveta = page.getByRole('dialog', { name: 'Aguardando aprovação' });
   const primeiro = gaveta.getByRole('button', { name: /^Aprovar a reserva de / }).first();
   const nome = (await primeiro.getAttribute('aria-label'))!.replace('Aprovar a reserva de ', '');
@@ -79,16 +80,16 @@ test('tema escuro persiste depois de recarregar', async ({ page, isMobile }) => 
 });
 
 test('visões do painel anterior: Mês, Lista por período e Ambientes', async ({ page }) => {
-  await page.getByRole('tab', { name: 'Mês' }).click();
+  await page.getByRole('group', { name: 'Visualização' }).getByRole('button', { name: 'Mês' }).click();
   await expect(page.getByRole('button', { name: 'Próximo mês' })).toBeVisible();
   await expect(page.getByRole('group', { name: /^Reservas de / })).toBeVisible();
-  await page.getByRole('tab', { name: 'Lista' }).click();
+  await page.getByRole('group', { name: 'Visualização' }).getByRole('button', { name: 'Lista' }).click();
   await page.getByRole('group', { name: 'Período' }).getByRole('button', { name: 'Próximos 7 dias' }).click();
   await expect(page.locator('[data-linha]:visible').first()).toBeVisible();
   await page.getByLabel('Situação').selectOption('cancelada');
   await page.getByRole('searchbox', { name: 'Buscar na lista' }).fill('zzzz-ninguem');
   await expect(page.getByText('Nenhuma reserva com esses filtros')).toBeVisible();
-  await page.getByRole('tab', { name: 'Ambientes' }).click();
+  await page.getByRole('group', { name: 'Visualização' }).getByRole('button', { name: 'Por ambiente' }).click();
   await expect(page.getByRole('region', { name: /^Salão: / })).toBeVisible();
 });
 

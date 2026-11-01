@@ -90,3 +90,31 @@ export async function registrarComparecimento(id: string, valor: Comparecimento,
     atualizarReservas();
   }
 }
+
+/**
+ * Criação manual de reserva pelo painel: o backend só diz que está desligada respondendo 403 `criacao_manual_desativada`
+ * (config `painel_criacao_manual`, sem rota de leitura). Depois da primeira recusa, o painel lembra disso nesta sessão do
+ * navegador e mostra o botão desligado ANTES de a pessoa preencher tudo de novo.
+ */
+const CHAVE_CRIACAO = 'painel-reserva-manual-desligada';
+export function criacaoManualDesligada(): boolean {
+  try {
+    return sessionStorage.getItem(CHAVE_CRIACAO) === '1';
+  } catch {
+    return false;
+  }
+}
+export function lembrarCriacaoDesligada() {
+  try {
+    sessionStorage.setItem(CHAVE_CRIACAO, '1');
+  } catch {
+    /* navegação privada: vale só nesta tela */
+  }
+}
+
+/** Segunda-feira da semana de `d` (a Semana da agenda vai de segunda a domingo). */
+export function segundaDe(d: string) {
+  const [a, m, dia] = d.split('-').map(Number);
+  const sem = new Date(Date.UTC(a, m - 1, dia, 12)).getUTCDay();
+  return somarDias(d, -((sem + 6) % 7));
+}

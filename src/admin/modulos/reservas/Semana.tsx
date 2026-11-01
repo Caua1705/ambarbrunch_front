@@ -4,17 +4,10 @@ import { reservas } from '../../lib/api/reservas';
 import { somarDias, dataCurta, hora, hojeISO, plural } from '../../lib/formato';
 import { Dados, Esqueleto } from '../../ui/estados';
 import { Etiqueta } from '../../ui/base';
-import { statusDe } from './comum';
-
-/** Segunda-feira da semana de `d`. */
-function segunda(d: string) {
-  const [a, m, dia] = d.split('-').map(Number);
-  const sem = new Date(Date.UTC(a, m - 1, dia, 12)).getUTCDay();
-  return somarDias(d, -((sem + 6) % 7));
-}
+import { statusDe, segundaDe } from './comum';
 
 export function Semana({ inicio, aoEscolherDia, aoAbrir }: { inicio: string; aoEscolherDia: (d: string) => void; aoAbrir: (id: string) => void }) {
-  const de = segunda(inicio);
+  const de = segundaDe(inicio);
   const ate = somarDias(de, 6);
   const consulta = useConsulta(`reservas?semana:${de}`, () => reservas.listar({ data_de: de, data_ate: ate, limite: 200 }));
   const dias = Array.from({ length: 7 }, (_, i) => somarDias(de, i));
