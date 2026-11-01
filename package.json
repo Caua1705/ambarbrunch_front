@@ -23,6 +23,7 @@
     "test:e2e": "playwright test --project=chromium --project=webkit",
     "test:reservas-api": "playwright test -c playwright.reservas.config.ts",
     "test:painel": "playwright test -c playwright.painel.config.ts",
+    "test:painel-real": "playwright test -c playwright.painel-real.config.ts",
     "painel:demo": "node scripts/painel.mjs demo",
     "painel:dev": "node scripts/painel.mjs dev",
     "painel:build": "node scripts/painel.mjs build",
