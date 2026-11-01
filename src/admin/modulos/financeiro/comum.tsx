@@ -155,6 +155,8 @@ export const MOTIVO_REVISAO: Record<string, string> = {
   pode_ser_pagamento_registrado: 'Pode ser de um pagamento já lançado',
   movimentacao_nao_despesa: 'Troco, aporte, retirada ou transferência (não é despesa)',
   corrigido: 'Corrigido no painel',
+  // 31/10: valor em dinheiro na legenda diferente do lido; nada foi lançado e corrigir o valor tira o motivo.
+  valor_diverge_da_legenda: 'O valor da legenda não bate com o documento',
 };
 // Comprovante sem data ou com data estranha: o mesmo aviso nos dois casos (a data fica à mão para corrigir).
 MOTIVO_REVISAO.sem_data = MOTIVO_REVISAO.data_suspeita = 'Data do pagamento a conferir';

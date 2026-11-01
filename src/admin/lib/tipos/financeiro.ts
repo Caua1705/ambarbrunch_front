@@ -177,7 +177,9 @@ export interface DespesaEntrada {
   valor: Dec;
   competencia: Data;
   categoria: string;
-  fornecedor?: { documento?: string | null; nome?: string | null } | null;
+  /** `id`: fornecedor escolhido na busca (vale sozinho; desativado → 409 fornecedor_inativo). Sem ele, documento/nome
+   *  resolvem ou criam o fornecedor. */
+  fornecedor?: { id?: Uuid | null; documento?: string | null; nome?: string | null } | null;
   arquivo_id?: Uuid | null;
   parcelas?: { vencimento: Data; valor: Dec }[] | null;
   pagamento?: { pago_em: Data; forma: FormaPagamento; identificador_transacao?: string | null; arquivo_id?: Uuid | null } | null;
@@ -562,7 +564,9 @@ export type TaxaEntrada = Omit<TaxaPagamento, 'id'>;
 export interface RecorrenciaEntrada {
   descricao: string;
   categoria: string;
-  fornecedor?: { documento?: string | null; nome?: string | null } | null;
+  /** `id`: fornecedor escolhido na busca (vale sozinho; desativado → 409 fornecedor_inativo). Sem ele, documento/nome
+   *  resolvem ou criam o fornecedor. */
+  fornecedor?: { id?: Uuid | null; documento?: string | null; nome?: string | null } | null;
   valor_previsto: Dec;
   valor_variavel: boolean;
   dia_vencimento: number;

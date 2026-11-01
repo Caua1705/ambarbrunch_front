@@ -69,7 +69,9 @@ export const financeiro = {
   alterarCategoria: (codigo: string, c: CategoriaAlteracao) => pedir<Categoria>(`financeiro/categorias/${encodeURIComponent(codigo)}`, { metodo: 'PATCH', corpo: c }),
   categoriaNaUnidade: (codigo: string, unidade: string, ativo: boolean) =>
     pedir<Categoria>(`financeiro/categorias/${encodeURIComponent(codigo)}/unidades/${encodeURIComponent(unidade)}`, { metodo: 'PUT', corpo: { ativo } }),
-  fornecedores: (busca?: string) => pedir<{ id: string; nome: string; documento: string | null }[]>('financeiro/fornecedores', { query: { busca, limite: 20 } }),
+  /** Busca (CPF vem mascarado: para lançar com um fornecedor achado aqui, mande `fornecedor: {id}`, não o nome). */
+  fornecedores: (busca?: string) =>
+    pedir<{ id: string; nome: string; documento: string | null; ativo?: boolean; origem?: string }[]>('financeiro/fornecedores', { query: { busca, limite: 20 } }),
   despesa: (id: string) => pedir<DespesaSaida>(`financeiro/despesas/${id}`),
   criarDespesa: (d: DespesaEntrada, chave = novaChave()) => pedir<DespesaSaida>('financeiro/despesas', { metodo: 'POST', corpo: d, idempotencia: chave }),
   corrigirDespesa: (id: string, c: { versao: number; motivo: string; descricao?: string; valor?: string; competencia?: string; categoria?: string }) =>
