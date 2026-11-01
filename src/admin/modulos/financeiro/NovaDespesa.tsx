@@ -9,7 +9,7 @@ import { Gaveta } from '../../ui/camadas';
 import { Botao, Campo, Aviso, Segmentado } from '../../ui/base';
 import { EntradaMoeda, EnvioArquivo } from '../../ui/entradas';
 import type { DespesaEntrada, FormaPagamento } from '../../lib/tipos/financeiro';
-import { FORMAS, useCategorias, OpcoesCategoria, atualizarFinanceiro, avisar } from './comum';
+import { FORMAS, useCategorias, OpcoesCategoria, atualizarFinanceiro, avisar, AVISO_ARQUIVO_REPETIDO } from './comum';
 
 type Situacao = 'paga' | 'a_pagar' | 'parcelada';
 
@@ -38,7 +38,8 @@ export function NovaDespesa({ aberta, aoFechar, aoCriar }: { aberta: boolean; ao
   const [avancado, setAvancado] = useState(false);
   const [fornNome, setFornNome] = useState('');
   const [fornDoc, setFornDoc] = useState('');
-  const [arquivo, setArquivo] = useState<{ id: string; nome: string } | null>(null);
+  // `ja_existia` (mesmo SHA-256 já enviado): avisa ANTES de lançar; o backend recusa o arquivo de outro lançamento (B2).
+  const [arquivo, setArquivo] = useState<{ id: string; nome: string; jaExistia?: boolean } | null>(null);
   const [enviandoArq, setEnviandoArq] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<ErroApi | null>(null);
@@ -80,7 +81,7 @@ export function NovaDespesa({ aberta, aoFechar, aoCriar }: { aberta: boolean; ao
     setEnviandoArq(true);
     try {
       const r = await financeiro.enviarArquivo(f, 'comprovante');
-      setArquivo({ id: r.id, nome: f.name });
+      setArquivo({ id: r.id, nome: f.name, jaExistia: r.ja_existia });
     } catch (e) {
       setErro(e instanceof ErroApi ? e : new ErroApi('servidor', 'Não foi possível enviar o arquivo.'));
     } finally {
@@ -230,7 +231,10 @@ export function NovaDespesa({ aberta, aoFechar, aoCriar }: { aberta: boolean; ao
             <div class="campo">
               <span class="campo__rotulo">Comprovante ou nota <em>(opcional)</em></span>
               {arquivo ? (
-                <div class="linha linha--entre aviso"><span>{arquivo.nome}</span><Botao tamanho="p" variante="fantasma" icone={<Trash2 aria-hidden="true" />} onClick={() => setArquivo(null)}>Remover</Botao></div>
+                <>
+                  <div class="linha linha--entre aviso"><span>{arquivo.nome}</span><Botao tamanho="p" variante="fantasma" icone={<Trash2 aria-hidden="true" />} onClick={() => setArquivo(null)}>Remover</Botao></div>
+                  {arquivo.jaExistia && <Aviso tom="atencao" icone={<Info aria-hidden="true" />}>{AVISO_ARQUIVO_REPETIDO}</Aviso>}
+                </>
               ) : (
                 <EnvioArquivo aceitar="image/*,application/pdf" titulo={enviandoArq ? 'Enviando…' : 'Anexar arquivo'} detalhe="Foto ou PDF, até 15 MB" desativado={enviandoArq} aoEscolher={anexar} />
               )}

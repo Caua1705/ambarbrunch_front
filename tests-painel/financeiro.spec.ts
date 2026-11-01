@@ -75,3 +75,27 @@ test('Contas fixas e taxas: lista as duas e registra uma nova vigência de taxa'
   await expect(gaveta).toHaveCount(0);
   await expect(taxas.getByText('0,79%')).toBeVisible();
 });
+
+test('B2: o mesmo arquivo não prova duas despesas; a Nova despesa avisa ao anexar um arquivo já enviado', async ({ page }) => {
+  await entrarDemo(page, 'gerente');
+  const RAIZ = `${DEMO}/admin/api`;
+  const arquivo = { name: 'pix-b2-repetido.png', mimeType: 'image/png', buffer: Buffer.from('comprovante B2 da demonstração') };
+  const subir = async () => (await page.request.post(`${RAIZ}/arquivos`, { headers: { 'X-Painel': '1', Origin: DEMO, 'Sec-Fetch-Site': 'same-origin' }, multipart: { arquivo, tipo: 'comprovante' } })).json();
+  const primeiro = await subir();
+  expect(primeiro.ja_existia).toBe(false);
+  const hoje = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Fortaleza' }).format(new Date());
+  const despesa = (n: number) => ({ descricao: `Material de limpeza B2 ${n}`, valor: '42.00', competencia: hoje, categoria: 'operacional', arquivo_id: primeiro.id, pagamento: { pago_em: hoje, forma: 'pix' } });
+  const json = { 'X-Painel': '1', 'Content-Type': 'application/json', Origin: DEMO };
+  expect((await page.request.post(`${RAIZ}/financeiro/despesas`, { headers: json, data: despesa(1) })).status()).toBe(201);
+  const segunda = await page.request.post(`${RAIZ}/financeiro/despesas`, { headers: json, data: despesa(2) });
+  expect(segunda.status()).toBe(409);
+  expect((await segunda.json()).codigo).toBe('arquivo_ja_registrado');
+
+  // No painel: anexar o mesmo arquivo mostra o aviso antes de lançar.
+  await page.goto(`${DEMO}/admin/financeiro?aba=lancamentos`);
+  await page.getByRole('button', { name: 'Nova despesa' }).click();
+  const gaveta = page.getByRole('dialog', { name: 'Nova despesa' });
+  await gaveta.getByRole('button', { name: 'Fornecedor e comprovante' }).click();
+  await gaveta.locator('input[type="file"]').setInputFiles(arquivo);
+  await expect(gaveta.getByText(/Este arquivo já tinha sido enviado/)).toBeVisible();
+});

@@ -9,7 +9,7 @@ import { Gaveta } from '../../ui/camadas';
 import { Botao, Campo, Aviso } from '../../ui/base';
 import { EntradaMoeda, EnvioArquivo } from '../../ui/entradas';
 import type { FormaPagamento } from '../../lib/tipos/financeiro';
-import { FORMAS, atualizarFinanceiro, avisar } from './comum';
+import { FORMAS, atualizarFinanceiro, avisar, AVISO_ARQUIVO_REPETIDO } from './comum';
 
 export interface ContaParaPagar {
   parcela_id: string;
@@ -29,7 +29,8 @@ export function Pagar({ conta, aoFechar }: { conta: ContaParaPagar | null; aoFec
   const [data, setData] = useState(hojeISO());
   const [forma, setForma] = useState<FormaPagamento>('pix');
   const [ident, setIdent] = useState('');
-  const [arquivo, setArquivo] = useState<{ id: string; nome: string } | null>(null);
+  // `ja_existia`: avisa antes; o boleto desta mesma conta é aceito, o arquivo de outro lançamento não (409, B2).
+  const [arquivo, setArquivo] = useState<{ id: string; nome: string; jaExistia?: boolean } | null>(null);
   const [enviandoArq, setEnviandoArq] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<ErroApi | null>(null);
@@ -54,7 +55,7 @@ export function Pagar({ conta, aoFechar }: { conta: ContaParaPagar | null; aoFec
     setEnviandoArq(true);
     try {
       const r = await financeiro.enviarArquivo(f, 'comprovante');
-      setArquivo({ id: r.id, nome: f.name });
+      setArquivo({ id: r.id, nome: f.name, jaExistia: r.ja_existia });
     } catch (e) {
       setErro(e instanceof ErroApi ? e : new ErroApi('servidor', 'Não foi possível enviar o comprovante.'));
     } finally {
@@ -133,7 +134,10 @@ export function Pagar({ conta, aoFechar }: { conta: ContaParaPagar | null; aoFec
         <div class="campo">
           <span class="campo__rotulo">Comprovante <em>(opcional)</em></span>
           {arquivo ? (
-            <div class="linha linha--entre aviso"><span>{arquivo.nome}</span><Botao tamanho="p" variante="fantasma" onClick={() => setArquivo(null)}>Remover</Botao></div>
+            <>
+              <div class="linha linha--entre aviso"><span>{arquivo.nome}</span><Botao tamanho="p" variante="fantasma" onClick={() => setArquivo(null)}>Remover</Botao></div>
+              {arquivo.jaExistia && <Aviso tom="atencao" icone={<Info aria-hidden="true" />}>{AVISO_ARQUIVO_REPETIDO} O boleto desta mesma conta pode ser anexado.</Aviso>}
+            </>
           ) : (
             <EnvioArquivo aceitar="image/*,application/pdf" titulo={enviandoArq ? 'Enviando…' : 'Anexar comprovante'} detalhe="Foto ou PDF" desativado={enviandoArq} aoEscolher={anexar} />
           )}

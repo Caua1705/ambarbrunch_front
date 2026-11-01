@@ -246,6 +246,31 @@ test('API falhando ou incompleta: a tela avisa e não quebra', async ({ page }) 
   const registrar = gaveta.getByRole('region', { name: 'Registrar como despesa' });
   await registrar.getByLabel('Categoria').selectOption('embalagens');
   await registrar.getByLabel('Data do pagamento').fill(hoje());
+  // Há uma conta sugerida: despesa paga nova só com o motivo (B1).
+  await registrar.getByLabel('Por que é outro pagamento?').fill('pix de outra conta, não desta');
   await registrar.getByRole('button', { name: 'Registrar como despesa' }).click();
   await expect(registrar.getByText('A categoria “Embalagens” não está ativa nesta unidade.')).toBeVisible();
+});
+
+test('B1: comprovante com conta aberta parecida não vira despesa paga nova sem dizer por quê', async ({ page }) => {
+  await abrirRevisao(page);
+  const gaveta = await abrirDocumento(page, /ENEL/);
+  const registrar = gaveta.getByRole('region', { name: 'Registrar como despesa' });
+  // A conta de energia em aberto é sugerida acima: o painel avisa e pede o motivo antes de lançar outra despesa paga.
+  await expect(registrar.getByText('Pode ser um pagamento ou uma conta já lançada.')).toBeVisible();
+  await registrar.getByRole('button', { name: 'Registrar como despesa' }).click();
+  await expect(registrar.getByText('Diga por que é outro pagamento (pelo menos 5 caracteres).')).toBeVisible();
+
+  // Sem motivo, a API recusa e devolve as sugestões (B1).
+  const id = await idDoDocumento(page, 'ENEL DISTRIBUICAO CEARA');
+  const recusa = await page.request.post(`${API}/revisao/documentos/${id}/resolver`, { headers: escrever, data: { acao: 'registrar_despesa', categoria: 'fixo', paga: true } });
+  expect(recusa.status()).toBe(409);
+  const corpo = await recusa.json();
+  expect(corpo.codigo).toBe('pagamento_parecido_ja_lancado');
+  expect(corpo.dados.candidatas).toHaveLength(1);
+
+  // A exceção é explícita e vai com o motivo.
+  await registrar.getByLabel('Por que é outro pagamento?').fill('Pix da energia do galpão, outra instalação');
+  await registrar.getByRole('button', { name: 'Registrar como despesa' }).click();
+  await expect(page.getByText('Despesa paga registrada a partir do documento.')).toBeVisible();
 });

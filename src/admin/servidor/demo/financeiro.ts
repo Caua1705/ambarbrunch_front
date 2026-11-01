@@ -357,6 +357,15 @@ function mov(conta: ContaBancaria, importacao: string, data: string, direcao: 'c
 // Cálculos -------------------------------------------------------------------------------------------------------------
 
 const vivas = () => E.despesas.filter((d) => d.status !== 'cancelada');
+/** B2 (api_admin._arquivo_livre): o arquivo já está numa despesa viva, num pagamento não estornado ou num documento da
+ *  Júlia → 409 arquivo_ja_registrado. `excetoDespesa`: o boleto da própria conta pode ir no pagamento dela. */
+function exigirArquivoLivre(arquivoIds: (string | null | undefined)[], excetoDespesa?: string) {
+  for (const a of new Set(arquivoIds.filter(Boolean) as string[])) {
+    const naDespesa = vivas().some((d) => d.id !== excetoDespesa && (d.arquivo_id === a || d.parcelas.some((p) => p.pagamentos.some((pg) => !pg.estornado_em && pg.arquivo_id === a))));
+    const noDocumento = E.documentos.some((doc) => doc.arquivo_id === a && (!excetoDespesa || doc.despesa_id !== excetoDespesa));
+    if (naDespesa || noDocumento) throw new ErroDemo(409, 'arquivo_ja_registrado', 'Este arquivo já está registrado em outro lançamento (ou na Revisão de documentos). Abra o lançamento existente em vez de criar outro.', { arquivo_id: a, desde: agora() });
+  }
+}
 const receitaPdv = (de: string, ate: string) => E.vendas.filter((v) => v.dia >= de && v.dia <= ate).reduce((s, v) => s + v.total, 0);
 const temVendas = (de: string, ate: string) => E.vendas.some((v) => v.dia >= de && v.dia <= ate);
 
@@ -801,9 +810,10 @@ export const ROTAS_FINANCEIRO: Rota[] = [
   ['POST', R('financeiro/despesas'), GERENCIA, async ({ corpo, query }) => {
     montar();
     const un = unidadeDa(query);
-    const e = await corpo<{ descricao?: string; valor?: string; competencia?: string; categoria?: string; fornecedor?: { nome?: string | null; documento?: string | null } | null; arquivo_id?: string | null; parcelas?: { vencimento: string; valor: string }[] | null; pagamento?: { pago_em: string; forma: FormaPagamento } | null }>();
+    const e = await corpo<{ descricao?: string; valor?: string; competencia?: string; categoria?: string; fornecedor?: { nome?: string | null; documento?: string | null } | null; arquivo_id?: string | null; parcelas?: { vencimento: string; valor: string }[] | null; pagamento?: { pago_em: string; forma: FormaPagamento; arquivo_id?: string | null } | null }>();
     if (!e.descricao || !e.valor || Number(e.valor) <= 0 || !e.competencia || !e.categoria) throw new ErroDemo(422, 'regra_violada', 'Preencha descrição, valor, data e categoria.');
     exigirCategoria(e.categoria, un);
+    exigirArquivoLivre([e.arquivo_id, e.pagamento?.arquivo_id]);
     if (e.parcelas && Math.abs(e.parcelas.reduce((s, p) => s + Number(p.valor), 0) - Number(e.valor)) > 0.009) throw new ErroDemo(422, 'regra_violada', 'A soma das parcelas difere do valor.');
     const forn = e.fornecedor?.nome ? fornecedor(e.fornecedor.nome, e.fornecedor.documento ?? null) : null;
     const acima = Number(e.valor) > 5000;
@@ -904,6 +914,9 @@ export const ROTAS_FINANCEIRO: Rota[] = [
       if (valor == null || !categoria) throw new ErroDemo(422, 'regra_violada', 'Informe a categoria (e o valor precisa estar legível).');
       exigirCategoria(categoria, doc.unidade);
       if (paga && !x.data) throw new ErroDemo(422, 'data_obrigatoria', 'Informe a data do pagamento.');
+      // B1: pagamento já lançado ou conta aberta parecida → vincular (ou pagar a conta); despesa paga nova só com motivo.
+      if (paga && (doc.candidatas.length || doc.pagamentos_candidatos.length) && (r.motivo ?? '').trim().length < 5)
+        throw new ErroDemo(409, 'pagamento_parecido_ja_lancado', 'Pode ser um pagamento ou uma conta já lançada. Vincule o documento a ele (ou pague a conta), ou diga no motivo por que é outro pagamento.', { candidatas: doc.candidatas, contas_candidatas: doc.contas_candidatas, pagamentos_candidatos: doc.pagamentos_candidatos, despesas_candidatas: doc.despesas_candidatas });
       const diaDoc = x.data ?? x.vencimento;
       if (!diaDoc) throw new ErroDemo(422, 'data_obrigatoria', 'Informe a data ou o vencimento.');
       if (tipo === 'boleto' && x.linha_digitavel && E.documentos.some((o) => o !== doc && o.extraido.linha_digitavel === x.linha_digitavel && o.despesa_id)) throw new ErroDemo(409, 'boleto_ja_lancado', 'Este boleto já está nas contas a pagar: vincule a ele.');
@@ -1003,6 +1016,7 @@ export const ROTAS_FINANCEIRO: Rota[] = [
     const e = await corpo<{ pago_em: string; forma: FormaPagamento; valor: string; identificador_transacao?: string | null; arquivo_id?: string | null }>();
     if (!e.valor || Number(e.valor) <= 0) throw new ErroDemo(422, 'regra_violada', 'Informe o valor.');
     if (e.pago_em > hojeFortaleza()) throw new ErroDemo(422, 'data_futura', 'A data do pagamento não pode ser no futuro.');
+    exigirArquivoLivre([e.arquivo_id], E.despesas.find((d) => d.parcelas.some((p) => p.id === params[0]))?.id);
     const { p, pg } = pagarParcela(params[0], Number(e.valor), e.pago_em, e.forma, 'painel', e.identificador_transacao ?? null);
     pg.arquivo_id = e.arquivo_id ?? null;
     return resposta(201, p);
@@ -1352,8 +1366,11 @@ export const ROTAS_FINANCEIRO: Rota[] = [
     const a = f.get('arquivo');
     if (!(a instanceof File)) throw new ErroDemo(422, 'regra_violada', 'Envie o arquivo.');
     if (a.size > 15 * 1024 * 1024) throw new ErroDemo(413, 'arquivo_grande_demais', 'Arquivo grande demais.');
-    const idA = arquivoFalso(a.name, ['Arquivo enviado na demonstração', a.name, `${Math.round(a.size / 1024)} KB`]);
-    return resposta(201, { id: idA, sha256: 'demo', mime: a.type || 'application/octet-stream', tamanho_bytes: a.size, tipo: f.get('tipo') ?? 'documento', ja_existia: false });
+    // "Mesmo conteúdo" na demonstração: mesmo nome e tamanho devolvem o mesmo registro (ja_existia), como o SHA-256 real.
+    const linhas = ['Arquivo enviado na demonstração', a.name, `${a.size} bytes`];
+    const igual = [...E.arquivos.values()].find((x) => x.titulo === a.name && x.linhas[2] === linhas[2]);
+    const idA = igual?.id ?? arquivoFalso(a.name, linhas);
+    return resposta(201, { id: idA, sha256: 'demo', mime: a.type || 'application/octet-stream', tamanho_bytes: a.size, tipo: f.get('tipo') ?? 'documento', ja_existia: !!igual });
   }],
   ['GET', R(`arquivos/${UUID}/url`), TODOS, ({ params }) => {
     montar();

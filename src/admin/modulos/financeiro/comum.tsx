@@ -161,6 +161,11 @@ export const MOTIVO_REVISAO: Record<string, string> = {
 // Comprovante sem data ou com data estranha: o mesmo aviso nos dois casos (a data fica à mão para corrigir).
 MOTIVO_REVISAO.sem_data = MOTIVO_REVISAO.data_suspeita = 'Data do pagamento a conferir';
 
+/** Upload com `ja_existia` (B2): o mesmo arquivo não prova dois lançamentos — se já estiver em outro (ou na Revisão), o
+ *  backend responde 409 arquivo_ja_registrado e nada é gravado. */
+export const AVISO_ARQUIVO_REPETIDO =
+  'Este arquivo já tinha sido enviado. Se ele já estiver em outro lançamento ou na Revisão de documentos, o lançamento será recusado: abra o lançamento existente em vez de registrar de novo.';
+
 export const TIPO_DOC: Record<TipoDocumento, string> = {
   comprovante_pagamento: 'Comprovante de pagamento',
   boleto: 'Boleto',

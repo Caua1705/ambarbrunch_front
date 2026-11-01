@@ -461,12 +461,18 @@ function RegistrarDespesa({ doc, titulo, ocupado, setOcupado, aoResolver }: { do
   const [vencimento, setVencimento] = useState(x.vencimento ?? x.data ?? '');
   const [erro, setErro] = useState<ErroApi | null>(null);
   const [erros, setErros] = useState<Record<string, string>>({});
+  // B1: com pagamento já lançado ou conta aberta parecida, despesa paga nova só dizendo por que é outro pagamento (o
+  // backend responde 409 pagamento_parecido_ja_lancado sem `motivo` e audita a exceção). O caminho certo é vincular.
+  const [motivoOutro, setMotivoOutro] = useState('');
+  const parecidos = doc.candidatas.length + doc.pagamentos_candidatos.length;
+  const exigeMotivo = situacao === 'paga' && (parecidos > 0 || erro?.codigo === 'pagamento_parecido_ja_lancado');
 
   async function registrar() {
     const e: Record<string, string> = {};
     if (!categoria) e.categoria = 'Escolha a categoria.';
     if (!situacao) e.paga = 'Diga se já está pago ou se é uma conta a pagar.';
     if (situacao === 'paga' && !data) e.data = 'Informe a data do pagamento.';
+    if (exigeMotivo && motivoOutro.trim().length < 5) e.motivo = 'Diga por que é outro pagamento (pelo menos 5 caracteres).';
     if (situacao === 'a_pagar' && !vencimento) e.vencimento = 'Informe o vencimento.';
     setErros(e);
     if (Object.keys(e).length) return;
@@ -475,6 +481,7 @@ function RegistrarDespesa({ doc, titulo, ocupado, setOcupado, aoResolver }: { do
     // Só o que mudou vai junto: cada campo enviado vira uma correção registrada do documento.
     if (paga && data !== (x.data ?? '')) corpo.data = data;
     if (paga && forma !== x.forma) corpo.forma = forma;
+    if (paga && exigeMotivo) corpo.motivo = motivoOutro.trim();
     if (!paga && vencimento !== (x.vencimento ?? x.data ?? '')) corpo.vencimento = vencimento;
     setOcupado('despesa');
     setErro(null);
@@ -540,6 +547,16 @@ function RegistrarDespesa({ doc, titulo, ocupado, setOcupado, aoResolver }: { do
             )}
           </Campo>
         </div>
+      )}
+      {exigeMotivo && (
+        <>
+          <Aviso tom="atencao" icone={<Info aria-hidden="true" />}>
+            <strong>Pode ser um pagamento ou uma conta já lançada.</strong> Prefira vincular este documento a ele (ou pagar a conta) nas sugestões acima. Só registre uma despesa paga nova se for outro pagamento.
+          </Aviso>
+          <Campo rotulo="Por que é outro pagamento?" erro={erros.motivo} ajuda="Fica registrado na auditoria, com as sugestões que foram deixadas de lado.">
+            {(id, d) => <textarea id={id} class="area" aria-describedby={d} maxLength={300} value={motivoOutro} onInput={(e) => setMotivoOutro(e.currentTarget.value)} />}
+          </Campo>
+        </>
       )}
       {situacao === 'a_pagar' && (
         <Campo rotulo="Vencimento" erro={erros.vencimento}>
