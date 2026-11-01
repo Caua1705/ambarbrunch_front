@@ -74,11 +74,11 @@ export function Categorias({ contexto }: { contexto: ContextoPainel }) {
                     {ativas.map((c) => <ItemCategoria key={c.codigo} c={c} lancar={lancar} unidade={unidade?.codigo ?? null} nomeUnidade={nomeUnidade} aoEditar={() => setEditar(c)} confirmar={confirmar} />)}
                   </ul>
                 ) : (
-                  <Vazio compacto icone={<Tags aria-hidden="true" />} titulo="Nenhuma categoria ativa nesta unidade">Sem categoria ativa, a Júlia manda tudo para a Revisão como “Não classificado”.</Vazio>
+                  <Vazio compacto icone={<Tags aria-hidden="true" />} titulo="Nenhuma categoria ativa nesta unidade">Sem categoria ativa, os pagamentos da Júlia ficam sem categoria, na Revisão.</Vazio>
                 )}
                 {pendencia.length > 0 && (
                   <div class="cartao__rodape">
-                    <strong>{pendencia[0].nome}</strong> é a pendência de classificação, não uma categoria de despesa: é onde fica o que ainda precisa de alguém escolher. Não se edita nem se desativa.
+                    <strong>{pendencia[0].nome}</strong> é o estado de um pagamento ainda não classificado (ex.: comprovante enviado sem legenda), não uma categoria de despesa: a classificação é feita na Revisão. Não se edita nem se desativa.
                   </div>
                 )}
               </Cartao>

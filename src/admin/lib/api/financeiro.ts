@@ -48,15 +48,17 @@ function normalizarFila(f: Partial<FilaRevisao> | null | undefined): FilaRevisao
   };
   const documentos = bloco<DocumentoRevisao>(f?.documentos);
   const despesas = bloco<FilaRevisao['despesas']['itens'][number]>(f?.despesas);
+  const sem = (f?.despesas as { sem_categoria_total?: unknown } | undefined)?.sem_categoria_total;
   return {
-    despesas: { ...despesas, itens: despesas.itens.filter((d) => d && d.id).map((d) => ({ ...d, motivos_revisao: lista<string>(d.motivos_revisao) })) },
+    despesas: { ...despesas, sem_categoria_total: typeof sem === 'number' ? sem : undefined, itens: despesas.itens.filter((d) => d && d.id).map((d) => ({ ...d, motivos_revisao: lista<string>(d.motivos_revisao) })) },
     documentos: { ...documentos, itens: documentos.itens.filter((d) => d && d.id).map(normalizarDocumento) },
   };
 }
 
 export const financeiro = {
   resumo: () => pedir<ResumoFinanceiro>('financeiro/resumo'),
-  revisao: async () => normalizarFila(await pedir<Partial<FilaRevisao>>('financeiro/revisao', { query: { limite: 100 } })),
+  revisao: async (semCategoria = false) =>
+    normalizarFila(await pedir<Partial<FilaRevisao>>('financeiro/revisao', { query: { limite: 100, sem_categoria: semCategoria || undefined } })),
   lancamentos: (q: { de: string; ate: string; tipo?: string; categoria?: string; origem?: string; status?: string; busca?: string; limite?: number; deslocamento?: number }) =>
     pedir<ListaLancamentos>('financeiro/lancamentos', { query: { limite: 100, ...q } }),
   /** Só as categorias VÁLIDAS na unidade do topo (a ponte manda ?unidade=): o que os seletores oferecem. */
@@ -72,7 +74,9 @@ export const financeiro = {
   criarDespesa: (d: DespesaEntrada, chave = novaChave()) => pedir<DespesaSaida>('financeiro/despesas', { metodo: 'POST', corpo: d, idempotencia: chave }),
   corrigirDespesa: (id: string, c: { versao: number; motivo: string; descricao?: string; valor?: string; competencia?: string; categoria?: string }) =>
     pedir<DespesaSaida>(`financeiro/despesas/${id}`, { metodo: 'PATCH', corpo: c }),
-  confirmarDespesa: (id: string, categoria?: string) => pedir<DespesaSaida>(`financeiro/despesas/${id}/confirmar`, { metodo: 'POST', corpo: categoria ? { categoria } : null }),
+  /** Classifica/confirma a MESMA despesa (nada é lançado de novo). Insumos/embalagens abrem a conferência em Estoque → Compras. */
+  confirmarDespesa: (id: string, categoria?: string, descricao?: string) =>
+    pedir<DespesaSaida>(`financeiro/despesas/${id}/confirmar`, { metodo: 'POST', corpo: categoria || descricao ? { ...(categoria ? { categoria } : {}), ...(descricao ? { descricao } : {}) } : null }),
   cancelarDespesa: (id: string, motivo: string) => pedir<DespesaSaida>(`financeiro/despesas/${id}/cancelar`, { metodo: 'POST', corpo: { motivo } }),
   // Documentos da Júlia (§5.2–5.4): ler, corrigir a leitura (PATCH com versão e motivo) e resolver.
   documentoRevisao: async (id: string) => normalizarDocumento(await pedir<DocumentoRevisao>(`financeiro/revisao/documentos/${id}`)),

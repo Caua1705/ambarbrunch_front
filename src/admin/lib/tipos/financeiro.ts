@@ -205,7 +205,7 @@ export interface Categoria {
   /** Nasce ativa em unidade nova. */
   padrao?: boolean;
   ordem?: number;
-  /** "Não classificado": a pendência de classificação, nunca uma categoria de despesa. */
+  /** "Sem categoria": o estado pendente de classificação, nunca uma categoria de despesa. */
   pendencia?: boolean;
   /** Ativa na unidade do topo (só com ?unidade=). */
   ativa_na_unidade?: boolean | null;
@@ -335,6 +335,8 @@ export interface DespesaRevisao {
   criado_em: Instante;
   versao: number;
   fornecedor: string | null;
+  /** Pagamento registrado sem categoria (comprovante sem legenda): classificar aqui. */
+  sem_categoria?: boolean;
 }
 
 export type LeituraDocumento = Partial<{
@@ -409,7 +411,8 @@ export type ResolucaoDocumento = { versao?: number; motivo?: string; valor?: Dec
 );
 
 export interface FilaRevisao {
-  despesas: { total: number; itens: DespesaRevisao[] };
+  /** `sem_categoria_total`: pagamentos sem categoria na unidade (contador do filtro), com ou sem o filtro aplicado. */
+  despesas: { total: number; itens: DespesaRevisao[]; sem_categoria_total?: number };
   documentos: { total: number; itens: DocumentoRevisao[] };
 }
 

@@ -249,7 +249,7 @@ function Correcao({ d, aoTerminar }: { d: DespesaSaida; aoTerminar: () => void }
         <Campo rotulo="Categoria" class="inteiro">
           {(id) => (
             <select id={id} class="selecao" value={categoria} onChange={(e) => setCategoria(e.currentTarget.value)}>
-              {categoria === 'a_classificar' && <option value="a_classificar">Não classificado</option>}
+              {categoria === 'a_classificar' && <option value="a_classificar">Sem categoria</option>}
               <OpcoesCategoria cats={cats.dados ?? []} atual={{ codigo: d.categoria_codigo, nome: nome(d.categoria_codigo) }} />
             </select>
           )}

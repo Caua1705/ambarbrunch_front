@@ -35,7 +35,7 @@ test('as 7 categorias do Âmbar vêm da API, com grupo, apelidos e uso; os selet
   await expect(ativas.locator('[data-categoria="compras_insumos"]')).toContainText(/Em uso por \d+ lançamentos/);
   // As antigas ficam no cadastro, fora de uso; a pendência não é categoria de despesa.
   await expect(page.getByRole('list', { name: 'Categorias fora de uso' }).locator('[data-categoria="aluguel"]')).toBeVisible();
-  await expect(page.getByText(/Não classificado.*é a pendência de classificação/)).toBeVisible();
+  await expect(page.getByText(/Sem categoria.*é o estado de um pagamento ainda não classificado/)).toBeVisible();
   // Excluir não existe: nem botão na tela, e a API responde 405.
   await expect(page.getByRole('button', { name: /Excluir/ })).toHaveCount(0);
   expect((await page.request.delete(`${API}/categorias/aluguel`, { headers: escrever })).status()).toBe(405);

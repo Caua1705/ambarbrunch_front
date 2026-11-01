@@ -8,11 +8,13 @@
 //    lançado à mão) ou descartar — de novo = 409 ja_resolvido;
 //  - /comprovantes/{id}/enviar-para-compras (nota de insumos).
 // Boleto e nota NUNCA viram pagamento sozinhos: só com "Já está pago" escolhido por uma pessoa, com data e forma.
+// Pagamento sem categoria (comprovante enviado à Júlia sem legenda) é classificado aqui, na MESMA despesa; insumos e
+// embalagens abrem a conferência em Estoque → Compras na hora. Filtro "Sem categoria": ?sem_categoria=true.
 import type { ComponentChildren } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import { Check, X, ChevronRight, FileText, Receipt, CircleCheck, CircleDashed, PackagePlus, Info, Eye, Pencil, Link2, History, Sparkles } from 'lucide-preact';
 import type { ContextoPainel } from '../../lib/sessao';
-import { useConsulta } from '../../lib/consulta';
+import { useConsulta, invalidar } from '../../lib/consulta';
 import { financeiro } from '../../lib/api/financeiro';
 import { ErroApi } from '../../lib/api/cliente';
 import { moeda, dataCurta, dataHora, relativo, plural, paraDecimal } from '../../lib/formato';
@@ -36,7 +38,8 @@ const brl = (v: string | undefined) => (v ? Number(v).toLocaleString('pt-BR', { 
 
 export function Revisao({ contexto }: { contexto: ContextoPainel }) {
   const lancar = temPermissao(contexto.usuario, 'financeiro.lancar');
-  const consulta = useConsulta('financeiro/revisao', () => financeiro.revisao());
+  const [soSemCategoria, setSoSemCategoria] = useState(false);
+  const consulta = useConsulta(soSemCategoria ? 'financeiro/revisao:sem_categoria' : 'financeiro/revisao', () => financeiro.revisao(soSemCategoria));
   const nome = useNomeCategoria();
   const [docId, setDocId] = useState<string | null>(null);
   const [despesa, setDespesa] = useState<string | null>(null);
@@ -52,19 +55,30 @@ export function Revisao({ contexto }: { contexto: ContextoPainel }) {
       <Cabecalho titulo="Revisão" descricao="Despesas e documentos da Júlia que precisam de uma pessoa" />
       <Dados consulta={consulta} recurso="A fila de revisão" esqueleto={<Esqueleto linhas={8} altura={28} />}>
         {(f: FilaRevisao) =>
-          !f.documentos.itens.length && !f.despesas.itens.length ? (
+          !f.documentos.itens.length && !f.despesas.itens.length && !soSemCategoria ? (
             <Cartao>
               <Vazio icone={<CircleCheck aria-hidden="true" />} titulo="Nada para revisar">Documentos do grupo e despesas que precisarem de conferência aparecem aqui.</Vazio>
             </Cartao>
           ) : (
             <div class="colunas-iguais">
               <Cartao titulo={`Despesas para revisar (${f.despesas.total})`} descricao="Confirme com a categoria certa ou cancele" justo>
+                <div style={{ padding: '0 20px 10px' }}>
+                  <Segmentado
+                    rotulo="Filtrar despesas"
+                    valor={soSemCategoria ? 'sem' : 'todas'}
+                    aoMudar={(v) => setSoSemCategoria(v === 'sem')}
+                    opcoes={[
+                      { valor: 'todas', rotulo: 'Todas' },
+                      { valor: 'sem', rotulo: `Sem categoria (${f.despesas.sem_categoria_total ?? f.despesas.itens.filter((d) => d.categoria === 'a_classificar').length})` },
+                    ]}
+                  />
+                </div>
                 {f.despesas.itens.length ? (
                   <ul class="lista">
                     {f.despesas.itens.map((d) => <ItemDespesa key={d.id} d={d} lancar={lancar} aoAbrir={() => setDespesa(d.id)} confirmar={confirmar} />)}
                   </ul>
                 ) : (
-                  <Vazio compacto titulo="Nenhuma despesa esperando revisão" />
+                  <Vazio compacto titulo={soSemCategoria ? 'Nenhum pagamento sem categoria' : 'Nenhuma despesa esperando revisão'} />
                 )}
                 {f.despesas.total > f.despesas.itens.length && <p class="fraco" style={{ padding: '10px 20px' }}>Mostrando {f.despesas.itens.length} de {f.despesas.total}.</p>}
               </Cartao>
@@ -120,14 +134,19 @@ export function Revisao({ contexto }: { contexto: ContextoPainel }) {
 function ItemDespesa({ d, lancar, aoAbrir, confirmar }: { d: DespesaRevisao; lancar: boolean; aoAbrir: () => void; confirmar: (p: PedidoConfirmacao) => void }) {
   const cats = useCategorias();
   const nome = useNomeCategoria();
-  const [categoria, setCategoria] = useState(d.categoria === 'a_classificar' ? '' : d.categoria);
+  const semCategoria = d.categoria === 'a_classificar';
+  const [categoria, setCategoria] = useState(semCategoria ? '' : d.categoria);
+  const [descricao, setDescricao] = useState('');
   const [ocupado, setOcupado] = useState(false);
   async function confirmarDespesa() {
+    if (ocupado) return;
     setOcupado(true);
     try {
-      await financeiro.confirmarDespesa(d.id, categoria !== d.categoria ? categoria : undefined);
+      await financeiro.confirmarDespesa(d.id, categoria !== d.categoria ? categoria : undefined, descricao.trim() || undefined);
       atualizarFinanceiro();
-      avisar('Despesa confirmada.', 'ok');
+      invalidar('estoque');
+      const deEstoque = (cats.dados ?? []).find((c) => c.codigo === categoria)?.grupo === 'compras_estoque';
+      avisar(semCategoria ? (deEstoque ? 'Classificada. A compra foi para conferência em Estoque → Compras.' : 'Classificação salva.') : 'Despesa confirmada.', 'ok');
     } catch (e) {
       avisarFalha(e);
     } finally {
@@ -141,6 +160,7 @@ function ItemDespesa({ d, lancar, aoAbrir, confirmar }: { d: DespesaRevisao; lan
         <span class="lista__texto">
           <strong>{d.descricao}</strong>
           <span>{[d.fornecedor, dataCurta(d.competencia), ORIGEM[d.origem] ?? d.origem].filter(Boolean).join(' · ')}</span>
+          {!semCategoria && <span class="fraco">{`Categoria: ${nome(d.categoria)}`}</span>}
         </span>
         <span class="lista__fim"><span class="num forte" style={{ color: 'var(--texto)' }}>{moeda(d.valor)}</span><ChevronRight aria-hidden="true" /></span>
       </button>
@@ -152,11 +172,12 @@ function ItemDespesa({ d, lancar, aoAbrir, confirmar }: { d: DespesaRevisao; lan
               <option value="">Escolha a categoria…</option>
               <OpcoesCategoria cats={cats.dados ?? []} atual={categoria ? { codigo: categoria, nome: nome(categoria) } : null} />
             </select>
-            {d.arquivo_id && <Botao tamanho="p" variante="fantasma" icone={<Eye aria-hidden="true" />} onClick={aoAbrir}>Documento</Botao>}
+            {semCategoria && <input class="entrada" aria-label={`Descrição de ${d.descricao} (opcional)`} placeholder="Descrição (opcional)" maxLength={300} value={descricao} onInput={(e) => setDescricao(e.currentTarget.value)} style={{ flex: '1 1 180px' }} />}
+            {d.arquivo_id && <Botao tamanho="p" variante="fantasma" icone={<Eye aria-hidden="true" />} onClick={aoAbrir}>Comprovante</Botao>}
             <Botao tamanho="p" variante="fantasma" icone={<X aria-hidden="true" />} disabled={ocupado} onClick={() => confirmar({ titulo: 'Cancelar esta despesa?', texto: 'A despesa sai das contas a pagar e do resultado. Se já tiver pagamento, estorne o pagamento antes.', confirmar: 'Cancelar despesa', perigo: true, motivo: { rotulo: 'Motivo do cancelamento' }, acao: async (m) => { await financeiro.cancelarDespesa(d.id, m); atualizarFinanceiro(); }, sucesso: 'Despesa cancelada.' })}>
               Cancelar
             </Botao>
-            <Botao tamanho="p" variante="primario" icone={<Check aria-hidden="true" />} carregando={ocupado} disabled={!categoria} onClick={confirmarDespesa}>Confirmar</Botao>
+            <Botao tamanho="p" variante="primario" icone={<Check aria-hidden="true" />} carregando={ocupado} disabled={!categoria} onClick={confirmarDespesa}>{semCategoria ? 'Salvar classificação' : 'Confirmar'}</Botao>
           </div>
         )}
       </div>

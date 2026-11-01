@@ -22,7 +22,7 @@ const GERENCIA: Papel[] = ['admin', 'gerente'];
 const ADMIN: Papel[] = ['admin'];
 
 // Categorias como no banco depois da 0019 (§5.7): as 7 do Âmbar ativas nas duas unidades; as antigas continuam no
-// cadastro (lançamentos as usam) mas não valem em unidade nenhuma; "Não classificado" é a pendência.
+// cadastro (lançamentos as usam) mas não valem em unidade nenhuma; "Sem categoria" é o estado pendente.
 interface CategoriaDemo extends Categoria { ativas: Set<string> }
 const UNIDADES: Record<string, number> = { ambar_cafe: 1, ambar_teste: 11 };
 const AMBAS = () => new Set(Object.keys(UNIDADES));
@@ -42,7 +42,7 @@ const CATEGORIAS: CategoriaDemo[] = [
   C('limpeza_higiene', 'Limpeza e higiene', 'operacional'), C('manutencao', 'Manutenção', 'operacional'), C('transporte', 'Transporte', 'operacional'), C('sistemas_assinaturas', 'Sistemas e assinaturas', 'operacional'), C('servicos_terceiros', 'Serviços de terceiros', 'operacional'), C('utensilios', 'Utensílios', 'operacional'), C('outras_operacionais', 'Outras despesas operacionais', 'operacional'),
   C('marketing', 'Marketing', 'marketing'), C('tarifas_bancarias', 'Tarifas bancárias', 'financeiro'), C('taxas_cartao', 'Taxas de cartão', 'financeiro'), C('juros', 'Juros e multas', 'financeiro'),
   C('obras_reformas', 'Obras e reformas', 'investimento'), C('equipamentos', 'Equipamentos', 'investimento'), C('distribuicao_socios', 'Distribuição aos sócios', 'retirada'), C('repasse_taxa_servico', 'Repasse da taxa de serviço', 'repasse'),
-  C('a_classificar', 'Não classificado', 'pendente', { ordem: 999, pendencia: true }),
+  C('a_classificar', 'Sem categoria', 'pendente', { ordem: 999, pendencia: true }),
 ];
 const grupoDe = (cat: string) => CATEGORIAS.find((c) => c.codigo === cat)?.grupo ?? 'operacional';
 
@@ -773,9 +773,11 @@ export const ROTAS_FINANCEIRO: Rota[] = [
   ['GET', R('financeiro/revisao'), GERENCIA, ({ query }) => {
     montar();
     const un = unidadeDa(query);
-    const desp = vivas().filter((d) => d.status === 'em_revisao' && d.unidade_negocio_id === UNIDADES[un]).map((d) => ({ id: d.id, descricao: d.descricao, valor: d.valor, competencia: d.competencia, categoria: d.categoria_codigo, motivos_revisao: d.motivos_revisao, origem: d.origem, arquivo_id: d.arquivo_id, criado_em: d.criado_em, versao: d.versao, fornecedor: d.fornecedor?.nome ?? null }));
+    const todas = vivas().filter((d) => d.status === 'em_revisao' && d.unidade_negocio_id === UNIDADES[un]);
+    const semCategoria = todas.filter((d) => d.categoria_codigo === 'a_classificar');
+    const desp = (query.get('sem_categoria') === 'true' ? semCategoria : todas).map((d) => ({ id: d.id, descricao: d.descricao, valor: d.valor, competencia: d.competencia, categoria: d.categoria_codigo, sem_categoria: d.categoria_codigo === 'a_classificar', motivos_revisao: d.motivos_revisao, origem: d.origem, arquivo_id: d.arquivo_id, criado_em: d.criado_em, versao: d.versao, fornecedor: d.fornecedor?.nome ?? null }));
     const docs = E.documentos.filter((d) => !d.resolvido && d.unidade === un).map(saidaDoc);
-    return { despesas: { total: desp.length, itens: desp }, documentos: { total: docs.length, itens: docs } };
+    return { despesas: { total: desp.length, itens: desp, sem_categoria_total: semCategoria.length }, documentos: { total: docs.length, itens: docs } };
   }],
   ['GET', R('financeiro/lancamentos'), GERENCIA, ({ query, papel }) => {
     montar();
@@ -833,9 +835,10 @@ export const ROTAS_FINANCEIRO: Rota[] = [
   }],
   ['POST', R(`financeiro/despesas/${UUID}/confirmar`), GERENCIA, async ({ params, corpo }) => {
     const d = achaDespesa(params[0]);
-    const { categoria } = await corpo<{ categoria?: string }>();
+    const { categoria, descricao } = await corpo<{ categoria?: string; descricao?: string }>();
     if (d.status === 'cancelada') throw new ErroDemo(409, 'despesa_cancelada', 'Despesa cancelada.');
     if (categoria) { d.categoria_codigo = categoria; d.grupo = grupoDe(categoria); }
+    if (descricao && descricao.trim()) d.descricao = descricao.trim().slice(0, 300);
     if (d.categoria_codigo === 'a_classificar') throw new ErroDemo(422, 'categoria_obrigatoria', 'Escolha a categoria antes de confirmar.');
     exigirCategoria(d.categoria_codigo, codigoUnidade(d.unidade_negocio_id));
     d.status = 'confirmada';

@@ -226,7 +226,7 @@ export function useNomeCategoria() {
 
 export function nomeCategoria(cats: Categoria[] | undefined, codigo: string | null | undefined) {
   if (!codigo) return '—';
-  if (codigo === 'a_classificar') return cats?.find((c) => c.codigo === codigo)?.nome ?? 'Não classificado';
+  if (codigo === 'a_classificar') return cats?.find((c) => c.codigo === codigo)?.nome ?? 'Sem categoria';
   return cats?.find((c) => c.codigo === codigo)?.nome ?? codigo;
 }
 
@@ -244,7 +244,7 @@ export const GRUPO: Record<string, string> = {
   investimento: 'Investimento',
   retirada: 'Retirada',
   repasse: 'Repasse',
-  pendente: 'Não classificado',
+  pendente: 'Sem categoria',
 };
 
 /** O que cada grupo significa no resultado (tela Categorias e formulário). */
@@ -261,7 +261,7 @@ export const GRUPO_AJUDA: Record<string, string> = {
   repasse: 'Dinheiro que só passa pelo caixa (ex.: taxa de serviço): fica fora do resultado.',
 };
 
-/** Select de categorias agrupadas: só as válidas na unidade ("Não classificado" fica de fora — é o que se está
+/** Select de categorias agrupadas: só as válidas na unidade ("Sem categoria" fica de fora — é o que se está
  *  corrigindo). Retiradas de sócios só para quem tem financeiro.ver_societario: para os outros o backend recusa (403).
  *  `atual`: categoria que o registro já tem e que não vale mais aqui — aparece desabilitada para a tela não mentir. */
 export function OpcoesCategoria({ cats, atual }: { cats: Categoria[]; atual?: { codigo: string; nome: string } | null }) {
