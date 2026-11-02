@@ -77,7 +77,7 @@ src/admin/
 ├── rotas/             páginas .astro injetadas (uma por módulo) e rotas/api (sessão e ponte para o backend)
 ├── servidor/          código SÓ do servidor: backend.ts (fetch ao FastAPI), config, sessão; demo/ (dados fictícios,
 │                      fora do build da Vercel)
-├── layout/            moldura do painel (Painel.astro, menu, tema, sair)
+├── layout/            moldura do painel (Painel.astro, menu, tema, sair, sino de pendências em avisos.ts)
 ├── lib/
 │   ├── api/           clientes por domínio (cliente.ts = pedir(), erros, idempotência)
 │   ├── tipos/         contratos do backend, um arquivo por domínio (espelho manual de app/modulos/*/esquemas.py)
@@ -185,3 +185,4 @@ Playwright rodam com 1 worker nesta máquina (memória).
 | 2026-10-31 | `src/lib` por domínio (`reservas/`, `clube/`, `medicao/`) e scripts de página em `src/scripts/` | Separar lógica sem DOM de comportamento de página; achar o contrato de cada domínio num lugar só |
 | 2026-10-31 | Contratos do painel continuam em `admin/lib/{api,tipos}` por domínio | Compartilhados entre módulos e com a demo |
 | 2026-10-31 | Sem alias de import, sem Prettier/ESLint; `lint` pelo `tsc` | Evitar reescrita em massa e dependência nova |
+| 2026-11-01 | Redesign do painel: uma função por área, sino como central de pendências, unidade no menu da conta, Clube fora do menu, Financeiro em 5 áreas, Estoque abrindo em Compras | Menos elementos visíveis sem perder capacidade; detalhes e contratos faltantes em PAINEL-ADMIN.md §4a/§4b |

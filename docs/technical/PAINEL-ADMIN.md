@@ -151,9 +151,57 @@ valor indisponível vira "R$ 0,00".
 | Clientes | `clientes?busca&limite&deslocamento`, `clientes/{id}` (GET, PATCH) |
 | Configurações | `reservas/configuracao/{unidade}`, `…/politica`, `reservas/ambientes/{id}`, `reservas/regras/{id}`, `usuarios` (equipe) |
 | Atendimento | `atendimento/resumo`, `atendimento/conversas` (busca com 2+ letras), `…/{id}`, `…/mensagens`, `…/responder`, `…/assumir`, `…/devolver`, `…/encerrar`, `atendimento/falhas` |
-| Visão Geral | `visao-geral`, `visao-geral/radar`, `financeiro/resumo`, `financeiro/relatorios/evolucao`, `estoque/compras`, `atendimento/resumo`, `reservas/operacao` |
-| Financeiro | `financeiro/resumo`, `relatorios/vendas`, `lancamentos`, `despesas` (+ confirmar/cancelar), `outras-receitas` (+ cancelar), `contas-a-pagar`, `parcelas/{id}/pagamentos`, `pagamentos/{id}/estornar`, `revisao`, `revisao/documentos/{id}` (GET/PATCH) e `…/resolver`, `despesas/{id}/documentos`, `despesas/{id}/unidade`, `comprovantes/{id}/enviar-para-compras`, `relatorios/resultado`, `relatorios/despesas-por-categoria`, `fechamento/{mes}`, `apuracoes/{mes}` (+ conferir/fechar/reabrir, `participacao`), `recorrencias`, `taxas-pagamento`, `conciliacao/*`, `extratos/*`, `contas-bancarias`, `categorias` (GET/POST/PATCH, `PUT …/{codigo}/unidades/{unidade}`), `fornecedores`, `arquivos/{id}/url` |
+| Visão Geral | `financeiro/relatorios/vendas` (receita, ticket médio, por meio), `financeiro/relatorios/despesas-por-categoria`, `financeiro/relatorios/resultado?mes=` (só mês civil), `financeiro/lancamentos?tipo=despesa&status=confirmada` (distribuição do gráfico), `estoque/analises/produtos` (top 5); sem Financeiro: `reservas/operacao` |
+| Sino (topo) | `reservas?status=pendente`, `reservas/comparecimento/pendentes`, `atendimento/resumo`, `financeiro/revisao?limite=1`, `financeiro/resumo`, `estoque/compras?etapa=aguardando_conferencia` — só módulos liberados ao papel, da unidade da aba |
+| Financeiro | `financeiro/resumo`, `relatorios/vendas`, `lancamentos`, `despesas` (+ confirmar/cancelar), `outras-receitas` (+ cancelar), `contas-a-pagar`, `parcelas/{id}/pagamentos`, `pagamentos/{id}/estornar`, `revisao`, `revisao/documentos/{id}` (GET/PATCH) e `…/resolver`, `despesas/{id}/documentos`, `despesas/{id}/unidade`, `comprovantes/{id}/enviar-para-compras`, `relatorios/resultado`, `relatorios/despesas-por-categoria`, `fechamento/{mes}`, `apuracoes/{mes}` (+ conferir/fechar/reabrir, `participacao`), `recorrencias`, `taxas-pagamento`, `conciliacao/*`, `extratos/*`, `contas-bancarias`, `categorias` (GET/POST/PATCH, `PUT …/{codigo}/unidades/{unidade}`), `fornecedores` (GET/POST, `fornecedores/{id}` GET/PATCH), `conciliacao/repasses`, `arquivos/{id}/url` |
 | Estoque | `estoque/resumo`, `compras` (+ manual, confirmar, cancelar, reprocessar, itens), `insumos` (+ movimentos), `insumos-sugestoes` (um objeto), `perdas`, `fichas/{produto|preparo}/{id}`, `inventarios` (+ sugestão, itens, fechar, cancelar), `cancelamentos` (+ resolver), `analises/{cmv,produtos,cardapio,fornecedores,reposicao,ruptura}` |
+
+## 4a. Organização das telas (redesign de 01/11/2026)
+
+Princípio: menos elementos visíveis, uma função por área, nenhuma capacidade perdida. A complexidade fica no código e no
+backend; a tela mostra primeiro o essencial e o resto sob pedido (filtros recolhidos, gavetas, "Mais").
+
+| Área | Estrutura |
+|---|---|
+| Moldura | Lateral: só a marca e os módulos (Visão Geral, Reservas, Clientes, Atendimento, Financeiro, Estoque); embaixo Modo Operação, Configurações, Recolher. **Clube Âmbar fora do menu** (rota, telas e contratos intactos). Topo: só o título da tela, o sino, o tema e a conta. **Unidade de trabalho no menu da conta** (vale para a aba; B4); o topo mostra a unidade só fora da padrão (`unidadePadrao`). |
+| Sino | Central das pendências reais (`layout/avisos.ts`), por prioridade e módulo, cada item leva à tela que resolve. Cache de 45 s na sessão do navegador; reconta depois de qualquer `invalidar()` (evento `painel:invalidar`). |
+| Visão Geral | Saudação + um filtro de período (Hoje, 7 dias, 30 dias, Este mês, Personalizado ≤ 400 dias) para 4 indicadores (Receita, Despesas, Resultado gerencial, Ticket médio), Receitas × despesas e dois rankings (top 5 produtos — ou vendas por meio — e despesas por categoria). |
+| Reservas | Barra única (‹ Hoje ›, intervalo, Dia · Semana · Mês · Lista · Por ambiente, Nova reserva); resumo do dia em uma linha; aprovações pendentes numa pílula → gaveta. |
+| Clientes | Inalterado. |
+| Atendimento | Central de conversas: busca, Todas · Esperando · Assistente · Equipe, encerradas num atalho, falhas de envio só quando existem. Sem indicadores. |
+| Financeiro | Lançamentos · Contas a pagar (Contas · Recorrentes) · Revisão · Conciliação (Banco · Stone e recebíveis · Divergências) · Relatórios e cadastros (Resultado do mês, Despesas por categoria, Evolução, Fechamento, Vendas; Categorias, Fornecedores). Sem o Resumo (o executivo é a Visão Geral). Endereços antigos redirecionados em `modulos/financeiro/index.tsx`. |
+| Estoque | Compras (tela inicial: Para conferir · Com problema · Conferidas · Todas, Enviar nota) · Insumos · Fichas técnicas · Inventário (4 passos) · Mais (Cancelamentos, Análises e CMV). Baixa automática mostrada como está no backend (hoje desligada). |
+| Configurações | Grupos ao lado: Conta e aparência · Agenda e ambientes · Equipe e acessos · Financeiro (atalhos para os cadastros). |
+
+Decisões registradas:
+
+- **Quarto indicador = Ticket médio** oficial do backend (`receita_liquida_produtos / vendas` em `/relatorios/vendas`), não
+  faturamento médio diário.
+- **Resultado gerencial só por mês civil**: o backend apura por mês (`/relatorios/resultado?mes=`). Fora de um mês o
+  indicador diz "Apurado por mês" e oferece "Ver este mês" — nada é recalculado no painel.
+- **Despesas** = confirmadas por competência (`/despesas-por-categoria`); o gráfico distribui as MESMAS despesas por data
+  a partir de `/lancamentos` (só soma para desenhar; até 2.000 despesas, com aviso acima disso).
+- **Fornecedor nos formulários** vem do cadastro (`fornecedor: { id }`); nome novo só quando a pessoa escolhe "Cadastrar".
+
+## 4b. Contratos que faltam no backend (para uma etapa posterior)
+
+Nada disto foi simulado no painel; a tela mostra o que existe e diz o que falta.
+
+1. **Conciliação Stone por lote/data** — hoje `GET /conciliacao/repasses` dá vendido × liquidado vinculado por meio no
+   período. Falta uma rota que devolva, por data de venda (ou lote de repasse) e modalidade (crédito à vista, parcelado,
+   débito, Pix, com antecipação): bruto, taxa aplicada pelo contrato vigente, **líquido esperado**, data prevista do
+   crédito, **recebido** (crédito vinculado), diferença e situação, já descontando cancelamentos, estornos e chargebacks
+   — e sem descontar a antecipação duas vezes quando a taxa contratada já a inclui.
+2. **Resultado gerencial por período arbitrário** (`de`/`ate`) — para o indicador de resultado seguir Hoje/7/30 dias.
+3. **Despesas por dia** (`GET /relatorios/despesas-por-dia?de&ate`, mesma regra de competência e sigilo) — hoje o gráfico
+   pagina `/lancamentos`.
+4. **Estado da criação manual de reserva** (`painel_criacao_manual`) numa rota de leitura — hoje só se sabe pelo 403
+   `criacao_manual_desativada` (o painel lembra na sessão do navegador).
+5. **Lista de fornecedores sem busca** paginada com contagens (despesas, em aberto) — hoje `GET /fornecedores` limita a
+   100 por busca.
+6. **Ocupação/lotação do dia inteiro** por ambiente para o calendário do mês marcar dias "lotados" — hoje
+   `/reservas/lotacao` é por ambiente e data, uma chamada por vez.
+7. **Contador de pendências num endpoint só** (o sino faz até 6 consultas leves por página, com cache de 45 s).
 
 ## 5. Contrato: o que foi conferido e ainda vale saber
 

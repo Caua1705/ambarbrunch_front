@@ -1187,7 +1187,9 @@ a.indicador:hover {
   color: var(--texto-3);
   margin-top: 1px;
 }
-@media (max-width: 720px) {
+/* Colunas de baixa prioridade (origem, mínimo, itens…) saem antes no tablet e no notebook com a lateral aberta: a
+   coluna de ação (Aprovar, Chegou, Conferir) precisa caber sem rolar a tabela. */
+@media (max-width: 1180px) {
   .tabela [data-prioridade='baixa'] {
     display: none;
   }

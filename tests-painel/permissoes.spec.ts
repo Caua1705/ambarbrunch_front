@@ -22,7 +22,7 @@ test('Atendente: abre direto em Reservas, menu só com Reservas e Atendimento, o
 
 test('Proprietário: Equipe e acessos com a equipe real; não muda o próprio perfil', async ({ page }) => {
   await entrarDemo(page, 'admin');
-  await page.goto(`${DEMO}/admin/configuracoes`);
+  await page.goto(`${DEMO}/admin/configuracoes?secao=equipe`);
   const equipe = page.getByRole('table', { name: 'Equipe e acessos' });
   await expect(equipe.getByRole('row')).toHaveCount(4);
   for (const perfil of ['Proprietário', 'Gerente', 'Atendente']) await expect(equipe.getByText(perfil, { exact: true })).toBeVisible();
@@ -32,7 +32,7 @@ test('Proprietário: Equipe e acessos com a equipe real; não muda o próprio pe
 
 test('Gerente: Configurações sem Equipe e sem regras da casa', async ({ page }) => {
   await entrarDemo(page, 'gerente');
-  await page.goto(`${DEMO}/admin/configuracoes`);
+  await page.goto(`${DEMO}/admin/configuracoes?secao=equipe`);
   await expect(page.getByText('Perfis de acesso')).toBeVisible();
   await expect(page.getByRole('table', { name: 'Equipe e acessos' })).toHaveCount(0);
   expect((await page.request.get(`${DEMO}/admin/api/usuarios`)).status()).toBe(403);

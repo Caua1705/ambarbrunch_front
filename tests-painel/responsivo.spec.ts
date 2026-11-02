@@ -10,9 +10,13 @@ const PAGINAS = [
   '/admin/estoque', '/admin/estoque?aba=insumos', '/admin/estoque?aba=compras', '/admin/estoque?aba=fichas', '/admin/estoque?aba=contagem',
   '/admin/estoque?aba=cancelamentos', '/admin/estoque?aba=analises',
   '/admin/configuracoes',
+  // telas do redesign de 01/11
+  '/admin?periodo=personalizado', '/admin/reservas?vista=mes', '/admin/financeiro?aba=conciliacao', '/admin/financeiro?aba=conciliacao&vista=stone',
+  '/admin/financeiro?aba=conciliacao&vista=divergencias', '/admin/financeiro?aba=relatorios', '/admin/financeiro?aba=relatorios&relatorio=fornecedores',
+  '/admin/financeiro?aba=contas&vista=recorrentes', '/admin/estoque?aba=mais', '/admin/configuracoes?secao=equipe', '/admin/configuracoes?secao=agenda',
 ];
 
-for (const largura of [375, 390, 430, 1366]) {
+for (const largura of [375, 390, 430, 768, 1024, 1366]) {
   test(`sem rolagem horizontal em ${largura}px`, async ({ page }) => {
     await page.setViewportSize({ width: largura, height: 860 });
     await entrarDemo(page, 'admin');

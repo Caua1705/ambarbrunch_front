@@ -1,25 +1,43 @@
-// Configurações (Proprietário e Gerente): conta e aparência; regras de reserva (política e ambientes) e Equipe e acessos
-// só para o Proprietário. Contas novas e senhas só pela CLI do backend: a tela não tem formulário de mentira.
+// Configurações (Proprietário e Gerente), em grupos numa lista ao lado: Conta e aparência; Agenda e ambientes (política
+// e ambientes das reservas, só Proprietário); Equipe e acessos (a equipe só para o Proprietário; os perfis para todos);
+// Financeiro (atalhos para os cadastros que já existem: categorias, fornecedores, contas fixas, taxas). Só o que tem
+// contrato no backend: contas novas e senhas só pela CLI, integrações sem rota de configuração — sem formulário de mentira.
 import { useEffect, useState } from 'preact/hooks';
-import { Sun, Moon, Monitor, LogOut, ShieldCheck, Pencil, CalendarCog } from 'lucide-preact';
+import { Sun, Moon, Monitor, LogOut, ShieldCheck, Pencil, CalendarCog, UserRound, Users, Wallet, ChevronRight } from 'lucide-preact';
 import type { ContextoPainel, Papel } from '../../lib/sessao';
 import { NOME_PAPEL } from '../../lib/sessao';
-import { pode } from '../../lib/permissoes';
+import { pode, podeVer } from '../../lib/permissoes';
+import { lerParam, gravarParams } from '../../lib/rotas';
 import { useConsulta, invalidar } from '../../lib/consulta';
 import { reservas } from '../../lib/api/reservas';
 import { ErroApi } from '../../lib/api/cliente';
 import { Raiz, Gaveta, avisar, avisarErro } from '../../ui/camadas';
 import { sair } from '../../layout/sair';
-import { Botao, Cabecalho, Cartao, Segmentado, Campo, Aviso, Situacao } from '../../ui/base';
+import { Botao, Cartao, Segmentado, Campo, Aviso, Situacao } from '../../ui/base';
 import { Dados, EsqueletoTabela } from '../../ui/estados';
 import { Equipe } from './Equipe';
 import { Tabela } from '../../ui/tabela';
 import type { AmbienteConfig, PoliticaReserva } from '../../lib/tipos/reservas';
 
 type Tema = 'claro' | 'escuro' | 'sistema';
+type Secao = 'conta' | 'agenda' | 'equipe' | 'financeiro';
 
 export default function Configuracoes({ contexto }: { contexto: ContextoPainel }) {
   const { usuario, unidade, unidades } = contexto;
+  const veAgenda = pode(usuario.papel, 'reservas.configurar') && contexto.modulos.includes('reservas') && !!unidade;
+  const veFinanceiro = podeVer(usuario.papel, 'financeiro') && contexto.modulos.includes('financeiro');
+  const secoes: { id: Secao; rotulo: string; icone: typeof UserRound }[] = [
+    { id: 'conta', rotulo: 'Conta e aparência', icone: UserRound },
+    ...(veAgenda ? [{ id: 'agenda' as const, rotulo: 'Agenda e ambientes', icone: CalendarCog }] : []),
+    { id: 'equipe', rotulo: 'Equipe e acessos', icone: Users },
+    ...(veFinanceiro ? [{ id: 'financeiro' as const, rotulo: 'Financeiro', icone: Wallet }] : []),
+  ];
+  const [secao, setSecao] = useState<Secao>(() => {
+    const s = lerParam('secao');
+    return secoes.some((x) => x.id === s) ? (s as Secao) : 'conta';
+  });
+  useEffect(() => gravarParams({ secao: secao === 'conta' ? null : secao }), [secao]);
+  const atual = secoes.find((x) => x.id === secao) ?? secoes[0];
   const [tema, setTema] = useState<Tema>('sistema');
   useEffect(() => {
     try {
@@ -43,7 +61,22 @@ export default function Configuracoes({ contexto }: { contexto: ContextoPainel }
 
   return (
     <Raiz>
-      <Cabecalho titulo="Configurações" />
+      <div class="sub-navegacao">
+      <nav class="sub-navegacao__menu" aria-label="Grupos de configuração">
+        <ul>
+          {secoes.map((x) => (
+            <li key={x.id}>
+              <button type="button" aria-current={x.id === secao ? 'page' : undefined} onClick={() => setSecao(x.id)}>
+                <x.icone aria-hidden="true" />
+                {x.rotulo}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </nav>
+      <section class="sub-navegacao__conteudo pilha" aria-labelledby="config-titulo">
+      <h2 class="sub-navegacao__h2" id="config-titulo">{atual.rotulo}</h2>
+      {secao === 'conta' && (
       <div class="colunas-iguais">
         <Cartao titulo="Sua conta">
           <div class="pilha">
@@ -62,15 +95,27 @@ export default function Configuracoes({ contexto }: { contexto: ContextoPainel }
             <Botao icone={<LogOut aria-hidden="true" />} onClick={() => void sair()} style={{ alignSelf: 'flex-start' }}>Sair do painel</Botao>
           </div>
         </Cartao>
-        <Cartao titulo="Aparência" descricao="Vale para este aparelho">
-          <Segmentado rotulo="Tema" valor={tema} aoMudar={mudarTema} opcoes={[{ valor: 'claro', rotulo: <><Sun size={14} aria-hidden="true" /> Claro</> }, { valor: 'escuro', rotulo: <><Moon size={14} aria-hidden="true" /> Escuro</> }, { valor: 'sistema', rotulo: <><Monitor size={14} aria-hidden="true" /> Igual ao aparelho</> }]} />
-        </Cartao>
+        <div class="pilha">
+          <Cartao titulo="Aparência" descricao="Vale para este aparelho">
+            <Segmentado rotulo="Tema" valor={tema} aoMudar={mudarTema} opcoes={[{ valor: 'claro', rotulo: <><Sun size={14} aria-hidden="true" /> Claro</> }, { valor: 'escuro', rotulo: <><Moon size={14} aria-hidden="true" /> Escuro</> }, { valor: 'sistema', rotulo: <><Monitor size={14} aria-hidden="true" /> Igual ao aparelho</> }]} />
+          </Cartao>
+          {unidades.length > 1 && (
+            <Cartao titulo="Unidade de trabalho" descricao="Café, Roll e operação da noite têm finanças separadas">
+              <p class="suave pequeno">
+                Esta aba está em <strong>{unidade?.nome ?? '—'}</strong>. Para trabalhar em outra unidade, abra o menu da sua conta (no topo, à direita) e
+                escolha em “Unidade de trabalho”: vale só para a aba em que você escolheu, e o topo mostra a unidade sempre que não for a padrão.
+              </p>
+            </Cartao>
+          )}
+        </div>
       </div>
+      )}
 
-      {pode(usuario.papel, 'reservas.configurar') && contexto.modulos.includes('reservas') && unidade && <RegrasReserva unidade={unidade.codigo} />}
+      {secao === 'agenda' && veAgenda && <RegrasReserva unidade={unidade!.codigo} />}
 
-      {pode(usuario.papel, 'usuarios.gerenciar') && <Equipe eu={usuario.id} />}
+      {secao === 'equipe' && pode(usuario.papel, 'usuarios.gerenciar') && <Equipe eu={usuario.id} />}
 
+      {secao === 'equipe' && (
       <Cartao titulo={<span class="linha"><ShieldCheck size={16} aria-hidden="true" /> Perfis de acesso</span>} descricao="Quem vê o quê. O sistema do Âmbar confere o perfil a cada ação." justo>
         <Tabela<{ papel: Papel; ve: string; nao: string }>
           rotulo="Perfis de acesso"
@@ -88,6 +133,29 @@ export default function Configuracoes({ contexto }: { contexto: ContextoPainel }
         />
         <div class="cartao__rodape">O sistema do Âmbar confere o perfil em toda ação: esconder um botão nunca é a única proteção.</div>
       </Cartao>
+      )}
+
+      {secao === 'financeiro' && veFinanceiro && (
+        <Cartao titulo="Cadastros do Financeiro" descricao="Ficam no Financeiro, onde são usados — aqui estão os atalhos" justo>
+          <ul class="lista">
+            {[
+              { href: '/admin/financeiro?aba=relatorios&relatorio=categorias', titulo: 'Categorias de despesa', detalhe: 'As que a Júlia e os formulários oferecem nesta unidade' },
+              { href: '/admin/financeiro?aba=relatorios&relatorio=fornecedores', titulo: 'Fornecedores', detalhe: 'Busca, cadastro, correção e desativação' },
+              { href: '/admin/financeiro?aba=contas&vista=recorrentes', titulo: 'Contas fixas (recorrentes)', detalhe: 'Aluguel, internet, folha: a conta de cada mês aparece em Contas a pagar' },
+              { href: '/admin/financeiro?aba=conciliacao&vista=stone', titulo: 'Taxas contratadas da adquirente', detalhe: 'Crédito, débito e Pix, com vigência' },
+            ].map((l) => (
+              <li key={l.href}>
+                <a class="lista__item" href={l.href}>
+                  <span class="lista__texto"><strong>{l.titulo}</strong><span>{l.detalhe}</span></span>
+                  <span class="lista__fim"><ChevronRight aria-hidden="true" /></span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </Cartao>
+      )}
+      </section>
+      </div>
     </Raiz>
   );
 }
