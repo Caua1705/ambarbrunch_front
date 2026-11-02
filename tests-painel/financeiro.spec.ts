@@ -1,19 +1,33 @@
-// Financeiro na demonstração: as sete abas do painel antigo mais Categorias (0019), os endereços antigos ainda abrindo a
-// aba certa e o que é só do Proprietário (participação da Roll) — a gerente não vê na tela e a rota responde 403.
+// Financeiro na demonstração: as cinco áreas (Lançamentos, Contas a pagar, Revisão, Conciliação, Relatórios e cadastros),
+// os endereços antigos abrindo a tela nova certa e o que é só do Proprietário (participação da Roll) — a gerente não vê
+// na tela e a rota responde 403.
 import { test, expect } from '@playwright/test';
 import { DEMO, entrarDemo } from './apoio';
 
-const ABAS = [/^Resumo/, /^Vendas/, /^Lançamentos/, /^Contas a pagar/, /^Revisão/, /^Resultado/, /^Contas fixas e taxas/, /^Categorias/];
+const ABAS = [/^Lançamentos/, /^Contas a pagar/, /^Revisão/, /^Conciliação/, /^Relatórios e cadastros/];
 
-test('oito abas; endereços antigos (relatorios, revisar=1) caem na aba nova', async ({ page }) => {
+test('cinco áreas, sem segundo dashboard; endereços antigos caem na tela nova', async ({ page }) => {
   await entrarDemo(page, 'gerente');
   await page.goto(`${DEMO}/admin/financeiro`);
   const abas = page.getByRole('tablist', { name: 'Seções' }).getByRole('tab');
-  await expect(abas).toHaveCount(8);
+  await expect(abas).toHaveCount(5);
   for (const [i, nome] of ABAS.entries()) await expect(abas.nth(i)).toHaveText(nome);
+  await expect(page.getByRole('tab', { name: /^Lançamentos/ })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('.indicador')).toHaveCount(0);
 
-  await page.goto(`${DEMO}/admin/financeiro?aba=relatorios`);
-  await expect(page.getByRole('tab', { name: /^Resultado/ })).toHaveAttribute('aria-selected', 'true');
+  for (const [antigo, aba, item] of [
+    ['relatorios', /^Relatórios/, 'Resultado do mês'],
+    ['resultado', /^Relatórios/, 'Resultado do mês'],
+    ['vendas', /^Relatórios/, 'Vendas (Eyemobile)'],
+    ['categorias', /^Relatórios/, 'Categorias'],
+  ] as const) {
+    await page.goto(`${DEMO}/admin/financeiro?aba=${antigo}`);
+    await expect(page.getByRole('tab', { name: aba }), antigo).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('navigation', { name: 'Relatórios e cadastros' }).getByRole('button', { name: item }), antigo).toHaveAttribute('aria-current', 'page');
+  }
+  await page.goto(`${DEMO}/admin/financeiro?aba=contas-fixas`);
+  await expect(page.getByRole('tab', { name: /^Contas a pagar/ })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('group', { name: 'Contas a pagar ou recorrentes' }).getByRole('button', { name: 'Recorrentes' })).toHaveAttribute('aria-pressed', 'true');
   await page.goto(`${DEMO}/admin/financeiro?aba=lancamentos&revisar=1`);
   await expect(page.getByRole('tab', { name: /^Revisão/ })).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByRole('heading', { name: /Documentos do grupo/ })).toBeVisible();
@@ -37,6 +51,7 @@ test('Lançamentos: outra receita lançada aparece e pode ser cancelada com moti
   await gaveta.getByLabel('Valor').fill('1250,00');
   await gaveta.getByRole('button', { name: 'Lançar receita' }).click();
   await expect(gaveta).toHaveCount(0);
+  await page.getByRole('button', { name: /^Filtros/ }).click();
   await page.getByLabel('Mostrar').selectOption('outra_receita');
   const linha = page.getByRole('row', { name: /Evento teste da demonstração/ });
   await expect(linha).toBeVisible();
@@ -61,10 +76,13 @@ test('Resultado: participação da Roll só para o Proprietário (simulação)',
   expect((await page.request.get(`${DEMO}/admin/api/financeiro/apuracoes/${mes}/participacao`)).status()).toBe(403);
 });
 
-test('Contas fixas e taxas: lista as duas e registra uma nova vigência de taxa', async ({ page }) => {
+test('Recorrentes em Contas a pagar; taxas contratadas em Conciliação → Stone, com nova vigência', async ({ page }) => {
   await entrarDemo(page, 'gerente');
-  await page.goto(`${DEMO}/admin/financeiro?aba=contas-fixas`);
+  await page.goto(`${DEMO}/admin/financeiro?aba=contas&vista=recorrentes`);
   await expect(page.getByText('Aluguel da loja')).toBeVisible();
+  await page.goto(`${DEMO}/admin/financeiro?aba=conciliacao&vista=stone`);
+  await expect(page.getByRole('table', { name: 'Repasses por meio' })).toBeVisible();
+  await page.getByRole('button', { name: 'Taxas contratadas (cadastro)' }).click();
   const taxas = page.getByRole('table', { name: 'Taxas por meio de pagamento' });
   await expect(taxas.getByText('Em vigor').first()).toBeVisible();
   await page.getByRole('button', { name: 'Registrar taxa' }).click();
@@ -98,4 +116,28 @@ test('B2: o mesmo arquivo não prova duas despesas; a Nova despesa avisa ao anex
   await gaveta.getByRole('button', { name: 'Fornecedor e comprovante' }).click();
   await gaveta.locator('input[type="file"]').setInputFiles(arquivo);
   await expect(gaveta.getByText(/Este arquivo já tinha sido enviado/)).toBeVisible();
+});
+
+test('Fornecedores: busca no cadastro, recusa o repetido e a Nova despesa escolhe do cadastro', async ({ page }) => {
+  await entrarDemo(page, 'gerente');
+  await page.goto(`${DEMO}/admin/financeiro?aba=relatorios&relatorio=fornecedores`);
+  const tabela = page.getByRole('table', { name: 'Fornecedores' });
+  await expect(tabela.getByRole('row').nth(1)).toBeVisible();
+  const primeiro = (await tabela.getByRole('row').nth(1).locator('.principal-celula').textContent())!.trim();
+
+  // o mesmo nome de novo: o backend devolve 409 fornecedor_existente e o painel oferece o existente
+  await page.getByRole('button', { name: 'Novo fornecedor' }).click();
+  const gaveta = page.getByRole('dialog', { name: 'Novo fornecedor' });
+  await gaveta.getByLabel('Nome').fill(primeiro);
+  await gaveta.getByRole('button', { name: 'Cadastrar' }).click();
+  await expect(gaveta.getByRole('button', { name: 'Abrir o existente' })).toBeVisible();
+  await gaveta.getByRole('button', { name: 'Fechar' }).click();
+
+  // Nova despesa: o fornecedor vem da busca (vai o id), não de um texto livre
+  await page.goto(`${DEMO}/admin/financeiro?aba=lancamentos`);
+  await page.getByRole('button', { name: 'Nova despesa' }).click();
+  const nova = page.getByRole('dialog', { name: 'Nova despesa' });
+  await nova.getByRole('button', { name: 'Fornecedor e comprovante' }).click();
+  await nova.getByRole('combobox', { name: 'Fornecedor' }).fill(primeiro.slice(0, 4));
+  await expect(nova.getByRole('option', { name: new RegExp(primeiro.slice(0, 4)) }).first()).toBeVisible();
 });

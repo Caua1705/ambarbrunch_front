@@ -1,27 +1,40 @@
-// Contas a pagar: o que vence, o que venceu, o que foi pago. As contas fixas (recorrências) têm a aba própria.
+// Contas a pagar: o que tenho que pagar, quanto, quando vence, o que atrasou e o que já foi pago. As contas fixas
+// (recorrências) ficam na sub-tela "Recorrentes": conta prevista não é pagamento feito, e nada aqui cria conta sozinho.
 // Previsto (conta fixa) × devido (a conta do mês) × pago × saldo nunca se misturam. Conta de valor variável paga com o
 // valor real, sem mudar a conta fixa. Rotas: GET /contas-a-pagar, POST /parcelas/{id}/pagamentos.
 import { useEffect, useState } from 'preact/hooks';
-import { Banknote, Repeat, ChevronRight } from 'lucide-preact';
+import { Banknote } from 'lucide-preact';
 import type { ContextoPainel } from '../../lib/sessao';
 import { useConsulta } from '../../lib/consulta';
 import { financeiro } from '../../lib/api/financeiro';
 import { moeda, dataCurta, num, hojeISO, inicioMes, somarMeses, plural } from '../../lib/formato';
 import { lerParam, gravarParams } from '../../lib/rotas';
 import { useConfirmacao } from '../../ui/camadas';
-import { Botao, Cabecalho, Cartao, Segmentado, Situacao, Etiqueta } from '../../ui/base';
+import { Botao, Cartao, Segmentado, Situacao, Etiqueta } from '../../ui/base';
 import { Dados, EsqueletoTabela, Vazio } from '../../ui/estados';
 import { Tabela, type Coluna } from '../../ui/tabela';
 import type { ContaPagar, ListaContas } from '../../lib/tipos/financeiro';
 import { SITUACAO_CONTA, useNomeCategoria, temPermissao } from './comum';
 import { Pagar, type ContaParaPagar } from './Pagar';
 import { DetalheDespesa } from './DetalheDespesa';
-import type { IrPara } from './index';
+import { Recorrencias } from './ContasFixas';
 
 type Filtro = 'vencidas' | 'hoje' | 'proximas' | 'abertas' | 'pagas' | 'todas';
 const FILTROS: Filtro[] = ['vencidas', 'hoje', 'proximas', 'abertas', 'pagas', 'todas'];
 
-export function Contas({ contexto, ir }: { contexto: ContextoPainel; ir: IrPara }) {
+export function Contas({ contexto }: { contexto: ContextoPainel }) {
+  const lancar = temPermissao(contexto.usuario, 'financeiro.lancar');
+  const [vista, setVista] = useState<'contas' | 'recorrentes'>(lerParam('vista') === 'recorrentes' ? 'recorrentes' : 'contas');
+  useEffect(() => gravarParams({ vista: vista === 'recorrentes' ? 'recorrentes' : null }), [vista]);
+  return (
+    <>
+      <Segmentado<'contas' | 'recorrentes'> rotulo="Contas a pagar ou recorrentes" valor={vista} aoMudar={setVista} opcoes={[{ valor: 'contas', rotulo: 'Contas' }, { valor: 'recorrentes', rotulo: 'Recorrentes' }]} />
+      {vista === 'contas' ? <ListaContasPagar contexto={contexto} /> : <Recorrencias lancar={lancar} />}
+    </>
+  );
+}
+
+function ListaContasPagar({ contexto }: { contexto: ContextoPainel }) {
   const lancar = temPermissao(contexto.usuario, 'financeiro.lancar');
   const inicial = lerParam('situacao') as Filtro | null;
   const [filtro, setFiltro] = useState<Filtro>(inicial && FILTROS.includes(inicial) ? inicial : 'abertas');
@@ -79,16 +92,15 @@ export function Contas({ contexto, ir }: { contexto: ContextoPainel; ir: IrPara 
 
   return (
     <>
-      <Cabecalho titulo="Contas a pagar" descricao="Contas lançadas, parcelas de compras e contas fixas do mês" />
       <Segmentado<Filtro>
         rotulo="Situação das contas"
         valor={filtro}
         aoMudar={setFiltro}
         opcoes={[
-          { valor: 'vencidas', rotulo: `Vencidas${n?.vencidas.qtd ? ` (${n.vencidas.qtd})` : ''}` },
-          { valor: 'hoje', rotulo: `Vencem hoje${n?.hoje.qtd ? ` (${n.hoje.qtd})` : ''}` },
-          { valor: 'proximas', rotulo: `Próximos 7 dias${n?.proximas.qtd ? ` (${n.proximas.qtd})` : ''}` },
-          { valor: 'abertas', rotulo: 'Todas em aberto' },
+          { valor: 'abertas', rotulo: 'Em aberto' },
+          { valor: 'vencidas', rotulo: <>Vencidas{n?.vencidas.qtd ? <span class="contador contador--perigo">{n.vencidas.qtd}</span> : null}</> },
+          ...(filtro === 'hoje' || n?.hoje.qtd ? [{ valor: 'hoje' as const, rotulo: <>Vencem hoje{n?.hoje.qtd ? <span class="contador contador--atencao">{n.hoje.qtd}</span> : null}</> }] : []),
+          { valor: 'proximas', rotulo: 'Próximos 7 dias' },
           { valor: 'pagas', rotulo: 'Pagas' },
           { valor: 'todas', rotulo: 'Todas' },
         ]}
@@ -119,11 +131,6 @@ export function Contas({ contexto, ir }: { contexto: ContextoPainel; ir: IrPara 
         </Dados>
       </Cartao>
 
-      <button class="aviso aviso--info fin-faixa" onClick={() => ir('contas-fixas')}>
-        <Repeat aria-hidden="true" />
-        <span style={{ flex: 1, textAlign: 'left' }}><strong>Contas fixas</strong> <span class="suave">— aluguel, internet, folha: cadastre uma vez e a conta de cada mês aparece aqui.</span></span>
-        <span class="btn btn--p btn--fantasma">Contas fixas e taxas <ChevronRight aria-hidden="true" /></span>
-      </button>
 
       <Pagar conta={pagar} aoFechar={() => setPagar(null)} />
       <DetalheDespesa id={despesa} aoFechar={() => setDespesa(null)} confirmar={confirmar} />

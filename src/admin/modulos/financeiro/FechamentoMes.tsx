@@ -18,7 +18,7 @@ import { SeloQualidade, ESTADO_CONCILIACAO, atualizarFinanceiro, avisar, avisarF
 function destinoPendencia(rota: string | null) {
   if (!rota) return null;
   if (rota.startsWith('/admin/financeiro/revisao')) return '/admin/financeiro?aba=revisao';
-  if (rota.startsWith('/admin/financeiro/conciliacao') || rota.startsWith('/admin/financeiro/extratos') || rota.startsWith('/admin/financeiro/contas-bancarias')) return '/admin/financeiro?aba=lancamentos&vista=banco';
+  if (rota.startsWith('/admin/financeiro/conciliacao') || rota.startsWith('/admin/financeiro/extratos') || rota.startsWith('/admin/financeiro/contas-bancarias')) return '/admin/financeiro?aba=conciliacao';
   return rotaPainel(rota);
 }
 

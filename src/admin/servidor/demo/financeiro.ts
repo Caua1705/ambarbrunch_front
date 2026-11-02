@@ -68,7 +68,7 @@ function exigirCategoria(codigo: string | undefined | null, unidade: string) {
   if (!valeNa(c, unidade)) throw new ErroDemo(422, 'categoria_inativa_na_unidade', `A categoria “${c.nome}” não está ativa nesta unidade.`);
 }
 
-interface Fornecedor { id: string; nome: string; documento: string | null }
+interface Fornecedor { id: string; nome: string; documento: string | null; ativo?: boolean; origem?: string }
 interface Despesa extends DespesaSaida { historico: NonNullable<DespesaSaida['historico']> }
 interface Venda { dia: string; total: number; vendas: number }
 interface Vinculo { id: string; movimento_id: string; acao: string; tipo: string; valor: string; descricao: string; situacao: 'ativa' | 'desfeita'; criado_em: string; desfeito_em: string | null; motivo: string | null; pagamento_criado?: string; despesa_criada?: string }
@@ -777,7 +777,44 @@ export const ROTAS_FINANCEIRO: Rota[] = [
   }],
   // Como o backend: categoria não se exclui (405).
   ['DELETE', R('financeiro/categorias/([a-z][a-z0-9_]{1,39})'), GERENCIA, () => { throw new ErroDemo(405, 'metodo', 'Categoria não se exclui: desative.'); }],
-  ['GET', R('financeiro/fornecedores'), TODOS, ({ query }) => { montar(); const b = (query.get('busca') ?? '').toLowerCase(); return E.fornecedores.filter((f) => f.nome.toLowerCase().includes(b)).slice(0, 20); }],
+  ['GET', R('financeiro/fornecedores'), TODOS, ({ query }) => {
+    montar();
+    const b = (query.get('busca') ?? '').toLowerCase();
+    const inativos = query.get('incluir_inativos') === 'true';
+    return E.fornecedores.filter((f) => f.nome.toLowerCase().includes(b) && (inativos || f.ativo !== false)).slice(0, Number(query.get('limite') ?? 20)).map((f) => ({ ativo: true, origem: 'painel', ...f }));
+  }],
+  // Como o backend: mesmo documento (ou, sem documento, mesmo nome) → 409 fornecedor_existente com o id.
+  ['POST', R('financeiro/fornecedores'), GERENCIA, async ({ corpo }) => {
+    montar();
+    const e = await corpo<{ nome?: string; documento?: string | null }>();
+    const nome = (e.nome ?? '').trim();
+    if (!nome) throw new ErroDemo(422, 'regra_violada', 'Informe o nome do fornecedor.');
+    const doc = (e.documento ?? '').replace(/\D/g, '') || null;
+    const existe = E.fornecedores.find((f) => (doc && f.documento === doc) || (!doc && f.nome.toLowerCase() === nome.toLowerCase()));
+    if (existe) throw new ErroDemo(409, 'fornecedor_existente', `Já existe: ${existe.nome}. Use o cadastro existente.`, { id: existe.id });
+    const f: Fornecedor = { id: id(), nome, documento: doc, ativo: true, origem: 'painel' };
+    E.fornecedores.push(f);
+    return resposta(201, f);
+  }],
+  ['PATCH', R(`financeiro/fornecedores/${UUID}`), GERENCIA, async ({ params, corpo }) => {
+    montar();
+    const f = E.fornecedores.find((x) => x.id === params[0]);
+    if (!f) throw new ErroDemo(404, 'nao_encontrado', 'Fornecedor não encontrado.');
+    const e = await corpo<{ motivo?: string; nome?: string; documento?: string; ativo?: boolean }>();
+    exigirMotivo(e.motivo);
+    if (e.nome !== undefined) f.nome = e.nome.trim() || f.nome;
+    if (e.documento && !f.documento) f.documento = e.documento.replace(/\D/g, '') || null;
+    if (typeof e.ativo === 'boolean') f.ativo = e.ativo;
+    return { ativo: true, origem: 'painel', ...f };
+  }],
+  ['GET', R(`financeiro/fornecedores/${UUID}`), GERENCIA, ({ params }) => {
+    montar();
+    const f = E.fornecedores.find((x) => x.id === params[0]);
+    if (!f) throw new ErroDemo(404, 'nao_encontrado', 'Fornecedor não encontrado.');
+    const despesas = vivas().filter((d) => d.fornecedor?.id === f.id).sort((a, b) => b.competencia.localeCompare(a.competencia)).slice(0, 30);
+    const abertas = contasAPagar().filter((c) => c.fornecedor_id === f.id && c.situacao === 'aberta');
+    return { id: f.id, nome: f.nome, documento: f.documento, despesas, a_pagar: { total: abertas.length, itens: abertas, totais: { saldo: d2(abertas.reduce((x, c) => x + Number(c.saldo), 0)), valor: d2(abertas.reduce((x, c) => x + Number(c.valor), 0)) } } };
+  }],
   ['GET', R('financeiro/resumo'), GERENCIA, () => { montar(); return resumoFinanceiro(); }],
   ['GET', R('financeiro/revisao'), GERENCIA, ({ query }) => {
     montar();
@@ -810,12 +847,16 @@ export const ROTAS_FINANCEIRO: Rota[] = [
   ['POST', R('financeiro/despesas'), GERENCIA, async ({ corpo, query }) => {
     montar();
     const un = unidadeDa(query);
-    const e = await corpo<{ descricao?: string; valor?: string; competencia?: string; categoria?: string; fornecedor?: { nome?: string | null; documento?: string | null } | null; arquivo_id?: string | null; parcelas?: { vencimento: string; valor: string }[] | null; pagamento?: { pago_em: string; forma: FormaPagamento; arquivo_id?: string | null } | null }>();
+    const e = await corpo<{ descricao?: string; valor?: string; competencia?: string; categoria?: string; fornecedor?: { id?: string | null; nome?: string | null; documento?: string | null } | null; arquivo_id?: string | null; parcelas?: { vencimento: string; valor: string }[] | null; pagamento?: { pago_em: string; forma: FormaPagamento; arquivo_id?: string | null } | null }>();
     if (!e.descricao || !e.valor || Number(e.valor) <= 0 || !e.competencia || !e.categoria) throw new ErroDemo(422, 'regra_violada', 'Preencha descrição, valor, data e categoria.');
     exigirCategoria(e.categoria, un);
     exigirArquivoLivre([e.arquivo_id, e.pagamento?.arquivo_id]);
     if (e.parcelas && Math.abs(e.parcelas.reduce((s, p) => s + Number(p.valor), 0) - Number(e.valor)) > 0.009) throw new ErroDemo(422, 'regra_violada', 'A soma das parcelas difere do valor.');
-    const forn = e.fornecedor?.nome ? fornecedor(e.fornecedor.nome, e.fornecedor.documento ?? null) : null;
+    // Como o backend: `id` vale sozinho (desativado → 409 fornecedor_inativo); sem ele, nome/documento resolvem ou criam.
+    const porId = e.fornecedor?.id ? E.fornecedores.find((f) => f.id === e.fornecedor!.id) : null;
+    if (e.fornecedor?.id && !porId) throw new ErroDemo(422, 'fornecedor_inexistente', 'Fornecedor não encontrado.');
+    if (porId && porId.ativo === false) throw new ErroDemo(409, 'fornecedor_inativo', `${porId.nome} está desativado: reative no cadastro ou escolha outro.`);
+    const forn = porId ?? (e.fornecedor?.nome ? fornecedor(e.fornecedor.nome, e.fornecedor.documento ?? null) : null);
     const acima = Number(e.valor) > 5000;
     const d = novaDespesa({ descricao: e.descricao, valor: Number(e.valor), competencia: e.competencia, categoria: e.categoria, fornecedor: forn, origem: 'painel', arquivo_id: e.arquivo_id ?? null, status: acima ? 'em_revisao' : 'confirmada', motivos: acima ? ['acima_do_limite'] : [], parcelas: e.pagamento ? [{ vencimento: e.competencia, valor: Number(e.valor), paga_em: e.pagamento.pago_em, forma: e.pagamento.forma }] : e.parcelas ? e.parcelas.map((p) => ({ vencimento: p.vencimento, valor: Number(p.valor) })) : [{ vencimento: e.competencia, valor: Number(e.valor) }] });
     d.criado_em = agora();

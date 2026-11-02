@@ -786,3 +786,24 @@ export interface Fechamento {
   conciliacao: ConciliacaoMes;
   apuracao: { status: string; congelada: boolean; qualidade: NivelQualidade | null; excecao_conciliacao: { motivo: string; por: string } | null };
 }
+
+// Fornecedores (app/modulos/financeiro/api_admin.py: GET/POST /fornecedores, PATCH e GET /fornecedores/{id}) --------------
+
+/** CPF vem mascarado do backend; para lançar com um fornecedor achado, mande `fornecedor: { id }`. */
+export interface FornecedorCadastro {
+  id: Uuid;
+  nome: string;
+  documento: string | null;
+  ativo?: boolean;
+  /** painel · julia · compra … (de onde o cadastro nasceu) */
+  origem?: string | null;
+}
+
+/** GET /fornecedores/{id}: últimas 30 despesas da unidade e o que falta pagar a ele. */
+export interface FornecedorDetalhe {
+  id: Uuid;
+  nome: string;
+  documento: string | null;
+  despesas: DespesaSaida[];
+  a_pagar: ListaContas;
+}

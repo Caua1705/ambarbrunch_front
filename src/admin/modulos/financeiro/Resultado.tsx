@@ -11,7 +11,7 @@ import { useConsulta } from '../../lib/consulta';
 import { financeiro } from '../../lib/api/financeiro';
 import { moeda, num, pct, mesAno, mesCurto, hojeISO, somarMeses, fimMes, plural } from '../../lib/formato';
 import { lerParam, gravarParams } from '../../lib/rotas';
-import { Cabecalho, Cartao, Segmentado, Aviso, Variacao } from '../../ui/base';
+import { Cartao, Aviso, Variacao } from '../../ui/base';
 import { Dados, Esqueleto, Vazio } from '../../ui/estados';
 import { GraficoLinhas, Legenda, BarraParte } from '../../ui/graficos';
 import type { ResultadoMes, DespesasPorCategoria, MesEvolucao } from '../../lib/tipos/financeiro';
@@ -19,38 +19,33 @@ import { FechamentoMes } from './FechamentoMes';
 import { Participacao } from './Participacao';
 import { SeloQualidade, MotivosQualidade, QUALIDADE, GRUPO, temPermissao } from './comum';
 
-type Vista = 'resultado' | 'categorias' | 'evolucao' | 'fechamento';
-const VISTAS: Vista[] = ['resultado', 'categorias', 'evolucao', 'fechamento'];
+/** Os relatórios do mês que moram em Relatórios e cadastros (a navegação lateral escolhe qual). */
+export type VistaResultado = 'resultado' | 'por-categoria' | 'evolucao' | 'fechamento';
 
 /** Mês anterior ao atual: o padrão (o mês corrente ainda está em andamento). */
 const mesPadrao = () => somarMeses(hojeISO(), -1).slice(0, 7);
 
-export function Resultado({ contexto }: { contexto: ContextoPainel }) {
+export function Resultado({ contexto, vista }: { contexto: ContextoPainel; vista: VistaResultado }) {
   const societario = temPermissao(contexto.usuario, 'financeiro.ver_societario');
-  const inicial = lerParam('vista') as Vista | null;
-  const [vista, setVista] = useState<Vista>(inicial && VISTAS.includes(inicial) ? inicial : 'resultado');
   const [mes, setMes] = useState(lerParam('mes') ?? mesPadrao());
-  useEffect(() => gravarParams({ vista: vista === 'resultado' ? null : vista, mes: mes === mesPadrao() ? null : mes }), [vista, mes]);
+  useEffect(() => gravarParams({ mes: mes === mesPadrao() ? null : mes }), [mes]);
   return (
     <>
-      <Cabecalho
-        titulo="Resultado"
-        descricao="Resultado gerencial, despesas, evolução e fechamento do mês"
-        acoes={vista !== 'evolucao' && (
-          <>
-            <label class="sr" for="mes-relatorio">Mês</label>
-            <input id="mes-relatorio" type="month" class="entrada" style={{ width: 'auto' }} value={mes} max={hojeISO().slice(0, 7)} onChange={(e) => e.currentTarget.value && setMes(e.currentTarget.value)} />
-          </>
-        )}
-      />
-      <Segmentado<Vista> rotulo="Relatório" valor={vista} aoMudar={setVista} opcoes={[{ valor: 'resultado', rotulo: 'Resultado do mês' }, { valor: 'categorias', rotulo: 'Por categoria' }, { valor: 'evolucao', rotulo: 'Evolução' }, { valor: 'fechamento', rotulo: 'Fechamento' }]} />
+      {vista !== 'evolucao' && (
+        <div class="barra-ferramentas">
+          <label class="campo-inline" for="mes-relatorio">
+            Mês
+            <input id="mes-relatorio" type="month" class="entrada entrada--data" value={mes} max={hojeISO().slice(0, 7)} onChange={(e) => e.currentTarget.value && setMes(e.currentTarget.value)} />
+          </label>
+        </div>
+      )}
       {vista === 'resultado' && (
         <>
           <ResultadoDoMes mes={mes} />
           {societario && <Participacao mes={mes} />}
         </>
       )}
-      {vista === 'categorias' && <Categorias mes={mes} />}
+      {vista === 'por-categoria' && <Categorias mes={mes} />}
       {vista === 'evolucao' && <Evolucao />}
       {vista === 'fechamento' && <FechamentoMes mes={mes} contexto={contexto} />}
     </>

@@ -5,34 +5,22 @@
 // /admin/financeiro/taxas-pagamento (as duas com financeiro.lancar no backend: gerente e proprietário).
 import { useEffect, useState } from 'preact/hooks';
 import { Plus, Pencil, CalendarX, Repeat, Info, Percent, Check } from 'lucide-preact';
-import type { ContextoPainel } from '../../lib/sessao';
 import { useConsulta } from '../../lib/consulta';
 import { financeiro } from '../../lib/api/financeiro';
 import { ErroApi } from '../../lib/api/cliente';
 import { moeda, dataCurta, mesAno, paraDecimal, hojeISO, pct, inteiro } from '../../lib/formato';
 import { Gaveta } from '../../ui/camadas';
-import { Botao, Cabecalho, Cartao, Segmentado, Etiqueta, Campo, Aviso, Situacao } from '../../ui/base';
+import { Botao, Cartao, Segmentado, Etiqueta, Campo, Aviso, Situacao } from '../../ui/base';
 import { EntradaMoeda } from '../../ui/entradas';
 import { Dados, EsqueletoTabela, Vazio } from '../../ui/estados';
 import type { MeioPdv, Recorrencia, TaxaPagamento } from '../../lib/tipos/financeiro';
-import { useCategorias, useNomeCategoria, OpcoesCategoria, atualizarFinanceiro, avisar, temPermissao, MEIO } from './comum';
+import { useCategorias, useNomeCategoria, OpcoesCategoria, atualizarFinanceiro, avisar, MEIO } from './comum';
 
 const brl = (v: string) => Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-export function ContasFixas({ contexto }: { contexto: ContextoPainel }) {
-  const lancar = temPermissao(contexto.usuario, 'financeiro.lancar');
-  return (
-    <>
-      <Cabecalho titulo="Contas fixas e taxas" descricao="O que se repete todo mês e as taxas do cartão e do Pix" />
-      <Recorrencias lancar={lancar} />
-      <Taxas lancar={lancar} />
-    </>
-  );
-}
-
 // Contas fixas ---------------------------------------------------------------------------------------------------------
 
-function Recorrencias({ lancar }: { lancar: boolean }) {
+export function Recorrencias({ lancar }: { lancar: boolean }) {
   const [ver, setVer] = useState<'ativas' | 'todas'>('ativas');
   const consulta = useConsulta(`financeiro/recorrencias:${ver}`, () => financeiro.recorrencias(ver === 'ativas'));
   const nome = useNomeCategoria();
@@ -230,7 +218,7 @@ function EncerrarRecorrencia({ alvo, aoFechar }: { alvo: Recorrencia | null; aoF
 
 const MEIOS: MeioPdv[] = ['credito', 'debito', 'pix', 'outro'];
 
-function Taxas({ lancar }: { lancar: boolean }) {
+export function Taxas({ lancar }: { lancar: boolean }) {
   const consulta = useConsulta('financeiro/taxas', () => financeiro.taxas());
   const [nova, setNova] = useState(false);
   const hoje = hojeISO();

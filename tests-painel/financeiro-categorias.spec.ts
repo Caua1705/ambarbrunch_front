@@ -3,6 +3,15 @@
 import { test, expect, type Page } from '@playwright/test';
 import { DEMO, entrarDemo } from './apoio';
 
+/** As categorias fora de uso ficam recolhidas em "Mostrar inativas". */
+async function inativas(page: Page) {
+  // Espera a lista carregar: o botão vira "Esconder inativas" quando já estão abertas.
+  const botao = page.getByRole('button', { name: /^(Mostrar|Esconder) inativas/ });
+  await botao.waitFor();
+  if (/^Mostrar/.test((await botao.textContent()) ?? '')) await botao.click();
+  return page.getByRole('list', { name: 'Categorias fora de uso' });
+}
+
 const API = `${DEMO}/admin/api/financeiro`;
 const escrever = { 'X-Painel': '1', 'Content-Type': 'application/json', Origin: DEMO };
 const SETE = ['Insumos', 'Embalagens', 'Folha', 'Fixo', 'Operacional', 'Obras e equipamentos', 'Tributos'];
@@ -34,7 +43,7 @@ test('as 7 categorias do Âmbar vêm da API, com grupo, apelidos e uso; os selet
   await expect(operacional).toContainText('Ativa aqui');
   await expect(ativas.locator('[data-categoria="compras_insumos"]')).toContainText(/Em uso por \d+ lançamentos/);
   // As antigas ficam no cadastro, fora de uso; a pendência não é categoria de despesa.
-  await expect(page.getByRole('list', { name: 'Categorias fora de uso' }).locator('[data-categoria="aluguel"]')).toBeVisible();
+  await expect((await inativas(page)).locator('[data-categoria="aluguel"]')).toBeVisible();
   await expect(page.getByText(/Sem categoria.*é o estado de um pagamento ainda não classificado/)).toBeVisible();
   // Excluir não existe: nem botão na tela, e a API responde 405.
   await expect(page.getByRole('button', { name: /Excluir/ })).toHaveCount(0);
@@ -95,7 +104,7 @@ test('categoria desativada na unidade: some dos seletores, lançamento novo é r
   await ativas.locator('[data-categoria="embalagens"]').getByRole('button', { name: 'Desativar aqui' }).click();
   await page.getByRole('alertdialog', { name: /Desativar “Embalagens”/ }).getByRole('button', { name: 'Desativar' }).click();
   await expect(page.getByText('“Embalagens” desativada em Âmbar Café (demo).')).toBeVisible();
-  const fora = page.getByRole('list', { name: 'Categorias fora de uso' }).locator('[data-categoria="embalagens"]');
+  const fora = (await inativas(page)).locator('[data-categoria="embalagens"]');
   await expect(fora).toContainText('Inativa aqui');
   await expect(ativas.locator('[data-categoria="embalagens"]')).toHaveCount(0);
 
@@ -109,7 +118,7 @@ test('categoria desativada na unidade: some dos seletores, lançamento novo é r
 
   // Reativa (deixa a demonstração como estava).
   await page.goto(`${DEMO}/admin/financeiro?aba=categorias`);
-  await page.getByRole('list', { name: 'Categorias fora de uso' }).locator('[data-categoria="embalagens"]').getByRole('button', { name: 'Ativar aqui' }).click();
+  await (await inativas(page)).locator('[data-categoria="embalagens"]').getByRole('button', { name: 'Ativar aqui' }).click();
   await page.getByRole('dialog', { name: /Ativar “Embalagens”/ }).getByRole('button', { name: 'Ativar' }).click();
   await expect(page.getByRole('list', { name: 'Categorias ativas' }).locator('[data-categoria="embalagens"]')).toContainText('Ativa aqui');
 });

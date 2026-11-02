@@ -13,7 +13,7 @@ import { financeiro } from '../../lib/api/financeiro';
 import { ErroApi } from '../../lib/api/cliente';
 import { plural } from '../../lib/formato';
 import { Gaveta, useConfirmacao, type PedidoConfirmacao } from '../../ui/camadas';
-import { Botao, Cabecalho, Cartao, Campo, Aviso, Etiqueta } from '../../ui/base';
+import { Botao, Cartao, Campo, Aviso, Etiqueta } from '../../ui/base';
 import { Dados, EsqueletoTabela, Vazio } from '../../ui/estados';
 import type { Categoria, CategoriaAlteracao, GrupoCategoria } from '../../lib/tipos/financeiro';
 import { GRUPO, GRUPO_AJUDA, avisar, temPermissao, useCadastroCategorias } from './comum';
@@ -46,16 +46,17 @@ export function Categorias({ contexto }: { contexto: ContextoPainel }) {
   const consulta = useCadastroCategorias();
   const unidade = contexto.unidade;
   const [editar, setEditar] = useState<Categoria | 'nova' | null>(null);
+  // Por padrão só as ativas; as de fora ficam guardadas (o histórico usa) e aparecem quando pedidas.
+  const [verInativas, setVerInativas] = useState(false);
   const { confirmar, elemento: dialogo } = useConfirmacao();
   const nomeUnidade = unidade?.nome ?? 'nesta unidade';
 
   return (
     <>
-      <Cabecalho
-        titulo="Categorias"
-        descricao={`Categorias de despesa de ${nomeUnidade}. A Júlia e os formulários só oferecem as ativas nesta unidade.`}
-        acoes={lancar && <Botao variante="primario" icone={<Plus aria-hidden="true" />} onClick={() => setEditar('nova')}>Nova categoria</Botao>}
-      />
+      <div class="barra-ferramentas">
+        <p class="suave pequeno">Categorias de despesa de {nomeUnidade}. A Júlia e os formulários só oferecem as ativas nesta unidade. “Sem categoria” é uma pendência, não uma categoria.</p>
+        {lancar && <div class="barra-ferramentas__acoes"><Botao variante="primario" icone={<Plus aria-hidden="true" />} onClick={() => setEditar('nova')}>Nova categoria</Botao></div>}
+      </div>
       <Dados consulta={consulta} recurso="As categorias" esqueleto={<EsqueletoTabela linhas={7} />}>
         {(todas) => {
           const ordenadas = [...todas].sort((a, b) => (a.ordem ?? 100) - (b.ordem ?? 100) || a.nome.localeCompare(b.nome, 'pt-BR'));
@@ -83,7 +84,12 @@ export function Categorias({ contexto }: { contexto: ContextoPainel }) {
                 )}
               </Cartao>
               {fora.length > 0 && (
-                <Cartao titulo={`Fora de uso em ${nomeUnidade} (${fora.length})`} descricao="Ficam no cadastro porque lançamentos antigos as usam. Não são oferecidas em lançamentos novos desta unidade." justo>
+                <Botao variante="fantasma" aria-expanded={verInativas} aria-controls="categorias-inativas" onClick={() => setVerInativas(!verInativas)}>
+                  {verInativas ? 'Esconder inativas' : `Mostrar inativas (${fora.length})`}
+                </Botao>
+              )}
+              {fora.length > 0 && verInativas && (
+                <Cartao id="categorias-inativas" titulo={`Fora de uso em ${nomeUnidade} (${fora.length})`} descricao="Ficam no cadastro porque lançamentos antigos as usam. Não são oferecidas em lançamentos novos desta unidade." justo>
                   <ul class="lista" aria-label="Categorias fora de uso">
                     {fora.map((c) => <ItemCategoria key={c.codigo} c={c} lancar={lancar} unidade={unidade?.codigo ?? null} nomeUnidade={nomeUnidade} aoEditar={() => setEditar(c)} confirmar={confirmar} />)}
                   </ul>

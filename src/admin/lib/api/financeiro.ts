@@ -8,7 +8,7 @@ import type {
   Recorrencia, ResultadoMes, ResumoFinanceiro, NivelConciliacao, Repasses, Apuracao, MovimentoDetalhe, AgrupamentoVendas,
   RelatorioVendas, OutraReceitaEntrada, OutraReceitaSaida, TaxaPagamento, TaxaEntrada, RecorrenciaEntrada, Participacao,
   SimulacaoParticipacao, EstadoContaMes, DocumentoRevisao, CorrecaoDocumento, ResolucaoDocumento, AnexoDespesa,
-  CategoriaEntrada, CategoriaAlteracao, CandidataRevisao, DespesaCandidata,
+  CategoriaEntrada, CategoriaAlteracao, CandidataRevisao, DespesaCandidata, FornecedorCadastro, FornecedorDetalhe,
 } from '../tipos/financeiro';
 
 const lista = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
@@ -70,8 +70,13 @@ export const financeiro = {
   categoriaNaUnidade: (codigo: string, unidade: string, ativo: boolean) =>
     pedir<Categoria>(`financeiro/categorias/${encodeURIComponent(codigo)}/unidades/${encodeURIComponent(unidade)}`, { metodo: 'PUT', corpo: { ativo } }),
   /** Busca (CPF vem mascarado: para lançar com um fornecedor achado aqui, mande `fornecedor: {id}`, não o nome). */
-  fornecedores: (busca?: string) =>
-    pedir<{ id: string; nome: string; documento: string | null; ativo?: boolean; origem?: string }[]>('financeiro/fornecedores', { query: { busca, limite: 20 } }),
+  fornecedores: async (busca?: string, q: { limite?: number; incluirInativos?: boolean } = {}) =>
+    lista<FornecedorCadastro>(await pedir<FornecedorCadastro[]>('financeiro/fornecedores', { query: { busca, limite: q.limite ?? 20, incluir_inativos: q.incluirInativos || undefined } })),
+  /** Cadastro antes do primeiro lançamento. Já existe (mesmo CNPJ/CPF; sem documento, mesmo nome) → 409 `fornecedor_existente`. */
+  criarFornecedor: (f: { nome: string; documento?: string | null }) => pedir<FornecedorCadastro>('financeiro/fornecedores', { metodo: 'POST', corpo: f }),
+  /** Nome, documento que faltava e `ativo` — sempre com motivo. Não se apaga: desativado some da busca e da seleção. */
+  alterarFornecedor: (id: string, f: { motivo: string; nome?: string; documento?: string; ativo?: boolean }) => pedir<FornecedorCadastro>(`financeiro/fornecedores/${id}`, { metodo: 'PATCH', corpo: f }),
+  fornecedor: (id: string) => pedir<FornecedorDetalhe>(`financeiro/fornecedores/${id}`),
   despesa: (id: string) => pedir<DespesaSaida>(`financeiro/despesas/${id}`),
   criarDespesa: (d: DespesaEntrada, chave = novaChave()) => pedir<DespesaSaida>('financeiro/despesas', { metodo: 'POST', corpo: d, idempotencia: chave }),
   corrigirDespesa: (id: string, c: { versao: number; motivo: string; descricao?: string; valor?: string; competencia?: string; categoria?: string }) =>

@@ -8,7 +8,7 @@ import { useConsulta } from '../../lib/consulta';
 import { financeiro } from '../../lib/api/financeiro';
 import { moeda, num, inteiro, plural, dataCurta, mesAno, mesCurto, hojeISO, inicioMes, fimMes, somarDias, somarMeses, relativo, dataHora } from '../../lib/formato';
 import { lerParam, gravarParams } from '../../lib/rotas';
-import { Cabecalho, Cartao, Segmentado, Indicador, Aviso } from '../../ui/base';
+import { Cartao, Segmentado, Indicador, Aviso } from '../../ui/base';
 import { Dados, Esqueleto, Vazio } from '../../ui/estados';
 import { Tabela, type Coluna } from '../../ui/tabela';
 import { GraficoBarras, Legenda } from '../../ui/graficos';
@@ -71,7 +71,7 @@ export function Vendas(_: { contexto: ContextoPainel }) {
 
   return (
     <>
-      <Cabecalho titulo="Vendas" descricao="Faturamento do PDV (Eyemobile) por período" />
+      <p class="suave pequeno">Faturamento do PDV (Eyemobile) por período. A venda entra uma vez; o repasse da Stone é recebimento, não receita.</p>
       <div class="filtros">
         <select class="selecao" aria-label="Período" value={periodo} onChange={(e) => mudarPeriodo(e.currentTarget.value as Periodo)}>
           {PERIODOS.map((p) => <option key={p.valor} value={p.valor}>{p.rotulo}</option>)}

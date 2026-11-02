@@ -15,16 +15,19 @@ export function rotaPainel(rota: string | null | undefined): string | null {
   if (caminho.startsWith('/admin/estoque/insumos') || caminho.startsWith('/admin/estoque/perdas')) return '/admin/estoque?aba=insumos';
   if (caminho.startsWith('/admin/estoque')) return '/admin/estoque';
   if (caminho.startsWith('/admin/financeiro/contas-a-pagar')) return `/admin/financeiro?aba=contas${q.get('situacao') ? `&situacao=${q.get('situacao')}` : ''}`;
-  // Financeiro: as sete abas (Resumo, Vendas, Lançamentos, Contas a pagar, Revisão, Resultado, Contas fixas e taxas).
+  // Financeiro: cinco áreas (Lançamentos, Contas a pagar, Revisão, Conciliação, Relatórios e cadastros).
   if (caminho.startsWith('/admin/financeiro/revisao') || caminho.startsWith('/admin/financeiro/comprovantes')) return '/admin/financeiro?aba=revisao';
-  if (caminho.startsWith('/admin/financeiro/conciliacao') || caminho.startsWith('/admin/financeiro/extratos') || caminho.startsWith('/admin/financeiro/contas-bancarias')) return '/admin/financeiro?aba=lancamentos&vista=banco';
+  if (caminho.startsWith('/admin/financeiro/conciliacao/repasses')) return '/admin/financeiro?aba=conciliacao&vista=stone';
+  if (caminho.startsWith('/admin/financeiro/conciliacao') || caminho.startsWith('/admin/financeiro/extratos') || caminho.startsWith('/admin/financeiro/contas-bancarias')) return '/admin/financeiro?aba=conciliacao';
   if (caminho.startsWith('/admin/financeiro/lancamentos') || caminho.startsWith('/admin/financeiro/despesas') || caminho.startsWith('/admin/financeiro/outras-receitas') || caminho.startsWith('/admin/financeiro/pagamentos')) return '/admin/financeiro?aba=lancamentos';
-  if (caminho.startsWith('/admin/financeiro/relatorios/vendas')) return '/admin/financeiro?aba=vendas';
+  if (caminho.startsWith('/admin/financeiro/relatorios/vendas')) return '/admin/financeiro?aba=relatorios&relatorio=vendas';
   const fechamento = /^\/admin\/financeiro\/fechamento(?:\/(\d{4}-\d{2}))?/.exec(caminho);
-  if (fechamento) return `/admin/financeiro?aba=resultado&vista=fechamento${fechamento[1] ? `&mes=${fechamento[1]}` : ''}`;
-  if (caminho.startsWith('/admin/financeiro/relatorios') || caminho.startsWith('/admin/financeiro/apuracoes')) return '/admin/financeiro?aba=resultado';
-  if (caminho.startsWith('/admin/financeiro/recorrencias') || caminho.startsWith('/admin/financeiro/taxas-pagamento')) return '/admin/financeiro?aba=contas-fixas';
-  if (caminho.startsWith('/admin/financeiro/categorias')) return '/admin/financeiro?aba=categorias';
+  if (fechamento) return `/admin/financeiro?aba=relatorios&relatorio=fechamento${fechamento[1] ? `&mes=${fechamento[1]}` : ''}`;
+  if (caminho.startsWith('/admin/financeiro/relatorios') || caminho.startsWith('/admin/financeiro/apuracoes')) return '/admin/financeiro?aba=relatorios';
+  if (caminho.startsWith('/admin/financeiro/recorrencias')) return '/admin/financeiro?aba=contas&vista=recorrentes';
+  if (caminho.startsWith('/admin/financeiro/taxas-pagamento')) return '/admin/financeiro?aba=conciliacao&vista=stone';
+  if (caminho.startsWith('/admin/financeiro/fornecedores')) return '/admin/financeiro?aba=relatorios&relatorio=fornecedores';
+  if (caminho.startsWith('/admin/financeiro/categorias')) return '/admin/financeiro?aba=relatorios&relatorio=categorias';
   if (caminho.startsWith('/admin/financeiro')) return '/admin/financeiro';
   if (caminho.startsWith('/admin/reservas')) return '/admin/reservas';
   if (caminho.startsWith('/admin/atendimento')) return '/admin/atendimento';

@@ -10,6 +10,7 @@ import { Botao, Campo, Aviso, Segmentado } from '../../ui/base';
 import { EntradaMoeda, EnvioArquivo } from '../../ui/entradas';
 import type { DespesaEntrada, FormaPagamento } from '../../lib/tipos/financeiro';
 import { FORMAS, useCategorias, OpcoesCategoria, atualizarFinanceiro, avisar, AVISO_ARQUIVO_REPETIDO } from './comum';
+import { EscolherFornecedor, type FornecedorEscolhido } from './Fornecedores';
 
 type Situacao = 'paga' | 'a_pagar' | 'parcelada';
 
@@ -36,7 +37,8 @@ export function NovaDespesa({ aberta, aoFechar, aoCriar }: { aberta: boolean; ao
   const [nParcelas, setNParcelas] = useState(2);
   const [parcelas, setParcelas] = useState<{ vencimento: string; valor: string }[]>([]);
   const [avancado, setAvancado] = useState(false);
-  const [fornNome, setFornNome] = useState('');
+  // Fornecedor do cadastro (vai `{ id }`) ou um nome novo escolhido de propósito (vai nome + documento; o backend resolve).
+  const [forn, setForn] = useState<FornecedorEscolhido | null>(null);
   const [fornDoc, setFornDoc] = useState('');
   // `ja_existia` (mesmo SHA-256 já enviado): avisa ANTES de lançar; o backend recusa o arquivo de outro lançamento (B2).
   const [arquivo, setArquivo] = useState<{ id: string; nome: string; jaExistia?: boolean } | null>(null);
@@ -60,7 +62,7 @@ export function NovaDespesa({ aberta, aoFechar, aoCriar }: { aberta: boolean; ao
     setNParcelas(2);
     setParcelas([]);
     setAvancado(false);
-    setFornNome('');
+    setForn(null);
     setFornDoc('');
     setArquivo(null);
     setErro(null);
@@ -109,7 +111,7 @@ export function NovaDespesa({ aberta, aoFechar, aoCriar }: { aberta: boolean; ao
       valor: v!,
       competencia: data,
       categoria,
-      fornecedor: fornNome.trim() || fornDoc.trim() ? { nome: fornNome.trim() || null, documento: fornDoc.replace(/\D/g, '') || null } : null,
+      fornecedor: forn ? ('id' in forn ? { id: forn.id } : { nome: forn.novo, documento: fornDoc.replace(/\D/g, '') || null }) : null,
       arquivo_id: arquivo?.id ?? null,
       // Sem `pagamento` nem `parcelas`, o backend cria uma conta a pagar que vence na competência.
       pagamento: situacao === 'paga' ? { pago_em: pagoEm, forma, identificador_transacao: ident.trim() || null, arquivo_id: arquivo?.id ?? null } : null,
@@ -221,12 +223,14 @@ export function NovaDespesa({ aberta, aoFechar, aoCriar }: { aberta: boolean; ao
         {avancado && (
           <div class="pilha">
             <div class="grade-campos">
-              <Campo rotulo="Fornecedor" opcional>
-                {(id) => <input id={id} class="entrada" maxLength={160} value={fornNome} onInput={(e) => setFornNome(e.currentTarget.value)} />}
+              <Campo rotulo="Fornecedor" opcional ajuda="Busque no cadastro; só cadastre um novo se ele não aparecer.">
+                {(id, d) => <EscolherFornecedor id={id} descr={d} valor={forn} aoEscolher={setForn} />}
               </Campo>
-              <Campo rotulo="CNPJ ou CPF" opcional>
-                {(id) => <input id={id} class="entrada num" inputMode="numeric" maxLength={20} value={fornDoc} onInput={(e) => setFornDoc(e.currentTarget.value)} />}
-              </Campo>
+              {forn && 'novo' in forn && (
+                <Campo rotulo="CNPJ ou CPF do novo fornecedor" opcional ajuda="Com o documento, o sistema reconhece o mesmo fornecedor escrito de outro jeito.">
+                  {(id, d) => <input id={id} class="entrada num" inputMode="numeric" maxLength={20} aria-describedby={d} value={fornDoc} onInput={(e) => setFornDoc(e.currentTarget.value)} />}
+                </Campo>
+              )}
             </div>
             <div class="campo">
               <span class="campo__rotulo">Comprovante ou nota <em>(opcional)</em></span>

@@ -1,5 +1,6 @@
 // Banco: movimentações do extrato com a proposta do sistema (nível, candidatos e evidências). Uma decisão humana por
 // movimentação; nada é conciliado sozinho só por valor e data. Rotas /admin/financeiro/conciliacao/* e /contas-bancarias.
+// Fica na aba Conciliação (parte Banco); os repasses por meio estão na parte Stone e recebíveis.
 import { useState } from 'preact/hooks';
 import { Upload, CircleCheck, Landmark } from 'lucide-preact';
 import { useConsulta } from '../../lib/consulta';
@@ -96,41 +97,8 @@ export function Banco({ importacao, aoLimparImportacao, aoImportar, confirmar }:
         </Dados>
       </Cartao>
 
-      <Repasses de={de} ate={ate} />
       <Movimento id={aberto} aoFechar={() => setAberto(null)} confirmar={confirmar} />
     </>
   );
 }
 
-
-/** Vendido no PDV × liquidado no banco, por meio. A diferença é para conferir (taxa, prazo), nunca presumida. */
-function Repasses({ de, ate }: { de: string; ate: string }) {
-  const r = useConsulta(`financeiro/repasses:${de}:${ate}`, () => financeiro.repasses(de, ate));
-  const MEIO: Record<string, string> = { cartao: 'Cartão', pix: 'Pix', dinheiro: 'Dinheiro', outro: 'Outros' };
-  return (
-    <Cartao titulo="Repasses de cartão, Pix e dinheiro" descricao="Vendido no PDV × o que caiu no banco e foi vinculado" justo>
-      <Dados consulta={r} recurso="Os repasses" compacto esqueleto={<div class="cartao__corpo"><Esqueleto linhas={3} /></div>}>
-        {(x) => (
-          <>
-            <div class="tabela-rolagem">
-              <table class="tabela" aria-label="Repasses por meio">
-                <thead><tr><th>Meio</th><th class="num">Vendido</th><th class="num">Liquidado</th><th class="num">Diferença a conferir</th></tr></thead>
-                <tbody>
-                  {x.meios.map((m) => (
-                    <tr key={m.meio}>
-                      <td>{MEIO[m.meio] ?? m.meio}</td>
-                      <td class="num">{moeda(m.vendido)}</td>
-                      <td class="num">{moeda(m.liquidado_vinculado)}</td>
-                      <td class="num forte">{moeda(m.diferenca_a_conferir)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <p class="fraco" style={{ padding: '12px 20px' }}>{x.aviso}</p>
-          </>
-        )}
-      </Dados>
-    </Cartao>
-  );
-}
