@@ -64,7 +64,7 @@ export function Insumos({ perm, aoIr }: { perm: PermissoesEstoque; aoIr: (aba: A
             <option value="preparo">Só preparos</option>
           </select>
           <span style={{ flex: 1 }} />
-          <Botao icone={<ClipboardList aria-hidden="true" />} onClick={() => aoIr('contagem')}>Contagem</Botao>
+          <Botao icone={<ClipboardList aria-hidden="true" />} onClick={() => aoIr('contagem')}>Inventário</Botao>
           {perm.editar && <Botao icone={<Plus aria-hidden="true" />} onClick={() => setNovo(true)}>Novo insumo</Botao>}
         </div>
         <Dados consulta={lista} recurso="Os insumos" esqueleto={<EsqueletoTabela />}>
@@ -270,7 +270,7 @@ function EditarInsumo({ i, aoTerminar }: { i: InsumoDetalhe; aoTerminar: () => v
       <div class="grade-campos">
         <Campo rotulo="Nome" class="inteiro" erro={erro?.campos.nome}>{(id) => <input id={id} class="entrada" maxLength={120} value={f.nome} onInput={(e) => setF({ ...f, nome: e.currentTarget.value })} />}</Campo>
         <Campo rotulo="Categoria" opcional>{(id) => <input id={id} class="entrada" maxLength={60} value={f.categoria} onInput={(e) => setF({ ...f, categoria: e.currentTarget.value })} />}</Campo>
-        <Campo rotulo={`Estoque mínimo (${UNIDADE_CURTA[i.unidade_base]})`} opcional ajuda="Abaixo disso, o insumo aparece no Resumo.">{(id, d) => <input id={id} class="entrada num" inputMode="decimal" aria-describedby={d} value={f.minimo} onInput={(e) => setF({ ...f, minimo: e.currentTarget.value })} />}</Campo>
+        <Campo rotulo={`Estoque mínimo (${UNIDADE_CURTA[i.unidade_base]})`} opcional ajuda="Abaixo disso, o insumo aparece no filtro “Abaixo do mínimo”.">{(id, d) => <input id={id} class="entrada num" inputMode="decimal" aria-describedby={d} value={f.minimo} onInput={(e) => setF({ ...f, minimo: e.currentTarget.value })} />}</Campo>
         <Campo rotulo="Prazo de reposição (dias)" opcional ajuda="Quanto o fornecedor leva para entregar. Entra na sugestão de reposição.">{(id, d) => <input id={id} class="entrada num" type="number" min={0} max={90} aria-describedby={d} value={f.prazo} onInput={(e) => setF({ ...f, prazo: e.currentTarget.value })} />}</Campo>
         {i.tipo === 'preparo' && (
           <Campo rotulo="Controle do preparo" ajuda="Explodir: os ingredientes saem a cada venda. Lote: saem quando a produção é registrada.">

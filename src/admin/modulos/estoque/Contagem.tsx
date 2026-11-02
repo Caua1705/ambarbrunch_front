@@ -25,9 +25,15 @@ export function Contagem({ perm }: { perm: PermissoesEstoque }) {
   const [resultado, setResultado] = useState<FechamentoInventario | null>(null);
   const [ver, setVer] = useState<string | null>(null);
   const id = aberta.dados?.[0]?.id ?? null;
+  // Mesma consulta (mesmo cache) da contagem aberta: só para saber em que passo a equipe está.
+  const inv = useConsulta(id ? `estoque/inventarios/${id}` : null, () => estoque.inventario(id!));
+  const total = inv.dados?.itens.length ?? 0;
+  const contados = inv.dados?.itens.filter((i) => i.quantidade_contada !== null).length ?? 0;
+  const passo = resultado ? 4 : !id ? 1 : total > 0 && contados === total ? 3 : 2;
 
   return (
     <>
+      <Passos atual={passo} contados={id ? { contados, total } : null} />
       {resultado && <Resultado r={resultado} aoFechar={() => setResultado(null)} />}
       <Dados consulta={aberta} recurso="A contagem" esqueleto={<Esqueleto linhas={8} />}>
         {() => (id ? <ContagemAberta id={id} perm={perm} aoFechar={setResultado} /> : <NovaContagem perm={perm} aoAbrir={() => setResultado(null)} />)}
@@ -35,6 +41,32 @@ export function Contagem({ perm }: { perm: PermissoesEstoque }) {
       <Historico aoVer={setVer} />
       <DetalheContagem id={ver} aoFechar={() => setVer(null)} />
     </>
+  );
+}
+
+/**
+ * Os quatro passos da contagem, do jeito que o backend funciona: escolher o que contar (abre a contagem), informar as
+ * quantidades (pode retomar em qualquer aparelho), fechar (o ajuste é calculado no INSTANTE do fechamento) e ver as
+ * diferenças que o backend devolveu. Antes de fechar não existe diferença para revisar: o saldo ainda pode mudar.
+ */
+const PASSOS = ['Escolher o que contar', 'Informar as quantidades', 'Fechar e ajustar', 'Ver as diferenças'];
+function Passos({ atual, contados }: { atual: number; contados: { contados: number; total: number } | null }) {
+  return (
+    <ol class="guia-passos" aria-label="Passos da contagem">
+      {PASSOS.map((p, i) => {
+        const n = i + 1;
+        const estado = n < atual ? 'feito' : n === atual ? 'atual' : 'depois';
+        return (
+          <li key={p} class={`guia-passos__item guia-passos__item--${estado}`} aria-current={estado === 'atual' ? 'step' : undefined}>
+            <span class="guia-passos__num" aria-hidden="true">{estado === 'feito' ? <Check /> : n}</span>
+            <span class="guia-passos__texto">
+              {p}
+              {n === 2 && contados && atual === 2 && <small>{contados.contados} de {contados.total}</small>}
+            </span>
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 

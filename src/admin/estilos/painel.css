@@ -2979,3 +2979,89 @@ button.lista__item {
 .pilha > .segmentado {
   align-self: flex-start;
 }
+
+/* Estoque: linha de situação das compras e passos do inventário ------------------------------------------------- */
+.estoque-status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--e-2) var(--e-4);
+  margin: calc(var(--e-2) * -1) 0 0;
+  font-size: var(--t-s);
+  color: var(--texto-3);
+}
+.estoque-status__baixa {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  cursor: help;
+}
+.estoque-status__baixa svg {
+  width: 14px;
+  height: 14px;
+}
+.estoque-status__baixa strong {
+  color: var(--texto-2);
+}
+.guia-passos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--e-2);
+}
+.guia-passos__item {
+  display: flex;
+  align-items: center;
+  gap: var(--e-2);
+  padding: var(--e-2) var(--e-3);
+  border-radius: var(--r-m);
+  border: 1px solid var(--borda);
+  background: var(--superficie);
+  font-size: var(--t-s);
+  color: var(--texto-3);
+}
+.guia-passos__num {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--afundado);
+  font-weight: 700;
+  font-size: var(--t-xs);
+}
+.guia-passos__num svg {
+  width: 14px;
+  height: 14px;
+}
+.guia-passos__texto {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+.guia-passos__texto small {
+  font-size: var(--t-xs);
+  color: var(--texto-3);
+}
+.guia-passos__item--atual {
+  border-color: var(--marca);
+  color: var(--texto);
+  font-weight: 600;
+}
+.guia-passos__item--atual .guia-passos__num {
+  background: var(--marca);
+  color: var(--marca-contraste);
+}
+.guia-passos__item--feito .guia-passos__num {
+  background: var(--ok-suave);
+  color: var(--ok);
+}
+@media (max-width: 720px) {
+  .guia-passos {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

@@ -1,10 +1,13 @@
-// Compras: tudo o que chega (nota pela Júlia, foto/PDF/XML pelo painel, pagamento de insumos, compra de feira) cai na
-// MESMA lista e passa pela MESMA conferência. Pendências primeiro. Lista e conferência: estoque.conferir.
+// Compras: a tela inicial do Estoque. Tudo o que chega (nota pela Júlia, foto/PDF/XML pelo painel, pagamento de insumos,
+// compra de feira) cai na MESMA lista e passa pela MESMA conferência (B1/B2/B3 no backend; o bloqueio aparece com o
+// motivo na conferência). Pendências primeiro; uma linha discreta diz o que mais pede atenção (GET /estoque/resumo) e se a
+// baixa automática está ligada — hoje desligada, e o painel nunca a mostra como ativa. Lista e conferência:
+// estoque.conferir.
 import { useMemo, useState } from 'preact/hooks';
-import { PencilLine, PackageCheck } from 'lucide-preact';
+import { PencilLine, PackageCheck, Upload, Info } from 'lucide-preact';
 import { useConsulta } from '../../lib/consulta';
 import { estoque } from '../../lib/api/estoque';
-import { moeda, dataCurta, plural } from '../../lib/formato';
+import { moeda, dataCurta, plural, relativo } from '../../lib/formato';
 import { Botao, Cartao, Segmentado } from '../../ui/base';
 import { Dados, EsqueletoTabela, Vazio } from '../../ui/estados';
 import { Tabela, type Coluna } from '../../ui/tabela';
@@ -13,12 +16,13 @@ import { SituacaoCompra, OrigemCompra, LENDO, type PermissoesEstoque } from './c
 import { Conferencia } from './Conferencia';
 import { EnviarNota, CompraManual } from './EntradaCompra';
 
-type Filtro = 'conferir' | 'todas' | 'confirmadas' | 'problemas';
+type Filtro = 'conferir' | 'problemas' | 'confirmadas' | 'todas';
 
-export function Compras({ perm, unidade, aberta, aoAbrir, enviar, aoFecharEnvio }: { perm: PermissoesEstoque; unidade: string | null; aberta: string | null; aoAbrir: (id: string | null) => void; enviar: boolean; aoFecharEnvio: () => void }) {
+export function Compras({ perm, unidade, aberta, aoAbrir, aoIrCancelamentos }: { perm: PermissoesEstoque; unidade: string | null; aberta: string | null; aoAbrir: (id: string | null) => void; aoIrCancelamentos: () => void }) {
   const [filtro, setFiltro] = useState<Filtro>('conferir');
   const [manual, setManual] = useState(false);
-  const [enviarLocal, setEnviarLocal] = useState(false);
+  const [enviar, setEnviar] = useState(false);
+  const resumo = useConsulta('estoque/resumo', () => estoque.resumo());
   const lista = useConsulta(perm.conferir ? 'estoque/compras?todas' : null, () => estoque.compras({ limite: 200 }));
   const todas = lista.dados?.itens ?? [];
   const lendo = todas.some((c) => LENDO.includes(c.etapa));
@@ -26,10 +30,12 @@ export function Compras({ perm, unidade, aberta, aoAbrir, enviar, aoFecharEnvio 
   useConsulta(lendo ? 'estoque/compras?todas' : null, () => estoque.compras({ limite: 200 }), { intervalo: 3000 });
 
   const conferir = todas.filter((c) => c.etapa === 'aguardando_conferencia' || LENDO.includes(c.etapa));
+  const problemas = todas.filter((c) => c.etapa === 'falhou' || (c.etapa === 'aguardando_conferencia' && c.sem_itens)).length;
   const filtradas = useMemo(() => {
     if (filtro === 'conferir') return conferir;
     if (filtro === 'confirmadas') return todas.filter((c) => c.etapa === 'confirmada');
-    if (filtro === 'problemas') return todas.filter((c) => c.etapa === 'falhou' || c.etapa === 'cancelada');
+    // Com problema: a leitura falhou ou chegou só o pagamento, sem os produtos (não entra no estoque assim).
+    if (filtro === 'problemas') return todas.filter((c) => c.etapa === 'falhou' || (c.etapa === 'aguardando_conferencia' && c.sem_itens));
     return todas;
   }, [todas, filtro]);
 
@@ -45,22 +51,36 @@ export function Compras({ perm, unidade, aberta, aoAbrir, enviar, aoFecharEnvio 
 
   return (
     <>
-      <div class="linha linha--entre">
+      <div class="barra-ferramentas">
         <Segmentado
           rotulo="Quais compras"
           valor={filtro}
           aoMudar={setFiltro}
           opcoes={[
-            { valor: 'conferir', rotulo: `Para conferir${conferir.length ? ` (${conferir.length})` : ''}` },
+            { valor: 'conferir', rotulo: <>Para conferir{conferir.length ? <span class="contador">{conferir.length}</span> : null}</> },
+            { valor: 'problemas', rotulo: `Com problema${problemas ? ` (${problemas})` : ''}` },
+            { valor: 'confirmadas', rotulo: 'Conferidas' },
             { valor: 'todas', rotulo: 'Todas' },
-            { valor: 'confirmadas', rotulo: 'Confirmadas' },
-            { valor: 'problemas', rotulo: 'Com problema' },
           ]}
         />
-        <div class="linha">
-          {perm.conferir && <Botao icone={<PencilLine aria-hidden="true" />} onClick={() => setManual(true)}>Compra sem nota</Botao>}
-        </div>
+        {perm.conferir && (
+          <div class="barra-ferramentas__acoes">
+            <Botao icone={<PencilLine aria-hidden="true" />} onClick={() => setManual(true)}>Compra sem nota</Botao>
+            <Botao variante="primario" icone={<Upload aria-hidden="true" />} onClick={() => setEnviar(true)}>Enviar nota</Botao>
+          </div>
+        )}
       </div>
+      {resumo.dados && (
+        <p class="estoque-status">
+          {resumo.dados.compras_em_conferencia.mais_antiga_em && <span>A compra mais antiga para conferir chegou {relativo(resumo.dados.compras_em_conferencia.mais_antiga_em)}.</span>}
+          {resumo.dados.cancelamentos_pendentes > 0 && (
+            <button type="button" class="link" onClick={aoIrCancelamentos}>{plural(resumo.dados.cancelamentos_pendentes, 'venda cancelada a responder', 'vendas canceladas a responder')}</button>
+          )}
+          <span class="estoque-status__baixa" title="Os saldos somam compras e contagens, mas não descontam as vendas. Ela só é ligada depois do inventário inicial, das fichas cobrindo a receita e da autorização da gestão.">
+            <Info aria-hidden="true" /> Baixa automática pelas vendas: <strong>{resumo.dados.baixa_automatica ? 'ligada' : 'desligada'}</strong>
+          </span>
+        </p>
+      )}
       {!perm.conferir ? (
         <Vazio titulo="Compras são de quem confere">Seu perfil não confere compras recebidas.</Vazio>
       ) : (
@@ -91,7 +111,7 @@ export function Compras({ perm, unidade, aberta, aoAbrir, enviar, aoFecharEnvio 
       </Cartao>
       )}
       <Conferencia id={aberta} perm={perm} aoFechar={() => aoAbrir(null)} aoAbrir={aoAbrir} />
-      <EnviarNota unidade={unidade} aberta={(enviar || enviarLocal) && perm.conferir} aoFechar={() => { setEnviarLocal(false); aoFecharEnvio(); }} aoEnviar={(id) => { setEnviarLocal(false); aoFecharEnvio(); aoAbrir(id); }} />
+      <EnviarNota unidade={unidade} aberta={enviar && perm.conferir} aoFechar={() => setEnviar(false)} aoEnviar={(id) => { setEnviar(false); aoAbrir(id); }} />
       <CompraManual aberta={manual} aoFechar={() => setManual(false)} aoCriar={(id) => { setManual(false); aoAbrir(id); }} />
     </>
   );
