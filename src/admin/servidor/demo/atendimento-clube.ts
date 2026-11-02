@@ -1,70 +1,205 @@
-// DEMONSTRAÇÃO — conversas do WhatsApp e Clube Âmbar fictícios. O Clube aparece como no backend antes do lançamento:
-// inscrições fechadas e programa de pontos desligado (nada de pontos inventados).
+// DEMONSTRAÇÃO — conversas do WhatsApp e Clube Âmbar fictícios (nomes, telefones, mensagens, mídias, campanhas e cadastros
+// inventados; nada sai para a Meta). O Atendimento imita as regras de app/modulos/atendimento do backend: os quatro estados,
+// assumir/transferir, responder só na janela de 24 h, assistente ligado/desligado por conversa, nova conversa com template,
+// campanhas com bloqueios (teste, marketing sem autorização, pediu para parar), base de conhecimento e cadastros duplicados
+// ligados sem fundir. O Clube aparece como no backend antes do lançamento: inscrições fechadas e programa de pontos desligado.
+import { deflateSync, crc32 } from 'node:zlib';
 import type { Rota } from './roteador';
 import { TODOS, GERENCIA, ADMIN, ErroDemo, agoraMenos, uuid, paginar, exigirMotivo, hojeFortaleza, instante } from './roteador';
-import type { ConversaDetalhe, MensagemPainel, MembroLista, MembroFicha, VendaClube, ConviteClube } from '../../lib/tipos/atendimento-clube';
+import type {
+  AutorMensagem, ConversaDetalhe, MensagemPainel, EstadoConversa, CadastroContato, ReservaContato, FichaContato, TemplateWhatsapp,
+  Campanha, CampanhaDetalhe, DestinatarioCampanha, ItemConhecimento, GrupoDuplicidade, MembroLista, MembroFicha, VendaClube, ConviteClube,
+} from '../../lib/tipos/atendimento-clube';
 import { usuarioDemo } from './sessao';
+import { NOMES_DEMO, telefoneDemo, reservasDosClientes } from './reservas';
 import type { Papel } from '../../lib/sessao';
 
 // Atendimento -----------------------------------------------------------------------------------------------------------
-let seqMsg = 1000;
-function msg(direcao: 'entrada' | 'saida', autor: string, texto: string, minutos: number, extra: Partial<MensagemPainel> = {}): MensagemPainel {
-  return { id: seqMsg++, direcao, autor, usuario_nome: null, tipo: 'texto', texto, transcricao: null, status: direcao === 'entrada' ? 'recebida' : 'lida', erro: null, intencao: null, criado_em: agoraMenos(minutos), enviada_em: direcao === 'saida' ? agoraMenos(minutos) : null, ...extra };
-}
+const JANELA_MS = 24 * 3600_000;
+const CONFIGURACAO = { assistente_ativo: true, envio_configurado: true, followup_ativo: true };
+/** Números de teste do servidor fictício (campanha de teste só sai para eles). */
+const NUMEROS_TESTE = ['+5585991230001', '+5585991230003'];
+/** Na demonstração, número terminado em 9999 "não tem WhatsApp": o envio volta com falha (para ver o erro na tela). */
+const falhaDemo = (tel: string) => tel.endsWith('9999');
+const ERRO_DEMO = 'Número sem WhatsApp ativo (131026) — demonstração';
 
-const conversas: ConversaDetalhe[] = [
-  conversa('Renata Holanda', '+5585991230001', 'humano', true, 'atendimento_humano', [
-    msg('entrada', 'cliente', 'Oi! Vocês fazem bolo de aniversário por encomenda?', 42),
-    msg('saida', 'robo', 'Olá, Renata! Encomendas são combinadas direto com a nossa equipe. Já avisei o pessoal e alguém responde por aqui em instantes.', 41),
-    msg('entrada', 'cliente', 'Seria para sábado, umas 15 pessoas 🎂', 38),
-  ]),
-  conversa('Marcos Sales', '+5585991230002', 'robo', false, null, [
-    msg('entrada', 'cliente', 'Bom dia, até que horas abre hoje?', 25),
-    msg('saida', 'robo', 'Bom dia, Marcos! Hoje estamos abertos das 8h às 14h. Quer reservar uma mesa? É só usar o link: ambarbrunch.com/reservar', 24),
-    msg('entrada', 'cliente', 'Perfeito, obrigado', 20),
-    msg('saida', 'robo', 'Por nada! Até já ☕', 20),
-  ]),
-  conversa('Paula Ximenes', '+5585991230003', 'humano', false, 'encomenda', [
-    msg('entrada', 'cliente', 'Queria saber se tem opção sem glúten', 180, { tipo: 'audio', texto: null, transcricao: 'Oi, tudo bem? Queria saber se vocês têm opção sem glúten no brunch.' }),
-    msg('saida', 'robo', 'Temos algumas opções, mas para restrições alimentares a equipe confirma com a cozinha. Vou chamar alguém.', 179),
-    msg('saida', 'equipe', 'Oi Paula! Temos o bowl de frutas e a tapioca, preparados separados. Quer que eu reserve uma mesa?', 170, { usuario_nome: 'Gabriela Gerente (demo)' }),
-    msg('entrada', 'cliente', 'Ótimo, vou reservar pelo site', 160),
-  ], 'gerente'),
-  conversa(null, '+5585991230004', 'robo', false, null, [
-    msg('entrada', 'cliente', 'Vcs aceitam pet no jardim?', 300),
-    msg('saida', 'robo', 'Aceitamos pets no Jardim, sim! 🐶', 299, { status: 'falhou', erro: 'Número sem WhatsApp ativo (131026)' }),
-  ]),
-  conversa('Tiago Moura', '+5585991230005', 'encerrada', false, null, [
-    msg('entrada', 'cliente', 'Consigo mudar minha reserva de amanhã?', 1500),
-    msg('saida', 'equipe', 'Consegue sim! Passei para as 10h30.', 1490, { usuario_nome: 'Otávio Operação (demo)' }),
-    msg('entrada', 'cliente', 'Valeu!', 1485),
-  ], 'operador'),
+const TEMPLATES: TemplateWhatsapp[] = [
+  { nome: 'boas_vindas_ambar', idioma: 'pt_BR', categoria: 'utilidade', parametros: ['Nome'], texto: 'Olá, {{1}}! Aqui é o Âmbar Café. Podemos ajudar com a sua reserva ou com alguma dúvida?' },
+  { nome: 'novidades_brunch', idioma: 'pt_BR', categoria: 'marketing', parametros: ['Nome', 'Novidade'], texto: 'Oi, {{1}}! Novidade no Âmbar: {{2}}. Para não receber mais, responda PARAR.' },
 ];
+const previa = (t: TemplateWhatsapp, p: string[]) => t.texto.replace(/\{\{(\d+)\}\}/g, (x, n: string) => p[Number(n) - 1] ?? x);
 
-function conversa(nome: string | null, tel: string, modo: ConversaDetalhe['modo'], aguardando: boolean, motivo: string | null, mensagens: MensagemPainel[], atendente?: Papel): ConversaDetalhe {
-  const ultima = mensagens[mensagens.length - 1];
-  const ultEntrada = [...mensagens].reverse().find((m) => m.direcao === 'entrada');
-  const u = atendente ? usuarioDemo(atendente) : null;
+let seqMsg = 1000;
+function msg(direcao: 'entrada' | 'saida', autor: AutorMensagem, texto: string | null, minutos: number, extra: Partial<MensagemPainel> = {}): MensagemPainel {
+  const quando = agoraMenos(minutos);
+  const saida = direcao === 'saida';
   return {
-    id: uuid(), telefone_e164: tel, nome_contato: nome, modo, atendente_id: u?.id ?? null, atendente_nome: u?.nome ?? null, motivo_humano: motivo,
-    ultima_entrada_em: ultEntrada?.criado_em ?? null, ultima_atividade_em: ultima.criado_em, ultima_mensagem: ultima.texto ?? ultima.transcricao,
-    aguardando_equipe: aguardando, inativa: false,
-    dentro_da_janela: !!ultEntrada && Date.now() - new Date(ultEntrada.criado_em).getTime() < 24 * 3600_000,
-    mensagens,
+    id: seqMsg++, direcao, autor, usuario_nome: null, tipo: 'texto', texto, transcricao: null, tem_midia: false, midia_mime: null, midia_nome: null,
+    template_nome: null, campanha_id: null, followup: false, responde_a: null, status: saida ? 'lida' : 'recebida', erro: null, intencao: null,
+    criado_em: quando, enviada_em: saida ? quando : null, entregue_em: saida ? quando : null, lida_em: saida ? quando : null, ...extra,
   };
 }
 
-const resumoConversa = ({ mensagens, ...c }: ConversaDetalhe) => {
-  void mensagens;
+// Cadastros fictícios (o "cadastro único" do backend): só para a ficha do contato, a busca da nova conversa e as duplicidades.
+interface CadastroDemo extends Omit<CadastroContato, 'principal_id' | 'reservas'> {
+  telefone_e164: string | null;
+  /** Posição em NOMES_DEMO: liga às reservas fictícias do módulo Reservas. */
+  reservasDe?: number;
+  consentimentos?: FichaContato['consentimentos'];
+}
+const cad = (i: number, nome: string, tel: string | null, email: string | null, extra: Partial<CadastroDemo> = {}): CadastroDemo => ({
+  id: `c1000000-0000-4000-8000-${String(i).padStart(12, '0')}`, nome, email, origem: 'site', origem_detalhe: null, legado: null, giardini: false,
+  telefone_verificado: false, criado_em: agoraMenos(60 * 24 * (90 - i * 7)), telefone_e164: tel, ...extra,
+});
+const CADASTROS: CadastroDemo[] = [
+  cad(1, NOMES_DEMO[0], telefoneDemo(0), 'mariana@exemplo.invalid', { reservasDe: 0, telefone_verificado: true, consentimentos: { privacidade_reserva: { situacao: 'concedido', canal: 'site', em: agoraMenos(60 * 24 * 40) }, marketing_whatsapp: { situacao: 'concedido', canal: 'site', em: agoraMenos(60 * 24 * 40) } } }),
+  cad(2, 'Renata Holanda', '+5585991230001', 'renata.h@exemplo.invalid', { origem: 'importacao', legado: 'giardini_2024', giardini: true, consentimentos: { whatsapp_operacional: { situacao: 'concedido', canal: 'importacao', em: agoraMenos(60 * 24 * 300) } } }),
+  cad(3, 'Paula Ximenes', '+5585991230003', null, { origem: 'whatsapp' }),
+  cad(4, 'Carlos Teixeira', '+5585991230007', 'carlos.t@exemplo.invalid', { origem: 'balcao' }),
+  cad(5, 'Carla Teixeira', '+5585991230007', null, { origem: 'site' }),
+  cad(6, NOMES_DEMO[1], telefoneDemo(1), null, { reservasDe: 1 }),
+  cad(7, NOMES_DEMO[2], telefoneDemo(2), 'camila.f@exemplo.invalid', { reservasDe: 2, origem: 'instagram' }),
+  cad(8, 'Helena Cordeiro', '+5585998811111', 'helena.c@exemplo.invalid', { origem: 'site' }),
+  cad(9, 'Helena  Cordeiro', '+5585998822222', 'Helena.C@exemplo.invalid', { origem: 'importacao', legado: 'giardini_2023', giardini: true }),
+];
+/** Vínculos cadastro → principal (como clientes_vinculos: nada é apagado nem fundido). */
+const vinculos = new Map<string, string>();
+const principalDe = (id: string) => vinculos.get(id) ?? id;
+const ativosDoTelefone = (tel: string) => CADASTROS.filter((c) => c.telefone_e164 === tel);
+/** Como contatos.identificar: telefone verificado único, ou um único principal entre os cadastros do número. */
+function identificar(tel: string): string | null {
+  const cs = ativosDoTelefone(tel);
+  const verificados = cs.filter((c) => c.telefone_verificado);
+  if (verificados.length === 1) return verificados[0].id;
+  if (verificados.length > 1) return null;
+  const principais = new Set(cs.map((c) => principalDe(c.id)));
+  return principais.size === 1 ? [...principais][0] : null;
+}
+const reservasDoCadastro = (c: CadastroDemo) => (c.reservasDe !== undefined ? reservasDosClientes().get(c.reservasDe) ?? [] : []);
+const mascarar = (e: string | null) => (e && e.includes('@') ? `${e.split('@')[0].slice(0, 2)}•••@${e.split('@')[1]}` : null);
+function cadastroSaida(c: CadastroDemo, papel: Papel): CadastroContato {
+  const { telefone_e164, reservasDe, consentimentos, ...resto } = c;
+  void telefone_e164; void reservasDe; void consentimentos;
+  const principal = principalDe(c.id);
+  return { ...resto, email: papel === 'operador' ? mascarar(c.email) : c.email, reservas: reservasDoCadastro(c).length, principal_id: principal !== c.id ? principal : null };
+}
+
+interface ConversaDemo extends ConversaDetalhe {
+  followup_motivo: string | null;
+}
+const conversas: ConversaDemo[] = [];
+
+function estadoDe(c: Pick<ConversaDetalhe, 'modo' | 'atendente_id'>): EstadoConversa {
+  if (c.modo === 'robo') return 'automatico';
+  if (c.modo === 'encerrada') return 'encerrada';
+  return c.atendente_id ? 'em_atendimento' : 'esperando';
+}
+/** Recalcula o que o backend deriva da conversa (estado, última mensagem, não respondidas, janela, cadastro). */
+function atualizar(c: ConversaDemo): ConversaDemo {
+  const visiveis = c.mensagens.filter((m) => m.status !== 'descartada');
+  const ultima = visiveis[visiveis.length - 1];
+  const entradas = c.mensagens.filter((m) => m.direcao === 'entrada');
+  const ultEntrada = entradas[entradas.length - 1];
+  const ultResposta = [...c.mensagens].reverse().find((m) => m.direcao === 'saida' && (m.autor === 'robo' || m.autor === 'equipe') && ['enviada', 'entregue', 'lida'].includes(m.status));
+  c.estado = estadoDe(c);
+  c.assistente_ligado = c.modo === 'robo';
+  c.ultima_entrada_em = ultEntrada?.criado_em ?? null;
+  if (ultima) {
+    c.ultima_atividade_em = ultima.criado_em;
+    c.ultima_mensagem = (ultima.texto ?? ultima.transcricao ?? `[${ultima.tipo}]`).slice(0, 160);
+    c.ultima_origem = ultima.autor;
+  }
+  c.nao_respondidas = entradas.filter((m) => !ultResposta || m.id > ultResposta.id).length;
+  c.aguardando_equipe = c.modo === 'humano' && ultima?.direcao === 'entrada';
+  c.dentro_da_janela = !!ultEntrada && Date.now() - new Date(ultEntrada.criado_em).getTime() < JANELA_MS;
+  c.cliente_id = identificar(c.telefone_e164);
   return c;
-};
+}
+function novaConversaDemo(tel: string, nome: string | null, modo: ConversaDetalhe['modo'], mensagens: MensagemPainel[] = [], extra: Partial<ConversaDemo> = {}): ConversaDemo {
+  const c: ConversaDemo = {
+    id: uuid(), telefone_e164: tel, nome_contato: nome, cliente_id: null, modo, estado: 'automatico', assistente_ligado: modo === 'robo', atendente_id: null, atendente_nome: null,
+    motivo_humano: null, ultima_entrada_em: null, ultima_atividade_em: new Date().toISOString(), ultima_mensagem: null, ultima_origem: null, nao_respondidas: 0,
+    aguardando_equipe: false, inativa: false, dentro_da_janela: false, followup_desligado: false, followup_motivo: null, mensagens, externas: [], ...extra,
+  };
+  conversas.push(c);
+  return atualizar(c);
+}
+function comAtendente(papel: Papel) {
+  const u = usuarioDemo(papel);
+  return { atendente_id: u.id, atendente_nome: u.nome };
+}
+
+// Uma campanha de teste já concluída (para a gaveta Campanhas e o balão "Campanha" na conversa).
+const CAMPANHA_TESTE_ID = 1;
+const msgCampanha = (tel: string, minutos: number) => msg('saida', 'campanha', previa(TEMPLATES[0], [tel.endsWith('0001') ? 'Renata' : 'Paula']), minutos, { tipo: 'template', template_nome: TEMPLATES[0].nome, campanha_id: CAMPANHA_TESTE_ID });
+
+novaConversaDemo('+5585991230001', 'Renata Holanda', 'humano', [
+  msgCampanha('+5585991230001', 60 * 30),
+  msg('entrada', 'cliente', 'Oi! Vocês fazem bolo de aniversário por encomenda?', 42),
+  msg('saida', 'robo', 'Olá, Renata! Encomendas são combinadas direto com a nossa equipe. Já avisei o pessoal e alguém responde por aqui em instantes.', 41),
+  msg('entrada', 'cliente', 'Seria para sábado, umas 15 pessoas 🎂', 38),
+  msg('entrada', 'cliente', null, 37, { tipo: 'imagem', tem_midia: true, midia_mime: 'image/png', midia_nome: 'referencia-bolo.png' }),
+  msg('entrada', 'cliente', 'A lista de convidados está aqui', 36),
+  msg('entrada', 'cliente', null, 36, { tipo: 'documento', tem_midia: true, midia_mime: 'text/plain', midia_nome: 'lista-de-convidados.txt' }),
+], { motivo_humano: 'encomenda' });
+novaConversaDemo('+5585991230002', 'Marcos Sales', 'robo', [
+  msg('entrada', 'cliente', 'Bom dia, até que horas abre hoje?', 25),
+  msg('saida', 'robo', 'Bom dia, Marcos! Hoje estamos abertos das 8h às 14h. Quer reservar uma mesa? É só usar o link: ambarbrunch.com/reservar', 24),
+  msg('entrada', 'cliente', 'Perfeito, obrigado', 20),
+  msg('saida', 'robo', 'Por nada! Até já ☕', 20),
+], { externas: [{ chave: 'reserva:9001', origem: 'reserva', tipo: 'template', rotulo: 'Confirmação da reserva AMB-DEMO1', texto: null, status: 'lida', erro: null, criado_em: agoraMenos(60 * 26) }] });
+novaConversaDemo('+5585991230003', 'Paula Ximenes', 'humano', [
+  msgCampanha('+5585991230003', 60 * 30),
+  msg('entrada', 'cliente', null, 180, { tipo: 'audio', tem_midia: true, midia_mime: 'audio/wav', transcricao: 'Oi, tudo bem? Queria saber se vocês têm opção sem glúten no brunch.' }),
+  msg('saida', 'robo', 'Temos algumas opções, mas para restrições alimentares a equipe confirma com a cozinha. Vou chamar alguém.', 179),
+  msg('saida', 'equipe', 'Oi Paula! Temos o bowl de frutas e a tapioca, preparados separados. Quer que eu reserve uma mesa?', 170, { usuario_nome: 'Gabriela Gerente (demo)' }),
+  msg('entrada', 'cliente', 'Ótimo, vou reservar pelo site', 160),
+], { ...comAtendente('gerente'), motivo_humano: 'atendimento_humano' });
+novaConversaDemo('+5585991230004', null, 'robo', [
+  msg('entrada', 'cliente', 'Vcs aceitam pet no jardim?', 300),
+  msg('saida', 'robo', 'Aceitamos pets no Jardim, sim! 🐶', 299, { status: 'falhou', erro: 'Número sem WhatsApp ativo (131026)', entregue_em: null, lida_em: null }),
+]);
+novaConversaDemo('+5585991230005', 'Tiago Moura', 'encerrada', [
+  msg('entrada', 'cliente', 'Consigo mudar minha reserva de amanhã?', 1500),
+  msg('saida', 'equipe', 'Consegue sim! Passei para as 10h30.', 1490, { usuario_nome: 'Otávio Operação (demo)' }),
+  msg('entrada', 'cliente', 'Valeu!', 1485),
+]);
+novaConversaDemo(telefoneDemo(0), NOMES_DEMO[0], 'robo', [
+  msg('entrada', 'cliente', 'Oi! Queria confirmar minha reserva de amanhã', 60 * 20),
+  msg('saida', 'robo', 'Oi, Mariana! Sua reserva está confirmada. Até amanhã! ☕', 60 * 20 - 1),
+  msg('saida', 'automacao', 'Oi, Mariana! Ficou alguma dúvida sobre a sua visita? É só responder por aqui.', 60 * 4, { followup: true }),
+  msg('entrada', 'cliente', 'Tudo certo, obrigada!', 60 * 3),
+  msg('saida', 'robo', 'Que bom! Até amanhã 😊', 60 * 3 - 1),
+], {
+  externas: [
+    { chave: 'reserva:9002', origem: 'reserva', tipo: 'template', rotulo: 'Confirmação da reserva AMB-DEMO2', texto: null, status: 'entregue', erro: null, criado_em: agoraMenos(60 * 22) },
+    { chave: 'evento:9003', origem: 'automacao', tipo: 'texto', rotulo: 'Resposta automática', texto: 'Presença confirmada! Obrigado por avisar 💛', status: 'enviada', erro: null, criado_em: agoraMenos(60 * 19) },
+  ],
+});
+novaConversaDemo('+5585991230007', 'Teixeira', 'humano', [
+  msg('entrada', 'cliente', 'Quero reclamar do atendimento de domingo', 12),
+  msg('saida', 'robo', 'Sinto muito pelo ocorrido. Vou passar agora para a nossa equipe, que responde por aqui.', 11),
+  // documento HTML: a ponte do painel nunca deixa abrir como página (desce como download)
+  msg('entrada', 'cliente', null, 10, { tipo: 'documento', tem_midia: true, midia_mime: 'text/html', midia_nome: 'comprovante.html' }),
+], { motivo_humano: 'reclamacao' });
+
 const achar = (id: string) => {
   const c = conversas.find((x) => x.id === id);
   if (!c) throw new ErroDemo(404, 'nao_encontrado', 'Conversa não encontrada.');
   return c;
 };
+const detalhe = (c: ConversaDemo): ConversaDetalhe => {
+  const { followup_motivo, ...d } = atualizar(c);
+  void followup_motivo;
+  return d;
+};
+const resumoConversa = (c: ConversaDemo) => {
+  const { mensagens, externas, ...r } = detalhe(c);
+  void mensagens; void externas;
+  return r;
+};
 /** Regra de servico._assumir do backend: com outra pessoa atendendo, só com `transferir` (senão 409). */
-function assumirDemo(c: ConversaDetalhe, papel: Papel, transferir: boolean) {
+function assumirDemo(c: ConversaDemo, papel: Papel, transferir: boolean) {
   const u = usuarioDemo(papel);
   if (c.modo === 'humano' && c.atendente_id === u.id) return;
   if (c.modo === 'humano' && c.atendente_id && !transferir) throw new ErroDemo(409, 'conversa_ja_assumida', 'Outra pessoa da equipe já está atendendo esta conversa.');
@@ -72,13 +207,383 @@ function assumirDemo(c: ConversaDetalhe, papel: Papel, transferir: boolean) {
   // como o backend: o que o robô ia mandar fica descartado
   for (const m of c.mensagens) if (m.autor === 'robo' && m.status === 'pendente') Object.assign(m, { status: 'descartada', erro: 'atendimento_humano' });
 }
-function atualizar(c: ConversaDetalhe) {
-  const ultima = c.mensagens[c.mensagens.length - 1];
-  c.ultima_atividade_em = ultima.criado_em;
-  c.ultima_mensagem = (ultima.texto ?? ultima.transcricao ?? `[${ultima.tipo}]`).slice(0, 160);
-  c.aguardando_equipe = c.modo === 'humano' && ultima.direcao === 'entrada';
-  return c;
+/** Telefone como o backend normaliza (E.164 do Brasil); inválido = 422 telefone_invalido. */
+function normalizar(texto: string): string {
+  let d = texto.replace(/\D/g, '');
+  if (d.length === 12 || d.length === 13) d = d.startsWith('55') ? d.slice(2) : d;
+  if (d.length !== 10 && d.length !== 11) throw new ErroDemo(422, 'telefone_invalido', 'Telefone inválido: informe DDD e número (10 ou 11 dígitos).', { campo: 'telefone' });
+  return `+55${d}`;
 }
+function acharTemplate(nome: string) {
+  const t = TEMPLATES.find((x) => x.nome === nome);
+  if (!t) throw new ErroDemo(422, 'template_indisponivel', 'Template não está entre os aprovados configurados.');
+  return t;
+}
+function conferirParametros(t: TemplateWhatsapp, p: unknown): string[] {
+  const limpos = (Array.isArray(p) ? p : []).map((x) => String(x).trim().slice(0, 200));
+  if (limpos.length !== t.parametros.length || limpos.some((x) => !x)) throw new ErroDemo(422, 'parametros_do_template', `O template ${t.nome} pede ${t.parametros.length} parâmetro(s): ${t.parametros.join(', ') || 'nenhum'}.`);
+  return limpos;
+}
+/** Envio fictício: nada sai; a mensagem só muda de status (falha para os números terminados em 9999). */
+function enviarDemo(c: ConversaDemo, m: MensagemPainel) {
+  if (falhaDemo(c.telefone_e164)) Object.assign(m, { status: 'falhou', erro: ERRO_DEMO, enviada_em: null, entregue_em: null, lida_em: null });
+  else Object.assign(m, { status: 'enviada', enviada_em: m.criado_em, entregue_em: null, lida_em: null });
+  c.mensagens.push(m);
+}
+
+function fichaContato(c: ConversaDemo, papel: Papel): FichaContato {
+  atualizar(c);
+  const cadastros = ativosDoTelefone(c.telefone_e164);
+  const hoje = hojeFortaleza();
+  const reservas: ReservaContato[] = cadastros.flatMap(reservasDoCadastro).map((r) => ({ id: r.id, codigo: r.codigo, data: r.data, hora: r.hora.slice(0, 5), pessoas: r.pessoas, ambiente: r.ambiente, status: r.status, giardini: false }));
+  const consentimentos = Object.assign({}, ...cadastros.map((x) => x.consentimentos ?? {})) as FichaContato['consentimentos'];
+  return {
+    conversa_id: c.id, telefone_e164: c.telefone_e164, nome_whatsapp: c.nome_contato, cliente_id: c.cliente_id,
+    situacao_cadastro: c.cliente_id ? 'vinculado' : cadastros.length ? 'ambiguo' : 'sem_cadastro',
+    cadastros: cadastros.map((x) => cadastroSaida(x, papel)),
+    cadastros_distintos: new Set(cadastros.map((x) => principalDe(x.id))).size,
+    giardini: cadastros.some((x) => x.giardini),
+    reservas_futuras: reservas.filter((r) => r.data >= hoje).sort((a, b) => (a.data + a.hora).localeCompare(b.data + b.hora)).slice(0, 10),
+    reservas_passadas: reservas.filter((r) => r.data < hoje).sort((a, b) => (b.data + b.hora).localeCompare(a.data + a.hora)).slice(0, 10),
+    reservas_total: reservas.length,
+    consentimentos,
+    primeira_mensagem_em: c.mensagens[0]?.criado_em ?? null,
+    mensagens_recebidas: c.mensagens.filter((m) => m.direcao === 'entrada').length,
+    mensagens_enviadas: c.mensagens.filter((m) => m.direcao === 'saida').length,
+    followup_desligado: c.followup_desligado,
+    followup_motivo: c.followup_motivo,
+  };
+}
+
+/** Corpo binário da resposta (ArrayBuffer próprio, sem o resto do pool do Buffer). */
+const corpoBinario = (b: Buffer): ArrayBuffer => b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer;
+
+// Mídia fictícia: uma imagem PNG (degradê nas cores da marca), um áudio WAV curto (tom baixo) e um texto.
+function pngDemo(): ArrayBuffer {
+  const L = 240, A = 160;
+  const bruto = Buffer.alloc((L * 3 + 1) * A);
+  for (let y = 0; y < A; y++) {
+    const o = y * (L * 3 + 1);
+    for (let x = 0; x < L; x++) {
+      const t = (x + y) / (L + A);
+      bruto[o + 1 + x * 3] = Math.round(246 - 120 * t);
+      bruto[o + 2 + x * 3] = Math.round(218 - 150 * t);
+      bruto[o + 3 + x * 3] = Math.round(180 - 140 * t);
+    }
+  }
+  const pedaco = (tipo: string, dados: Buffer) => {
+    const tam = Buffer.alloc(4);
+    tam.writeUInt32BE(dados.length);
+    const corpo = Buffer.concat([Buffer.from(tipo, 'ascii'), dados]);
+    const crc = Buffer.alloc(4);
+    crc.writeUInt32BE(crc32(corpo) >>> 0);
+    return Buffer.concat([tam, corpo, crc]);
+  };
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(L, 0);
+  ihdr.writeUInt32BE(A, 4);
+  ihdr.set([8, 2, 0, 0, 0], 8);
+  return corpoBinario(Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), pedaco('IHDR', ihdr), pedaco('IDAT', deflateSync(bruto)), pedaco('IEND', Buffer.alloc(0))]));
+}
+function wavDemo(): ArrayBuffer {
+  const taxa = 8000, n = taxa;
+  const b = Buffer.alloc(44 + n);
+  b.write('RIFF', 0, 'ascii');
+  b.writeUInt32LE(36 + n, 4);
+  b.write('WAVEfmt ', 8, 'ascii');
+  b.writeUInt32LE(16, 16);
+  b.writeUInt16LE(1, 20);
+  b.writeUInt16LE(1, 22);
+  b.writeUInt32LE(taxa, 24);
+  b.writeUInt32LE(taxa, 28);
+  b.writeUInt16LE(1, 32);
+  b.writeUInt16LE(8, 34);
+  b.write('data', 36, 'ascii');
+  b.writeUInt32LE(n, 40);
+  for (let i = 0; i < n; i++) b[44 + i] = 128 + Math.round(18 * Math.sin((2 * Math.PI * 440 * i) / taxa) * Math.min(1, (n - i) / 800));
+  return corpoBinario(b);
+}
+function midiaDemo(id: number): Response {
+  const m = conversas.flatMap((c) => c.mensagens).find((x) => x.id === id);
+  if (!m?.tem_midia) throw new ErroDemo(404, 'nao_encontrado', 'Mensagem sem mídia.');
+  const [corpo, tipo] =
+    m.tipo === 'imagem' || m.tipo === 'figurinha' ? [pngDemo(), 'image/png']
+    : m.tipo === 'audio' ? [wavDemo(), 'audio/wav']
+    : m.midia_mime === 'text/html' ? [corpoBinario(Buffer.from('<!doctype html><p>Arquivo fictício</p><script>document.title = "executou"</script>', 'utf8')), 'text/html; charset=utf-8']
+    : [corpoBinario(Buffer.from('DEMONSTRAÇÃO — arquivo fictício.\nAna, Bruno, Carla, Diego (lista de exemplo)\n', 'utf8')), 'text/plain; charset=utf-8'];
+  return new Response(corpo, { headers: { 'Content-Type': tipo, 'Content-Disposition': `inline; filename="midia-${id}"` } });
+}
+
+// Campanhas fictícias.
+interface CampanhaDemo extends Omit<Campanha, 'destinatarios' | 'entrega' | 'conversas_que_responderam'> {
+  lista: (DestinatarioCampanha & { parametros: string[] })[];
+}
+const campanhas: CampanhaDemo[] = [];
+let seqDest = 1;
+function bloqueio(c: Pick<CampanhaDemo, 'teste' | 'categoria'>, tel: string, clienteId: string | null): string | null {
+  if (c.teste && !NUMEROS_TESTE.includes(tel)) return 'nao_e_numero_de_teste';
+  if (conversas.find((x) => x.telefone_e164 === tel)?.followup_motivo === 'pediu_para_parar') return 'pediu_para_parar';
+  if (c.categoria === 'marketing' && !c.teste) {
+    const k = CADASTROS.find((x) => x.id === clienteId)?.consentimentos?.marketing_whatsapp;
+    if (k?.situacao !== 'concedido') return 'sem_consentimento_marketing';
+  }
+  return null;
+}
+function resumoCampanha(c: CampanhaDemo, comLista = false): CampanhaDetalhe | Campanha {
+  const conta = <K extends string>(chaves: readonly K[], valores: string[]) => Object.fromEntries(chaves.map((k) => [k, valores.filter((v) => v === k).length])) as Record<K, number>;
+  const msgs = conversas.flatMap((x) => x.mensagens).filter((m) => m.campanha_id === c.id);
+  const inicio = c.iniciada_em ?? c.criada_em;
+  const responderam = new Set(c.lista.filter((d) => d.conversa_id && conversas.find((x) => x.id === d.conversa_id)?.mensagens.some((m) => m.direcao === 'entrada' && m.criado_em >= inicio)).map((d) => d.conversa_id)).size;
+  const base: Campanha = {
+    id: c.id, nome: c.nome, template_nome: c.template_nome, template_idioma: c.template_idioma, categoria: c.categoria, teste: c.teste, situacao: c.situacao,
+    criada_em: c.criada_em, iniciada_em: c.iniciada_em, concluida_em: c.concluida_em,
+    destinatarios: conta(['pendente', 'enviada', 'falhou', 'bloqueada', 'cancelada'] as const, c.lista.map((d) => d.situacao)),
+    entrega: conta(['pendente', 'enviada', 'entregue', 'lida', 'falhou'] as const, msgs.map((m) => m.status)),
+    conversas_que_responderam: responderam,
+  };
+  return comLista ? { ...base, lista: c.lista.map(({ parametros, ...d }) => { void parametros; return d; }) } : base;
+}
+const acharCampanha = (id: number) => {
+  const c = campanhas.find((x) => x.id === id);
+  if (!c) throw new ErroDemo(404, 'nao_encontrado', 'Campanha não encontrada.');
+  return c;
+};
+{
+  // a campanha de teste concluída de antes (as mensagens dela estão nas conversas de Renata e Paula)
+  const quando = agoraMenos(60 * 30 + 2);
+  const lista = ['+5585991230001', '+5585991230003', '+5585991230002'].map((tel) => {
+    const conversa = conversas.find((x) => x.telefone_e164 === tel)!;
+    const m = conversa.mensagens.find((x) => x.campanha_id === CAMPANHA_TESTE_ID);
+    return { id: seqDest++, telefone_e164: tel, cliente_id: conversa.cliente_id, situacao: (m ? 'enviada' : 'bloqueada') as DestinatarioCampanha['situacao'], motivo: m ? null : 'nao_e_numero_de_teste', conversa_id: m ? conversa.id : null, mensagem_id: m?.id ?? null, parametros: ['Cliente'] };
+  });
+  campanhas.push({ id: CAMPANHA_TESTE_ID, nome: 'Teste do template de boas-vindas', template_nome: TEMPLATES[0].nome, template_idioma: 'pt_BR', categoria: 'utilidade', teste: true, situacao: 'concluida', criada_em: quando, iniciada_em: quando, concluida_em: quando, lista });
+}
+
+// Base de conhecimento fictícia.
+const TEMAS_SUGERIDOS: Record<string, string> = {
+  animais: 'Animais de estimação', criancas: 'Crianças', acessibilidade: 'Acessibilidade', estacionamento: 'Estacionamento', wifi: 'Wi-Fi',
+  notebook: 'Trabalhar com notebook', regras_espaco: 'Regras do espaço', eventos: 'Eventos', sala_privativa: 'Sala privativa',
+  aniversarios: 'Aniversários', restricoes: 'Restrições alimentares (política geral)', pagamento: 'Formas de pagamento',
+};
+const conhecimento: ItemConhecimento[] = [
+  { chave: 'animais', tema: 'Animais de estimação', conteudo: 'Pets são bem-vindos no Jardim, com coleira. No salão, só cães-guia.', fonte: 'Gerência (demonstração)', ativo: true, atualizado_por: 'usuario:demo', atualizado_em: agoraMenos(60 * 24 * 3) },
+  { chave: 'wifi', tema: 'Wi-Fi', conteudo: 'Temos Wi-Fi gratuito; a senha fica no cardápio da mesa.', fonte: 'Gerência (demonstração)', ativo: false, atualizado_por: 'usuario:demo', atualizado_em: agoraMenos(60 * 24 * 9) },
+];
+
+const nomeNormal = (n: string) => n.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z ]/g, ' ').split(/\s+/).filter(Boolean).join(' ');
+function duplicidades(papel: Papel) {
+  const grupos: GrupoDuplicidade[] = [];
+  for (const [por, valorDe] of [['telefone', (c: CadastroDemo) => c.telefone_e164], ['email', (c: CadastroDemo) => c.email?.toLowerCase() ?? null]] as const) {
+    const porValor = new Map<string, CadastroDemo[]>();
+    for (const c of CADASTROS) {
+      const v = valorDe(c);
+      if (v) porValor.set(v, [...(porValor.get(v) ?? []), c]);
+    }
+    for (const [valor, cs] of porValor) {
+      if (cs.length < 2) continue;
+      const principais = new Set(cs.map((c) => principalDe(c.id)));
+      const nomes = new Set(cs.map((c) => nomeNormal(c.nome)));
+      grupos.push({ por, valor: por === 'telefone' ? valor : mascarar(valor)!, classificacao: principais.size === 1 ? 'resolvido' : nomes.size === 1 ? 'provavel_mesma_pessoa' : 'ambiguo', cadastros: cs.map((c) => cadastroSaida(c, papel)) });
+    }
+  }
+  const resumo = { provavel_mesma_pessoa: 0, ambiguo: 0, resolvido: 0 };
+  for (const g of grupos) resumo[g.classificacao]++;
+  return { grupos, resumo, total_cadastros: CADASTROS.length };
+}
+
+const ROTAS_ATENDIMENTO: Rota[] = [
+  ['GET', /^atendimento\/resumo$/, TODOS, () => {
+    conversas.forEach(atualizar);
+    const conta = (e: EstadoConversa) => conversas.filter((c) => c.estado === e).length;
+    return {
+      por_modo: { robo: conversas.filter((c) => c.modo === 'robo').length, humano: conversas.filter((c) => c.modo === 'humano').length, encerrada: conversas.filter((c) => c.modo === 'encerrada').length },
+      por_estado: { automatico: conta('automatico'), esperando: conta('esperando'), em_atendimento: conta('em_atendimento'), encerrada: conta('encerrada') },
+      aguardando_equipe: conversas.filter((c) => c.aguardando_equipe).length,
+      inativas: 0,
+      falhas_de_envio_24h: conversas.flatMap((c) => c.mensagens).filter((m) => m.direcao === 'saida' && m.status === 'falhou').length,
+      configuracao: { ...CONFIGURACAO, templates: TEMPLATES.length },
+    };
+  }],
+  ['GET', /^atendimento\/falhas$/, TODOS, () => conversas.flatMap((c) => c.mensagens.filter((m) => m.direcao === 'saida' && m.status === 'falhou').map((m) => ({ ...m, conversa_id: c.id, nome_contato: c.nome_contato, telefone_e164: c.telefone_e164 }))).reverse()],
+  ['GET', /^atendimento\/conversas$/, TODOS, ({ query }) => {
+    const estado = query.get('estado');
+    const modo = query.get('modo');
+    const busca = query.get('busca')?.toLowerCase();
+    if (busca !== undefined && busca.trim().length < 2) throw new ErroDemo(422, 'validacao', 'A busca precisa de pelo menos 2 caracteres.');
+    const digitos = busca?.replace(/\D/g, '') ?? '';
+    conversas.forEach(atualizar);
+    return conversas
+      .filter((c) => (!estado || c.estado === estado) && (!modo || c.modo === modo) && (!busca || (c.nome_contato ?? '').toLowerCase().includes(busca.trim()) || (digitos.length >= 4 && c.telefone_e164.includes(digitos))))
+      .sort((a, b) => Number(b.estado === 'esperando') - Number(a.estado === 'esperando') || b.ultima_atividade_em.localeCompare(a.ultima_atividade_em))
+      .map(resumoConversa);
+  }],
+  ['POST', /^atendimento\/conversas$/, TODOS, async ({ papel, corpo }) => {
+    const e = await corpo<{ telefone?: string; cliente_id?: string; nome?: string; template?: string; parametros?: string[]; texto?: string }>();
+    let tel: string;
+    let nome = e.nome?.trim() || null;
+    if (e.cliente_id) {
+      const k = CADASTROS.find((x) => x.id === e.cliente_id);
+      if (!k?.telefone_e164) throw new ErroDemo(404, 'nao_encontrado', 'Cadastro sem telefone para iniciar conversa.');
+      tel = k.telefone_e164;
+      nome = nome ?? k.nome;
+    } else if (e.telefone) tel = normalizar(e.telefone);
+    else throw new ErroDemo(422, 'regra_violada', 'Informe o telefone ou escolha um contato.');
+    if (Boolean(e.template) === Boolean(e.texto?.trim())) throw new ErroDemo(422, 'template_ou_texto', 'Escolha um template OU escreva um texto.');
+    const t = e.template ? acharTemplate(e.template) : null;
+    const params = t ? conferirParametros(t, e.parametros) : [];
+    const c = conversas.find((x) => x.telefone_e164 === tel) ?? novaConversaDemo(tel, nome, 'encerrada');
+    if (nome && !c.nome_contato) c.nome_contato = nome;
+    assumirDemo(c, papel, false);
+    const u = usuarioDemo(papel);
+    if (!t && !atualizar(c).dentro_da_janela) throw new ErroDemo(409, 'fora_da_janela_24h', 'Fora da janela de 24 h do cliente a Meta só aceita template aprovado.');
+    // DEMONSTRAÇÃO: nada é enviado — a mensagem só entra na conversa local.
+    enviarDemo(c, msg('saida', 'equipe', t ? previa(t, params) : e.texto!.trim().slice(0, 2000), 0, { usuario_nome: u.nome, ...(t ? { tipo: 'template' as const, template_nome: t.nome } : {}) }));
+    return detalhe(c);
+  }],
+  ['GET', /^atendimento\/conversas\/([0-9a-f-]{36})\/mensagens$/, TODOS, () => []],
+  ['GET', /^atendimento\/conversas\/([0-9a-f-]{36})\/contato$/, TODOS, ({ params, papel }) => fichaContato(achar(params[0]), papel)],
+  ['GET', /^atendimento\/conversas\/([0-9a-f-]{36})$/, TODOS, ({ params }) => detalhe(achar(params[0]))],
+  ['GET', /^atendimento\/mensagens\/(\d+)\/midia$/, TODOS, ({ params }) => midiaDemo(Number(params[0]))],
+  ['POST', /^atendimento\/conversas\/([0-9a-f-]{36})\/assumir$/, TODOS, async ({ params, papel, corpo }) => {
+    const c = achar(params[0]);
+    assumirDemo(c, papel, Boolean((await corpo<{ transferir?: boolean } | null>())?.transferir));
+    return detalhe(c);
+  }],
+  ['POST', /^atendimento\/conversas\/([0-9a-f-]{36})\/responder$/, TODOS, async ({ params, papel, corpo }) => {
+    const c = achar(params[0]);
+    const { texto } = await corpo<{ texto: string }>();
+    if (!texto?.trim()) throw new ErroDemo(422, 'regra_violada', 'Escreva a resposta.');
+    // como o backend: responder desliga o assistente e assume ANTES de conferir a janela de 24 h
+    assumirDemo(c, papel, false);
+    if (!atualizar(c).dentro_da_janela) throw new ErroDemo(409, 'fora_da_janela_24h', 'Passaram 24 h da última mensagem do cliente: a Meta só aceita template. Fale com o cliente por telefone.');
+    enviarDemo(c, msg('saida', 'equipe', texto.trim().slice(0, 2000), 0, { usuario_nome: usuarioDemo(papel).nome }));
+    return detalhe(c);
+  }],
+  ['POST', /^atendimento\/conversas\/([0-9a-f-]{36})\/assistente$/, TODOS, async ({ params, corpo }) => {
+    const c = achar(params[0]);
+    const { ligado } = await corpo<{ ligado: boolean }>();
+    if (ligado) {
+      if (!CONFIGURACAO.assistente_ativo) throw new ErroDemo(409, 'assistente_desligado', 'O assistente está desligado na configuração.');
+      Object.assign(c, { modo: 'robo', atendente_id: null, atendente_nome: null, motivo_humano: null });
+    } else Object.assign(c, { modo: 'humano', motivo_humano: 'assistente_desligado_no_painel' });
+    return detalhe(c);
+  }],
+  ['POST', /^atendimento\/conversas\/([0-9a-f-]{36})\/devolver$/, TODOS, ({ params }) => detalhe(Object.assign(achar(params[0]), { modo: 'robo', atendente_id: null, atendente_nome: null, motivo_humano: null }))],
+  ['POST', /^atendimento\/conversas\/([0-9a-f-]{36})\/encerrar$/, TODOS, ({ params }) => detalhe(Object.assign(achar(params[0]), { modo: 'encerrada', atendente_id: null, atendente_nome: null, motivo_humano: null }))],
+  ['POST', /^atendimento\/conversas\/([0-9a-f-]{36})\/followup$/, TODOS, async ({ params, corpo }) => {
+    const c = achar(params[0]);
+    const { ligado } = await corpo<{ ligado: boolean }>();
+    Object.assign(c, { followup_desligado: !ligado, followup_motivo: ligado ? null : 'desligado_pela_equipe' });
+    return detalhe(c);
+  }],
+  ['GET', /^atendimento\/templates$/, TODOS, () => TEMPLATES],
+  ['GET', /^atendimento\/contatos$/, TODOS, ({ query }) => {
+    const busca = (query.get('busca') ?? '').trim();
+    if (busca.length < 2) throw new ErroDemo(422, 'validacao', 'A busca precisa de pelo menos 2 caracteres.');
+    const digitos = busca.replace(/\D/g, '');
+    const vistos = new Set<string>();
+    return CADASTROS.filter((c) => c.telefone_e164 && (nomeNormal(c.nome).includes(nomeNormal(busca)) || (digitos.length >= 4 && c.telefone_e164.includes(digitos))))
+      .filter((c) => !vistos.has(c.telefone_e164!) && vistos.add(c.telefone_e164!))
+      .slice(0, 10)
+      .map((c) => ({ cliente_id: c.id, nome: c.nome, telefone_e164: c.telefone_e164!, origem: c.origem, giardini: c.giardini, conversa_id: conversas.find((x) => x.telefone_e164 === c.telefone_e164)?.id ?? null }));
+  }],
+
+  ['GET', /^atendimento\/campanhas$/, GERENCIA, () => [...campanhas].reverse().map((c) => resumoCampanha(c))],
+  ['GET', /^atendimento\/campanhas\/(\d+)$/, GERENCIA, ({ params }) => resumoCampanha(acharCampanha(Number(params[0])), true)],
+  ['POST', /^atendimento\/campanhas$/, GERENCIA, async ({ corpo }) => {
+    const e = await corpo<{ nome?: string; template?: string; teste?: boolean; destinatarios?: { telefone?: string; cliente_id?: string; parametros?: string[] }[] }>();
+    if (!e.nome || e.nome.trim().length < 2) throw new ErroDemo(422, 'regra_violada', 'Dê um nome à campanha.');
+    const t = acharTemplate(String(e.template ?? ''));
+    const lista = e.destinatarios ?? [];
+    if (!lista.length || lista.length > 500) throw new ErroDemo(422, 'regra_violada', 'A campanha precisa de 1 a 500 destinatários.');
+    const nova: CampanhaDemo = { id: campanhas.length + 1, nome: e.nome.trim().slice(0, 120), template_nome: t.nome, template_idioma: t.idioma, categoria: t.categoria, teste: e.teste !== false, situacao: 'rascunho', criada_em: new Date().toISOString(), iniciada_em: null, concluida_em: null, lista: [] };
+    const vistos = new Set<string>();
+    for (const d of lista) {
+      const k = d.cliente_id ? CADASTROS.find((x) => x.id === d.cliente_id) : null;
+      const tel = k?.telefone_e164 ?? normalizar(String(d.telefone ?? ''));
+      if (vistos.has(tel)) continue;
+      vistos.add(tel);
+      const parametros = conferirParametros(t, d.parametros);
+      const clienteId = k?.id ?? identificar(tel);
+      const motivo = bloqueio(nova, tel, clienteId);
+      nova.lista.push({ id: seqDest++, telefone_e164: tel, cliente_id: clienteId, situacao: motivo ? 'bloqueada' : 'pendente', motivo, conversa_id: null, mensagem_id: null, parametros });
+    }
+    campanhas.push(nova);
+    return resumoCampanha(nova, true);
+  }],
+  ['POST', /^atendimento\/campanhas\/(\d+)\/enviar$/, GERENCIA, ({ params }) => {
+    const c = acharCampanha(Number(params[0]));
+    if (c.situacao === 'concluida' || c.situacao === 'cancelada') throw new ErroDemo(409, 'campanha_fechada', `A campanha está ${c.situacao}.`);
+    const t = acharTemplate(c.template_nome);
+    if (c.situacao === 'rascunho') Object.assign(c, { situacao: 'enviando', iniciada_em: new Date().toISOString() });
+    // lotes de 3 na demonstração (no backend, AMBAR_ATENDIMENTO_CAMPANHA_LOTE)
+    for (const d of c.lista.filter((x) => x.situacao === 'pendente').slice(0, 3)) {
+      const motivo = bloqueio(c, d.telefone_e164, d.cliente_id);
+      if (motivo) {
+        Object.assign(d, { situacao: 'bloqueada', motivo });
+        continue;
+      }
+      // conversa nova só por causa da campanha nasce encerrada (reabre quando o cliente responder)
+      const conversa = conversas.find((x) => x.telefone_e164 === d.telefone_e164) ?? novaConversaDemo(d.telefone_e164, null, 'encerrada');
+      const m = msg('saida', 'campanha', previa(t, d.parametros), 0, { tipo: 'template', template_nome: t.nome, campanha_id: c.id });
+      enviarDemo(conversa, m);
+      atualizar(conversa);
+      Object.assign(d, { conversa_id: conversa.id, mensagem_id: m.id, situacao: m.status === 'falhou' ? 'falhou' : 'enviada', motivo: m.status === 'falhou' ? m.erro : null });
+    }
+    if (!c.lista.some((x) => x.situacao === 'pendente')) Object.assign(c, { situacao: 'concluida', concluida_em: new Date().toISOString() });
+    return resumoCampanha(c);
+  }],
+  ['POST', /^atendimento\/campanhas\/(\d+)\/cancelar$/, GERENCIA, ({ params }) => {
+    const c = acharCampanha(Number(params[0]));
+    if (c.situacao !== 'concluida' && c.situacao !== 'cancelada') {
+      c.situacao = 'cancelada';
+      for (const d of c.lista) if (d.situacao === 'pendente' && !d.mensagem_id) Object.assign(d, { situacao: 'cancelada', motivo: 'campanha_cancelada' });
+    }
+    return resumoCampanha(c);
+  }],
+
+  ['GET', /^atendimento\/conhecimento$/, TODOS, () => ({
+    itens: [...conhecimento].sort((a, b) => a.tema.localeCompare(b.tema)),
+    sugestoes: Object.entries(TEMAS_SUGERIDOS).filter(([k]) => !conhecimento.some((i) => i.chave === k)).map(([chave, tema]) => ({ chave, tema })),
+  })],
+  ['PUT', /^atendimento\/conhecimento\/([^/]+)$/, GERENCIA, async ({ params, corpo }) => {
+    const chave = decodeURIComponent(params[0]).trim().toLowerCase();
+    if (!/^[a-z0-9_]{2,40}$/.test(chave)) throw new ErroDemo(422, 'regra_violada', 'Chave: 2 a 40 letras minúsculas, números ou _.');
+    const e = await corpo<{ tema?: string; conteudo?: string; fonte?: string; ativo?: boolean }>();
+    const tema = (e.tema ?? '').trim(), conteudo = (e.conteudo ?? '').trim(), fonte = (e.fonte ?? '').trim();
+    if (tema.length < 2 || tema.length > 80 || conteudo.length < 2 || conteudo.length > 800 || fonte.length < 2 || fonte.length > 200) throw new ErroDemo(422, 'regra_violada', 'Tema (até 80), conteúdo (até 800) e fonte (até 200) são obrigatórios.');
+    const item: ItemConhecimento = { chave, tema, conteudo, fonte, ativo: e.ativo !== false, atualizado_por: 'usuario:demo', atualizado_em: new Date().toISOString() };
+    const i = conhecimento.findIndex((x) => x.chave === chave);
+    if (i >= 0) conhecimento[i] = item;
+    else conhecimento.push(item);
+    return item;
+  }],
+  ['DELETE', /^atendimento\/conhecimento\/([^/]+)$/, GERENCIA, ({ params }) => {
+    const item = conhecimento.find((x) => x.chave === decodeURIComponent(params[0]));
+    if (!item) throw new ErroDemo(404, 'nao_encontrado', 'Item não encontrado.');
+    Object.assign(item, { ativo: false, atualizado_em: new Date().toISOString() });
+    return item;
+  }],
+
+  ['GET', /^atendimento\/duplicidades$/, GERENCIA, ({ papel }) => duplicidades(papel)],
+  ['POST', /^atendimento\/vinculos$/, GERENCIA, async ({ corpo }) => {
+    const e = await corpo<{ cliente_id?: string; principal_id?: string; motivo?: string }>();
+    const cliente = CADASTROS.find((x) => x.id === e.cliente_id);
+    const principal = CADASTROS.find((x) => x.id === e.principal_id);
+    if (!cliente || !principal) throw new ErroDemo(404, 'nao_encontrado', 'Cadastro não encontrado.');
+    if ((e.motivo ?? '').trim().length < 3) throw new ErroDemo(422, 'regra_violada', 'Informe o motivo (pelo menos 3 caracteres).');
+    if (cliente.id === principal.id) throw new ErroDemo(422, 'regra_violada', 'Escolha dois cadastros diferentes.');
+    const evidencia = (cliente.telefone_e164 && cliente.telefone_e164 === principal.telefone_e164) || (cliente.email && principal.email && cliente.email.toLowerCase() === principal.email.toLowerCase());
+    if (!evidencia) throw new ErroDemo(422, 'sem_evidencia', 'Só cadastros com o mesmo telefone ou o mesmo e-mail podem ser ligados.');
+    if (principalDe(principal.id) !== principal.id) throw new ErroDemo(422, 'principal_vinculado', 'O principal escolhido já está ligado a outro cadastro.');
+    if ([...vinculos.values()].includes(cliente.id)) throw new ErroDemo(422, 'cadastro_e_principal', 'Este cadastro é principal de outros; desfaça esses vínculos antes.');
+    const atual = vinculos.get(cliente.id);
+    if (atual && atual !== principal.id) throw new ErroDemo(422, 'ja_vinculado', 'Este cadastro já está ligado a outro principal.');
+    vinculos.set(cliente.id, principal.id);
+    conversas.forEach(atualizar);
+    return { id: vinculos.size, cliente_id: cliente.id, principal_id: principal.id, ativo: true };
+  }],
+];
 
 // Clube -----------------------------------------------------------------------------------------------------------------
 const membros: (MembroLista & { email: string | null; telefoneInteiro: string })[] = [
@@ -118,44 +623,7 @@ function ficha(id: string): MembroFicha {
 const historicos = new Map<string, { em: string; acao: string; ator_tipo: string; ator: string | null; dados: unknown }[]>();
 
 export const ROTAS_ATENDIMENTO_CLUBE: Rota[] = [
-  ['GET', /^atendimento\/resumo$/, TODOS, () => ({
-    por_modo: { robo: conversas.filter((c) => c.modo === 'robo').length, humano: conversas.filter((c) => c.modo === 'humano').length, encerrada: conversas.filter((c) => c.modo === 'encerrada').length },
-    aguardando_equipe: conversas.filter((c) => c.aguardando_equipe).length,
-    inativas: 0,
-    falhas_de_envio_24h: conversas.flatMap((c) => c.mensagens).filter((m) => m.status === 'falhou').length,
-  })],
-  ['GET', /^atendimento\/falhas$/, TODOS, () => conversas.flatMap((c) => c.mensagens.filter((m) => m.status === 'falhou').map((m) => ({ ...m, conversa_id: c.id, nome_contato: c.nome_contato, telefone_e164: c.telefone_e164 })))],
-  ['GET', /^atendimento\/conversas$/, TODOS, ({ query }) => {
-    const modo = query.get('modo');
-    const ag = query.get('aguardando_equipe') === 'true';
-    const busca = query.get('busca')?.toLowerCase();
-    if (busca !== undefined && busca.trim().length < 2) throw new ErroDemo(422, 'validacao', 'A busca precisa de pelo menos 2 caracteres.');
-    return conversas
-      .filter((c) => (!modo || c.modo === modo) && (!ag || c.aguardando_equipe) && (!busca || (c.nome_contato ?? '').toLowerCase().includes(busca) || c.telefone_e164.includes(busca.replace(/\D/g, '') || '§')))
-      .sort((a, b) => Number(b.aguardando_equipe) - Number(a.aguardando_equipe) || b.ultima_atividade_em.localeCompare(a.ultima_atividade_em))
-      .map(resumoConversa);
-  }],
-  ['GET', /^atendimento\/conversas\/([0-9a-f-]{36})\/mensagens$/, TODOS, () => []],
-  ['GET', /^atendimento\/conversas\/([0-9a-f-]{36})$/, TODOS, ({ params }) => achar(params[0])],
-  ['POST', /^atendimento\/conversas\/([0-9a-f-]{36})\/assumir$/, TODOS, async ({ params, papel, corpo }) => {
-    const c = achar(params[0]);
-    assumirDemo(c, papel, Boolean((await corpo<{ transferir?: boolean } | null>())?.transferir));
-    return atualizar(c);
-  }],
-  ['POST', /^atendimento\/conversas\/([0-9a-f-]{36})\/responder$/, TODOS, async ({ params, papel, corpo }) => {
-    const c = achar(params[0]);
-    const { texto } = await corpo<{ texto: string }>();
-    if (!texto?.trim()) throw new ErroDemo(422, 'regra_violada', 'Escreva a resposta.');
-    // como o backend: responder também assume (e pausa o robô) antes de conferir a janela de 24 h
-    assumirDemo(c, papel, false);
-    if (!c.dentro_da_janela) throw new ErroDemo(409, 'fora_da_janela_24h', 'Passaram 24 h da última mensagem do cliente: a Meta só aceita template. Fale com o cliente por telefone.');
-    const u = usuarioDemo(papel);
-    // DEMONSTRAÇÃO: nada é enviado — a mensagem só entra na lista local.
-    c.mensagens.push(msg('saida', 'equipe', texto.trim().slice(0, 2000), 0, { usuario_nome: u.nome, status: 'enviada' }));
-    return atualizar(c);
-  }],
-  ['POST', /^atendimento\/conversas\/([0-9a-f-]{36})\/devolver$/, TODOS, ({ params }) => atualizar(Object.assign(achar(params[0]), { modo: 'robo', atendente_id: null, atendente_nome: null, motivo_humano: null }))],
-  ['POST', /^atendimento\/conversas\/([0-9a-f-]{36})\/encerrar$/, TODOS, ({ params }) => atualizar(Object.assign(achar(params[0]), { modo: 'encerrada', atendente_id: null, atendente_nome: null, motivo_humano: null }))],
+  ...ROTAS_ATENDIMENTO,
 
   ['GET', /^clube\/resumo$/, TODOS, () => ({
     inscricoes_abertas: false, programa_ativo: false, credito_automatico: false,

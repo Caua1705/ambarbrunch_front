@@ -52,6 +52,8 @@ export function modulosLiberados(): Modulo[] {
 /** Módulo dono de uma rota da API do backend (`reservas/…` → reservas). `null` = rota comum (sessão, unidades). */
 export function moduloDaRota(caminho: string): Modulo | 'arquivos' | null {
   const raiz = caminho.split('/')[0];
+  // clientes/* continua no backend (sem página no painel desde 02/11/2026): segue a liberação de Reservas, como antes.
+  // A ficha do contato, as duplicidades e os vínculos do Atendimento vêm por atendimento/*.
   if (raiz === 'reservas' || raiz === 'clientes') return 'reservas';
   if (raiz === 'atendimento') return 'atendimento';
   if (raiz === 'clube') return 'clube';

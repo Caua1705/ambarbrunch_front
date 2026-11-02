@@ -92,7 +92,7 @@ src/admin/
                        só esse módulo compartilha (rótulos, hooks, permissões do módulo)
 ```
 
-Módulos: `visao-geral`, `reservas`, `atendimento`, `clientes`, `clube`, `financeiro`, `estoque`, `configuracoes`,
+Módulos: `visao-geral`, `reservas`, `atendimento`, `clube`, `financeiro`, `estoque`, `configuracoes`,
 `operacao` (Modo Operação) e `login`.
 
 **Por que contratos (`lib/api`, `lib/tipos`) ficam fora dos módulos:** vários módulos usam o mesmo contrato (Estoque usa
@@ -100,7 +100,7 @@ categorias e fornecedores do Financeiro; Visão Geral e Operação usam Reservas
 mesmos tipos para o compilador acusar divergência. Telas ficam por módulo; contratos ficam por domínio do backend.
 
 Limites entre módulos: um módulo pode importar `lib/`, `ui/` e o `comum.tsx` de outro módulo **só** para reaproveitar
-rótulos ou componentes de exibição (hoje: Visão Geral, Operação e Clientes usam `reservas/comum`). Nunca importar a
+rótulos ou componentes de exibição (hoje: Visão Geral, Operação e Atendimento usam `reservas/comum`). Nunca importar a
 tela de outro módulo.
 
 ## 5. Convenções de nome

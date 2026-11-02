@@ -15,7 +15,7 @@
   |---|---|
   | `/painel/` e `/painel/index.html` | `/admin/login` |
   | `/painel/reservas.html` | `/admin/reservas` |
-  | `/painel/clientes.html` | `/admin/clientes` |
+  | `/painel/clientes.html` | `/admin/clientes` (desde 02/11/2026 redireciona com 303 para `/admin/atendimento`) |
   | `/painel/atendimento.html` | `/admin/atendimento` |
   | `/painel/financeiro.html` | `/admin/financeiro` |
   | `/painel/estoque.html` | `/admin/estoque` |
@@ -30,8 +30,7 @@ Módulos e abas (paridade com o painel antigo):
 |---|---|
 | Visão Geral | cartões do dia, atenção, radar, atividade |
 | Reservas | Dia, Semana, Mês, Lista (Hoje/Amanhã/7 dias/Todas), Ambientes; detalhe com chegada, ausência, corrigir/desfazer, aviso comunicado, alterar contato/observações; Modo Operação (tablet) |
-| Clientes (Gerente e Proprietário; acompanha a liberação de Reservas) | lista com busca, ficha com histórico, canais e consentimentos, edição (`clientes.editar`) |
-| Atendimento | caixa, conversa, assumir/transferir, responder, devolver ao assistente, encerrar |
+| Atendimento | caixa (Todas · Esperando · Assistente · Equipe · Encerradas), conversa com linha do tempo única (mídia, campanhas, templates de reserva/Clube, respostas automáticas), assistente ligado/desligado por conversa, assumir/transferir, responder, encerrar, follow-up; ficha do contato (gaveta); nova conversa com template; "Mais": Campanhas e Cadastros duplicados (gerência), Base de conhecimento (todos leem, gerência edita). **Não há mais página Clientes** (02/11/2026): `/admin/clientes` redireciona para cá |
 | Clube Âmbar | (ainda não lançado ao público; selo "em breve") |
 | Financeiro | Resumo, Vendas (Eyemobile), Lançamentos (+ Banco/conciliação), Contas a pagar, Revisão (despesas e documentos da Júlia: corrigir leitura, pago × a pagar, vincular a conta/pagamento/despesa já lançados), Resultado (+ fechamento e participação — Proprietário), Contas fixas e taxas, Categorias (por unidade, do banco) |
 | Estoque | Resumo, Compras, Insumos, Fichas técnicas, Contagem, Cancelamentos, Análises |
@@ -148,9 +147,8 @@ valor indisponível vira "R$ 0,00".
 |---|---|
 | Login, sessão, unidades | `auth/login`, `auth/me`, `auth/sair`, `unidades` |
 | Reservas | `reservas`, `reservas/operacao`, `reservas/lotacao`, `reservas/ambientes`, `reservas/{id}` (PATCH só contato e observações), `…/status`, `…/comparecimento` (PUT; cai para PATCH `…/status` só em 404 de rota), `…/aviso-comunicado`, `reservas/comparecimento/pendentes`, `reservas/mensagens`. Nova reserva: desligada no backend (403 `criacao_manual_desativada`, a tela explica). |
-| Clientes | `clientes?busca&limite&deslocamento`, `clientes/{id}` (GET, PATCH) |
 | Configurações | `reservas/configuracao/{unidade}`, `…/politica`, `reservas/ambientes/{id}`, `reservas/regras/{id}`, `usuarios` (equipe) |
-| Atendimento | `atendimento/resumo`, `atendimento/conversas` (busca com 2+ letras), `…/{id}`, `…/mensagens`, `…/responder`, `…/assumir`, `…/devolver`, `…/encerrar`, `atendimento/falhas` |
+| Atendimento | `atendimento/resumo` (`por_estado`, `configuracao`), `atendimento/conversas?estado=` (busca com 2+ letras; POST = nova conversa), `…/{id}`, `…/{id}/contato`, `…/mensagens`, `…/responder`, `…/assumir`, `…/assistente`, `…/encerrar`, `…/followup`, `atendimento/mensagens/{id}/midia` (binário pela ponte; só imagem/áudio/vídeo/PDF/texto abrem, o resto desce como download), `atendimento/falhas`, `atendimento/templates`, `atendimento/contatos`, `atendimento/campanhas` (+ `{id}`, `…/enviar` em lotes, `…/cancelar`), `atendimento/conhecimento` (GET, `PUT/DELETE …/{chave}`), `atendimento/duplicidades`, `atendimento/vinculos` (POST) |
 | Visão Geral | `financeiro/relatorios/vendas` (receita, ticket médio, por meio), `financeiro/relatorios/despesas-por-categoria`, `financeiro/relatorios/resultado?mes=` (só mês civil), `financeiro/lancamentos?tipo=despesa&status=confirmada` (distribuição do gráfico), `estoque/analises/produtos` (top 5); sem Financeiro: `reservas/operacao` |
 | Sino (topo) | `reservas?status=pendente`, `reservas/comparecimento/pendentes`, `atendimento/resumo`, `financeiro/revisao?limite=1`, `financeiro/resumo`, `estoque/compras?etapa=aguardando_conferencia` — só módulos liberados ao papel, da unidade da aba |
 | Financeiro | `financeiro/resumo`, `relatorios/vendas`, `lancamentos`, `despesas` (+ confirmar/cancelar), `outras-receitas` (+ cancelar), `contas-a-pagar`, `parcelas/{id}/pagamentos`, `pagamentos/{id}/estornar`, `revisao`, `revisao/documentos/{id}` (GET/PATCH) e `…/resolver`, `despesas/{id}/documentos`, `despesas/{id}/unidade`, `comprovantes/{id}/enviar-para-compras`, `relatorios/resultado`, `relatorios/despesas-por-categoria`, `fechamento/{mes}`, `apuracoes/{mes}` (+ conferir/fechar/reabrir, `participacao`), `recorrencias`, `taxas-pagamento`, `conciliacao/*`, `extratos/*`, `contas-bancarias`, `categorias` (GET/POST/PATCH, `PUT …/{codigo}/unidades/{unidade}`), `fornecedores` (GET/POST, `fornecedores/{id}` GET/PATCH), `conciliacao/repasses`, `arquivos/{id}/url` |
@@ -163,12 +161,11 @@ backend; a tela mostra primeiro o essencial e o resto sob pedido (filtros recolh
 
 | Área | Estrutura |
 |---|---|
-| Moldura | Lateral: só a marca e os módulos (Visão Geral, Reservas, Clientes, Atendimento, Financeiro, Estoque); embaixo Modo Operação, Configurações, Recolher. **Clube Âmbar fora do menu** (rota, telas e contratos intactos). Topo: só o título da tela, o sino, o tema e a conta. **Unidade de trabalho no menu da conta** (vale para a aba; B4); o topo mostra a unidade só fora da padrão (`unidadePadrao`). |
+| Moldura | Lateral: só a marca e os módulos (Visão Geral, Reservas, Atendimento, Financeiro, Estoque); embaixo Modo Operação, Configurações, Recolher. **Clube Âmbar fora do menu** (rota, telas e contratos intactos). Topo: só o título da tela, o sino, o tema e a conta. **Unidade de trabalho no menu da conta** (vale para a aba; B4); o topo mostra a unidade só fora da padrão (`unidadePadrao`). |
 | Sino | Central das pendências reais (`layout/avisos.ts`), por prioridade e módulo, cada item leva à tela que resolve. Cache de 45 s na sessão do navegador; reconta depois de qualquer `invalidar()` (evento `painel:invalidar`). |
 | Visão Geral | Saudação + um filtro de período (Hoje, 7 dias, 30 dias, Este mês, Personalizado ≤ 400 dias) para 4 indicadores (Receita, Despesas, Resultado gerencial, Ticket médio), Receitas × despesas e dois rankings (top 5 produtos — ou vendas por meio — e despesas por categoria). |
 | Reservas | Barra única (‹ Hoje ›, intervalo, Dia · Semana · Mês · Lista · Por ambiente, Nova reserva); resumo do dia em uma linha; aprovações pendentes numa pílula → gaveta. |
-| Clientes | Inalterado. |
-| Atendimento | Central de conversas: busca, Todas · Esperando · Assistente · Equipe, encerradas num atalho, falhas de envio só quando existem. Sem indicadores. |
+| Atendimento | Central única de conversas (02/11/2026): "Nova conversa" e "Mais" no topo da coluna, avisos discretos só quando o assistente ou o envio estão desligados no servidor, busca, Todas · Esperando · Assistente · Equipe · Encerradas (contador em Esperando), falhas de envio só quando existem. Conversa: cabeçalho com Contato (ficha em gaveta) e "…" (enviar template, follow-up), barra com o interruptor do assistente, Assumir e Encerrar. Sem indicadores e sem página Clientes. |
 | Financeiro | Lançamentos · Contas a pagar (Contas · Recorrentes) · Revisão · Conciliação (Banco · Stone e recebíveis · Divergências) · Relatórios e cadastros (Resultado do mês, Despesas por categoria, Evolução, Fechamento, Vendas; Categorias, Fornecedores). Sem o Resumo (o executivo é a Visão Geral). Endereços antigos redirecionados em `modulos/financeiro/index.tsx`. |
 | Estoque | Compras (tela inicial: Para conferir · Com problema · Conferidas · Todas, Enviar nota) · Insumos · Fichas técnicas · Inventário (4 passos) · Mais (Cancelamentos, Análises e CMV). Baixa automática mostrada como está no backend (hoje desligada). |
 | Configurações | Grupos ao lado: Conta e aparência · Agenda e ambientes · Equipe e acessos · Financeiro (atalhos para os cadastros). |

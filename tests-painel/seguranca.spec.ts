@@ -107,10 +107,10 @@ test.describe('modo api (backend falso)', () => {
   test('liberação controlada: só Visão Geral e Reservas; o resto bloqueado no menu, na página e na API', async ({ page }) => {
     await entrarApi(page);
     const nav = page.getByRole('navigation', { name: 'Módulos' });
-    // Clientes acompanha a liberação de Reservas
-    await expect(nav.getByRole('listitem')).toHaveCount(3);
+    // sem item Clientes (a página saiu em 02/11; o contato aparece na ficha da conversa do Atendimento)
+    await expect(nav.getByRole('listitem')).toHaveCount(2);
     await expect(nav.getByRole('link', { name: 'Reservas' })).toBeVisible();
-    await expect(nav.getByRole('link', { name: 'Clientes' })).toBeVisible();
+    await expect(nav.getByRole('link', { name: 'Clientes' })).toHaveCount(0);
     for (const m of ['Atendimento', 'Clube', 'Financeiro', 'Estoque']) await expect(nav.getByRole('link', { name: new RegExp(m) })).toHaveCount(0);
     for (const p of ['/admin/atendimento', '/admin/clube', '/admin/financeiro', '/admin/estoque']) {
       await page.goto(API + p);

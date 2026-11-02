@@ -39,8 +39,8 @@ export class ErroDemo extends Error {
 let rotas: Rota[] | null = null;
 async function todasAsRotas(): Promise<Rota[]> {
   if (!rotas) {
-    const [r, c, a, f, e, v, q] = await Promise.all([import('./reservas'), import('./clientes'), import('./atendimento-clube'), import('./financeiro'), import('./estoque'), import('./visao'), import('./equipe')]);
-    rotas = [...r.ROTAS_RESERVAS, ...c.ROTAS_CLIENTES, ...a.ROTAS_ATENDIMENTO_CLUBE, ...f.ROTAS_FINANCEIRO, ...e.ROTAS_ESTOQUE, ...v.ROTAS_VISAO, ...q.ROTAS_EQUIPE];
+    const [r, a, f, e, v, q] = await Promise.all([import('./reservas'), import('./atendimento-clube'), import('./financeiro'), import('./estoque'), import('./visao'), import('./equipe')]);
+    rotas = [...r.ROTAS_RESERVAS, ...a.ROTAS_ATENDIMENTO_CLUBE, ...f.ROTAS_FINANCEIRO, ...e.ROTAS_ESTOQUE, ...v.ROTAS_VISAO, ...q.ROTAS_EQUIPE];
   }
   return rotas;
 }
@@ -69,6 +69,11 @@ export async function responderDemo(p: PedidoDemo): Promise<Response> {
     try {
       const r = await fn(ctx);
       if (r instanceof RespostaDemo) return json(r.status, r.corpo);
+      // arquivo (mídia fictícia do Atendimento): vai como veio, só marcado como demonstração
+      if (r instanceof Response) {
+        r.headers.set('X-Painel-Modo', 'demonstracao');
+        return r;
+      }
       return json(200, r);
     } catch (e) {
       if (e instanceof ErroDemo) return json(e.status, { detail: e.message, codigo: e.codigo, dados: e.dados });

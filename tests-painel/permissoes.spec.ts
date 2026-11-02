@@ -38,12 +38,14 @@ test('Gerente: Configurações sem Equipe e sem regras da casa', async ({ page }
   expect((await page.request.get(`${DEMO}/admin/api/usuarios`)).status()).toBe(403);
 });
 
-test('gerência: vê os módulos e Clientes e o financeiro na Visão Geral; o Clube sai do menu, mas a rota segue', async ({ page }) => {
+test('gerência: vê os módulos (sem Clientes) e o financeiro na Visão Geral; o Clube sai do menu, mas a rota segue', async ({ page }) => {
   await entrarDemo(page, 'gerente');
   await page.goto(`${DEMO}/admin`);
   const nav = page.getByRole('navigation', { name: 'Módulos' });
-  for (const m of ['Visão Geral', 'Reservas', 'Clientes', 'Atendimento', 'Financeiro', 'Estoque']) await expect(nav.getByRole('link', { name: m })).toBeVisible();
-  await expect(nav.getByRole('listitem')).toHaveCount(6);
+  for (const m of ['Visão Geral', 'Reservas', 'Atendimento', 'Financeiro', 'Estoque']) await expect(nav.getByRole('link', { name: m })).toBeVisible();
+  await expect(nav.getByRole('listitem')).toHaveCount(5);
+  // a página Clientes saiu (o contato aparece na ficha da conversa do Atendimento)
+  await expect(nav.getByRole('link', { name: 'Clientes' })).toHaveCount(0);
   await expect(nav.getByRole('link', { name: /Clube/ })).toHaveCount(0);
   const kpis = page.getByRole('region', { name: 'Indicadores do período' });
   for (const k of ['Receita', 'Despesas', 'Resultado gerencial', 'Ticket médio']) await expect(kpis.getByText(k, { exact: true })).toBeVisible();

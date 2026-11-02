@@ -31,7 +31,7 @@ interface Linha {
   r: ReservaPainel;
   historico: HistoricoComparecimento[];
   avisar: string | null;
-  /** Posição em NOMES = o cliente do cadastro único (demo/clientes.ts); não muda se o contato da reserva mudar. */
+  /** Posição em NOMES = o cliente fictício (ficha do contato em demo/atendimento-clube.ts); não muda se o contato da reserva mudar. */
   cliente: number;
 }
 const banco: Linha[] = [];
@@ -116,7 +116,7 @@ const ATENDENTE_DIAS = 14;
 function naJanela(papel: Papel, data: string) {
   if (papel === 'operador' && (data < hojeFortaleza() || data > dia(ATENDENTE_DIAS))) throw new ErroDemo(403, 'sem_permissao', 'Você não tem permissão para acessar esta área.');
 }
-/** Para demo/clientes.ts: as reservas de cada cliente fictício (posição em NOMES), no formato do backend, por data. */
+/** Para a ficha do contato (demo/atendimento-clube.ts): as reservas de cada cliente fictício (posição em NOMES), por data. */
 export function reservasDosClientes(): Map<number, ReservaPainel[]> {
   montar();
   const m = new Map<number, ReservaPainel[]>();
@@ -244,7 +244,7 @@ export const ROTAS_RESERVAS: Rota[] = [
     const pessoas = Number(e.pessoas);
     if (pessoas > amb.pessoas_max_por_reserva) throw new ErroDemo(422, 'regra_violada', `No ${amb.nome}, até ${amb.pessoas_max_por_reserva} pessoas por reserva.`);
     const r: ReservaPainel = { id: uuid(), codigo: `AMB-${(1000 + banco.length).toString(36).toUpperCase()}`, unidade: 'ambar_cafe', ambiente_id: amb.id, ambiente: amb.nome, data: String(e.data), hora: String(e.hora).length === 5 ? `${e.hora}:00` : String(e.hora), duracao_min: amb.duracao_min, pessoas, status: amb.exige_aprovacao ? 'pendente' : 'confirmada', status_reserva: amb.exige_aprovacao ? 'pendente' : 'confirmada', comparecimento: 'nao_registrado', comparecimento_registrado_em: null, comparecimento_registrado_por: null, canal: String(e.canal ?? 'painel'), contato_nome: String(e.nome), contato_telefone_e164: `+55${String(e.telefone).replace(/\D/g, '')}`, contato_email: (e.email as string) || null, observacoes: (e.observacoes as string) || null, importada_de: null, cancelada_em: null, motivo_cancelamento: null, fechada_em: null, criado_em: new Date().toISOString() };
-    // cliente novo (fora dos fictícios) não entra no cadastro de demonstração de Clientes
+    // cliente novo (fora dos fictícios) não ganha ficha fictícia no Atendimento
     banco.push({ r, historico: [], avisar: null, cliente: NOMES.indexOf(String(e.nome)) });
     return resposta(201, r);
   }],

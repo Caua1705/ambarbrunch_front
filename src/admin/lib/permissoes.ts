@@ -4,8 +4,9 @@
 import type { Papel } from './sessao';
 
 export type Modulo = 'visao-geral' | 'reservas' | 'atendimento' | 'clube' | 'financeiro' | 'estoque';
-// Clientes não é módulo próprio de liberação: acompanha Reservas (mesmo cadastro de quem reserva).
-export type Area = Modulo | 'clientes' | 'configuracoes';
+// Não há mais área Clientes (02/11/2026): quem é o contato aparece na ficha da conversa, no Atendimento. As permissões
+// clientes.visualizar e clientes.editar continuam no backend (e-mail completo na ficha, cadastros duplicados).
+export type Area = Modulo | 'configuracoes';
 
 const TODOS: Papel[] = ['admin', 'gerente', 'operador'];
 const GERENCIA: Papel[] = ['admin', 'gerente'];
@@ -15,7 +16,6 @@ const ADMIN: Papel[] = ['admin'];
 const MODULOS: Record<Area, Papel[]> = {
   'visao-geral': GERENCIA,
   reservas: TODOS,
-  clientes: GERENCIA,
   atendimento: TODOS,
   clube: GERENCIA,
   financeiro: GERENCIA,
@@ -33,7 +33,11 @@ const ACOES = {
   // Capacidade, política e grade semanal: regra da casa (Proprietário).
   'reservas.configurar': ADMIN,
   'usuarios.gerenciar': ADMIN,
+  'clientes.visualizar': GERENCIA,
   'clientes.editar': GERENCIA,
+  // Atendimento: conversas para todos; campanhas e a base de conhecimento do assistente com a gerência.
+  'atendimento.campanhas': GERENCIA,
+  'atendimento.conhecimento': GERENCIA,
   'clube.suspender': GERENCIA,
   'clube.revogar_sessoes': GERENCIA,
   'clube.confirmar_telefone': GERENCIA,

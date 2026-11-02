@@ -2737,6 +2737,327 @@ button.lista__item {
   }
 }
 
+/* Atendimento: central única (02/11) — estados, ficha, nova conversa e gavetas da gerência ---------------------------- */
+/* Cinco filtros não cabem numa linha da coluna (nem no celular): quebram em duas, sem rolagem escondida. */
+.caixa__filtros .segmentado {
+  flex-wrap: wrap;
+  overflow: visible;
+}
+.caixa__filtros .segmentado button {
+  flex: 1 0 auto;
+}
+.caixa__acoes {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e-2);
+}
+.caixa__aviso {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  padding: 6px var(--e-2);
+  border-radius: var(--r-m);
+  background: var(--atencao-suave);
+  color: var(--atencao);
+  font-size: var(--t-xs);
+  font-weight: 550;
+  line-height: 1.35;
+}
+.caixa__aviso svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin-top: 1px;
+}
+.caixa__aviso--perigo {
+  background: var(--perigo-suave);
+  color: var(--perigo);
+}
+.conversa-item--esperando::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--atencao);
+}
+.conversa-item--esperando.conversa-item--ativa::before {
+  background: var(--marca);
+}
+.conversa-item__ultima .fraco {
+  color: var(--texto-3);
+}
+.conversa-item__conta {
+  position: absolute;
+  right: var(--e-4);
+  bottom: 14px;
+}
+.conversa__topo {
+  display: flex;
+  align-items: center;
+  gap: var(--e-2);
+  padding: var(--e-3) var(--e-4);
+  border-bottom: 1px solid var(--borda);
+}
+.conversa__quem {
+  min-width: 0;
+  flex: 1;
+}
+.conversa__quem h3 {
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.conversa__barra {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--e-2);
+  padding: var(--e-2) var(--e-4);
+  border-bottom: 1px solid var(--borda);
+  background: var(--superficie);
+}
+.conversa__motivo {
+  padding: var(--e-2) var(--e-4);
+  border-bottom: 1px solid var(--borda);
+  font-size: var(--t-s);
+}
+.conversa__resposta {
+  padding: var(--e-3) var(--e-4);
+  border-top: 1px solid var(--borda);
+  background: var(--superficie);
+}
+.conversa__resposta .aviso .btn {
+  margin-top: var(--e-2);
+}
+
+/* Interruptor (role="switch"): o assistente ligado ou desligado nesta conversa */
+.interruptor {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--e-2);
+  min-height: 32px;
+  padding: 0 var(--e-2) 0 4px;
+  border: 0;
+  border-radius: var(--r-m);
+  background: none;
+  color: var(--texto-2);
+  font: inherit;
+  font-size: var(--t-s);
+  cursor: pointer;
+}
+.interruptor:hover:not(:disabled) {
+  background: var(--sobre-hover);
+}
+.interruptor:focus-visible {
+  outline: 2px solid var(--foco);
+  outline-offset: 2px;
+}
+.interruptor:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.interruptor strong {
+  color: var(--texto);
+  font-weight: 600;
+}
+.interruptor__trilho {
+  position: relative;
+  flex: none;
+  width: 34px;
+  height: 20px;
+  border-radius: var(--r-pilula);
+  background: var(--borda-forte);
+  transition: background var(--anim);
+}
+.interruptor__bola {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--superficie);
+  box-shadow: var(--sombra-1);
+  transition: transform var(--anim);
+}
+.interruptor[aria-checked='true'] .interruptor__trilho {
+  background: var(--info);
+}
+.interruptor[aria-checked='true'] .interruptor__bola {
+  transform: translateX(14px);
+}
+
+/* Balões: assistente, campanha, automação e o que saiu por outros caminhos (reserva, Clube, botões) */
+.msg--robo {
+  background: var(--info-suave);
+}
+.msg--campanha,
+.msg--automacao {
+  background: var(--caramelo-suave);
+}
+.msg--externa {
+  background: var(--superficie);
+  border: 1px dashed var(--borda-forte);
+  font-size: var(--t-s);
+  color: var(--texto-2);
+}
+.msg__autor .etiqueta {
+  margin-left: 4px;
+}
+.msg__falha {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+  color: var(--perigo);
+}
+.msg__midia {
+  display: block;
+  margin-bottom: 4px;
+}
+.msg__midia img {
+  display: block;
+  max-width: min(240px, 100%);
+  max-height: 260px;
+  border-radius: var(--r-m);
+  object-fit: contain;
+  background: var(--afundado);
+}
+.msg__audio {
+  display: block;
+  width: min(260px, 100%);
+  height: 36px;
+  margin-bottom: 4px;
+}
+.msg__arquivo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--marca-texto);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* Etiqueta dentro do texto de uma lista: mantém o tamanho e a cor da etiqueta (a regra .lista__texto span é mais forte) */
+.lista__texto .etiqueta {
+  font-size: var(--t-xs);
+  color: var(--neutro);
+}
+.lista__texto .etiqueta--marca {
+  color: var(--marca-texto);
+}
+.lista__texto .etiqueta--atencao {
+  color: var(--atencao);
+}
+.lista__texto .etiqueta--info {
+  color: var(--info);
+}
+.lista__texto .etiqueta--ok {
+  color: var(--ok);
+}
+.lista__texto .etiqueta--perigo {
+  color: var(--perigo);
+}
+/* Listas com moldura (ficha do contato, nova conversa, campanhas, base de conhecimento) */
+.lista--borda {
+  border: 1px solid var(--borda);
+  border-radius: var(--r-l);
+  overflow: hidden;
+}
+.lista__item--borda {
+  border: 1px dashed var(--borda-forte);
+  border-radius: var(--r-l);
+}
+.destino {
+  display: flex;
+  align-items: center;
+  gap: var(--e-3);
+  padding: var(--e-3);
+  border: 1px solid var(--borda);
+  border-radius: var(--r-l);
+  background: var(--superficie-2);
+}
+.destino-opcao {
+  display: flex;
+  align-items: center;
+  gap: var(--e-2);
+  padding-right: var(--e-2);
+}
+.destino-opcao .lista__item {
+  flex: 1;
+  min-width: 0;
+}
+.previa-template {
+  padding: var(--e-3);
+  border-radius: var(--r-l);
+  background: var(--marca-suave);
+  font-size: var(--t-m);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.previa-template__selo {
+  display: flex;
+  gap: 4px;
+  margin-bottom: var(--e-2);
+}
+.pilula--neutra {
+  background: var(--superficie-2);
+  color: var(--texto-2);
+  border-color: var(--borda);
+}
+.pilula--neutra:hover {
+  border-color: var(--borda-forte);
+  color: var(--texto);
+}
+.conhecimento-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e-2);
+  padding: var(--e-3) var(--e-4);
+}
+.conhecimento-item[data-apagado] > :not(.linha) {
+  opacity: 0.65;
+}
+.totais-campanha {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: var(--e-2);
+  margin: 0;
+}
+.totais-campanha > div {
+  padding: var(--e-2) var(--e-3);
+  border: 1px solid var(--borda);
+  border-radius: var(--r-m);
+}
+.totais-campanha dt {
+  font-size: var(--t-xs);
+  color: var(--texto-3);
+}
+.totais-campanha dd {
+  margin: 0;
+  font-size: var(--t-l);
+  font-weight: 650;
+}
+.grupo-duplicado {
+  overflow: hidden;
+}
+.grupo-duplicado__cadastro {
+  display: flex;
+  align-items: center;
+  gap: var(--e-3);
+  padding: var(--e-3) var(--e-4);
+}
+.grupo-duplicado__cadastro input {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--marca);
+}
+
 /* Barra de ferramentas, filtros recolhíveis, totais em linha e sub-navegação (Financeiro e outros módulos) ---------- */
 .barra-ferramentas {
   display: flex;

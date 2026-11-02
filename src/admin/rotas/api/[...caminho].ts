@@ -10,6 +10,32 @@ export const prerender = false;
 const CAMINHO_VALIDO = /^[a-z0-9][a-z0-9_\-/.]*$/i;
 const REPASSAR = ['content-type', 'idempotency-key'];
 
+// Arquivos que o backend devolve (mídia do WhatsApp no Atendimento): o corpo passa como veio (binário, em fluxo), mas só os
+// tipos que o navegador MOSTRA sem executar nada abrem no painel. O resto (HTML, SVG, XML…, que um cliente poderia mandar
+// como "documento") desce como download e nunca roda com a origem e a sessão do painel. JSON segue intocado.
+const EXIBIVEL = /^(image\/(jpeg|png|webp|gif)|audio\/(ogg|opus|mpeg|mp4|aac|amr|wav|x-wav|webm)|video\/(mp4|3gpp|webm)|application\/pdf|text\/plain)\s*(;|$)/i;
+const JSON_TIPO = /^application\/(problem\+)?json/i;
+
+function cabecalhosDeArquivo(origem: Headers, saida: Headers) {
+  const tipo = origem.get('content-type') ?? 'application/octet-stream';
+  const nome = /filename="?([\w.\- ]{1,120})"?/i.exec(origem.get('content-disposition') ?? '')?.[1] ?? 'arquivo';
+  const exibivel = EXIBIVEL.test(tipo);
+  saida.set('Content-Type', exibivel ? tipo : 'application/octet-stream');
+  // (sem Content-Length: o fetch do servidor pode ter descomprimido o corpo e o tamanho original não vale mais)
+  saida.set('Content-Disposition', `${exibivel ? 'inline' : 'attachment'}; filename="${nome}"`);
+}
+
+/** Resposta da demonstração: arquivo (não JSON) com os cabeçalhos refeitos; JSON e erros passam sem mudança. */
+function blindarArquivo(res: Response): Response {
+  const tipo = res.headers.get('content-type') ?? '';
+  if (!res.ok || !tipo || JSON_TIPO.test(tipo)) return res;
+  const saida = new Headers();
+  cabecalhosDeArquivo(res.headers, saida);
+  const marca = res.headers.get('x-painel-modo');
+  if (marca) saida.set('X-Painel-Modo', marca);
+  return new Response(res.body, { status: res.status, headers: saida });
+}
+
 function erro(status: number, detail: string, codigo: string) {
   return new Response(JSON.stringify({ detail, codigo }), { status, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
 }
@@ -42,7 +68,7 @@ export const ALL: APIRoute = async ({ params, request, cookies, url }) => {
     // Só em build local; no build da Vercel este ramo e todo o servidor/demo/ saem do pacote.
     if (!sessao.demoPapel) return erro(401, 'Sua sessão terminou. Entre de novo.', 'nao_autenticado');
     const { responderDemo } = await import('../../servidor/demo/roteador');
-    return responderDemo({ metodo, caminho, query, papel: sessao.demoPapel, request });
+    return blindarArquivo(await responderDemo({ metodo, caminho, query, papel: sessao.demoPapel, request }));
   }
   if (sessao.demoPapel) {
     apagarSessao(cookies);
@@ -66,7 +92,9 @@ export const ALL: APIRoute = async ({ params, request, cookies, url }) => {
     throw e;
   }
   if (res.status === 401) apagarSessao(cookies);
-  const saida = new Headers({ 'Content-Type': res.headers.get('content-type') ?? 'application/json' });
+  const tipo = res.headers.get('content-type') ?? 'application/json';
+  const saida = new Headers({ 'Content-Type': tipo });
+  if (res.ok && !JSON_TIPO.test(tipo)) cabecalhosDeArquivo(res.headers, saida);
   const req = res.headers.get('x-request-id');
   if (req) saida.set('X-Request-ID', req);
   return new Response(res.body, { status: res.status, headers: saida });

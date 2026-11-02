@@ -54,9 +54,10 @@ async function consultar(fontes: string[]): Promise<Resultado> {
   }
   if (fontes.includes('atendimento')) {
     tarefas.push(
-      pedir<{ aguardando_equipe?: number }>('atendimento/resumo').then((r) => {
-        const n = r.aguardando_equipe ?? 0;
-        if (n > 0) avisos.push({ id: 'conversas', modulo: 'Atendimento', titulo: plural(n, 'conversa esperando a equipe', 'conversas esperando a equipe'), detalhe: 'Cliente escreveu e ninguém respondeu', href: '/admin/atendimento?filtro=aguardando', prioridade: 0, quantidade: n });
+      // Esperando = encaminhada à equipe e ninguém assumiu (o mesmo contador do filtro "Esperando" da caixa de entrada).
+      pedir<{ aguardando_equipe?: number; por_estado?: { esperando?: number } }>('atendimento/resumo').then((r) => {
+        const n = r.por_estado?.esperando ?? r.aguardando_equipe ?? 0;
+        if (n > 0) avisos.push({ id: 'conversas', modulo: 'Atendimento', titulo: plural(n, 'conversa esperando a equipe', 'conversas esperando a equipe'), detalhe: 'Encaminhada à equipe e ninguém assumiu', href: '/admin/atendimento?filtro=esperando', prioridade: 0, quantidade: n });
       }),
     );
   }

@@ -8,7 +8,8 @@ const ROTAS = [
   ['/admin', 'index.astro'],
   ['/admin/login', 'login.astro'],
   ['/admin/reservas', 'reservas.astro'],
-  ['/admin/clientes', 'clientes.astro'],
+  // A página Clientes saiu (02/11/2026): links antigos (inclusive ?id=) caem no Atendimento com 303.
+  ['/admin/clientes', 'clientes-redireciona.ts'],
   ['/admin/atendimento', 'atendimento.astro'],
   ['/admin/clube', 'clube.astro'],
   ['/admin/financeiro', 'financeiro.astro'],

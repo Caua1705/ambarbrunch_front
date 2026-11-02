@@ -6,7 +6,7 @@
 import '@fontsource-variable/inter/wght.css';
 import '../estilos/painel.css';
 import logo from '../../assets/media/brand/logo-ambar.png?url';
-import { LayoutDashboard, CalendarCheck, MessagesSquare, Wallet, Package, Settings, Users, Menu, Sun, Moon, PanelLeftClose, LogOut, ChevronDown, Bell, Tablet, Building2 } from 'lucide-preact';
+import { LayoutDashboard, CalendarCheck, MessagesSquare, Wallet, Package, Settings, Menu, Sun, Moon, PanelLeftClose, LogOut, ChevronDown, Bell, Tablet, Building2 } from 'lucide-preact';
 import { podeVer, type Area, type Modulo } from '../lib/permissoes';
 import { NOME_PAPEL, ehUnidadeTeste, unidadePadrao, type ContextoPainel } from '../lib/sessao';
 import TemaInicial from './TemaInicial.astro';
@@ -20,13 +20,13 @@ const { titulo, modulo, contexto } = Astro.props;
 const { usuario, unidade, unidades, modo } = contexto;
 const iniciais = usuario.nome.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]!.toUpperCase()).join('');
 
-// `liberacao`: o módulo de PAINEL_MODULOS de que a área depende (Clientes acompanha Reservas).
+// `liberacao`: o módulo de PAINEL_MODULOS de que a área depende. Sem item Clientes desde 02/11/2026: o contato aparece na
+// ficha da conversa do Atendimento, e /admin/clientes só redireciona para lá.
 // O Clube Âmbar fica FORA da navegação nesta fase (ainda não lançado): a rota /admin/clube, as telas e os contratos seguem
 // intactos e quem tem o link continua entrando.
 const MODULOS: { id: Exclude<Area, 'configuracoes' | 'clube'>; liberacao: Modulo; rotulo: string; href: string; icone: typeof LayoutDashboard }[] = [
   { id: 'visao-geral', liberacao: 'visao-geral', rotulo: 'Visão Geral', href: '/admin', icone: LayoutDashboard },
   { id: 'reservas', liberacao: 'reservas', rotulo: 'Reservas', href: '/admin/reservas', icone: CalendarCheck },
-  { id: 'clientes', liberacao: 'reservas', rotulo: 'Clientes', href: '/admin/clientes', icone: Users },
   { id: 'atendimento', liberacao: 'atendimento', rotulo: 'Atendimento', href: '/admin/atendimento', icone: MessagesSquare },
   { id: 'financeiro', liberacao: 'financeiro', rotulo: 'Financeiro', href: '/admin/financeiro', icone: Wallet },
   { id: 'estoque', liberacao: 'estoque', rotulo: 'Estoque', href: '/admin/estoque', icone: Package },
