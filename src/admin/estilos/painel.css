@@ -2901,3 +2901,81 @@ button.lista__item {
 .a-conferir {
   color: var(--atencao);
 }
+
+/* Revisão: lista de trabalho compacta ------------------------------------------------------------------------------- */
+.revisao-lista .fin-revisao-item {
+  display: flex;
+  align-items: center;
+  gap: var(--e-3);
+  padding-right: var(--e-4);
+  border-bottom: 1px solid var(--borda);
+}
+.revisao-lista .fin-revisao-item:last-child {
+  border-bottom: 0;
+}
+.revisao-linha {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--e-3);
+  padding: var(--e-3) 0 var(--e-3) var(--e-4);
+  border: 0;
+  background: none;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.fin-revisao-item:hover {
+  background: var(--sobre-hover);
+}
+.revisao-linha__texto {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.revisao-linha__texto strong {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.revisao-linha__texto span {
+  font-size: var(--t-s);
+  color: var(--texto-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.revisao-linha__motivo {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  justify-content: flex-end;
+}
+.revisao-linha__valor {
+  font-weight: 650;
+  min-width: 96px;
+  text-align: right;
+}
+@media (max-width: 720px) {
+  .revisao-linha {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+  .revisao-linha__motivo {
+    grid-column: 2 / 4;
+    justify-content: flex-start;
+  }
+  .revisao-linha__valor {
+    grid-row: 1;
+    grid-column: 3;
+    min-width: 0;
+  }
+}
+
+/* Controle segmentado solto numa pilha: do tamanho do conteúdo, não da largura toda */
+.pilha > .segmentado {
+  align-self: flex-start;
+}

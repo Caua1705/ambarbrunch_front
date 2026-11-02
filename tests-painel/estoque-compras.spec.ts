@@ -18,16 +18,19 @@ test.afterEach(() => expect(erros).toEqual([]));
 
 test('revisão: filtro "Sem categoria" e classificação da mesma despesa, com descrição opcional', async ({ page }) => {
   await page.goto(`${DEMO}/admin/financeiro?aba=revisao`);
-  const filtro = page.getByRole('group', { name: 'Filtrar despesas' });
+  const filtro = page.getByRole('group', { name: 'Filtrar a revisão' });
   await filtro.getByRole('button', { name: /Sem categoria \(\d+\)/ }).click();
   const item = page.locator('.fin-revisao-item', { hasText: 'Pix — Distribuidora Bom Preço' });
   await expect(item).toBeVisible();
   await expect(item.locator('.etiqueta', { hasText: 'Sem categoria' })).toBeVisible();
   // Só pagamentos sem categoria no filtro.
   await expect(page.locator('.fin-revisao-item', { hasText: 'Reforma do toldo' })).toHaveCount(0);
-  await item.getByLabel(/Categoria de Pix — Distribuidora Bom Preço/).selectOption('compras_insumos');
-  await item.getByLabel(/Descrição de Pix — Distribuidora Bom Preço/).fill('Compra de pão');
-  await item.getByRole('button', { name: 'Salvar classificação' }).click();
+  // Lista compacta: o formulário abre na gaveta, com o lançamento à vista.
+  await item.getByRole('button', { name: 'Classificar' }).click();
+  const gaveta = page.getByRole('dialog', { name: 'Classificar despesa' });
+  await gaveta.getByLabel(/Categoria de Pix — Distribuidora Bom Preço/).selectOption('compras_insumos');
+  await gaveta.getByLabel(/Descrição de Pix — Distribuidora Bom Preço/).fill('Compra de pão');
+  await gaveta.getByRole('button', { name: 'Salvar classificação' }).click();
   await expect(page.getByText('Classificada. A compra foi para conferência em Estoque → Compras.')).toBeVisible();
   await expect(page.locator('.fin-revisao-item', { hasText: 'Distribuidora Bom Preço' })).toHaveCount(0);
 });

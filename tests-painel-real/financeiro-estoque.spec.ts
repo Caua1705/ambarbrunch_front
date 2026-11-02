@@ -81,12 +81,14 @@ test('B2: anexar um arquivo já registrado avisa antes e a despesa não é lanç
 test('Sem categoria: o filtro mostra o pagamento e a classificação muda a MESMA despesa', async ({ page }) => {
   await entrar(page, 'gerente');
   await page.goto(`${PAINEL}/admin/financeiro?aba=revisao`);
-  await page.getByRole('group', { name: 'Filtrar despesas' }).getByRole('button', { name: 'Sem categoria (1)' }).click();
+  await page.getByRole('group', { name: 'Filtrar a revisão' }).getByRole('button', { name: 'Sem categoria (1)' }).click();
   const item = page.locator('.fin-revisao-item', { hasText: 'R$ 37,00' });
   await expect(item.locator('.etiqueta', { hasText: 'Sem categoria' })).toBeVisible();
-  await item.getByRole('combobox').selectOption('operacional');
-  await item.getByLabel(/^Descrição de /).fill('Material de escritório (integração)');
-  await item.getByRole('button', { name: 'Salvar classificação' }).click();
+  await item.getByRole('button', { name: 'Classificar' }).click();
+  const gaveta = page.getByRole('dialog', { name: 'Classificar despesa' });
+  await gaveta.getByRole('combobox').selectOption('operacional');
+  await gaveta.getByLabel(/^Descrição de /).fill('Material de escritório (integração)');
+  await gaveta.getByRole('button', { name: 'Salvar classificação' }).click();
   await expect(page.getByText('Classificação salva.')).toBeVisible();
   const d = await (await page.request.get(`${API}/financeiro/despesas/${C.sem_categoria.despesa_id}`)).json();
   expect(d.categoria_codigo).toBe('operacional');
