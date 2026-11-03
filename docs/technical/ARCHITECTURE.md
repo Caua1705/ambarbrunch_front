@@ -186,3 +186,4 @@ Playwright rodam com 1 worker nesta máquina (memória).
 | 2026-10-31 | Contratos do painel continuam em `admin/lib/{api,tipos}` por domínio | Compartilhados entre módulos e com a demo |
 | 2026-10-31 | Sem alias de import, sem Prettier/ESLint; `lint` pelo `tsc` | Evitar reescrita em massa e dependência nova |
 | 2026-11-01 | Redesign do painel: uma função por área, sino como central de pendências, unidade no menu da conta, Clube fora do menu, Financeiro em 5 áreas, Estoque abrindo em Compras | Menos elementos visíveis sem perder capacidade; detalhes e contratos faltantes em PAINEL-ADMIN.md §4a/§4b |
+| 2026-11-02 | Estoque em 4 áreas (Estoque atual, Recebimentos, Contagem, Fichas e custos) e "Registrar movimento" único; ajuste = contagem de um item | Responder "o que temos" na primeira tela; o backend não tem ajuste avulso; detalhes em PAINEL-ADMIN.md §4c/§4b |

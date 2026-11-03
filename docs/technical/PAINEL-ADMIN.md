@@ -33,7 +33,7 @@ Módulos e abas (paridade com o painel antigo):
 | Atendimento | caixa (Todas · Esperando · Assistente · Equipe · Encerradas), conversa com linha do tempo única (mídia, campanhas, templates de reserva/Clube, respostas automáticas), assistente ligado/desligado por conversa, assumir/transferir, responder, encerrar, follow-up; ficha do contato (gaveta); nova conversa com template; "Mais": Campanhas e Cadastros duplicados (gerência), Base de conhecimento (todos leem, gerência edita). **Não há mais página Clientes** (02/11/2026): `/admin/clientes` redireciona para cá |
 | Clube Âmbar | (ainda não lançado ao público; selo "em breve") |
 | Financeiro | Resumo, Vendas (Eyemobile), Lançamentos (+ Banco/conciliação), Contas a pagar, Revisão (despesas e documentos da Júlia: corrigir leitura, pago × a pagar, vincular a conta/pagamento/despesa já lançados), Resultado (+ fechamento e participação — Proprietário), Contas fixas e taxas, Categorias (por unidade, do banco) |
-| Estoque | Resumo, Compras, Insumos, Fichas técnicas, Contagem, Cancelamentos, Análises |
+| Estoque | Estoque atual (saldos, situação, gaveta do insumo com histórico), Recebimentos (Júlia, nota, sem nota — uma conferência), Contagem (3 passos), Fichas e custos (fichas técnicas; CMV e custos); "Registrar movimento" (entrada, saída, ajuste); vendas canceladas depois da baixa numa gaveta |
 
 **Unidade de negócio.** Toda consulta vai com `?unidade=<codigo>` da unidade do topo — o servidor do painel grava o
 cookie `ambar_painel_unidade` já no primeiro acesso, porque sem `unidade` o backend usa a unidade padrão DELE (na
@@ -167,7 +167,7 @@ backend; a tela mostra primeiro o essencial e o resto sob pedido (filtros recolh
 | Reservas | Barra única (‹ Hoje ›, intervalo, Dia · Semana · Mês · Lista · Por ambiente, Nova reserva); resumo do dia em uma linha; aprovações pendentes numa pílula → gaveta. |
 | Atendimento | Central única de conversas (02/11/2026): "Nova conversa" e "Mais" no topo da coluna, avisos discretos só quando o assistente ou o envio estão desligados no servidor, busca, Todas · Esperando · Assistente · Equipe · Encerradas (contador em Esperando), falhas de envio só quando existem. Conversa: cabeçalho com Contato (ficha em gaveta) e "…" (enviar template, follow-up), barra com o interruptor do assistente, Assumir e Encerrar. Sem indicadores e sem página Clientes. |
 | Financeiro | Lançamentos · Contas a pagar (Contas · Recorrentes) · Revisão · Conciliação (Banco · Stone e recebíveis · Divergências) · Relatórios e cadastros (Resultado do mês, Despesas por categoria, Evolução, Fechamento, Vendas; Categorias, Fornecedores). Sem o Resumo (o executivo é a Visão Geral). Endereços antigos redirecionados em `modulos/financeiro/index.tsx`. |
-| Estoque | Compras (tela inicial: Para conferir · Com problema · Conferidas · Todas, Enviar nota) · Insumos · Fichas técnicas · Inventário (4 passos) · Mais (Cancelamentos, Análises e CMV). Baixa automática mostrada como está no backend (hoje desligada). |
+| Estoque | Quatro áreas (02/11/2026, ver 4c): Estoque atual (tela inicial) · Recebimentos (Pendentes · Histórico) · Contagem (3 passos) · Fichas e custos (Fichas técnicas · CMV e custos). Uma ação principal em todas: "Registrar movimento". Baixa automática mostrada como está no backend (hoje desligada). |
 | Configurações | Grupos ao lado: Conta e aparência · Agenda e ambientes · Equipe e acessos · Financeiro (atalhos para os cadastros). |
 
 Decisões registradas:
@@ -199,6 +199,27 @@ Nada disto foi simulado no painel; a tela mostra o que existe e diz o que falta.
 6. **Ocupação/lotação do dia inteiro** por ambiente para o calendário do mês marcar dias "lotados" — hoje
    `/reservas/lotacao` é por ambiente e data, uma chamada por vez.
 7. **Contador de pendências num endpoint só** (o sino faz até 6 consultas leves por página, com cache de 45 s).
+
+Estoque (02/11/2026) — nada disto foi simulado; o painel usa o caminho rastreável que existe hoje:
+
+8. **Ajuste avulso com motivo** (`POST /estoque/ajustes`: insumo, quantidade real, motivo, referência) gravando
+   `ajuste_inventario` (ou um tipo `ajuste`) com o motivo no movimento. Hoje o ajuste é uma contagem de um item: fica o
+   responsável, o antes, o contado e a diferença, mas **não o motivo**, e não dá para ajustar com outra contagem aberta.
+9. **Motivo `uso_interno`** em `/estoque/perdas` (hoje vai como `outro` + observação) — e, se a gestão quiser, saída que
+   não seja tratada como perda nos relatórios.
+10. **Abertura de estoque marcada no movimento** (`saldo_inicial` na primeira contagem, ou `abertura: true` no item da
+    contagem). Hoje a primeira contagem vira `ajuste_inventario` como as outras; o painel só distingue a abertura na
+    hora da contagem (item sem contagem anterior), não no histórico depois.
+11. **Nome de quem registrou** nas respostas (`registrado_por_nome`, `aberto_por_nome`, `criada_por_nome`), como já existe
+    em Reservas. Sem isso, só o Proprietário vê o nome de outra pessoa (lista da equipe); os demais veem "Equipe".
+12. **Observação/justificativa e documento de origem no recebimento sem nota** (`POST /estoque/compras/manual` não tem
+    campo de observação; a ausência de nota fica identificada só pela fonte "Digitada").
+13. **Recebimento parcial com saldo pendente**: hoje um item pode ser ignorado ou ter a quantidade-base corrigida, mas o
+    que falta chegar não fica registrado como pendente.
+14. **Ficha incompleta** (ingrediente faltando) não é detectável pelo backend: ele sabe se há ficha e se algum ingrediente
+    está sem custo ("Custo indisponível").
+15. **Vínculo de entrada manual a uma despesa escolhida pela pessoa**: hoje a confirmação oferece as candidatas que o
+    backend encontra (mesmo fornecedor/valor, até 2%); não há busca livre de despesas na conferência.
 
 ## 5. Contrato: o que foi conferido e ainda vale saber
 
@@ -248,6 +269,40 @@ novas respondem 404/405 (a tela mostra "ainda não está no ar", não quebra).
 `/admin/operacao`: tela própria para o tablet fixo do salão — reservas de hoje e "Cliente chegou" com um toque, para
 Proprietário, Gerente e Atendente, sobre as mesmas rotas reais de Reservas. Detalhes, perfis, sessão compartilhada,
 testes e o que falta para Atendimento e Ponto: [`MODO-OPERACAO.md`](MODO-OPERACAO.md).
+
+## 4c. Estoque em quatro áreas (02/11/2026)
+
+Antes: Compras (tela inicial, 4 filtros, "Compra sem nota" e "Enviar nota" soltos) · Insumos (3 filtros, coluna de
+confiabilidade) · Fichas técnicas · Inventário (4 passos) · Mais (Cancelamentos, Análises e CMV).
+
+| Área | O que tem |
+|---|---|
+| Estoque atual | Três números discretos (insumos cadastrados, abaixo do mínimo, recebimentos pendentes), uma busca, filtro de situação e — só com mais de uma categoria — de categoria. Tabela: insumo, categoria, disponível, unidade, mínimo, situação. Gaveta do insumo: disponível, mínimo, custo médio (quando há), última entrada, última contagem, histórico com o nome de quem registrou e as ações Entrada · Saída · Ajuste. Linha discreta: "Baixa automática pelas vendas: desligada" e, se houver, vendas canceladas a responder (gaveta). |
+| Recebimentos | Pendentes (para conferir, sendo lidos, com falha) · Histórico (conferidos e cancelados). Origem em uma linha: Júlia · comprovante de pagamento / Painel · nota fiscal / Painel · sem nota. "Novo recebimento" → com nota (foto/PDF/XML) ou sem nota (digitado); todos caem na MESMA conferência (`Conferencia.tsx`). |
+| Contagem | 1) Selecionar itens (prioritários = abaixo do mínimo/sem estoque + sugestão do backend; todos; escolher) · 2) Informar quantidades (registrado × contado, salvo ao sair do campo) · 3) Revisar e confirmar (diferença prevista; abertura aparece como "Saldo inicial"). Histórico compacto com o responsável. |
+| Fichas e custos | Fichas técnicas (produto da Eyemobile, custo estimado só com ficha completa; situações Sem ficha · Custo indisponível · Completa; cobertura da receita) · CMV e custos (CMV teórico × consumo e diferenças físicas, motivos quando indisponível, compras do mês marcadas como "não é CMV", mais vendidos, preços por fornecedor, cardápio). Previsão de falta e reposição só aparecem com a baixa ligada. |
+
+Regras de tela (nenhum cálculo de regra no painel):
+
+- **Situação**: Não conferido = sem contagem (ou contagem antes de `inicio_controle`), conferido pelo campo
+  `ultima_contagem_em` — com a baixa desligada o backend devolve o motivo `baixa_desligada` e esconde o
+  `nunca_contado`. Sem estoque = conferido e saldo ≤ 0. Estoque baixo = `abaixo_minimo` do backend. O resto, Normal.
+  Item não conferido nunca aparece como "0": mostra "—" (nada registrado) ou o registrado esmaecido ("só entradas, sem
+  contagem").
+- **Unidade de exibição**: kg/L quando os números da linha passam de mil, senão g/ml/un; o painel só desloca a vírgula
+  (÷/× 1000, por texto) e o backend recebe sempre a unidade-base.
+- **Responsável**: o backend grava `usuario:<id>`; o painel mostra o nome de quem está usando, o nome da equipe (lista
+  `GET /usuarios`, só Proprietário) ou "Equipe"; `integracao:julia` → "Júlia". Nenhum id técnico na tela.
+- **Entrada** = recebimento (estoque só muda em "Confirmar recebimento"). **Saída** = `POST /estoque/perdas` (motivos
+  vencido, quebra, preparo, outro; "Uso interno" vai como `outro` + observação "Uso interno: …"). **Ajuste** = contagem
+  de um item (`inventarios` lista → contar → fechar; se algo falhar no meio, a contagem é cancelada). Com outra contagem
+  aberta na unidade, o ajuste manda para ela.
+- **Financeiro**: a confirmação continua com as regras do backend (B1–B3): pagamento da Júlia já vinculado ("É o
+  pagamento que a Júlia registrou"), candidata forte pré-selecionada, conta nova só com motivo, nada de segunda despesa
+  quando um pagamento espera a conferência, produtos precisam somar o pagamento (nenhum rateio automático).
+
+Testes: `tests-painel/estoque.spec.ts` (demonstração) e `tests-painel-real/estoque.spec.ts` (backend real local,
+base isolada; JSON em `PAINEL_REAL_ESTOQUE`).
 
 ## 6. Rodar, testar
 
