@@ -85,7 +85,7 @@ async function consultar(fontes: string[]): Promise<Resultado> {
   if (fontes.includes('estoque')) {
     tarefas.push(
       pedir<{ total: number }>('estoque/compras?etapa=aguardando_conferencia&limite=1').then(({ total }) => {
-        if (total > 0) avisos.push({ id: 'compras', modulo: 'Estoque', titulo: plural(total, 'compra aguardando conferência', 'compras aguardando conferência'), detalhe: 'Conferir itens antes de entrar no estoque', href: '/admin/estoque?aba=compras', prioridade: 1, quantidade: total });
+        if (total > 0) avisos.push({ id: 'compras', modulo: 'Estoque', titulo: plural(total, 'recebimento aguardando conferência', 'recebimentos aguardando conferência'), detalhe: 'Conferir os itens antes de entrar no estoque', href: '/admin/estoque?aba=recebimentos', prioridade: 1, quantidade: total });
       }),
     );
   }

@@ -317,7 +317,7 @@ function Falhou({ c }: { c: CompraDetalhe }) {
         {repetida ? (
           <div style={{ marginTop: '6px' }}>Nada foi lançado em dobro. Procure a compra original na lista (mesmo fornecedor e número).</div>
         ) : (
-          <div style={{ marginTop: '6px' }}>Tente ler de novo. Se não der, envie uma foto mais nítida, o PDF ou o XML — ou digite os itens em “Compra sem nota”.</div>
+          <div style={{ marginTop: '6px' }}>Tente ler de novo. Se não der, envie uma foto mais nítida, o PDF ou o XML — ou registre em “Novo recebimento → Sem nota”.</div>
         )}
       </Aviso>
       {c.arquivo_id && <DocumentoLink c={c} />}

@@ -4,15 +4,15 @@ export function rotaPainel(rota: string | null | undefined): string | null {
   if (!rota) return null;
   const [caminho, busca = ''] = rota.split('?');
   const q = new URLSearchParams(busca);
-  if (caminho.startsWith('/admin/estoque/analises')) return '/admin/estoque?aba=mais&secao=analises';
+  if (caminho.startsWith('/admin/estoque/analises')) return '/admin/estoque?aba=custos&secao=cmv';
   if (caminho.startsWith('/admin/estoque/compras')) {
     const compra = /^\/admin\/estoque\/compras\/([0-9a-f-]{36})/.exec(caminho)?.[1];
-    return `/admin/estoque?aba=compras${compra ? `&compra=${compra}` : ''}`;
+    return `/admin/estoque?aba=recebimentos${compra ? `&compra=${compra}` : ''}`;
   }
-  if (caminho.startsWith('/admin/estoque/fichas')) return '/admin/estoque?aba=fichas';
+  if (caminho.startsWith('/admin/estoque/fichas')) return '/admin/estoque?aba=custos';
   if (caminho.startsWith('/admin/estoque/inventarios')) return '/admin/estoque?aba=contagem';
-  if (caminho.startsWith('/admin/estoque/cancelamentos')) return '/admin/estoque?aba=mais&secao=cancelamentos';
-  if (caminho.startsWith('/admin/estoque/insumos') || caminho.startsWith('/admin/estoque/perdas')) return '/admin/estoque?aba=insumos';
+  if (caminho.startsWith('/admin/estoque/cancelamentos')) return '/admin/estoque?cancelamentos=1';
+  if (caminho.startsWith('/admin/estoque/insumos') || caminho.startsWith('/admin/estoque/perdas')) return '/admin/estoque';
   if (caminho.startsWith('/admin/estoque')) return '/admin/estoque';
   if (caminho.startsWith('/admin/financeiro/contas-a-pagar')) return `/admin/financeiro?aba=contas${q.get('situacao') ? `&situacao=${q.get('situacao')}` : ''}`;
   // Financeiro: cinco áreas (Lançamentos, Contas a pagar, Revisão, Conciliação, Relatórios e cadastros).

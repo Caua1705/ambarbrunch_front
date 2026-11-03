@@ -1,8 +1,8 @@
-// Entradas de compra pelo painel: enviar nota (foto/PDF/XML) e compra sem nota; e as linhas de produtos (seletor do
-// cadastro de insumos e materiais, quantidade, unidade, valor unitário e subtotal), usadas também quando a compra veio
-// só do comprovante do Pix.
+// Recebimentos pelo painel: um "Novo recebimento" (com nota: foto/PDF/XML; sem nota: digitado) e as linhas de produtos
+// (seletor do cadastro de insumos e materiais, quantidade, unidade, valor unitário e subtotal), usadas também quando a
+// compra veio só do comprovante do Pix.
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { Info, Plus, Trash2, Camera } from 'lucide-preact';
+import { Info, Plus, Trash2, Camera, FileText, PencilLine } from 'lucide-preact';
 import { estoque } from '../../lib/api/estoque';
 import { ErroApi, novaChave } from '../../lib/api/cliente';
 import { moeda, hojeISO, paraDecimal } from '../../lib/formato';
@@ -12,14 +12,62 @@ import { EnvioArquivo, EntradaMoeda, Autocompletar, type OpcaoAuto } from '../..
 import type { ItemManual } from '../../lib/tipos/estoque';
 import { atualizarEstoque, UNIDADE_CURTA } from './comum';
 
-/** Envio de nota: foto (câmera no celular), PDF ou XML. A leitura acontece no backend; a conferência abre em seguida.
- *  A unidade vai no próprio formulário: no multipart o backend lê `unidade` do Form, não da query. */
-export function EnviarNota({ aberta, aoFechar, aoEnviar, unidade }: { aberta: boolean; aoFechar: () => void; aoEnviar: (id: string) => void; unidade: string | null }) {
+/** Novo recebimento: uma porta só para o que chegou com nota (foto/PDF/XML, lida no backend) e sem nota (digitado). Os
+ *  dois caem na MESMA conferência de Recebimentos, e nada entra no estoque antes do "Confirmar recebimento". O envio da
+ *  nota manda a unidade no próprio formulário: no multipart o backend lê `unidade` do Form, não da query. */
+export function NovoRecebimento({ aberto, modo: modoInicial, insumo, unidade, aoFechar, aoCriar }: {
+  aberto: boolean;
+  modo: 'nota' | 'manual' | null;
+  /** Insumo que já vem na primeira linha (entrada aberta pela gaveta do insumo). */
+  insumo: { id: string; nome: string } | null;
+  unidade: string | null;
+  aoFechar: () => void;
+  aoCriar: (compraId: string) => void;
+}) {
+  const [modo, setModo] = useState<'nota' | 'manual' | null>(modoInicial);
+  useEffect(() => {
+    if (aberto) setModo(modoInicial);
+  }, [aberto, modoInicial]);
+  const [enviando, setEnviando] = useState(false);
+  const titulo = modo === 'nota' ? 'Recebimento com nota' : modo === 'manual' ? 'Recebimento sem nota' : 'Novo recebimento';
+  return (
+    <Gaveta
+      aberta={aberto}
+      aoFechar={aoFechar}
+      titulo={titulo}
+      subtitulo={modo === 'nota' ? 'Foto da nota, PDF ou o XML do fornecedor' : modo === 'manual' ? 'Fornecedor, itens, quantidades e valores' : 'O que chegou ao café?'}
+      largura={modo === 'manual' ? 'media' : 'normal'}
+      rodape={
+        modo === 'manual' ? (
+          <>
+            <Botao onClick={() => (modoInicial ? aoFechar() : setModo(null))} disabled={enviando}>{modoInicial ? 'Cancelar' : 'Voltar'}</Botao>
+            <Botao variante="primario" type="submit" form="form-recebimento-manual" carregando={enviando}>Continuar para a conferência</Botao>
+          </>
+        ) : undefined
+      }
+    >
+      {modo === null && (
+        <div class="escolha-movimento" role="group" aria-label="Escolha uma opção">
+          <button type="button" class="escolha-movimento__opcao" onClick={() => setModo('nota')}>
+            <span class="escolha-movimento__icone"><FileText aria-hidden="true" /></span>
+            <span class="escolha-movimento__texto"><strong>Com nota fiscal</strong><span>Foto, PDF ou XML. Os itens são lidos e você confere.</span></span>
+          </button>
+          <button type="button" class="escolha-movimento__opcao" onClick={() => setModo('manual')}>
+            <span class="escolha-movimento__icone"><PencilLine aria-hidden="true" /></span>
+            <span class="escolha-movimento__texto"><strong>Sem nota</strong><span>Feira, mercado sem cupom: informe fornecedor, itens e valores.</span></span>
+          </button>
+          <p class="fraco">Pagou e mandou o comprovante para a Júlia? Ele já está nos pendentes: confira por lá, sem criar outro recebimento.</p>
+        </div>
+      )}
+      {modo === 'nota' && <EnvioNota unidade={unidade} aoEnviar={aoCriar} aoVoltar={modoInicial ? null : () => setModo(null)} />}
+      {modo === 'manual' && <FormManual aberto={aberto} insumo={insumo} aoEnviando={setEnviando} aoCriar={aoCriar} />}
+    </Gaveta>
+  );
+}
+
+function EnvioNota({ unidade, aoEnviar, aoVoltar }: { unidade: string | null; aoEnviar: (id: string) => void; aoVoltar: (() => void) | null }) {
   const [enviando, setEnviando] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
-  useEffect(() => {
-    if (aberta) setErro(null);
-  }, [aberta]);
   async function enviar(f: File) {
     if (f.size > 15 * 1024 * 1024) return setErro('O arquivo passa de 15 MB. Tire a foto de novo ou envie o PDF/XML.');
     setEnviando(f.name);
@@ -27,7 +75,7 @@ export function EnviarNota({ aberta, aoFechar, aoEnviar, unidade }: { aberta: bo
     try {
       const r = await estoque.enviarNota(f, unidade);
       atualizarEstoque();
-      avisar(r.ja_existia ? 'Esta nota já tinha sido enviada: abrindo a mesma compra.' : 'Nota recebida. Lendo o documento…', r.ja_existia ? 'info' : 'ok');
+      avisar(r.ja_existia ? 'Esta nota já tinha sido enviada: abrindo o mesmo recebimento.' : 'Nota recebida. Lendo o documento…', r.ja_existia ? 'info' : 'ok');
       aoEnviar(r.id);
     } catch (e) {
       setErro(e instanceof ErroApi ? e.message : 'Não foi possível enviar.');
@@ -36,21 +84,89 @@ export function EnviarNota({ aberta, aoFechar, aoEnviar, unidade }: { aberta: bo
     }
   }
   return (
-    <Gaveta aberta={aberta} aoFechar={aoFechar} titulo="Enviar nota de compra" subtitulo="Foto da nota, PDF ou o XML que o fornecedor mandou">
+    <div class="pilha">
       <EnvioArquivo
         aceitar="image/jpeg,image/png,image/webp,image/heic,application/pdf,.xml,text/xml,application/xml"
         captura
         desativado={!!enviando}
         titulo={enviando ? `Enviando ${enviando}…` : 'Toque para tirar a foto ou escolher o arquivo'}
-        detalhe="JPG, PNG, HEIC, PDF ou XML, até 15 MB. No computador, pode arrastar o arquivo para cá."
+        detalhe="JPG, PNG, HEIC, PDF ou XML, até 15 MB. O XML é o mais preciso."
         aoEscolher={enviar}
       />
       {erro && <Aviso tom="perigo" icone={<Info aria-hidden="true" />}>{erro}</Aviso>}
-      <Aviso icone={<Camera aria-hidden="true" />}>
-        <strong>Dica:</strong> o XML da nota é o mais preciso. Na foto, enquadre a nota inteira, com o QR Code visível e sem reflexo. Nada entra no estoque até alguém conferir.
-      </Aviso>
-      <p class="fraco">Já pagou pela Júlia? Não envie aqui: abra a compra pendente desse pagamento na lista e envie a nota dentro dela — ela confere o mesmo pagamento, sem criar outra despesa.</p>
-    </Gaveta>
+      <Aviso icone={<Camera aria-hidden="true" />}>Nada entra no estoque até alguém conferir. Se o pagamento já foi para a Júlia, envie a nota dentro do recebimento pendente dele: ela confere o mesmo pagamento, sem criar outra despesa.</Aviso>
+      {aoVoltar && <Botao variante="fantasma" onClick={aoVoltar} style={{ alignSelf: 'flex-start' }}>Voltar</Botao>}
+    </div>
+  );
+}
+
+/** Recebimento sem documento (feira, mercado sem cupom). Segue a mesma conferência. */
+function FormManual({ aberto, insumo, aoEnviando, aoCriar }: { aberto: boolean; insumo: { id: string; nome: string } | null; aoEnviando: (v: boolean) => void; aoCriar: (id: string) => void }) {
+  const inicial = (): LinhaManual[] => [insumo ? { ...linhaVazia(), insumo: { valor: insumo.id, rotulo: insumo.nome }, descricao: insumo.nome } : linhaVazia()];
+  const [fornecedor, setFornecedor] = useState('');
+  const [documento, setDocumento] = useState('');
+  const [desconto, setDesconto] = useState('');
+  const [data, setData] = useState(hojeISO());
+  const [total, setTotal] = useState('');
+  const [linhas, setLinhas] = useState<LinhaManual[]>(inicial);
+  const [erro, setErro] = useState<string | null>(null);
+  const chave = useRef(novaChave());
+  const enviandoRef = useRef(false);
+  useEffect(() => {
+    if (aberto) {
+      setFornecedor('');
+      setDocumento('');
+      setDesconto('');
+      setData(hojeISO());
+      setTotal('');
+      setLinhas(inicial());
+      setErro(null);
+      chave.current = novaChave();
+    }
+  }, [aberto, insumo?.id]);
+  const soma = somaLinhas(linhas);
+  async function criar(e: Event) {
+    e.preventDefault();
+    if (enviandoRef.current) return;
+    const { itens, erro: er } = validarLinhas(linhas);
+    if (er) return setErro(er);
+    const t = paraDecimal(total) ?? soma.toFixed(2);
+    if (!(Number(t) > 0)) return setErro('Informe o valor dos produtos (o total precisa ser maior que zero).');
+    const d = desconto.trim() ? paraDecimal(desconto) : '0';
+    if (d === null) return setErro('Desconto inválido.');
+    const doc = documento.replace(/\D/g, '');
+    enviandoRef.current = true;
+    aoEnviando(true);
+    setErro(null);
+    try {
+      const r = await estoque.compraManual({ fornecedor_nome: fornecedor.trim() || null, fornecedor_documento: doc || null, emitida_em: data, valor_total: t, desconto: d, itens }, chave.current);
+      atualizarEstoque();
+      avisar('Recebimento registrado. Confira os itens para dar entrada.', 'ok');
+      aoCriar(r.id);
+    } catch (x) {
+      setErro(x instanceof ErroApi ? x.message : 'Não foi possível registrar.');
+    } finally {
+      enviandoRef.current = false;
+      aoEnviando(false);
+    }
+  }
+  return (
+    <form id="form-recebimento-manual" class="pilha" onSubmit={criar} noValidate>
+      <div class="grade-campos">
+        <Campo rotulo="Fornecedor" opcional>{(id) => <input id={id} class="entrada" placeholder="Ex.: Feira do Mucuripe" value={fornecedor} onInput={(e) => setFornecedor(e.currentTarget.value)} />}</Campo>
+        <Campo rotulo="CNPJ ou CPF" opcional>{(id) => <input id={id} class="entrada num" inputMode="numeric" maxLength={20} value={documento} onInput={(e) => setDocumento(e.currentTarget.value)} />}</Campo>
+        <Campo rotulo="Data do recebimento">{(id) => <input id={id} type="date" class="entrada" max={hojeISO()} value={data} onChange={(e) => setData(e.currentTarget.value)} />}</Campo>
+      </div>
+      <LinhasItens linhas={linhas} aoMudar={setLinhas} />
+      <div class="grade-campos">
+        <Campo rotulo="Total pago" opcional ajuda={soma ? `Soma dos produtos: ${moeda(soma)}. Em branco, vale a soma.` : 'Em branco, vale a soma dos produtos.'}>
+          {(id, d) => <EntradaMoeda id={id} descr={d} valor={total} aoMudar={setTotal} />}
+        </Campo>
+        <Campo rotulo="Desconto" opcional>{(id) => <EntradaMoeda id={id} valor={desconto} aoMudar={setDesconto} />}</Campo>
+      </div>
+      {erro && <Aviso tom="perigo" icone={<Info aria-hidden="true" />}>{erro}</Aviso>}
+      <p class="fraco">Sem nota fiscal, o recebimento fica identificado como digitado. Na conferência você escolhe como ele aparece no Financeiro: vincular a uma despesa que já existe, conta a pagar ou já paga.</p>
+    </form>
   );
 }
 
@@ -144,78 +260,3 @@ export function LinhasItens({ linhas, aoMudar }: { linhas: LinhaManual[]; aoMuda
   );
 }
 
-/** Compra sem documento (feira, mercado sem cupom). Segue a mesma conferência. */
-export function CompraManual({ aberta, aoFechar, aoCriar }: { aberta: boolean; aoFechar: () => void; aoCriar: (id: string) => void }) {
-  const [fornecedor, setFornecedor] = useState('');
-  const [documento, setDocumento] = useState('');
-  const [desconto, setDesconto] = useState('');
-  const [data, setData] = useState(hojeISO());
-  const [total, setTotal] = useState('');
-  const [linhas, setLinhas] = useState<LinhaManual[]>([linhaVazia()]);
-  const [erro, setErro] = useState<string | null>(null);
-  const [enviando, setEnviando] = useState(false);
-  const chave = useRef(novaChave());
-  useEffect(() => {
-    if (aberta) {
-      setFornecedor('');
-      setDocumento('');
-      setDesconto('');
-      setData(hojeISO());
-      setTotal('');
-      setLinhas([linhaVazia()]);
-      setErro(null);
-      chave.current = novaChave();
-    }
-  }, [aberta]);
-  const soma = somaLinhas(linhas);
-  async function criar(e: Event) {
-    e.preventDefault();
-    const { itens, erro: er } = validarLinhas(linhas);
-    if (er) return setErro(er);
-    const t = paraDecimal(total) ?? soma.toFixed(2);
-    const d = desconto.trim() ? paraDecimal(desconto) : '0';
-    if (d === null) return setErro('Desconto inválido.');
-    const doc = documento.replace(/\D/g, '');
-    setEnviando(true);
-    setErro(null);
-    try {
-      const r = await estoque.compraManual({ fornecedor_nome: fornecedor.trim() || null, fornecedor_documento: doc || null, emitida_em: data, valor_total: t, desconto: d, itens }, chave.current);
-      atualizarEstoque();
-      avisar('Compra registrada. Confira os itens para dar entrada.', 'ok');
-      aoCriar(r.id);
-    } catch (x) {
-      setErro(x instanceof ErroApi ? x.message : 'Não foi possível registrar.');
-    } finally {
-      setEnviando(false);
-    }
-  }
-  return (
-    <Gaveta
-      aberta={aberta}
-      aoFechar={aoFechar}
-      titulo="Compra sem nota"
-      subtitulo="Feira, mercado sem cupom: digite o essencial"
-      largura="media"
-      rodape={
-        <>
-          <Botao onClick={aoFechar} disabled={enviando}>Cancelar</Botao>
-          <Botao variante="primario" type="submit" form="form-compra-manual" carregando={enviando}>Continuar para a conferência</Botao>
-        </>
-      }
-    >
-      <form id="form-compra-manual" class="pilha" onSubmit={criar} noValidate>
-        {erro && <Aviso tom="perigo" icone={<Info aria-hidden="true" />}>{erro}</Aviso>}
-        <div class="grade-campos">
-          <Campo rotulo="Onde comprou" opcional>{(id) => <input id={id} class="entrada" placeholder="Ex.: Feira do Mucuripe" value={fornecedor} onInput={(e) => setFornecedor(e.currentTarget.value)} />}</Campo>
-          <Campo rotulo="CNPJ ou CPF" opcional ajuda="Ajuda a ligar a compra ao fornecedor certo.">{(id, d) => <input id={id} class="entrada num" inputMode="numeric" maxLength={20} aria-describedby={d} value={documento} onInput={(e) => setDocumento(e.currentTarget.value)} />}</Campo>
-          <Campo rotulo="Data da compra">{(id) => <input id={id} type="date" class="entrada" max={hojeISO()} value={data} onChange={(e) => setData(e.currentTarget.value)} />}</Campo>
-        </div>
-        <LinhasItens linhas={linhas} aoMudar={setLinhas} />
-        <Campo rotulo="Total pago" opcional ajuda={soma ? `Soma dos produtos: ${moeda(soma)}. Em branco, vale a soma.` : 'Em branco, vale a soma dos produtos.'}>
-          {(id, d) => <EntradaMoeda id={id} descr={d} valor={total} aoMudar={setTotal} />}
-        </Campo>
-        <Campo rotulo="Desconto" opcional>{(id) => <EntradaMoeda id={id} valor={desconto} aoMudar={setDesconto} />}</Campo>
-      </form>
-    </Gaveta>
-  );
-}

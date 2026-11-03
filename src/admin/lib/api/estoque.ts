@@ -27,7 +27,9 @@ export const estoque = {
   /** O que o sistema sugeriria para uma descrição da nota: UM objeto (insumo_id null = sem sugestão). */
   sugestaoInsumo: (texto: string, unidade_fiscal?: string, fornecedor_id?: string | null) =>
     pedir<SugestaoInsumo>('estoque/insumos-sugestoes', { query: { texto, unidade_fiscal, fornecedor_id } }),
-  registrarPerda: (p: { insumo_id: string; quantidade: string; motivo: 'vencido' | 'quebra' | 'preparo' | 'outro'; observacao?: string }, chave = novaChave()) =>
+  /** Saída manual (perda, uso interno, outra). O backend só tem os motivos vencido/quebra/preparo/outro: "uso interno" vai
+   *  como `outro` com a observação "Uso interno: …". `ocorreu_em` opcional (padrão: agora). */
+  registrarPerda: (p: { insumo_id: string; quantidade: string; motivo: 'vencido' | 'quebra' | 'preparo' | 'outro'; observacao?: string; ocorreu_em?: string }, chave = novaChave()) =>
     pedir<MovimentoEstoque>('estoque/perdas', { metodo: 'POST', corpo: p, idempotencia: chave }),
   // Contagem (inventário): no máximo uma aberta por unidade; 409 inventario_aberto traz dados.inventario_id
   sugestaoInventario: () => pedir<SugestaoInventario[]>('estoque/inventarios/sugestao'),

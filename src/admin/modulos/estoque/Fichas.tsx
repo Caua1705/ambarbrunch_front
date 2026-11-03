@@ -1,13 +1,13 @@
-// Fichas técnicas: o que cada produto vendido (ou preparo da casa) leva, quanto custa a porção hoje e a margem ao preço do
-// PDV — custo e margem vêm prontos do backend. Editar cria uma versão nova a partir de agora (as vendas passadas não
-// mudam). Só gerência (estoque.editar; o backend confere: 403).
+// Fichas técnicas: o que cada produto vendido na Eyemobile (ou preparo da casa) leva e o custo estimado da porção, com os
+// valores oficiais dos insumos — custo e margem vêm prontos do backend e só aparecem com a ficha completa. Editar cria
+// uma versão nova a partir de agora (as vendas passadas não mudam). Só gerência (estoque.editar; o backend confere: 403).
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { Search, Lock, Pencil, Plus, Trash2, Info, FileText, History } from 'lucide-preact';
 import { useConsulta } from '../../lib/consulta';
 import { estoque } from '../../lib/api/estoque';
 import { moeda, pct, quantidade, dataCurta, num, decimal } from '../../lib/formato';
 import { Gaveta, useConfirmacao } from '../../ui/camadas';
-import { Botao, Campo, Cartao, Segmentado, Situacao, Aviso } from '../../ui/base';
+import { Botao, Campo, Cartao, Situacao, Aviso } from '../../ui/base';
 import { Dados, EsqueletoTabela, Esqueleto, Vazio, Falha } from '../../ui/estados';
 import { Tabela, type Coluna } from '../../ui/tabela';
 import { Autocompletar, type OpcaoAuto } from '../../ui/entradas';
@@ -17,6 +17,9 @@ import { UNIDADE, UNIDADE_CURTA, atualizarEstoque } from './comum';
 
 type Filtro = 'todas' | 'sem' | 'incompletas' | 'completas';
 const situacao = (f: FichaLista) => (!f.ficha ? 'sem' : f.ficha.custo_incompleto ? 'incompleta' : 'completa');
+/** O backend sabe se há ficha e se algum ingrediente está sem custo; se faltou cadastrar um ingrediente, só quem conhece a
+ *  receita sabe — por isso não há um "incompleta" automático além destes. */
+const SITUACAO_FICHA = { sem: 'Sem ficha', incompleta: 'Custo indisponível', completa: 'Completa' } as const;
 
 /** O que a gaveta da ficha precisa saber de quem a abriu (a lista de produtos ou o detalhe de um preparo). */
 export interface AlvoFicha {
@@ -33,12 +36,11 @@ export interface AlvoFicha {
   semFicha?: boolean;
 }
 
-export function Fichas({ pode }: { pode: boolean }) {
+export function Fichas({ pode, cobertura, responsavel }: { pode: boolean; cobertura: string | null; responsavel: (r: string | null | undefined) => string | null }) {
   const [filtro, setFiltro] = useState<Filtro>('todas');
-  const [dias, setDias] = useState(30);
   const [busca, setBusca] = useState('');
   const [aberta, setAberta] = useState<AlvoFicha | null>(null);
-  const lista = useConsulta(pode ? `estoque/fichas?${dias}` : null, () => estoque.fichas('todas', dias));
+  const lista = useConsulta(pode ? 'estoque/fichas?30' : null, () => estoque.fichas('todas', 30));
 
   const linhas = useMemo(() => {
     const t = busca.trim().toLowerCase();
@@ -51,56 +53,45 @@ export function Fichas({ pode }: { pode: boolean }) {
     });
   }, [lista.dados, filtro, busca]);
 
-  if (!pode) return <Vazio icone={<Lock aria-hidden="true" />} titulo="Fichas técnicas são da gerência">Custos e margens dos produtos ficam com a gerência. Para registrar perdas e conferir compras, use as outras abas.</Vazio>;
+  if (!pode) return <Vazio icone={<Lock aria-hidden="true" />} titulo="Fichas técnicas são da gerência">Custos dos produtos ficam com a gerência.</Vazio>;
 
   const n = (s: string) => (lista.dados ?? []).filter((f) => situacao(f) === s).length;
   const colunas: Coluna<FichaLista>[] = [
     { id: 'produto', titulo: 'Produto', ordenar: (f) => f.produto, celula: (f) => <><span class="principal-celula">{f.produto}</span>{f.grupo && <span class="sub">{f.grupo}</span>}</> },
     { id: 'preco', titulo: 'Preço no PDV', numero: true, prioridade: 'media', ordenar: (f) => num(f.preco_pdv), celula: (f) => <span class="num">{moeda(f.preco_pdv)}</span> },
-    { id: 'vendas', titulo: `Vendas (${dias} dias)`, numero: true, prioridade: 'baixa', ordenar: (f) => num(f.receita_periodo), celula: (f) => <span class="num">{decimal(f.quantidade_periodo, 0)} <span class="sub">{moeda(f.receita_periodo)}</span></span> },
-    { id: 'custo', titulo: 'Custo da porção', numero: true, ordenar: (f) => num(f.ficha?.custo_porcao_hoje), celula: (f) => <span class="num">{moeda(f.ficha?.custo_porcao_hoje)}</span> },
-    { id: 'margem', titulo: 'Margem hoje', numero: true, prioridade: 'media', ordenar: (f) => num(f.ficha?.margem_hoje_pct), celula: (f) => <span class="num">{pct(f.ficha?.margem_hoje_pct)}</span> },
-    { id: 'situacao', titulo: 'Ficha', ordenar: situacao, celula: (f) => { const s = situacao(f); return <Situacao tom={s === 'completa' ? 'ok' : 'atencao'} destaque={s === 'sem'}>{s === 'sem' ? 'Sem ficha' : s === 'incompleta' ? 'Custo incompleto' : `Completa · v${f.ficha!.versao}`}</Situacao>; } },
+    { id: 'vendas', titulo: 'Vendidos em 30 dias', numero: true, prioridade: 'baixa', ordenar: (f) => num(f.quantidade_periodo), celula: (f) => <span class="num">{decimal(f.quantidade_periodo, 0)}</span> },
+    { id: 'custo', titulo: 'Custo estimado', numero: true, ordenar: (f) => num(f.ficha?.custo_porcao_hoje), celula: (f) => (situacao(f) === 'completa' ? <span class="num">{moeda(f.ficha!.custo_porcao_hoje)}</span> : <span class="fraco">{situacao(f) === 'sem' ? '—' : 'Indisponível'}</span>) },
+    { id: 'situacao', titulo: 'Ficha', ordenar: situacao, celula: (f) => { const s = situacao(f); return <Situacao tom={s === 'completa' ? 'ok' : 'atencao'} destaque={s === 'sem'}>{SITUACAO_FICHA[s]}</Situacao>; } },
   ];
-  const abrir = (f: FichaLista) => setAberta({ alvo: 'produto', id: f.eye_product_id, nome: f.produto, grupo: f.grupo, preco: f.preco_pdv, margem: f.ficha?.margem_hoje_pct ?? null, semFicha: !f.ficha });
+  const abrir = (f: FichaLista) => setAberta({ alvo: 'produto', id: f.eye_product_id, nome: f.produto, grupo: f.grupo, preco: f.preco_pdv, margem: f.ficha && !f.ficha.custo_incompleto ? f.ficha.margem_hoje_pct : null, semFicha: !f.ficha });
 
   return (
     <>
-      <p class="suave">Produtos que apareceram nas vendas. A margem usa o custo médio de hoje e o último preço do PDV — é estimada, não é lucro. Fichas de preparos da casa ficam no cadastro do insumo (aba Insumos).</p>
       <Cartao justo>
-        <div class="filtros" style={{ padding: '14px 20px', borderBottom: '1px solid var(--borda)' }}>
-          <div class="entrada-grupo">
+        <div class="estoque-filtros">
+          <div class="entrada-grupo estoque-filtros__busca">
             <Search aria-hidden="true" />
             <input class="entrada" type="search" placeholder="Buscar produto" aria-label="Buscar produto" value={busca} onInput={(e) => setBusca(e.currentTarget.value)} />
           </div>
-          <Segmentado
-            rotulo="Situação da ficha"
-            valor={filtro}
-            aoMudar={setFiltro}
-            opcoes={[
-              { valor: 'todas', rotulo: 'Todas' },
-              { valor: 'sem', rotulo: `Sem ficha (${n('sem')})` },
-              { valor: 'incompletas', rotulo: `Incompletas (${n('incompleta')})` },
-              { valor: 'completas', rotulo: 'Completas' },
-            ]}
-          />
-          <select class="selecao" aria-label="Período das vendas" style={{ width: 'auto' }} value={dias} onChange={(e) => setDias(Number(e.currentTarget.value))}>
-            <option value={7}>Vendas de 7 dias</option>
-            <option value={30}>Vendas de 30 dias</option>
-            <option value={90}>Vendas de 90 dias</option>
+          <select class="selecao selecao--auto" aria-label="Situação da ficha" value={filtro} onChange={(e) => setFiltro(e.currentTarget.value as Filtro)}>
+            <option value="todas">Todas as fichas</option>
+            <option value="sem">Sem ficha ({n('sem')})</option>
+            <option value="incompletas">Custo indisponível ({n('incompleta')})</option>
+            <option value="completas">Completas ({n('completa')})</option>
           </select>
+          {cobertura !== null && <span class="fraco estoque-filtros__nota">Fichas cobrem {pct(cobertura, { fracao: true, casas: 0 })} da receita de 30 dias</span>}
         </div>
         <Dados consulta={lista} recurso="As fichas técnicas" esqueleto={<EsqueletoTabela />}>
-          {() => <Tabela rotulo="Fichas técnicas" colunas={colunas} linhas={linhas} chave={(f) => f.eye_product_id} aoAbrir={abrir} destaque={(f) => !f.ficha} vazio={<Vazio compacto titulo="Nenhum produto nesta lista">{filtro === 'sem' ? 'Todos os produtos vendidos no período têm ficha.' : 'Sem vendas no período (as vendas chegam do PDV).'}</Vazio>} />}
+          {() => <Tabela rotulo="Fichas técnicas" colunas={colunas} linhas={linhas} chave={(f) => f.eye_product_id} aoAbrir={abrir} destaque={(f) => !f.ficha} vazio={<Vazio compacto titulo="Nenhum produto nesta lista">{filtro === 'sem' ? 'Todos os produtos vendidos têm ficha.' : 'Os produtos aparecem quando chegam vendas da Eyemobile.'}</Vazio>} />}
         </Dados>
       </Cartao>
-      <GavetaFicha alvo={aberta} aoFechar={() => setAberta(null)} />
+      <GavetaFicha alvo={aberta} aoFechar={() => setAberta(null)} responsavel={responsavel} />
     </>
   );
 }
 
 /** Ficha de um produto do PDV ou de um preparo: custo de hoje, ingredientes, versões e o editor (nova versão). */
-export function GavetaFicha({ alvo, aoFechar }: { alvo: AlvoFicha | null; aoFechar: () => void }) {
+export function GavetaFicha({ alvo, aoFechar, responsavel }: { alvo: AlvoFicha | null; aoFechar: () => void; responsavel?: (r: string | null | undefined) => string | null }) {
   const [salvou, setSalvou] = useState(false);
   const chave = alvo ? `estoque/fichas/${alvo.alvo}/${alvo.id}` : null;
   const consulta = useConsulta(chave && (!alvo!.semFicha || salvou) ? chave : null, () => estoque.ficha(alvo!.alvo, alvo!.id));
@@ -119,7 +110,7 @@ export function GavetaFicha({ alvo, aoFechar }: { alvo: AlvoFicha | null; aoFech
       aberta={!!alvo}
       aoFechar={aoFechar}
       titulo={alvo?.nome ?? 'Ficha técnica'}
-      subtitulo={alvo ? (preparo ? `Preparo da casa${alvo.unidade ? ` · em ${UNIDADE[alvo.unidade]}` : ''}` : `${alvo.grupo ?? 'Sem grupo'} · ${moeda(alvo.preco)} no PDV`) : undefined}
+      subtitulo={alvo ? (preparo ? `Preparo da casa${alvo.unidade ? ` · em ${UNIDADE[alvo.unidade]}` : ''}` : `Produto da Eyemobile · ${alvo.grupo ?? 'sem grupo'} · ${moeda(alvo.preco)}`) : undefined}
       largura="media"
       rodape={!editando && alvo && (semFicha || f) ? <Botao variante="primario" icone={f ? <Pencil aria-hidden="true" /> : <Plus aria-hidden="true" />} onClick={() => setEditando(true)}>{f ? 'Editar ficha' : 'Criar ficha'}</Botao> : undefined}
     >
@@ -127,7 +118,7 @@ export function GavetaFicha({ alvo, aoFechar }: { alvo: AlvoFicha | null; aoFech
         <EditorFicha alvo={alvo} atual={f} aoTerminar={(ok) => { setEditando(false); if (ok) { setSalvou(true); consulta.recarregar(); } }} />
       ) : semFicha ? (
         <Vazio icone={<FileText aria-hidden="true" />} titulo={preparo ? 'Este preparo ainda não tem ficha técnica' : 'Este produto ainda não tem ficha técnica'}>
-          {preparo ? 'Sem ficha, o preparo não tem custo e os produtos que o usam ficam com custo incompleto.' : 'Sem ficha, o custo e a margem dele ficam de fora do CMV teórico e do Cardápio Inteligente.'}
+          {preparo ? 'Sem ficha, o preparo não tem custo e os produtos que o usam ficam com custo indisponível.' : 'Sem ficha, o custo dele fica de fora do CMV teórico. Liste os ingredientes e a quantidade de cada um.'}
         </Vazio>
       ) : consulta.erro && !consulta.dados ? (
         <Falha erro={consulta.erro} aoTentar={consulta.recarregar} recurso="A ficha" />
@@ -138,17 +129,17 @@ export function GavetaFicha({ alvo, aoFechar }: { alvo: AlvoFicha | null; aoFech
             return (
               <>
                 <section class="indicadores indicadores--3" style={{ gap: '10px' }}>
-                  <div class="cartao indicador"><span class="indicador__rotulo">{preparo ? `Custo por ${alvo.unidade ? UNIDADE_CURTA[alvo.unidade] : 'unidade'}` : 'Custo da porção'}</span><span class="indicador__valor indicador__valor--m num">{moeda(f.custo_porcao)}</span></div>
+                  <div class="cartao indicador"><span class="indicador__rotulo">{preparo ? `Custo por ${alvo.unidade ? UNIDADE_CURTA[alvo.unidade] : 'unidade'}` : 'Custo da porção'}</span><span class="indicador__valor indicador__valor--m num">{f.insumos_sem_custo.length ? <span class="fraco">Indisponível</span> : moeda(f.custo_porcao)}</span></div>
                   {preparo ? (
                     <div class="cartao indicador"><span class="indicador__rotulo">Custo da receita</span><span class="indicador__valor indicador__valor--m num">{moeda(f.custo_receita)}</span></div>
                   ) : (
-                    <div class="cartao indicador"><span class="indicador__rotulo">Margem hoje</span><span class="indicador__valor indicador__valor--m num">{salvou ? '—' : pct(alvo.margem)}</span>{salvou && <span class="indicador__rodape">Atualiza na lista de fichas</span>}</div>
+                    <div class="cartao indicador"><span class="indicador__rotulo">Margem hoje</span><span class="indicador__valor indicador__valor--m num">{salvou || f.insumos_sem_custo.length ? '—' : pct(alvo.margem)}</span>{salvou ? <span class="indicador__rodape">Atualiza na lista de fichas</span> : <span class="indicador__rodape">estimada, a preço de hoje</span>}</div>
                   )}
                   <div class="cartao indicador"><span class="indicador__rotulo">Rendimento</span><span class="indicador__valor indicador__valor--m num">{preparo && alvo.unidade ? quantidade(f.rendimento, alvo.unidade) : decimal(f.rendimento, 2)}</span><span class="indicador__rodape">{preparo ? 'por receita' : num(f.rendimento) === 1 ? 'porção' : 'porções por receita'}</span></div>
                 </section>
                 {f.insumos_sem_custo.length > 0 && (
                   <Aviso tom="atencao" icone={<Info aria-hidden="true" />}>
-                    <strong>Custo incompleto:</strong> {f.insumos_sem_custo.map((id) => nomes.get(id) ?? 'insumo').join(', ')} ainda sem custo (nenhuma compra registrada). O custo da porção fica sem número até lá.
+                    <strong>Custo indisponível:</strong> {f.insumos_sem_custo.map((id) => nomes.get(id) ?? 'insumo').join(', ')} ainda sem custo (nenhum recebimento com valor). Custo e margem ficam sem número até lá.
                   </Aviso>
                 )}
                 <div class="tabela-rolagem" style={{ border: '1px solid var(--borda)', borderRadius: '12px' }}>
@@ -173,7 +164,7 @@ export function GavetaFicha({ alvo, aoFechar }: { alvo: AlvoFicha | null; aoFech
                     {f.versoes.map((v) => (
                       <li key={v.versao} class="linha linha--entre" style={{ padding: '10px 14px' }}>
                         <span><strong style={{ fontWeight: 500 }}>Versão {v.versao}</strong>{v.vigente_ate === null && <span class="fraco"> · em uso</span>}</span>
-                        <span class="fraco">desde {dataCurta(v.vigente_de.slice(0, 10), { ano: true })}{v.vigente_ate ? ` até ${dataCurta(v.vigente_ate.slice(0, 10), { ano: true })}` : ''} · rend. {decimal(v.rendimento, 2)}{v.criada_por ? ` · ${v.criada_por}` : ''}</span>
+                        <span class="fraco">desde {dataCurta(v.vigente_de.slice(0, 10), { ano: true })}{v.vigente_ate ? ` até ${dataCurta(v.vigente_ate.slice(0, 10), { ano: true })}` : ''} · rend. {decimal(v.rendimento, 2)}{v.criada_por && responsavel ? ` · ${responsavel(v.criada_por)}` : ''}</span>
                       </li>
                     ))}
                   </ul>

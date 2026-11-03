@@ -371,3 +371,431 @@
   margin-left: auto;
   white-space: nowrap;
 }
+
+/* ---------------------------------------------------------------------------------------------------------------------
+   Estoque em quatro áreas (02/11): topo com a ação principal, números discretos, tabela do estoque atual, gaveta do
+   insumo, "Registrar movimento", contagem em três passos e CMV em dois blocos.
+   --------------------------------------------------------------------------------------------------------------------- */
+.oculto-visual {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Abas + "Registrar movimento" na mesma linha; no celular o botão desce e ocupa a largura toda. */
+.estoque-topo {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--e-3);
+  border-bottom: 1px solid var(--borda);
+  margin-top: calc(var(--e-2) * -1);
+}
+.estoque-topo > .abas {
+  flex: 1 1 auto;
+  min-width: 0;
+  border-bottom: 0;
+  margin-top: 0;
+}
+.estoque-topo__acao {
+  flex: none;
+  margin-bottom: var(--e-2);
+}
+@media (max-width: 640px) {
+  .estoque-topo {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: var(--e-2);
+    border-bottom: 0;
+  }
+  .estoque-topo > .abas {
+    border-bottom: 1px solid var(--borda);
+  }
+  .estoque-topo__acao {
+    margin-bottom: 0;
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Três números discretos: não são cartões grandes, só uma faixa. */
+.estoque-numeros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-2);
+}
+.estoque-numero {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--e-2);
+  padding: var(--e-2) var(--e-4);
+  border: 1px solid var(--borda);
+  border-radius: var(--r-pilula);
+  background: var(--superficie);
+  color: inherit;
+  font: inherit;
+  min-height: 40px;
+}
+button.estoque-numero {
+  cursor: pointer;
+}
+button.estoque-numero:hover {
+  border-color: var(--borda-forte);
+  background: var(--sobre-hover);
+}
+.estoque-numero__rotulo {
+  font-size: var(--t-s);
+  color: var(--texto-2);
+}
+.estoque-numero__valor {
+  font-size: var(--t-l);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.estoque-numero__valor[data-tom='atencao'] {
+  color: var(--atencao);
+}
+
+/* Uma barra só de filtros (busca, situação, categoria) com a ação de cadastro à direita. */
+.estoque-filtros {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--e-2);
+  padding: var(--e-3) var(--e-5);
+  border-bottom: 1px solid var(--borda);
+}
+.estoque-filtros__busca {
+  flex: 1 1 220px;
+  max-width: 340px;
+}
+.estoque-filtros__acao,
+.estoque-filtros__nota {
+  margin-left: auto;
+}
+@media (max-width: 640px) {
+  .estoque-filtros {
+    padding: var(--e-3);
+  }
+  .estoque-filtros__busca {
+    max-width: none;
+    flex-basis: 100%;
+  }
+  .estoque-filtros .selecao {
+    flex: 1 1 140px;
+  }
+  .estoque-filtros__acao {
+    flex-basis: 100%;
+    justify-content: center;
+  }
+}
+
+/* Quantidade: o número é o protagonista da tabela. */
+.estoque-qtd {
+  font-weight: 600;
+  font-size: var(--t-l);
+}
+.estoque-qtd--alerta[data-situacao='baixo'] {
+  color: var(--atencao);
+}
+.estoque-qtd--alerta[data-situacao='sem'] {
+  color: var(--perigo);
+}
+
+/* Linha da tabela no celular: nome | quantidade | situação. */
+.estoque-movel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: 'nome qtd' 'sit qtd';
+  gap: 4px var(--e-3);
+  align-items: center;
+}
+.estoque-movel__nome {
+  grid-area: nome;
+  font-weight: 500;
+  min-width: 0;
+}
+.estoque-movel__nome .sub,
+.estoque-movel__qtd .sub {
+  display: block;
+  font-weight: 400;
+  font-size: var(--t-xs);
+  color: var(--texto-3);
+}
+.estoque-movel__qtd {
+  grid-area: qtd;
+  text-align: right;
+}
+.estoque-movel__qtd strong {
+  font-size: var(--t-l);
+}
+.estoque-movel__sit {
+  grid-area: sit;
+}
+
+/* Gaveta do insumo */
+.insumo-saldo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e-3);
+  padding: var(--e-4) var(--e-5);
+  border: 1px solid var(--borda);
+  border-radius: var(--r-l);
+  background: var(--superficie-2);
+}
+.insumo-saldo > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.insumo-saldo__rotulo {
+  font-size: var(--t-s);
+  color: var(--texto-2);
+}
+.insumo-saldo__valor {
+  font-size: var(--t-2xl);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+.estoque-acoes-insumo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-2);
+  width: 100%;
+}
+.estoque-acoes-insumo > .btn--fantasma {
+  margin-left: auto;
+}
+@media (max-width: 480px) {
+  .estoque-acoes-insumo > .btn:not(.btn--fantasma) {
+    flex: 1 1 0;
+    justify-content: center;
+  }
+}
+.movimentos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--borda);
+  border-radius: var(--r-l);
+}
+.movimento {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--e-3);
+  padding: var(--e-3) var(--e-4);
+}
+.movimento + .movimento {
+  border-top: 1px solid var(--borda);
+}
+.movimento__texto,
+.movimento__qtd {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.movimento__texto strong {
+  font-weight: 500;
+}
+.movimento__texto .fraco,
+.movimento__qtd .fraco {
+  font-size: var(--t-s);
+}
+.movimento__qtd {
+  text-align: right;
+  flex: none;
+}
+[data-sinal='-'] {
+  color: var(--perigo);
+}
+[data-sinal='+'] {
+  color: var(--ok);
+}
+
+/* Registrar movimento: três opções grandes, fáceis de tocar. */
+.escolha-movimento {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e-2);
+}
+.escolha-movimento__opcao {
+  display: flex;
+  align-items: center;
+  gap: var(--e-3);
+  width: 100%;
+  padding: var(--e-4);
+  border: 1px solid var(--borda);
+  border-radius: var(--r-l);
+  background: var(--superficie);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  min-height: 64px;
+}
+.escolha-movimento__opcao:hover {
+  border-color: var(--borda-forte);
+  background: var(--sobre-hover);
+}
+.escolha-movimento__opcao:focus-visible {
+  outline: 2px solid var(--foco);
+  outline-offset: 2px;
+}
+.escolha-movimento__icone {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--r-m);
+  background: var(--marca-suave);
+  color: var(--marca-texto);
+}
+.escolha-movimento__icone svg {
+  width: 20px;
+  height: 20px;
+}
+.escolha-movimento__texto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.escolha-movimento__texto strong {
+  font-weight: 600;
+}
+.escolha-movimento__texto span {
+  color: var(--texto-2);
+  font-size: var(--t-s);
+}
+.campo-quantidade {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 110px;
+  gap: var(--e-3);
+  align-items: end;
+}
+.campo-quantidade__unidade {
+  min-height: var(--alvo-toque);
+  display: flex;
+  align-items: center;
+  color: var(--texto-2);
+}
+.ajuste-previa {
+  margin: 0;
+  font-size: var(--t-m);
+}
+
+/* Contagem */
+.opcoes-contagem {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--e-2);
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+@media (max-width: 900px) {
+  .opcoes-contagem {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.contagem-lista__busca {
+  max-width: 360px;
+  margin: var(--e-3) var(--e-5) 0;
+}
+.contagem-lista__rodape {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--e-3);
+  padding: var(--e-3) var(--e-5);
+  border-top: 1px solid var(--borda);
+}
+.tabela-contagem td {
+  vertical-align: middle;
+}
+.entrada-contagem {
+  width: 120px;
+  max-width: 100%;
+  text-align: right;
+  margin-left: auto;
+}
+@media (max-width: 640px) {
+  .contagem-lista__busca {
+    margin: var(--e-3) var(--e-3) 0;
+  }
+  .contagem-lista__rodape {
+    padding: var(--e-3);
+  }
+  .contagem-lista__rodape .btn {
+    width: 100%;
+    justify-content: center;
+  }
+  .entrada-contagem {
+    width: 96px;
+  }
+}
+.diferenca {
+  font-weight: 600;
+}
+
+/* CMV: teórico | físico, lado a lado */
+.cmv-blocos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--e-3);
+}
+@media (max-width: 760px) {
+  .cmv-blocos {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.cmv-bloco {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e-2);
+  padding: var(--e-4);
+  border: 1px solid var(--borda);
+  border-radius: var(--r-l);
+  background: var(--superficie-2);
+}
+.cmv-bloco__valor {
+  margin: 0;
+  font-size: var(--t-xl);
+  font-weight: 650;
+}
+.cmv-bloco .definicoes {
+  font-size: var(--t-s);
+}
+.estoque-status__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.tabela-movel__item > .estoque-movel {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+/* Celular: os três números numa linha só, rótulo em cima. */
+@media (max-width: 640px) {
+  .estoque-numeros {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  }
+  .estoque-numero {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    border-radius: var(--r-l);
+    padding: var(--e-2) var(--e-3);
+  }
+  .estoque-numero__rotulo {
+    font-size: var(--t-xs);
+    line-height: 1.25;
+    text-align: left;
+  }
+}

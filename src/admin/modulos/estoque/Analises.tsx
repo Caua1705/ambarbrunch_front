@@ -1,8 +1,7 @@
-// Análises do Estoque: só o que o backend calcula, com o nome certo. CMV com a fonte (inventário, teórico ou
-// indisponível, com os motivos); compras ÷ receita aparece como indicador próprio, nunca como CMV. Previsões rotuladas
-// como previsão. Nenhum preço é alterado e nenhum pedido é feito.
+// Custos e CMV: só o que o backend calcula, com o nome certo. CMV teórico (fichas × vendas) separado do físico (contagem
+// e diferenças); compras do mês aparecem como indicador próprio, nunca como CMV. Nenhum preço é alterado.
 import { useState } from 'preact/hooks';
-import { Lock, Info, AlertTriangle, TrendingUp, Gauge, LayoutGrid, Scale, Truck, Hourglass, ShoppingCart } from 'lucide-preact';
+import { Lock, AlertTriangle, TrendingUp, Gauge, LayoutGrid, Scale, Truck, Hourglass, ShoppingCart } from 'lucide-preact';
 import { useConsulta } from '../../lib/consulta';
 import { estoque } from '../../lib/api/estoque';
 import { moeda, pct, decimal, custoBase, hojeISO, somarDias, mesAno, inicioMes, somarMeses, num, dataCurta, quantidade } from '../../lib/formato';
@@ -13,23 +12,19 @@ import { BarraParte } from '../../ui/graficos';
 import type { EstadoRuptura, ItemCardapio, ItemReposicao, ProdutoAnalise } from '../../lib/tipos/estoque';
 import type { PermissoesEstoque } from './comum';
 
-// Todas as análises exigem estoque.visualizar no backend (api_analises.py).
-export function Analises({ perm }: { perm: PermissoesEstoque }) {
+// Todas as análises exigem estoque.visualizar no backend (api_analises.py). Previsão de falta e sugestão de reposição
+// dependem da baixa pelas vendas: com ela desligada não há consumo para prever, então não aparecem.
+export function Analises({ perm, baixa }: { perm: PermissoesEstoque; baixa: boolean }) {
+  if (!perm.visualizar) return <Aviso icone={<Lock aria-hidden="true" />}>Custos e CMV ficam com a gerência.</Aviso>;
   return (
     <>
-      {perm.visualizar ? (
-        <>
-          <Cmv />
-          <div class="colunas-iguais">
-            <Produtos />
-            <Fornecedores />
-          </div>
-          <Cardapio />
-        </>
-      ) : (
-        <Aviso icone={<Lock aria-hidden="true" />}>Custos, margens e CMV ficam com a gerência.</Aviso>
-      )}
-      {perm.visualizar && (
+      <Cmv />
+      <div class="colunas-iguais">
+        <Produtos />
+        <Fornecedores />
+      </div>
+      <Cardapio />
+      {baixa && (
         <div class="colunas-iguais">
           <Ruptura />
           <Reposicao />
@@ -41,55 +36,52 @@ export function Analises({ perm }: { perm: PermissoesEstoque }) {
 
 const FONTE_CMV = { por_inventario: 'Pela contagem (inventário)', teorico: 'Teórico (fichas × vendas)', indisponivel: 'Indisponível' } as const;
 
+/** CMV em duas leituras que não se misturam: o TEÓRICO (fichas × vendas efetivas) e o físico (contagens, perdas e a
+ *  diferença entre os dois). Compras do mês aparecem à parte e marcadas como não-CMV. Sem dado suficiente, o motivo. */
 function Cmv() {
   const [mes, setMes] = useState(inicioMes(hojeISO()).slice(0, 7));
   const meses = [0, -1, -2].map((d) => somarMeses(`${inicioMes(hojeISO())}`, d).slice(0, 7));
   const c = useConsulta(`estoque/analises/cmv:${mes}`, () => estoque.cmv(mes));
   return (
     <Cartao
-      titulo={<span class="linha"><Gauge size={16} aria-hidden="true" /> Custo da mercadoria vendida (CMV)</span>}
-      descricao="Quanto custou o que foi vendido no mês"
+      titulo={<span class="linha"><Gauge size={16} aria-hidden="true" /> CMV</span>}
+      descricao="Custo do que foi vendido no mês"
       acoes={<select class="selecao" aria-label="Mês" style={{ width: 'auto', minHeight: '32px' }} value={mes} onChange={(e) => setMes(e.currentTarget.value)}>{meses.map((m) => <option key={m} value={m}>{mesAno(`${m}-01`)}</option>)}</select>}
     >
       <Dados consulta={c} recurso="O CMV" compacto esqueleto={<Esqueleto linhas={4} />}>
         {(d) => (
           <div class="pilha">
-            <div class="indicadores indicadores--3" style={{ gap: '10px' }}>
-              <div class="cartao indicador">
-                <span class="indicador__rotulo">CMV do mês</span>
-                <span class="indicador__valor indicador__valor--m num">{moeda(d.valor)}</span>
-                <span class="indicador__rodape"><Situacao tom={d.fonte === 'indisponivel' ? 'apagado' : d.fonte === 'teorico' ? 'atencao' : 'ok'}>{FONTE_CMV[d.fonte]}</Situacao></span>
-              </div>
-              <div class="cartao indicador">
-                <span class="indicador__rotulo">CMV sobre a receita</span>
-                <span class="indicador__valor indicador__valor--m num">{pct(d.cmv_pct)}</span>
-                <span class="indicador__rodape">Receita de produtos: {moeda(d.receita_produtos)}</span>
-              </div>
-              <div class="cartao indicador">
-                <span class="indicador__rotulo">Compras de estoque no mês</span>
-                <span class="indicador__valor indicador__valor--m num">{moeda(d.indicadores.compras_estoque_mes)}</span>
-                <span class="indicador__rodape">{pct(d.indicadores.compras_estoque_sobre_receita_pct)} da receita — <strong>não é CMV</strong></span>
-              </div>
+            <div class="cmv-blocos">
+              <section class="cmv-bloco" aria-label="CMV teórico">
+                <h3 class="secao-titulo">CMV teórico</h3>
+                <p class="cmv-bloco__valor num">{d.alternativas.teorico !== null && !d.teorico_incompleto ? moeda(d.alternativas.teorico) : <span class="fraco">Indisponível</span>}</p>
+                <dl class="definicoes">
+                  <dt>Cobertura das fichas</dt>
+                  <dd class="num">{pct(d.cobertura_fichas, { fracao: true, casas: 0 })} da receita</dd>
+                  <dt>Vendas com consumo calculado</dt>
+                  <dd class="num">{d.vendas_processadas} de {d.vendas_validas}</dd>
+                  {d.fonte !== 'indisponivel' && d.cmv_pct !== null && <><dt>Sobre a receita ({FONTE_CMV[d.fonte].toLowerCase()})</dt><dd class="num">{pct(d.cmv_pct)} de {moeda(d.receita_produtos)}</dd></>}
+                </dl>
+                {d.teorico_incompleto && <p class="fraco">Há produtos vendidos sem ficha ou com custo indisponível: o teórico fica incompleto e não é mostrado como número final.</p>}
+              </section>
+              <section class="cmv-bloco" aria-label="Consumo e diferenças físicas">
+                <h3 class="secao-titulo">Consumo e diferenças físicas</h3>
+                <p class="cmv-bloco__valor num">{d.alternativas.por_inventario !== null ? moeda(d.alternativas.por_inventario) : <span class="fraco">Indisponível</span>}</p>
+                <dl class="definicoes">
+                  <dt>Pela contagem</dt>
+                  <dd>Contagem total no início e no fim do mês.</dd>
+                  {d.divergencia_inventario_teorico && <><dt>Contagem − teórico</dt><dd class="num">{moeda(d.divergencia_inventario_teorico.valor)} ({pct(d.divergencia_inventario_teorico.pct)})</dd></>}
+                </dl>
+                {d.divergencia_inventario_teorico && <p class="fraco">Diferença grande costuma ser perda não registrada ou ficha desatualizada.</p>}
+              </section>
             </div>
             {d.fonte === 'indisponivel' && d.motivos_indisponivel.length > 0 && (
               <Aviso tom="atencao" icone={<AlertTriangle aria-hidden="true" />}>
-                <strong>Por que o CMV ainda não sai:</strong>
-                <ul style={{ margin: '4px 0 0', paddingLeft: '18px' }}>{d.motivos_indisponivel.map((m) => <li key={m.codigo}>{m.texto}</li>)}</ul>
+                <strong>Por que ainda não há CMV confiável:</strong>
+                <ul style={{ margin: '4px 0 0', paddingLeft: '18px' }}>{d.motivos_indisponivel.map((m) => <li key={`${m.fonte}:${m.codigo}`}>{m.texto}</li>)}</ul>
               </Aviso>
             )}
-            {d.fonte === 'teorico' && <Aviso tom="info" icone={<Info aria-hidden="true" />}>CMV teórico: vem das fichas técnicas multiplicadas pelas vendas. Perdas e desperdício não entram; a contagem mostra a diferença.</Aviso>}
-            <dl class="definicoes">
-              <dt>Pela contagem</dt>
-              <dd class="num">{moeda(d.alternativas.por_inventario)} <span class="fraco">· contagem total no início e no fim do mês</span></dd>
-              <dt>Teórico (fichas)</dt>
-              <dd class="num">{moeda(d.alternativas.teorico)} <span class="fraco">· fichas cobrem {pct(d.cobertura_fichas, { fracao: true, casas: 0 })} da receita</span></dd>
-              <dt>Vendas com consumo calculado</dt>
-              <dd class="num">{d.vendas_processadas} de {d.vendas_validas}</dd>
-            </dl>
-            {d.divergencia_inventario_teorico && (
-              <p class="fraco">Contagem − teórico: <strong class="num">{moeda(d.divergencia_inventario_teorico.valor)}</strong> ({pct(d.divergencia_inventario_teorico.pct)}). Diferença grande costuma ser perda não registrada ou ficha desatualizada.</p>
-            )}
-            <p class="fraco">{d.indicadores.aviso}</p>
+            <p class="fraco">Compras de estoque no mês: <strong class="num">{moeda(d.indicadores.compras_estoque_mes)}</strong> · {d.indicadores.aviso}</p>
           </div>
         )}
       </Dados>
