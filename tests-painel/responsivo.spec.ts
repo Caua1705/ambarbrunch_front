@@ -7,13 +7,14 @@ const PAGINAS = [
   '/admin', '/admin/reservas', '/admin/reservas?vista=semana', '/admin/atendimento', '/admin/atendimento?filtro=esperando', '/admin/clube', '/admin/clube?secao=membros',
   '/admin/financeiro', '/admin/financeiro?aba=vendas', '/admin/financeiro?aba=lancamentos', '/admin/financeiro?aba=contas', '/admin/financeiro?aba=revisao',
   '/admin/financeiro?aba=resultado', '/admin/financeiro?aba=contas-fixas',
-  '/admin/estoque', '/admin/estoque?aba=insumos', '/admin/estoque?aba=compras', '/admin/estoque?aba=fichas', '/admin/estoque?aba=contagem',
-  '/admin/estoque?aba=cancelamentos', '/admin/estoque?aba=analises',
+  // Estoque em quatro áreas (02/11) — e os nomes antigos, que continuam abrindo a área certa.
+  '/admin/estoque', '/admin/estoque?aba=recebimentos', '/admin/estoque?aba=contagem', '/admin/estoque?aba=custos', '/admin/estoque?aba=custos&secao=cmv',
+  '/admin/estoque?aba=insumos', '/admin/estoque?aba=compras', '/admin/estoque?aba=cancelamentos',
   '/admin/configuracoes',
   // telas do redesign de 01/11
   '/admin?periodo=personalizado', '/admin/reservas?vista=mes', '/admin/financeiro?aba=conciliacao', '/admin/financeiro?aba=conciliacao&vista=stone',
   '/admin/financeiro?aba=conciliacao&vista=divergencias', '/admin/financeiro?aba=relatorios', '/admin/financeiro?aba=relatorios&relatorio=fornecedores',
-  '/admin/financeiro?aba=contas&vista=recorrentes', '/admin/estoque?aba=mais', '/admin/configuracoes?secao=equipe', '/admin/configuracoes?secao=agenda',
+  '/admin/financeiro?aba=contas&vista=recorrentes', '/admin/configuracoes?secao=equipe', '/admin/configuracoes?secao=agenda',
 ];
 
 for (const largura of [375, 390, 430, 768, 1024, 1366]) {
