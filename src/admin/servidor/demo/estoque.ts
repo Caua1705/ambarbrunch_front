@@ -25,11 +25,13 @@ interface InsumoDemo extends Insumo {
 }
 
 let seqMov = 5000;
+// Como o backend (insumos.quem): 'usuario:<id>' — o painel troca pelo nome. Gerente da demonstração.
+const GERENTE_DEMO = 'usuario:00000000-0000-4000-8000-000000000002';
 /** Movimento do livro no formato de _movimento_saida (vínculos nulos quando não se aplicam). */
 function mov(p: Pick<MovimentoEstoque, 'tipo' | 'quantidade' | 'custo_unitario' | 'valor' | 'saldo_apos' | 'custo_medio_apos' | 'ocorreu_em' | 'motivo'> & Partial<MovimentoEstoque>): MovimentoEstoque {
   return {
     id: ++seqMov, custo_desconhecido: p.custo_unitario === null, dia: p.ocorreu_em.slice(0, 10), venda_id: null, eye_product_id: null, compra_item_id: null, producao_id: null,
-    inventario_item_id: null, estorna_movimento_id: null, registrado_por: 'usuario:demo', ...p,
+    inventario_item_id: null, estorna_movimento_id: null, registrado_por: GERENTE_DEMO, ...p,
   };
 }
 
@@ -460,7 +462,7 @@ const inventarios: InventarioDemo[] = [];
 (() => {
   const alvo = insumos.slice(0, 5);
   inventarios.push({
-    id: 'e6000000-0000-4000-8000-000000000001', escopo: 'sugerido', status: 'fechado', aberto_por: 'usuario:gerente', aberto_em: agoraMenos(60 * 24 * 12 + 40), fechado_em: agoraMenos(60 * 24 * 12), versao: 2,
+    id: 'e6000000-0000-4000-8000-000000000001', escopo: 'sugerido', status: 'fechado', aberto_por: GERENTE_DEMO, aberto_em: agoraMenos(60 * 24 * 12 + 40), fechado_em: agoraMenos(60 * 24 * 12), versao: 2,
     itens: alvo.map((i, k) => {
       const sistema = Number(i.saldo) + (k % 2 ? 120 : -60);
       return { insumo_id: i.id, insumo: i.nome, unidade_base: i.unidade_base, quantidade_contada: i.saldo, quantidade_sistema: d4(sistema), diferenca: d4(Number(i.saldo) - sistema), valor_diferenca: i.custo_medio ? d2((Number(i.saldo) - sistema) * Number(i.custo_medio)) : null, contado_em: agoraMenos(60 * 24 * 12 + 10) };
@@ -598,10 +600,12 @@ export const ROTAS_ESTOQUE: Rota[] = [
   }],
   ['POST', /^estoque\/perdas$/, GERENCIA, async ({ corpo }) => {
     const e = await corpo<{ insumo_id: string; quantidade: string; motivo: string; observacao?: string }>();
+    if (!['vencido', 'quebra', 'preparo', 'outro'].includes(e.motivo)) throw new ErroDemo(422, 'regra_violada', 'Motivo: vencido, quebra, preparo ou outro.');
     const i = acharInsumo(e.insumo_id);
     const q = Number(e.quantidade);
     if (!(q > 0)) throw new ErroDemo(422, 'regra_violada', 'Informe uma quantidade maior que zero.');
-    return resposta(201, movimentar(i, 'perda', -q, null, e.motivo));
+    // Como operacoes.registrar_perda: o motivo guarda a observação junto ("outro: Uso interno: café").
+    return resposta(201, movimentar(i, 'perda', -q, null, e.observacao ? `${e.motivo}: ${e.observacao}` : e.motivo));
   }],
   // Contagem
   ['GET', /^estoque\/inventarios\/sugestao$/, GERENCIA, () => sugestaoContagem()],
@@ -621,7 +625,7 @@ export const ROTAS_ESTOQUE: Rota[] = [
     if (escopo === 'lista' && !e.insumos?.length) throw new ErroDemo(422, 'regra_violada', 'Escolha os insumos a contar.');
     const ids = escopo === 'total' ? insumos.filter((i) => i.ativo).map((i) => i.id) : escopo === 'lista' ? [...new Set(e.insumos!)] : sugestaoContagem().map((s) => s.insumo_id);
     const inv: InventarioDemo = {
-      id: uuid(), escopo, status: 'aberto', aberto_por: 'usuario:demo', aberto_em: new Date().toISOString(), fechado_em: null, versao: 1,
+      id: uuid(), escopo, status: 'aberto', aberto_por: GERENTE_DEMO, aberto_em: new Date().toISOString(), fechado_em: null, versao: 1,
       itens: ids.map((id) => acharInsumo(id)).map((i) => ({ insumo_id: i.id, insumo: i.nome, unidade_base: i.unidade_base, quantidade_contada: null, quantidade_sistema: null, diferenca: null, valor_diferenca: null, contado_em: null })),
     };
     inventarios.push(inv);
