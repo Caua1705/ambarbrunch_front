@@ -20,7 +20,7 @@ const STATUS: Record<StatusInventario, { rotulo: string; tom: Tom }> = { aberto:
 const atualizarContagem = () => invalidar('estoque/inventarios');
 type Escopo = 'prioritarios' | 'todos' | 'escolher';
 
-export function Contagem({ perm, inicioControle, responsavel }: { perm: PermissoesEstoque; inicioControle: string | null; responsavel: (r: string | null | undefined) => string | null }) {
+export function Contagem({ perm, inicioControle, responsavel }: { perm: PermissoesEstoque; inicioControle: string | null; responsavel: (r: string | null | undefined, nome?: string | null) => string | null }) {
   const aberta = useConsulta('estoque/inventarios?aberto', () => estoque.inventarios({ status: 'aberto', limite: 1 }));
   const catalogo = useConsulta('estoque/insumos?catalogo', () => estoque.insumos({ limite: 200 }));
   const [revisar, setRevisar] = useState(false);
@@ -417,11 +417,11 @@ function Resultado({ r, aberturas, aoConcluir }: { r: FechamentoInventario; aber
   );
 }
 
-function Historico({ responsavel, aoVer }: { responsavel: (r: string | null | undefined) => string | null; aoVer: (id: string) => void }) {
+function Historico({ responsavel, aoVer }: { responsavel: (r: string | null | undefined, nome?: string | null) => string | null; aoVer: (id: string) => void }) {
   const lista = useConsulta('estoque/inventarios?historico', () => estoque.inventarios({ limite: 20 }));
   const colunas: Coluna<InventarioResumo>[] = [
     { id: 'data', titulo: 'Data', ordenar: (i) => i.fechado_em ?? i.aberto_em, celula: (i) => <span class="principal-celula">{dataHora(i.fechado_em ?? i.aberto_em)}</span> },
-    { id: 'quem', titulo: 'Responsável', prioridade: 'media', celula: (i) => <span>{responsavel(i.aberto_por) ?? '—'}</span> },
+    { id: 'quem', titulo: 'Responsável', prioridade: 'media', celula: (i) => <span>{responsavel(i.aberto_por, i.aberto_por_nome) ?? '—'}</span> },
     { id: 'itens', titulo: 'Itens', numero: true, celula: (i) => <span class="num">{i.itens}</span> },
     { id: 'status', titulo: 'Situação', celula: (i) => <Situacao tom={STATUS[i.status].tom}>{STATUS[i.status].rotulo}</Situacao> },
   ];

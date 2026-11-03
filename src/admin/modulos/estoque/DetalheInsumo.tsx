@@ -12,7 +12,7 @@ import { Botao, Campo, Aviso } from '../../ui/base';
 import { Dados, Esqueleto } from '../../ui/estados';
 import type { Insumo, InsumoDetalhe, MovimentoEstoque, UnidadeBase } from '../../lib/tipos/estoque';
 import {
-  UNIDADE, UNIDADE_CURTA, TIPO_MOVIMENTO, atualizarEstoque, quantidadeDigitada, situacaoEstoque, SituacaoEstoque, unidadeExibicao, numeroEm, textoMotivo,
+  UNIDADE, UNIDADE_CURTA, rotuloMovimento, ehUsoInterno, atualizarEstoque, quantidadeDigitada, situacaoEstoque, SituacaoEstoque, unidadeExibicao, numeroEm, textoMotivo,
   type PermissoesEstoque,
 } from './comum';
 
@@ -23,7 +23,7 @@ export function DetalheInsumo({ id, perm, inicioControle, responsavel, aoFechar,
   id: string | null;
   perm: PermissoesEstoque;
   inicioControle: string | null;
-  responsavel: (r: string | null | undefined) => string | null;
+  responsavel: (r: string | null | undefined, nome?: string | null) => string | null;
   aoFechar: () => void;
   aoMovimento: (tipo: TipoMovimentoManual, insumo: Insumo) => void;
   aoFicha: (i: InsumoDetalhe) => void;
@@ -103,7 +103,7 @@ function Resumo({ i, linha, inicioControle, movs, responsavel, aoMais }: {
   linha: Insumo | null;
   inicioControle: string | null;
   movs: { itens: MovimentoEstoque[]; proximo: number | null; carregando: boolean } | null;
-  responsavel: (r: string | null | undefined) => string | null;
+  responsavel: (r: string | null | undefined, nome?: string | null) => string | null;
   aoMais: () => void;
 }) {
   const s = situacaoEstoque({ saldo: i.saldo, abaixo_minimo: linha?.abaixo_minimo ?? false, ultima_contagem_em: linha?.ultima_contagem_em ?? null, motivo_nao_confiavel: i.motivo_nao_confiavel }, inicioControle);
@@ -146,10 +146,10 @@ function Resumo({ i, linha, inicioControle, movs, responsavel, aoMais }: {
             <ul class="movimentos">
               {movs.itens.map((m) => {
                 const q = Number(m.quantidade);
-                const quem = responsavel(m.registrado_por);
+                const quem = responsavel(m.registrado_por, m.registrado_por_nome);
                 const mu = unidadeExibicao(i.unidade_base, m.quantidade, m.saldo_apos);
-                const rotulo = TIPO_MOVIMENTO[m.tipo] ?? m.tipo;
-                const motivo = m.tipo === 'ajuste_inventario' ? null : textoMotivo(m.motivo);
+                const rotulo = rotuloMovimento(m);
+                const motivo = motivoDoHistorico(m);
                 return (
                   <li key={m.id} class="movimento">
                     <span class="movimento__texto">
@@ -158,7 +158,12 @@ function Resumo({ i, linha, inicioControle, movs, responsavel, aoMais }: {
                     </span>
                     <span class="movimento__qtd num">
                       <strong data-sinal={q < 0 ? '-' : '+'}>{q > 0 ? '+' : ''}{numeroEm(m.quantidade, mu.fator)} {mu.rotulo}</strong>
-                      {m.saldo_apos !== null && <span class="fraco">saldo {numeroEm(m.saldo_apos, mu.fator)} {mu.rotulo}</span>}
+                      {m.saldo_apos !== null && (
+                        <span class="fraco">
+                          {m.tipo === 'ajuste_inventario' ? <>de {numeroEm(Number(m.saldo_apos) - q, mu.fator)} para </> : 'saldo '}
+                          {numeroEm(m.saldo_apos, mu.fator)} {mu.rotulo}
+                        </span>
+                      )}
                     </span>
                   </li>
                 );
@@ -174,6 +179,16 @@ function Resumo({ i, linha, inicioControle, movs, responsavel, aoMais }: {
       </section>
     </>
   );
+}
+
+/** O que explica o movimento, sem repetir o rótulo: a observação do uso interno, o motivo do ajuste avulso; a
+ *  "contagem física" genérica do inventário não diz nada além do rótulo. */
+function motivoDoHistorico(m: MovimentoEstoque): string | null {
+  if (!m.motivo) return null;
+  if (ehUsoInterno(m)) return m.motivo.replace(/^uso_interno:?\s*/, '').replace(/^outro: Uso interno:?\s*/, '') || null;
+  if (m.tipo === 'ajuste_inventario' && /^(abertura$|contagem física$)/.test(m.motivo)) return null;
+  if (m.tipo === 'entrada_compra') return null;
+  return textoMotivo(m.motivo);
 }
 
 function EditarInsumo({ i, aoTerminar }: { i: InsumoDetalhe; aoTerminar: () => void }) {

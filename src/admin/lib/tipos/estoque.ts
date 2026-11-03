@@ -80,6 +80,8 @@ export interface MovimentoEstoque {
   estorna_movimento_id: number | null;
   motivo: string | null;
   registrado_por: string | null;
+  /** Nome de quem registrou (backend 02/11); ausente no backend anterior. */
+  registrado_por_nome?: string | null;
 }
 
 export type EtapaCompra = 'recebida' | 'processando' | 'itens_extraidos' | 'associacoes_sugeridas' | 'aguardando_conferencia' | 'confirmada' | 'cancelada' | 'falhou';
@@ -191,6 +193,8 @@ export interface CompraDetalhe {
   /** Produtos × pagamento do Financeiro que a compra confere (null: não confere nenhum ou ainda sem itens). Com
    *  `confere: false` a confirmação é recusada (pendência `total_diverge_do_financeiro`). */
   financeiro?: { despesa_id: Uuid; valor_financeiro: Dec; total_itens: Dec; diferenca: Dec; confere: boolean } | null;
+  /** Diferença produtos × pagamento justificada na confirmação (backend 02/11). */
+  diferenca_justificada?: DiferencaJustificada | null;
   aviso: string | null;
   pendencias: string[];
   pode_confirmar: boolean;
@@ -199,6 +203,34 @@ export interface CompraDetalhe {
   cancelada_em: Instante | null;
   cancelada_motivo: string | null;
   criado_em: Instante;
+}
+
+export type MotivoDiferenca = 'desconto' | 'pagamento_parcial' | 'frete' | 'itens_fora_do_estoque' | 'outro';
+export interface DiferencaJustificada {
+  motivo: MotivoDiferenca;
+  observacao: string;
+  /** Produtos − pagamento. */
+  diferenca: Dec;
+  total_itens: Dec;
+  valor_financeiro: Dec;
+  por?: string;
+  em?: Instante;
+  despesa_valor_final?: Dec;
+  restante_em_aberto?: Dec;
+}
+
+export type MotivoAjuste = 'contagem_fisica' | 'erro_de_registro' | 'outro';
+/** POST /admin/estoque/ajustes (backend 02/11). */
+export interface AjusteSaldo {
+  insumo_id: Uuid;
+  saldo_anterior: Dec;
+  saldo_novo: Dec;
+  diferenca: Dec;
+  motivo: string;
+  movimento: MovimentoEstoque | null;
+  registrado_por: string;
+  registrado_por_nome: string | null;
+  ocorreu_em: Instante;
 }
 
 /** POST /admin/estoque/compras/{id}/confirmar. */
@@ -475,6 +507,9 @@ export interface InventarioResumo {
   escopo: EscopoInventario;
   status: StatusInventario;
   aberto_por: string | null;
+  /** Nomes (backend 02/11); ausentes no backend anterior. */
+  aberto_por_nome?: string | null;
+  fechado_por_nome?: string | null;
   aberto_em: Instante;
   fechado_em: Instante | null;
   itens: number;

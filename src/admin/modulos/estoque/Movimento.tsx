@@ -1,8 +1,8 @@
 // "Registrar movimento": a ÚNICA porta para mexer no saldo à mão. Três escolhas, todas com histórico no backend:
 //  - Entrada: mercadoria chegou → vai para o recebimento (com nota ou sem nota) e só entra no estoque ao confirmar;
-//  - Saída: perda, uso interno ou outra saída justificada → POST /admin/estoque/perdas (sai ao custo médio);
-//  - Ajuste: o saldo real é outro → uma contagem de UM item (abre, conta, fecha), que lança o ajuste pela diferença com
-//    o nome de quem fez. O backend não tem ajuste avulso: a contagem é o caminho rastreável que ele oferece.
+//  - Saída: perda ou uso interno (motivo próprio, não conta como perda) → POST /admin/estoque/perdas (sai ao custo médio);
+//  - Ajuste: o saldo real é outro → POST /admin/estoque/ajustes com o motivo; o backend lança a diferença e devolve saldo
+//    anterior, novo, responsável e data. A primeira contagem do insumo vira a abertura do estoque.
 // Ninguém digita um saldo novo direto: tudo vira movimento. Quem registra é quem está logado (o backend grava).
 import type { ComponentChildren } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
@@ -10,25 +10,26 @@ import { ArrowDownToLine, ArrowUpFromLine, Scale, FileText, PencilLine, Info, Ch
 import { useConsulta } from '../../lib/consulta';
 import { estoque } from '../../lib/api/estoque';
 import { ErroApi, novaChave } from '../../lib/api/cliente';
-import { hojeISO } from '../../lib/formato';
+import { hojeISO, dataHora } from '../../lib/formato';
 import type { Usuario } from '../../lib/sessao';
 import { Gaveta, avisar } from '../../ui/camadas';
 import { Botao, Campo, Aviso } from '../../ui/base';
 import { Autocompletar, type OpcaoAuto } from '../../ui/entradas';
-import type { FechamentoInventario, Insumo } from '../../lib/tipos/estoque';
-import { atualizarEstoque, conferido, numeroEm, paraBase, unidadeExibicao, UNIDADE_CURTA, type PermissoesEstoque } from './comum';
+import type { AjusteSaldo, Insumo, MotivoAjuste } from '../../lib/tipos/estoque';
+import { atualizarEstoque, conferido, numeroEm, paraBase, textoMotivo, unidadeExibicao, UNIDADE_CURTA, type PermissoesEstoque } from './comum';
 import type { TipoMovimentoManual } from './DetalheInsumo';
 
 export type ModoEntrada = 'nota' | 'manual';
 type Passo = 'escolher' | TipoMovimentoManual;
 
-export function RegistrarMovimento({ aberto, tipo, insumo, perm, eu, inicioControle, aoFechar, aoEntrada, aoIrContagem, aoIrRecebimentos }: {
+export function RegistrarMovimento({ aberto, tipo, insumo, perm, eu, inicioControle, responsavel, aoFechar, aoEntrada, aoIrContagem, aoIrRecebimentos }: {
   aberto: boolean;
   tipo: TipoMovimentoManual | null;
   insumo: Insumo | null;
   perm: PermissoesEstoque;
   eu: Usuario;
   inicioControle: string | null;
+  responsavel: (r: string | null | undefined, nome?: string | null) => string | null;
   aoFechar: () => void;
   aoEntrada: (modo: ModoEntrada, insumo: Insumo | null) => void;
   aoIrContagem: () => void;
@@ -70,7 +71,7 @@ export function RegistrarMovimento({ aberto, tipo, insumo, perm, eu, inicioContr
         </div>
       )}
       {passo === 'saida' && <Saida alvo={alvo} aoAlvo={setAlvo} eu={eu} aoVoltar={voltar} aoTerminar={aoFechar} />}
-      {passo === 'ajuste' && <Ajuste alvo={alvo} aoAlvo={setAlvo} eu={eu} inicioControle={inicioControle} aoVoltar={voltar} aoTerminar={aoFechar} aoIrContagem={aoIrContagem} />}
+      {passo === 'ajuste' && <Ajuste alvo={alvo} aoAlvo={setAlvo} inicioControle={inicioControle} responsavel={responsavel} aoVoltar={voltar} aoTerminar={aoFechar} aoIrContagem={aoIrContagem} />}
     </Gaveta>
   );
 }
@@ -163,19 +164,21 @@ function Saida({ alvo, aoAlvo, eu, aoVoltar, aoTerminar }: { alvo: Insumo | null
     if (!q || !(Number(q) > 0)) return setErro('Informe a quantidade que saiu.');
     const texto = obs.trim();
     if (motivo === 'outro' && texto.length < 3) return setErro('Conte rapidamente o que aconteceu.');
-    const observacao = motivo === 'uso_interno' ? `Uso interno${texto ? `: ${texto}` : ''}` : texto || undefined;
     setEnviando(true);
     setErro(null);
     try {
       await estoque.registrarPerda(
-        { insumo_id: alvo.id, quantidade: q, motivo: motivo === 'uso_interno' ? 'outro' : motivo, observacao: observacao?.slice(0, 200), ...(data !== hojeISO() ? { ocorreu_em: `${data}T12:00:00-03:00` } : {}) },
+        { insumo_id: alvo.id, quantidade: q, motivo, observacao: texto ? texto.slice(0, 200) : undefined, ...(data !== hojeISO() ? { ocorreu_em: `${data}T12:00:00-03:00` } : {}) },
         chave.current,
       );
       atualizarEstoque();
       avisar(`Saída registrada: ${alvo.nome}.`, 'ok');
       aoTerminar();
     } catch (x) {
-      setErro(x instanceof ErroApi ? x.message : 'Não foi possível registrar.');
+      // Backend anterior a 02/11 não conhece "uso_interno": nada foi lançado, e o painel não troca o motivo sozinho.
+      if (x instanceof ErroApi && motivo === 'uso_interno' && x.tipo === 'validacao' && x.campos.motivo)
+        setErro('O sistema publicado ainda não registra "Uso interno" separado das perdas. Nada foi lançado.');
+      else setErro(x instanceof ErroApi ? x.message : 'Não foi possível registrar.');
     } finally {
       setEnviando(false);
     }
@@ -205,24 +208,38 @@ function Saida({ alvo, aoAlvo, eu, aoVoltar, aoTerminar }: { alvo: Insumo | null
   );
 }
 
-function Ajuste({ alvo, aoAlvo, eu, inicioControle, aoVoltar, aoTerminar, aoIrContagem }: {
+const MOTIVOS_AJUSTE: [MotivoAjuste, string][] = [
+  ['contagem_fisica', 'Contei e o número é outro'],
+  ['erro_de_registro', 'Corrigir um registro errado'],
+  ['outro', 'Outro motivo'],
+];
+
+/** Ajuste avulso (POST /estoque/ajustes): motivo, responsável e data gravados pelo backend no movimento; a resposta traz
+ *  o saldo anterior e o novo. O painel só converte a unidade digitada. Sem a rota (backend anterior a 02/11), nada é
+ *  lançado e a pessoa é levada à Contagem — o motivo não é simulado. */
+function Ajuste({ alvo, aoAlvo, inicioControle, responsavel, aoVoltar, aoTerminar, aoIrContagem }: {
   alvo: Insumo | null;
   aoAlvo: (i: Insumo | null) => void;
-  eu: Usuario;
   inicioControle: string | null;
+  responsavel: (r: string | null | undefined, nome?: string | null) => string | null;
   aoVoltar: (() => void) | null;
   aoTerminar: () => void;
   aoIrContagem: () => void;
 }) {
   const [qtd, setQtd] = useState('');
   const [fator, setFator] = useState<1 | 1000>(1);
+  const [motivo, setMotivo] = useState<MotivoAjuste>('contagem_fisica');
+  const [obs, setObs] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<ErroApi | null>(null);
-  const [feito, setFeito] = useState<FechamentoInventario | null>(null);
+  const [feito, setFeito] = useState<AjusteSaldo | null>(null);
+  // Uma chave por formulário: reenviar depois de uma falha de rede não lança o ajuste duas vezes.
+  const chave = useRef(novaChave());
   useEffect(() => {
     if (alvo) setFator(unidadeExibicao(alvo.unidade_base, alvo.saldo, alvo.estoque_minimo).fator);
     setFeito(null);
     setErro(null);
+    chave.current = novaChave();
   }, [alvo?.id]);
 
   const abertura = !!alvo && !conferido(alvo, inicioControle);
@@ -235,19 +252,15 @@ function Ajuste({ alvo, aoAlvo, eu, inicioControle, aoVoltar, aoTerminar, aoIrCo
     e.preventDefault();
     if (!alvo) return setErro(new ErroApi('validacao', 'Escolha o insumo.'));
     if (contado === null) return setErro(new ErroApi('validacao', 'Informe quanto há de verdade agora (pode ser 0).'));
+    const texto = obs.trim();
+    if (motivo === 'outro' && texto.length < 5) return setErro(new ErroApi('validacao', 'Explique o ajuste (pelo menos 5 caracteres).'));
     setEnviando(true);
     setErro(null);
-    let inventario: string | null = null;
     try {
-      inventario = (await estoque.abrirInventario('lista', [alvo.id])).id;
-      await estoque.contar(inventario, alvo.id, contado);
-      const r = await estoque.fecharInventario(inventario);
-      inventario = null;
+      const r = await estoque.ajustar({ insumo_id: alvo.id, quantidade: contado, motivo, observacao: texto || undefined }, chave.current);
       setFeito(r);
       atualizarEstoque();
     } catch (x) {
-      // Não deixa uma contagem de um item só aberta pela metade: o que não fechou é cancelado (nada foi ajustado).
-      if (inventario) await estoque.cancelarInventario(inventario).catch(() => undefined);
       setErro(x instanceof ErroApi ? x : new ErroApi('servidor', 'Não foi possível ajustar.'));
     } finally {
       setEnviando(false);
@@ -255,28 +268,29 @@ function Ajuste({ alvo, aoAlvo, eu, inicioControle, aoVoltar, aoTerminar, aoIrCo
   }
 
   if (feito && alvo) {
-    const a = feito.ajustes[0];
-    const u = unidadeExibicao(alvo.unidade_base, a?.sistema, a?.contado);
+    const u = unidadeExibicao(alvo.unidade_base, feito.saldo_anterior, feito.saldo_novo);
+    const dif = Number(feito.diferenca);
     return (
       <div class="pilha">
         <div class="estado" style={{ paddingBottom: '4px' }}>
           <span class="estado__icone" style={{ background: 'var(--ok-suave)', color: 'var(--ok)' }}><CheckCircle2 aria-hidden="true" /></span>
-          <h3>{a && Number(a.diferenca) !== 0 ? 'Saldo ajustado' : 'Saldo conferido, sem diferença'}</h3>
+          <h3>{dif !== 0 ? (feito.motivo.startsWith('abertura') ? 'Saldo inicial registrado' : 'Saldo ajustado') : 'Saldo conferido, sem diferença'}</h3>
         </div>
-        {a && (
-          <dl class="definicoes">
-            <dt>Antes</dt><dd class="num">{numeroEm(a.sistema, u.fator)} {u.rotulo}</dd>
-            <dt>Contado</dt><dd class="num">{numeroEm(a.contado, u.fator)} {u.rotulo}</dd>
-            <dt>Diferença</dt><dd class="num"><strong>{Number(a.diferenca) > 0 ? '+' : ''}{numeroEm(a.diferenca, u.fator)} {u.rotulo}</strong></dd>
-          </dl>
-        )}
-        <p class="fraco">Registrado como contagem, com o nome de {eu.nome} e o horário. Aparece no histórico do insumo e em Contagem.</p>
+        <dl class="definicoes" data-teste="ajuste-registrado">
+          <dt>Saldo anterior</dt><dd class="num">{numeroEm(feito.saldo_anterior, u.fator)} {u.rotulo}</dd>
+          <dt>Saldo novo</dt><dd class="num">{numeroEm(feito.saldo_novo, u.fator)} {u.rotulo}</dd>
+          <dt>Diferença</dt><dd class="num"><strong data-sinal={dif < 0 ? '-' : '+'}>{dif > 0 ? '+' : ''}{numeroEm(feito.diferenca, u.fator)} {u.rotulo}</strong></dd>
+          <dt>Motivo</dt><dd>{textoMotivo(feito.motivo)}</dd>
+          <dt>Responsável</dt><dd>{responsavel(feito.registrado_por, feito.registrado_por_nome)}</dd>
+          <dt>Data</dt><dd>{dataHora(feito.ocorreu_em)}</dd>
+        </dl>
+        {dif === 0 && <p class="fraco">Sem diferença não há lançamento: fica registrada a data da contagem.</p>}
         <Botao variante="primario" onClick={aoTerminar} style={{ alignSelf: 'flex-end' }}>Concluir</Botao>
       </div>
     );
   }
 
-  const aberta = erro?.codigo === 'inventario_aberto';
+  const semRota = erro?.tipo === 'nao_implantado';
   return (
     <form class="pilha" onSubmit={ajustar} noValidate>
       <EscolherInsumo alvo={alvo} aoAlvo={aoAlvo} />
@@ -292,18 +306,28 @@ function Ajuste({ alvo, aoAlvo, eu, inicioControle, aoVoltar, aoTerminar, aoIrCo
               Diferença prevista: <strong class="num" data-sinal={previa < 0 ? '-' : '+'}>{previa > 0 ? '+' : ''}{numeroEm(previa, fator)} {rotuloU}</strong>
             </p>
           )}
+          <div class="grade-campos">
+            <Campo rotulo="Motivo">
+              {(id) => (
+                <select id={id} class="selecao" value={motivo} onChange={(e) => setMotivo(e.currentTarget.value as MotivoAjuste)}>
+                  {MOTIVOS_AJUSTE.map(([v, r]) => <option key={v} value={v}>{r}</option>)}
+                </select>
+              )}
+            </Campo>
+            <Campo rotulo="Observação" opcional={motivo !== 'outro'} class="inteiro">{(id) => <textarea id={id} class="area" maxLength={200} value={obs} onInput={(e) => setObs(e.currentTarget.value)} />}</Campo>
+          </div>
         </>
       )}
-      <p class="fraco">O ajuste é registrado como uma contagem deste item, com o seu nome e o horário: o histórico guarda o antes, o contado e a diferença.</p>
+      <p class="fraco">Fica no histórico: saldo anterior, saldo novo, motivo, quem registrou e quando.</p>
       {erro && (
-        <Aviso tom={aberta ? 'atencao' : 'perigo'} icone={<Info aria-hidden="true" />}>
-          {aberta ? 'Há uma contagem em andamento nesta unidade. Informe a quantidade por ela: o ajuste entra quando ela for confirmada.' : erro.message}
-          {aberta && <div style={{ marginTop: '6px' }}><Botao tamanho="p" icone={<ClipboardList aria-hidden="true" />} onClick={aoIrContagem}>Ir para a contagem</Botao></div>}
+        <Aviso tom={semRota ? 'atencao' : 'perigo'} icone={<Info aria-hidden="true" />}>
+          {semRota ? 'O sistema publicado ainda não registra ajuste com motivo. Nada foi lançado: use a Contagem (registra o antes, o contado e o responsável, sem o motivo).' : erro.message}
+          {semRota && <div style={{ marginTop: '6px' }}><Botao tamanho="p" icone={<ClipboardList aria-hidden="true" />} onClick={aoIrContagem}>Ir para a contagem</Botao></div>}
         </Aviso>
       )}
       <div class="linha" style={{ justifyContent: 'flex-end' }}>
         {aoVoltar && <Botao onClick={aoVoltar} disabled={enviando}>Voltar</Botao>}
-        <Botao type="submit" variante="primario" carregando={enviando} disabled={!alvo}>{abertura ? 'Registrar contagem inicial' : 'Registrar ajuste'}</Botao>
+        <Botao type="submit" variante="primario" carregando={enviando} disabled={!alvo}>{abertura ? 'Registrar saldo inicial' : 'Registrar ajuste'}</Botao>
       </div>
     </form>
   );

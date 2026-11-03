@@ -117,7 +117,7 @@ export const TIPO_MOVIMENTO: Record<TipoMovimento, string> = {
   estorno_consumo: 'Venda cancelada (volta)',
   producao_saida: 'Usado em preparo',
   producao_entrada: 'Preparo produzido',
-  perda: 'Saída manual',
+  perda: 'Perda',
   ajuste_inventario: 'Ajuste por contagem',
   estorno: 'Estorno',
 };
@@ -228,7 +228,9 @@ export function paraBase(texto: string, fator: 1 | 1000): string | null {
 export function useResponsavel(eu: Usuario) {
   const equipe = useConsulta(pode(eu.papel, 'usuarios.gerenciar') ? 'usuarios' : null, () => pedir<{ id: string; nome: string }[]>('usuarios'));
   const nomes = new Map((equipe.dados ?? []).map((m) => [m.id, m.nome]));
-  return (registro: string | null | undefined): string | null => {
+  /** `nome`: o que o backend já mandou (registrado_por_nome, aberto_por_nome) — vale antes de qualquer dedução. */
+  return (registro: string | null | undefined, nome?: string | null): string | null => {
+    if (nome) return nome;
     if (!registro) return null;
     const [tipo, ...resto] = registro.split(':');
     const id = resto.join(':');
@@ -239,13 +241,29 @@ export function useResponsavel(eu: Usuario) {
   };
 }
 
-/** Motivo gravado numa saída manual ("vencido", "outro: Uso interno: café da equipe") em português. */
-export const MOTIVO_SAIDA: Record<string, string> = { vencido: 'Venceu', quebra: 'Quebrou ou estragou', preparo: 'Sobra de preparo', outro: 'Outro motivo', cancelamento_venda: 'Venda cancelada', 'contagem física': 'Contagem física', contagem: 'Contagem física' };
+/** Motivo gravado no livro ("vencido", "uso_interno: café da equipe", "abertura: contagem_fisica", "erro_de_registro: …") em
+ *  português. Dados antigos ("outro: Uso interno: …") continuam legíveis. */
+export const MOTIVO_SAIDA: Record<string, string> = {
+  vencido: 'Venceu', quebra: 'Quebrou ou estragou', preparo: 'Sobra de preparo', outro: 'Outro motivo', cancelamento_venda: 'Venda cancelada',
+  uso_interno: 'Uso interno', 'contagem física': 'Contagem física', contagem: 'Contagem física', contagem_fisica: 'Contagem física',
+  erro_de_registro: 'Erro de registro', abertura: 'Saldo inicial',
+};
 export function textoMotivo(m: string | null): string | null {
   if (!m) return null;
-  const [codigo, ...resto] = m.split(': ');
+  const partes = m.split(': ');
+  // "abertura: contagem_fisica: obs": o motivo da pessoa vem depois da marca de abertura.
+  if (partes[0] === 'abertura' && partes.length > 1) partes.shift();
+  const [codigo, ...resto] = partes;
   const obs = resto.join(': ');
   if (codigo === 'outro' && obs) return obs;
   const rotulo = MOTIVO_SAIDA[codigo] ?? m;
   return obs ? `${rotulo} · ${obs}` : rotulo;
 }
+
+/** Saída manual que não é perda (uso interno). Lê o motivo novo e o formato antigo ("outro: Uso interno…"). */
+export const ehUsoInterno = (m: { tipo: TipoMovimento; motivo: string | null }) => m.tipo === 'perda' && !!m.motivo && (m.motivo.startsWith('uso_interno') || m.motivo.startsWith('outro: Uso interno'));
+/** Primeira contagem do insumo (abertura do estoque), marcada pelo backend desde 02/11. */
+export const ehAbertura = (m: { tipo: TipoMovimento; motivo: string | null }) => m.tipo === 'ajuste_inventario' && !!m.motivo && m.motivo.startsWith('abertura');
+/** Nome do movimento no histórico. */
+export const rotuloMovimento = (m: { tipo: TipoMovimento; motivo: string | null }) =>
+  ehUsoInterno(m) ? 'Uso interno' : ehAbertura(m) ? 'Contagem inicial' : TIPO_MOVIMENTO[m.tipo] ?? m.tipo;

@@ -7,7 +7,7 @@ import type {
   CompraDetalhe, CompraLista, CompraManualEntrada, ConfirmacaoCompra, DespesaDaCompra, FichaDetalhe, FichaLista, FichaSalva, Insumo, InsumoCadastro,
   InsumoDetalhe, MovimentoEstoque, ResolucaoItem, ResumoEstoque, SugestaoInsumo, ProdutoAnalise, Ruptura, Reposicao, Cardapio,
   FornecedoresAnalise, CmvAnalise, SugestaoInventario, Inventario, InventarioResumo, ContagemItem, FechamentoInventario, UnidadeBase, EtapaCompra,
-  CancelamentoEstoque, SituacaoCancelamento, DecisaoCancelamento, EscopoInventario, StatusInventario,
+  CancelamentoEstoque, SituacaoCancelamento, DecisaoCancelamento, EscopoInventario, StatusInventario, AjusteSaldo, MotivoAjuste, MotivoDiferenca,
 } from '../tipos/estoque';
 import type { VisaoGeral, RadarInsight } from '../tipos/visao-geral';
 
@@ -27,10 +27,13 @@ export const estoque = {
   /** O que o sistema sugeriria para uma descrição da nota: UM objeto (insumo_id null = sem sugestão). */
   sugestaoInsumo: (texto: string, unidade_fiscal?: string, fornecedor_id?: string | null) =>
     pedir<SugestaoInsumo>('estoque/insumos-sugestoes', { query: { texto, unidade_fiscal, fornecedor_id } }),
-  /** Saída manual (perda, uso interno, outra). O backend só tem os motivos vencido/quebra/preparo/outro: "uso interno" vai
-   *  como `outro` com a observação "Uso interno: …". `ocorreu_em` opcional (padrão: agora). */
-  registrarPerda: (p: { insumo_id: string; quantidade: string; motivo: 'vencido' | 'quebra' | 'preparo' | 'outro'; observacao?: string; ocorreu_em?: string }, chave = novaChave()) =>
+  /** Saída manual. `uso_interno` (backend 02/11) sai do estoque sem contar como perda; o backend anterior recusa (422).
+   *  `ocorreu_em` opcional (padrão: agora). */
+  registrarPerda: (p: { insumo_id: string; quantidade: string; motivo: 'vencido' | 'quebra' | 'preparo' | 'uso_interno' | 'outro'; observacao?: string; ocorreu_em?: string }, chave = novaChave()) =>
     pedir<MovimentoEstoque>('estoque/perdas', { metodo: 'POST', corpo: p, idempotencia: chave }),
+  /** Ajuste avulso com motivo (backend 02/11): saldo anterior, novo, diferença e responsável. Backend anterior: 404. */
+  ajustar: (a: { insumo_id: string; quantidade: string; motivo: MotivoAjuste; observacao?: string }, chave = novaChave()) =>
+    pedir<AjusteSaldo>('estoque/ajustes', { metodo: 'POST', corpo: a, idempotencia: chave }),
   // Contagem (inventário): no máximo uma aberta por unidade; 409 inventario_aberto traz dados.inventario_id
   sugestaoInventario: () => pedir<SugestaoInventario[]>('estoque/inventarios/sugestao'),
   inventarios: (q: { status?: StatusInventario; limite?: number } = {}) => pedir<InventarioResumo[]>('estoque/inventarios', { query: { limite: 20, ...q } }),
@@ -61,7 +64,7 @@ export const estoque = {
     return pedir<{ id: string; etapa: EtapaCompra; substitui: string; ja_existia: boolean }>(`estoque/compras/${id}/nota`, { metodo: 'POST', formulario: f });
   },
   resolverItem: (compraId: string, itemId: string, r: ResolucaoItem) => pedir<CompraDetalhe>(`estoque/compras/${compraId}/itens/${itemId}`, { metodo: 'PATCH', corpo: r }),
-  confirmarCompra: (id: string, c: { versao: number; despesa?: DespesaDaCompra; motivo_divergencia?: string }) => pedir<ConfirmacaoCompra>(`estoque/compras/${id}/confirmar`, { metodo: 'POST', corpo: c }),
+  confirmarCompra: (id: string, c: { versao: number; despesa?: DespesaDaCompra; motivo_divergencia?: string; diferenca_financeira?: { motivo: MotivoDiferenca; observacao: string } }) => pedir<ConfirmacaoCompra>(`estoque/compras/${id}/confirmar`, { metodo: 'POST', corpo: c }),
   cancelarCompra: (id: string, motivo: string) => pedir<CompraDetalhe>(`estoque/compras/${id}/cancelar`, { metodo: 'POST', corpo: { motivo } }),
   /** Lê de novo (falhou ou ficou sem itens): nasce uma compra NOVA (`id`), a antiga é cancelada. */
   reprocessar: (id: string) => pedir<{ id: string; etapa: EtapaCompra; substitui: string }>(`estoque/compras/${id}/reprocessar`, { metodo: 'POST' }),

@@ -144,6 +144,7 @@ export default function Estoque({ contexto }: { contexto: ContextoPainel }) {
         perm={perm}
         eu={eu}
         inicioControle={inicio}
+        responsavel={responsavel}
         aoFechar={() => setMovimento(null)}
         aoEntrada={entrada}
         aoIrContagem={() => { setMovimento(null); setInsumo(null); setArea('contagem'); }}
