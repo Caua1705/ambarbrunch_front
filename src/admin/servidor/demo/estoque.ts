@@ -27,11 +27,12 @@ interface InsumoDemo extends Insumo {
 let seqMov = 5000;
 // Como o backend (insumos.quem): 'usuario:<id>' — o painel troca pelo nome. Gerente da demonstração.
 const GERENTE_DEMO = 'usuario:00000000-0000-4000-8000-000000000002';
+const NOME_GERENTE_DEMO = 'Gabriela Gerente (demo)';
 /** Movimento do livro no formato de _movimento_saida (vínculos nulos quando não se aplicam). */
 function mov(p: Pick<MovimentoEstoque, 'tipo' | 'quantidade' | 'custo_unitario' | 'valor' | 'saldo_apos' | 'custo_medio_apos' | 'ocorreu_em' | 'motivo'> & Partial<MovimentoEstoque>): MovimentoEstoque {
   return {
     id: ++seqMov, custo_desconhecido: p.custo_unitario === null, dia: p.ocorreu_em.slice(0, 10), venda_id: null, eye_product_id: null, compra_item_id: null, producao_id: null,
-    inventario_item_id: null, estorna_movimento_id: null, registrado_por: GERENTE_DEMO, ...p,
+    inventario_item_id: null, estorna_movimento_id: null, registrado_por: GERENTE_DEMO, registrado_por_nome: NOME_GERENTE_DEMO, ...p,
   };
 }
 
@@ -600,12 +601,32 @@ export const ROTAS_ESTOQUE: Rota[] = [
   }],
   ['POST', /^estoque\/perdas$/, GERENCIA, async ({ corpo }) => {
     const e = await corpo<{ insumo_id: string; quantidade: string; motivo: string; observacao?: string }>();
-    if (!['vencido', 'quebra', 'preparo', 'outro'].includes(e.motivo)) throw new ErroDemo(422, 'regra_violada', 'Motivo: vencido, quebra, preparo ou outro.');
+    if (!['vencido', 'quebra', 'preparo', 'uso_interno', 'outro'].includes(e.motivo)) throw new ErroDemo(422, 'regra_violada', 'Motivo: vencido, quebra, preparo, uso_interno ou outro.');
     const i = acharInsumo(e.insumo_id);
     const q = Number(e.quantidade);
     if (!(q > 0)) throw new ErroDemo(422, 'regra_violada', 'Informe uma quantidade maior que zero.');
     // Como operacoes.registrar_perda: o motivo guarda a observação junto ("outro: Uso interno: café").
     return resposta(201, movimentar(i, 'perda', -q, null, e.observacao ? `${e.motivo}: ${e.observacao}` : e.motivo));
+  }],
+  // Ajuste avulso (operacoes.ajustar_saldo): a primeira contagem vira "abertura"; devolve saldo anterior e novo.
+  ['POST', /^estoque\/ajustes$/, GERENCIA, async ({ corpo }) => {
+    const e = await corpo<{ insumo_id: string; quantidade: string; motivo: string; observacao?: string | null }>();
+    if (!['contagem_fisica', 'erro_de_registro', 'outro'].includes(e.motivo)) throw new ErroDemo(422, 'regra_violada', 'Motivo: contagem_fisica, erro_de_registro ou outro.');
+    const obs = String(e.observacao ?? '').trim();
+    if (e.motivo === 'outro' && obs.length < 5) throw new ErroDemo(422, 'regra_violada', 'Explique o ajuste (pelo menos 5 caracteres).');
+    const real = Number(e.quantidade);
+    if (!(real >= 0)) throw new ErroDemo(422, 'regra_violada', 'A quantidade real não pode ser negativa.');
+    const i = acharInsumo(e.insumo_id);
+    const anterior = Number(i.saldo);
+    const abertura = !i.ultima_contagem_em;
+    const texto = `${abertura ? 'abertura: ' : ''}${obs ? `${e.motivo}: ${obs}` : e.motivo}`;
+    const m = real !== anterior ? movimentar(i, 'ajuste_inventario', real - anterior, null, texto) : null;
+    i.ultima_contagem_em = new Date().toISOString();
+    if (['nunca_contado', 'ficou_negativo', 'sem_movimento'].includes(i.motivo_nao_confiavel ?? '')) i.motivo_nao_confiavel = 'baixa_desligada';
+    return resposta(201, {
+      insumo_id: i.id, saldo_anterior: d4(anterior), saldo_novo: d4(real), diferenca: d4(real - anterior), motivo: m?.motivo ?? texto,
+      movimento: m, registrado_por: GERENTE_DEMO, registrado_por_nome: NOME_GERENTE_DEMO, ocorreu_em: m?.ocorreu_em ?? new Date().toISOString(),
+    });
   }],
   // Contagem
   ['GET', /^estoque\/inventarios\/sugestao$/, GERENCIA, () => sugestaoContagem()],
@@ -615,7 +636,7 @@ export const ROTAS_ESTOQUE: Rota[] = [
       .filter((i) => !s || i.status === s)
       .sort((a, b) => b.aberto_em.localeCompare(a.aberto_em))
       .slice(0, Number(query.get('limite') ?? 20))
-      .map((i) => ({ id: i.id, escopo: i.escopo, status: i.status, aberto_por: i.aberto_por, aberto_em: i.aberto_em, fechado_em: i.fechado_em, itens: i.itens.length }));
+      .map((i) => ({ id: i.id, escopo: i.escopo, status: i.status, aberto_por: i.aberto_por, aberto_por_nome: NOME_GERENTE_DEMO, aberto_em: i.aberto_em, fechado_em: i.fechado_em, itens: i.itens.length }));
   }],
   ['POST', /^estoque\/inventarios$/, GERENCIA, async ({ corpo }) => {
     const e = await corpo<{ escopo?: 'sugerido' | 'lista' | 'total'; insumos?: string[] | null }>();
@@ -660,7 +681,7 @@ export const ROTAS_ESTOQUE: Rota[] = [
       const sistema = Number(ins.saldo);
       const dif = Number(it.quantidade_contada) - sistema;
       const medio = ins.custo_medio === null ? null : Number(ins.custo_medio);
-      if (dif) movimentar(ins, 'ajuste_inventario', dif, null, 'contagem');
+      if (dif) movimentar(ins, 'ajuste_inventario', dif, null, ins.ultima_contagem_em ? 'contagem física' : 'abertura');
       ins.ultima_contagem_em = new Date().toISOString();
       if (ins.motivo_nao_confiavel === 'nunca_contado' || ins.motivo_nao_confiavel === 'ficou_negativo' || ins.motivo_nao_confiavel === 'sem_movimento') ins.motivo_nao_confiavel = 'baixa_desligada';
       const valor = medio === null ? null : d2(dif * medio);
@@ -780,7 +801,7 @@ export const ROTAS_ESTOQUE: Rota[] = [
     const c = acharCompra(params[0]);
     const resultado = (ja: boolean) => ({ compra_id: c.id, etapa: c.etapa, despesa_id: c.despesa.despesa_id, movimentos: c.itens.filter((i) => i.situacao === 'confirmado').length, ja_estava_confirmada: ja });
     if (c.etapa === 'confirmada') return resultado(true);
-    const e = await corpo<{ versao: number; despesa?: { vincular_despesa_id?: string | null; paga_em?: string | null; forma?: string | null; parcelas?: unknown[] | null; criar_nova?: boolean; motivo_nova?: string | null }; motivo_divergencia?: string | null }>();
+    const e = await corpo<{ versao: number; despesa?: { vincular_despesa_id?: string | null; paga_em?: string | null; forma?: string | null; parcelas?: unknown[] | null; criar_nova?: boolean; motivo_nova?: string | null }; motivo_divergencia?: string | null; diferenca_financeira?: { motivo: string; observacao: string } | null }>();
     if (c.etapa !== 'aguardando_conferencia') throw new ErroDemo(409, 'compra_fora_de_conferencia', 'A compra não está em conferência.', { etapa: c.etapa });
     if (Number(e.versao) !== c.versao) throw new ErroDemo(409, 'conflito_versao', 'A compra mudou. Recarregue.', { versao: c.versao });
     // Demo só com Gerente/Proprietário (estoque.editar): podem aceitar a nota que não fecha, com motivo.
@@ -789,7 +810,26 @@ export const ROTAS_ESTOQUE: Rota[] = [
       c.divergencia_aceita = String(e.motivo_divergencia);
       recalcular(c);
     }
-    if (c.pendencias.length) throw new ErroDemo(409, 'pendencias', 'Ainda há pendências na conferência.', { pendencias: c.pendencias });
+    // Produtos × pagamento: só passa justificado (motivo coerente com o sentido + explicação). Nada é rateado.
+    const fin = c.financeiro && !c.financeiro.confere ? c.financeiro : null;
+    let justificada: CompraDetalhe['diferenca_justificada'] = null;
+    if (fin && e.diferenca_financeira) {
+      const acima = Number(fin.diferenca) > 0;
+      const permitidos = acima ? ['desconto', 'pagamento_parcial', 'outro'] : ['frete', 'itens_fora_do_estoque', 'outro'];
+      if (!permitidos.includes(e.diferenca_financeira.motivo)) throw new ErroDemo(422, 'motivo_incoerente_com_a_diferenca', `Com os produtos ${acima ? 'acima' : 'abaixo'} do pagamento, o motivo é ${permitidos.join(', ')}.`);
+      if (String(e.diferenca_financeira.observacao ?? '').trim().length < 5) throw new ErroDemo(422, 'regra_violada', 'Explique a diferença (pelo menos 5 caracteres).');
+      const parcial = e.diferenca_financeira.motivo === 'pagamento_parcial';
+      justificada = {
+        motivo: e.diferenca_financeira.motivo as NonNullable<CompraDetalhe['diferenca_justificada']>['motivo'], observacao: e.diferenca_financeira.observacao.trim(),
+        diferenca: fin.diferenca, total_itens: fin.total_itens, valor_financeiro: fin.valor_financeiro, por: GERENTE_DEMO, em: new Date().toISOString(),
+        despesa_valor_final: parcial ? fin.total_itens : fin.valor_financeiro, restante_em_aberto: parcial ? d2(Number(fin.diferenca)) : '0.00',
+      };
+    }
+    const pendentes = c.pendencias.filter((x) => !(justificada && x === 'total_diverge_do_financeiro'));
+    if (pendentes.length) {
+      if (pendentes.length === 1 && pendentes[0] === 'total_diverge_do_financeiro' && fin) throw new ErroDemo(409, 'total_diverge_do_financeiro', `Os produtos somam ${fin.total_itens}, mas o pagamento no Financeiro é ${fin.valor_financeiro}. Corrija os itens ou o lançamento, ou justifique a diferença (gerência).`, { ...fin, diferenca: fin.diferenca, confere: 'False' });
+      throw new ErroDemo(409, 'pendencias', 'Ainda há pendências na conferência.', { pendencias: pendentes });
+    }
     const d = e.despesa ?? {};
     // compras.confirmar: qualquer candidata pede uma decisão; "outra compra" nunca passa por cima de um pagamento que espera
     // a conferência (B3); vincular exige o total ao centavo.
@@ -809,6 +849,7 @@ export const ROTAS_ESTOQUE: Rota[] = [
       }
     }
     c.despesa.despesa_id = d.vincular_despesa_id ?? c.despesa_origem_id ?? uuid();
+    if (justificada) c.diferenca_justificada = justificada;
     c.etapa = 'confirmada';
     c.etapa_painel = 'confirmada';
     c.confirmada_em = new Date().toISOString();
