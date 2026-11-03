@@ -45,7 +45,7 @@ test('estoque atual: quatro áreas, situações reais, item nunca contado sem ze
   await expect(page.locator('body')).not.toContainText('usuario:');
 });
 
-test('saída manual (uso interno): sai do saldo e o histórico mostra motivo e o nome de quem registrou', async ({ page }) => {
+test('uso interno: sai do saldo com motivo próprio (não é perda) e o nome de quem registrou', async ({ page }) => {
   await page.goto(`${DEMO}/admin/estoque`);
   await linha(page, 'Açúcar refinado').click();
   const insumo = page.getByRole('dialog', { name: 'Açúcar refinado' });
@@ -60,14 +60,17 @@ test('saída manual (uso interno): sai do saldo e o histórico mostra motivo e o
   await expect(page.getByText('Saída registrada: Açúcar refinado.')).toBeVisible();
   await expect(insumo.locator('.insumo-saldo')).toContainText('8,5 kg');
   const ultimo = insumo.locator('.movimento').first();
-  await expect(ultimo).toContainText('Saída manual');
-  await expect(ultimo).toContainText('Uso interno: café da equipe');
+  await expect(ultimo).toContainText('Uso interno');
+  await expect(ultimo).toContainText('café da equipe');
+  await expect(ultimo).not.toContainText('Perda');
   await expect(ultimo).toContainText('Gabriela Gerente (demo)');
   await expect(ultimo).toContainText('-0,5 kg');
   await expect(insumo).not.toContainText('usuario:');
+  const movs = await (await page.request.get(`${DEMO}/admin/api/estoque/insumos/e1000000-0000-4000-8000-000000000005/movimentos`)).json();
+  expect(movs.itens[0]).toMatchObject({ tipo: 'perda', motivo: 'uso_interno: café da equipe' });
 });
 
-test('ajuste: vira uma contagem de um item, com antes, contado e diferença, e entra no histórico das contagens', async ({ page }) => {
+test('ajuste com motivo: saldo anterior, novo, motivo, responsável e data; nenhuma contagem aberta', async ({ page }) => {
   await page.goto(`${DEMO}/admin/estoque`);
   await linha(page, 'Farinha de trigo').click();
   const insumo = page.getByRole('dialog', { name: 'Farinha de trigo' });
@@ -76,19 +79,26 @@ test('ajuste: vira uma contagem de um item, com antes, contado e diferença, e e
   await expect(ajuste).toContainText('18 kg');
   await ajuste.getByLabel('Quantidade real agora').fill('17,5');
   await expect(ajuste.locator('.ajuste-previa')).toContainText('-0,5 kg');
+  await ajuste.getByLabel('Motivo').selectOption('erro_de_registro');
+  await ajuste.getByLabel('Observação').fill('entrada lançada em dobro');
   await ajuste.getByRole('button', { name: 'Registrar ajuste' }).click();
   await expect(ajuste.getByRole('heading', { name: 'Saldo ajustado' })).toBeVisible();
-  await expect(ajuste.locator('.definicoes')).toContainText('-0,5 kg');
+  const registro = ajuste.locator('[data-teste="ajuste-registrado"]');
+  await expect(registro).toContainText('18 kg');
+  await expect(registro).toContainText('17,5 kg');
+  await expect(registro).toContainText('-0,5 kg');
+  await expect(registro).toContainText('Erro de registro · entrada lançada em dobro');
+  await expect(registro).toContainText('Gabriela Gerente (demo)');
   await ajuste.getByRole('button', { name: 'Concluir' }).click();
   await expect(insumo.locator('.insumo-saldo')).toContainText('17,5 kg');
-  await expect(insumo.locator('.movimento').first()).toContainText('Ajuste por contagem');
+  const ultimo = insumo.locator('.movimento').first();
+  await expect(ultimo).toContainText('Ajuste por contagem');
+  await expect(ultimo).toContainText('Erro de registro · entrada lançada em dobro');
+  await expect(ultimo).toContainText('de 18 para 17,5 kg');
   await page.keyboard.press('Escape');
 
+  // O ajuste não abre contagem: nada fica pela metade.
   await page.getByRole('tab', { name: 'Contagem' }).click();
-  const historico = page.getByRole('table', { name: 'Contagens anteriores' });
-  await expect(historico.getByRole('row')).toHaveCount(3); // cabeçalho + a antiga + o ajuste
-  await expect(historico).toContainText('Gabriela Gerente (demo)');
-  // Nenhuma contagem ficou aberta pela metade.
   await expect(page.getByRole('button', { name: /Começar contagem/ })).toBeVisible();
 });
 
@@ -125,6 +135,8 @@ test('contagem em três passos: abertura de um item nunca contado, diferença ne
   await page.getByRole('tab', { name: 'Estoque atual' }).click();
   await expect(linha(page, 'Cogumelo paris')).toContainText('Normal');
   await expect(linha(page, 'Leite integral')).toContainText('40');
+  await linha(page, 'Cogumelo paris').click();
+  await expect(page.getByRole('dialog', { name: 'Cogumelo paris' }).locator('.movimento').first()).toContainText('Contagem inicial');
 });
 
 test('entrada sem nota: Registrar movimento → Entrada → mesma conferência; o saldo só muda ao confirmar o recebimento', async ({ page }) => {
@@ -180,7 +192,7 @@ test('fichas e custos: sem ficha e custo indisponível não mostram custo; CMV i
   const fichas = page.getByRole('table', { name: 'Fichas técnicas' });
   await expect(fichas.getByRole('row', { name: /Roll de pistache/ })).toContainText('Custo indisponível');
   await expect(fichas.getByRole('row', { name: /Roll de chocolate/ })).toContainText('Sem ficha');
-  await expect(fichas.getByRole('row', { name: /Cappuccino/ })).toContainText('Completa');
+  await expect(fichas.getByRole('row', { name: /Cappuccino/ })).toContainText('Custo calculado');
   await fichas.getByRole('row', { name: /Roll de pistache/ }).click();
   const gaveta = page.getByRole('dialog', { name: 'Roll de pistache' });
   await expect(gaveta).toContainText('Produto da Eyemobile');
@@ -194,4 +206,28 @@ test('fichas e custos: sem ficha e custo indisponível não mostram custo; CMV i
   await expect(page.getByText('Por que ainda não há CMV confiável:')).toBeVisible();
   // Com a baixa desligada não há previsão de falta nem reposição sugerida.
   await expect(page.getByText(/Pode faltar|Reposição sugerida/)).toHaveCount(0);
+});
+
+test('Pix com frete: produtos abaixo do pagamento confirmam só com a justificativa, no MESMO pagamento', async ({ page }) => {
+  const PIX_PADARIA = 'e2000000-0000-4000-8000-000000000008'; // Pix de R$ 150,00 esperando os produtos
+  await page.goto(`${DEMO}/admin/estoque?aba=recebimentos&compra=${PIX_PADARIA}`);
+  const gaveta = page.getByRole('dialog');
+  await gaveta.getByRole('combobox', { name: 'Produto 1' }).fill('ovos');
+  await page.getByRole('option', { name: /Ovos/ }).click();
+  await gaveta.getByLabel('Qtd.').first().fill('6');
+  await gaveta.getByLabel('Valor unit.').first().fill('23,00');
+  await gaveta.getByRole('button', { name: 'Salvar produtos' }).click();
+  await expect(gaveta.getByText('Os produtos não batem com o pagamento.')).toBeVisible();
+  await page.getByRole('button', { name: 'Continuar' }).click();
+  const diferenca = gaveta.getByRole('group', { name: 'Diferença entre produtos e pagamento' });
+  // Produtos abaixo do pagamento: só frete, itens fora do estoque ou outro (nada de "pagamento parcial").
+  await expect(diferenca.getByRole('radio')).toHaveCount(3);
+  await expect(diferenca.getByText('Pagamento parcial')).toHaveCount(0);
+  await diferenca.getByRole('radio', { name: /Frete pago junto/ }).check();
+  await expect(diferenca).toContainText('O frete não entra no custo dos insumos.');
+  await diferenca.getByLabel('Explique a diferença').fill('entrega de R$ 12 no mesmo Pix');
+  await page.getByRole('button', { name: 'Confirmar recebimento' }).click();
+  await expect(gaveta.getByRole('heading', { name: 'Compra confirmada' })).toBeVisible();
+  await expect(gaveta.getByText(/Diferença de R\$\s12,00 justificada: frete pago junto/)).toBeVisible();
+  await expect(gaveta).toContainText('despesa mantida no valor do pagamento');
 });

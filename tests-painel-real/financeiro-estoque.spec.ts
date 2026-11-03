@@ -134,7 +134,12 @@ test('Pix com divergência: R$ 85 contra um Pix de R$ 90 não confirma (409); re
   await expect(gaveta.locator('[data-teste="soma-produtos"]')).toContainText('diferença de R$ 5,00');
   await gaveta.getByRole('button', { name: 'Salvar produtos' }).click();
   await expect(gaveta.getByText('Os produtos não batem com o pagamento.')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Continuar' })).toBeDisabled();
+  // A gerência pode seguir, mas só confirma justificando a diferença (02/11); sem motivo, nada é enviado.
+  await page.getByRole('button', { name: 'Continuar' }).click();
+  await expect(gaveta.getByRole('group', { name: 'Diferença entre produtos e pagamento' })).toBeVisible();
+  await page.getByRole('button', { name: 'Confirmar recebimento' }).click();
+  await expect(gaveta.getByText('Escolha o motivo da diferença entre produtos e pagamento.')).toBeVisible();
+  await page.getByRole('button', { name: 'Voltar aos itens' }).click();
 
   const atual = new URL(page.url()).searchParams.get('compra')!;
   const detalhe = await (await page.request.get(`${API}/estoque/compras/${atual}`)).json();

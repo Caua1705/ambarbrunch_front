@@ -51,7 +51,12 @@ test('compras: produtos do cadastro com subtotal; R$ 222 contra um Pix de R$ 186
   // Salvar o rascunho é permitido; confirmar, não.
   await gaveta.getByRole('button', { name: 'Salvar produtos' }).click();
   await expect(gaveta.getByText('Os produtos não batem com o pagamento.')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Continuar' })).toBeDisabled();
+  // A gerência pode seguir, mas só confirma justificando a diferença (02/11); sem motivo, nada é enviado.
+  await page.getByRole('button', { name: 'Continuar' }).click();
+  await expect(gaveta.getByRole('group', { name: 'Diferença entre produtos e pagamento' })).toBeVisible();
+  await page.getByRole('button', { name: 'Confirmar recebimento' }).click();
+  await expect(gaveta.getByText('Escolha o motivo da diferença entre produtos e pagamento.')).toBeVisible();
+  await page.getByRole('button', { name: 'Voltar aos itens' }).click();
   const lista = await (await page.request.get(`${DEMO}/admin/api/estoque/compras?limite=200`)).json();
   const rascunho = lista.itens.find((c: { despesa_origem_id: string | null; etapa: string; fonte_leitura: string | null }) => c.despesa_origem_id && c.etapa === 'aguardando_conferencia' && c.fonte_leitura === 'manual');
   const detalhe = await (await page.request.get(`${DEMO}/admin/api/estoque/compras/${rascunho.id}`)).json();
