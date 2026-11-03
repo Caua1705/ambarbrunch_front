@@ -19,7 +19,7 @@ type Filtro = 'todas' | 'sem' | 'incompletas' | 'completas';
 const situacao = (f: FichaLista) => (!f.ficha ? 'sem' : f.ficha.custo_incompleto ? 'incompleta' : 'completa');
 /** O backend sabe se há ficha e se algum ingrediente está sem custo; se faltou cadastrar um ingrediente, só quem conhece a
  *  receita sabe — por isso não há um "incompleta" automático além destes. */
-const SITUACAO_FICHA = { sem: 'Sem ficha', incompleta: 'Custo indisponível', completa: 'Completa' } as const;
+const SITUACAO_FICHA = { sem: 'Sem ficha', incompleta: 'Custo indisponível', completa: 'Custo calculado' } as const;
 
 /** O que a gaveta da ficha precisa saber de quem a abriu (a lista de produtos ou o detalhe de um preparo). */
 export interface AlvoFicha {
@@ -36,7 +36,7 @@ export interface AlvoFicha {
   semFicha?: boolean;
 }
 
-export function Fichas({ pode, cobertura, responsavel }: { pode: boolean; cobertura: string | null; responsavel: (r: string | null | undefined) => string | null }) {
+export function Fichas({ pode, cobertura, responsavel }: { pode: boolean; cobertura: string | null; responsavel: (r: string | null | undefined, nome?: string | null) => string | null }) {
   const [filtro, setFiltro] = useState<Filtro>('todas');
   const [busca, setBusca] = useState('');
   const [aberta, setAberta] = useState<AlvoFicha | null>(null);
@@ -77,7 +77,7 @@ export function Fichas({ pode, cobertura, responsavel }: { pode: boolean; cobert
             <option value="todas">Todas as fichas</option>
             <option value="sem">Sem ficha ({n('sem')})</option>
             <option value="incompletas">Custo indisponível ({n('incompleta')})</option>
-            <option value="completas">Completas ({n('completa')})</option>
+            <option value="completas">Custo calculado ({n('completa')})</option>
           </select>
           {cobertura !== null && <span class="fraco estoque-filtros__nota">Fichas cobrem {pct(cobertura, { fracao: true, casas: 0 })} da receita de 30 dias</span>}
         </div>
@@ -157,6 +157,7 @@ export function GavetaFicha({ alvo, aoFechar, responsavel }: { alvo: AlvoFicha |
                     </tbody>
                   </table>
                 </div>
+                <p class="fraco" data-teste="aviso-ingredientes">O custo considera só os ingredientes listados. O sistema não sabe se falta algum: confira a receita antes de usar a margem.</p>
                 <p class="fraco">Custo da receita inteira: <strong class="num">{moeda(f.custo_receita)}</strong>{f.observacao ? ` · ${f.observacao}` : ''}</p>
                 <section class="pilha pilha--p">
                   <h3 class="secao-titulo linha" style={{ gap: '6px' }}><History size={13} aria-hidden="true" /> Versões</h3>

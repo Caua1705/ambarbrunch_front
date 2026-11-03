@@ -9,7 +9,7 @@ import { Cartao, Segmentado, Aviso, Situacao, Etiqueta } from '../../ui/base';
 import { Dados, Esqueleto, EsqueletoTabela, Vazio } from '../../ui/estados';
 import { Tabela, type Coluna } from '../../ui/tabela';
 import { BarraParte } from '../../ui/graficos';
-import type { EstadoRuptura, ItemCardapio, ItemReposicao, ProdutoAnalise } from '../../lib/tipos/estoque';
+import type { CmvAnalise, EstadoRuptura, ItemCardapio, ItemReposicao, ProdutoAnalise } from '../../lib/tipos/estoque';
 import type { PermissoesEstoque } from './comum';
 
 // Todas as análises exigem estoque.visualizar no backend (api_analises.py). Previsão de falta e sugestão de reposição
@@ -38,6 +38,10 @@ const FONTE_CMV = { por_inventario: 'Pela contagem (inventário)', teorico: 'Te�
 
 /** CMV em duas leituras que não se misturam: o TEÓRICO (fichas × vendas efetivas) e o físico (contagens, perdas e a
  *  diferença entre os dois). Compras do mês aparecem à parte e marcadas como não-CMV. Sem dado suficiente, o motivo. */
+/** CMV teórico só é número quando há vendas do mês, cobertura conhecida e nenhuma ficha faltando: "R$ 0,00" sem vendas
+ *  não é um custo, é falta de dado. */
+const teoricoConfiavel = (d: CmvAnalise) => d.alternativas.teorico !== null && !d.teorico_incompleto && d.vendas_validas > 0 && d.cobertura_fichas !== null;
+
 function Cmv() {
   const [mes, setMes] = useState(inicioMes(hojeISO()).slice(0, 7));
   const meses = [0, -1, -2].map((d) => somarMeses(`${inicioMes(hojeISO())}`, d).slice(0, 7));
@@ -54,7 +58,7 @@ function Cmv() {
             <div class="cmv-blocos">
               <section class="cmv-bloco" aria-label="CMV teórico">
                 <h3 class="secao-titulo">CMV teórico</h3>
-                <p class="cmv-bloco__valor num">{d.alternativas.teorico !== null && !d.teorico_incompleto ? moeda(d.alternativas.teorico) : <span class="fraco">Indisponível</span>}</p>
+                <p class="cmv-bloco__valor num">{teoricoConfiavel(d) ? moeda(d.alternativas.teorico) : <span class="fraco">Indisponível</span>}</p>
                 <dl class="definicoes">
                   <dt>Cobertura das fichas</dt>
                   <dd class="num">{pct(d.cobertura_fichas, { fracao: true, casas: 0 })} da receita</dd>
@@ -62,6 +66,7 @@ function Cmv() {
                   <dd class="num">{d.vendas_processadas} de {d.vendas_validas}</dd>
                   {d.fonte !== 'indisponivel' && d.cmv_pct !== null && <><dt>Sobre a receita ({FONTE_CMV[d.fonte].toLowerCase()})</dt><dd class="num">{pct(d.cmv_pct)} de {moeda(d.receita_produtos)}</dd></>}
                 </dl>
+                {d.vendas_validas === 0 && <p class="fraco">Nenhuma venda do mês chegou da Eyemobile: sem vendas não há CMV teórico (zero não seria um número real).</p>}
                 {d.teorico_incompleto && <p class="fraco">Há produtos vendidos sem ficha ou com custo indisponível: o teórico fica incompleto e não é mostrado como número final.</p>}
               </section>
               <section class="cmv-bloco" aria-label="Consumo e diferenças físicas">
