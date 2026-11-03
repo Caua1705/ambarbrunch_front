@@ -16,7 +16,7 @@ import { EnvioArquivo } from '../../ui/entradas';
 import type { CompraDetalhe } from '../../lib/tipos/estoque';
 import { ETAPA, LENDO, FONTE, ERRO_LEITURA, PENDENCIA, atualizarEstoque, textoProblemas, type PermissoesEstoque } from './comum';
 import { ItemConferencia } from './ItemConferencia';
-import { ConfirmarCompra, type Confirmado } from './ConfirmarCompra';
+import { ConfirmarCompra, MOTIVO_DIFERENCA, type Confirmado } from './ConfirmarCompra';
 import { LinhasItens, linhaVazia, validarLinhas, somaLinhas, type LinhaManual } from './EntradaCompra';
 
 export function Conferencia({ id, perm, aoFechar, aoAbrir }: { id: string | null; perm: PermissoesEstoque; aoFechar: () => void; aoAbrir: (id: string) => void }) {
@@ -43,8 +43,9 @@ export function Conferencia({ id, perm, aoFechar, aoAbrir }: { id: string | null
   const semItens = aguardando && (!c!.itens.length || corrigindo);
   // Rascunho digitado de um pagamento (ainda sem estoque): pode ser refeito ou trocado pela nota.
   const rascunho = !!c && aguardando && c.fonte_leitura === 'manual' && !!c.despesa_origem_id && c.itens.length > 0;
-  // A gerência pode confirmar uma nota que não fecha, com motivo; os itens precisam estar resolvidos.
-  const podeSeguir = !!c && aguardando && (c.pode_confirmar || (perm.editar && c.pendencias.every((p) => p === 'conferencia_aritmetica') && c.itens.length > 0));
+  // A gerência pode confirmar uma nota que não fecha (com motivo) e produtos que não somam o pagamento (justificando a
+  // diferença na confirmação); os itens precisam estar resolvidos. O backend confere as duas coisas de novo.
+  const podeSeguir = !!c && aguardando && (c.pode_confirmar || (perm.editar && c.pendencias.every((p) => p === 'conferencia_aritmetica' || p === 'total_diverge_do_financeiro') && c.itens.length > 0));
 
   // Ler de novo cria uma compra NOVA a partir do mesmo arquivo (a antiga é cancelada): a gaveta passa para ela.
   const reprocessar = () =>
@@ -149,7 +150,7 @@ export function Conferencia({ id, perm, aoFechar, aoAbrir }: { id: string | null
                       </Aviso>
                     )}
                     {c.aviso && <Aviso tom="info" icone={<Info aria-hidden="true" />}>{c.aviso}</Aviso>}
-                    <Financeiro c={c} />
+                    <Financeiro c={c} gerencia={perm.editar} />
                     {rascunho && perm.conferir && (
                       <Botao tamanho="p" style={{ alignSelf: 'flex-start' }} onClick={() => setCorrigindo(true)}>Corrigir os produtos ou enviar a nota</Botao>
                     )}
@@ -327,14 +328,14 @@ function Falhou({ c }: { c: CompraDetalhe }) {
 }
 
 /** Produtos × pagamento do Financeiro: a confirmação só passa com o total batendo (o backend recusa de novo). */
-function Financeiro({ c }: { c: CompraDetalhe }) {
+function Financeiro({ c, gerencia }: { c: CompraDetalhe; gerencia: boolean }) {
   const f = c.financeiro;
   if (!f) return null;
   if (f.confere)
     return <Aviso tom="ok" icone={<CheckCircle2 aria-hidden="true" />}>Os produtos somam {moeda(f.total_itens)}, igual ao pagamento no Financeiro.</Aviso>;
   return (
     <Aviso tom="perigo" icone={<AlertTriangle aria-hidden="true" />}>
-      <strong>Os produtos não batem com o pagamento.</strong> Pagamento no Financeiro: {moeda(f.valor_financeiro)} · produtos: {moeda(f.total_itens)} · diferença: {moeda(Math.abs(Number(f.diferenca)))}. A confirmação fica bloqueada até corrigir os produtos (ou o lançamento no Financeiro). Nada entrou no estoque.
+      <strong>Os produtos não batem com o pagamento.</strong> Pagamento no Financeiro: {moeda(f.valor_financeiro)} · produtos: {moeda(f.total_itens)} · diferença: {moeda(Math.abs(Number(f.diferenca)))}. Corrija os produtos{gerencia ? ', ou continue e justifique a diferença (frete, desconto, itens fora do estoque, pagamento parcial)' : ' ou peça à gerência para justificar a diferença'}. Nada entrou no estoque.
     </Aviso>
   );
 }
@@ -378,7 +379,7 @@ function PreencherItens({ c, aoAbrir, aoSalvar }: { c: CompraDetalhe; aoAbrir: (
     setErro(null);
     try {
       const r = await estoque.preencherManual(c.id, { versao: c.versao, emitida_em: data, valor_total: soma.toFixed(2), itens });
-      avisar(diverge ? 'Rascunho salvo. A confirmação fica bloqueada até os produtos somarem o valor do pagamento.' : 'Produtos registrados. Agora confira cada item.', diverge ? 'info' : 'ok');
+      avisar(diverge ? 'Produtos salvos. Eles não somam o pagamento: corrija, ou a gerência justifica a diferença ao confirmar.' : 'Produtos registrados. Agora confira cada item.', diverge ? 'info' : 'ok');
       if (r.id !== c.id) aoAbrir(r.id);
       else aoSalvar();
     } catch (x) {
@@ -416,7 +417,7 @@ function PreencherItens({ c, aoAbrir, aoSalvar }: { c: CompraDetalhe; aoAbrir: (
           <strong class="num">{moeda(soma)}</strong>
           {pago !== null && (
             <span class={diverge ? undefined : 'fraco'} style={diverge ? { color: 'var(--perigo)' } : undefined}>
-              Pagamento no Financeiro: {moeda(pago)}{diverge ? ` · diferença de ${moeda(Math.abs(diferenca))} — a confirmação fica bloqueada` : ' · confere'}
+              Pagamento no Financeiro: {moeda(pago)}{diverge ? ` · diferença de ${moeda(Math.abs(diferenca))} — confirmar exige corrigir ou justificar` : ' · confere'}
             </span>
           )}
         </div>
@@ -456,7 +457,31 @@ function ListaEntradas({ c }: { c: CompraDetalhe }) {
           <span class="fraco">despesa · {moeda(i.valor_liquido)}</span>
         </li>
       ))}
+      {/* Item ignorado não entrou no estoque. O backend não guarda "falta chegar": não há saldo pendente a mostrar. */}
+      {c.itens.filter((i) => i.situacao === 'ignorado').map((i) => (
+        <li key={i.id} class="linha linha--entre" style={{ padding: '10px 14px' }} data-teste="item-nao-recebido">
+          <span class="fraco">{i.descricao}</span>
+          <span class="fraco">não entrou no estoque</span>
+        </li>
+      ))}
     </ul>
+  );
+}
+
+/** Diferença produtos × pagamento justificada na confirmação: o que foi dito e o que ficou no Financeiro. */
+function DiferencaRegistrada({ c }: { c: CompraDetalhe }) {
+  const j = c.diferenca_justificada;
+  if (!j) return null;
+  const restante = Number(j.restante_em_aberto ?? 0);
+  return (
+    <Aviso tom="info" icone={<Info aria-hidden="true" />}>
+      <strong>Diferença de {moeda(Math.abs(Number(j.diferenca)))} justificada: {MOTIVO_DIFERENCA[j.motivo]?.rotulo.toLowerCase() ?? j.motivo}.</strong> {j.observacao}
+      <div class="fraco" style={{ marginTop: '4px' }}>
+        Produtos {moeda(j.total_itens)} · pagamento {moeda(j.valor_financeiro)}
+        {restante > 0 ? ` · ${moeda(restante)} em aberto na mesma despesa` : ' · despesa mantida no valor do pagamento'}
+        {j.em ? ` · ${dataHora(j.em)}` : ''}
+      </div>
+    </Aviso>
   );
 }
 
@@ -466,6 +491,7 @@ function Confirmada({ c }: { c: CompraDetalhe }) {
       <Aviso tom="ok" icone={<CheckCircle2 aria-hidden="true" />}>
         <strong>Compra confirmada</strong>{c.confirmada_em ? ` em ${dataHora(c.confirmada_em)}` : ''}.{c.divergencia_aceita ? ` Diferença aceita: ${c.divergencia_aceita}.` : ''}
       </Aviso>
+      <DiferencaRegistrada c={c} />
       <h3 class="secao-titulo">O que entrou</h3>
       <ListaEntradas c={c} />
       {c.despesa.despesa_id && <a class="btn btn--p" style={{ alignSelf: 'flex-start' }} href={`/admin/financeiro?aba=lancamentos&despesa=${c.despesa.despesa_id}`}>Ver a despesa no Financeiro</a>}
@@ -481,6 +507,7 @@ function Recibo({ c, r }: { c: CompraDetalhe; r: Confirmado }) {
         <h3>{r.ja_estava_confirmada ? 'Esta compra já estava confirmada' : 'Compra confirmada'}</h3>
         <p>{plural(r.movimentos, 'entrada registrada', 'entradas registradas')} no estoque{r.despesa_id ? ' e a despesa ligada no Financeiro' : ''}.</p>
       </div>
+      <DiferencaRegistrada c={c} />
       <ListaEntradas c={c} />
       {r.despesa_id && <a class="btn btn--p" style={{ alignSelf: 'flex-start' }} href={`/admin/financeiro?aba=lancamentos&despesa=${r.despesa_id}`}>Ver a despesa no Financeiro</a>}
     </div>

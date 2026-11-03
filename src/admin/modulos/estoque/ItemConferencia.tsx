@@ -119,7 +119,7 @@ export function ItemConferencia({ compraId, fornecedorId, it, editavel, podeCria
               {(fechar) => (
                 <>
                   <button class="suspenso__item" role="menuitem" onClick={() => { fechar(); setModo('nao_estoque'); }}><Ban aria-hidden="true" /> Não é estoque (vira despesa)</button>
-                  <button class="suspenso__item" role="menuitem" onClick={() => { fechar(); resolver({ ignorar: true }, 'Item ignorado.'); }}><EyeOff aria-hidden="true" /> Ignorar este item</button>
+                  <button class="suspenso__item" role="menuitem" onClick={() => { fechar(); resolver({ ignorar: true }, 'Item fora deste recebimento: não entra no estoque.'); }}><EyeOff aria-hidden="true" /> Não chegou / ignorar</button>
                 </>
               )}
             </Suspenso>
@@ -182,7 +182,7 @@ export function ItemConferencia({ compraId, fornecedorId, it, editavel, podeCria
                   </button>
                 )}
                 {it.situacao !== 'nao_estoque' && <button class="suspenso__item" role="menuitem" onClick={() => { fechar(); setModo('nao_estoque'); }}><Ban aria-hidden="true" /> Não é estoque (vira despesa)</button>}
-                {it.situacao !== 'ignorado' && <button class="suspenso__item" role="menuitem" onClick={() => { fechar(); resolver({ ignorar: true }, 'Item ignorado.'); }}><EyeOff aria-hidden="true" /> Ignorar este item</button>}
+                {it.situacao !== 'ignorado' && <button class="suspenso__item" role="menuitem" onClick={() => { fechar(); resolver({ ignorar: true }, 'Item fora deste recebimento: não entra no estoque.'); }}><EyeOff aria-hidden="true" /> Não chegou / ignorar</button>}
               </>
             )}
           </Suspenso>

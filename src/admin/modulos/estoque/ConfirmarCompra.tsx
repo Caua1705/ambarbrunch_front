@@ -11,7 +11,7 @@ import { ErroApi } from '../../lib/api/cliente';
 import { moeda, dataCurta, hojeISO } from '../../lib/formato';
 import { avisar } from '../../ui/camadas';
 import { Aviso, Botao, Campo, Etiqueta } from '../../ui/base';
-import type { CandidataDespesa, CompraDetalhe, DespesaDaCompra } from '../../lib/tipos/estoque';
+import type { CandidataDespesa, CompraDetalhe, DespesaDaCompra, MotivoDiferenca } from '../../lib/tipos/estoque';
 import { atualizarEstoque, PENDENCIA, type PermissoesEstoque } from './comum';
 
 export interface Confirmado {
@@ -44,6 +44,10 @@ export function ConfirmarCompra({ c, perm, form, aoConfirmar, aoEnviando, aoAbri
   const [forma, setForma] = useState<(typeof FORMAS)[number][0]>('pix');
   const [motivoNova, setMotivoNova] = useState('');
   const [motivoDiv, setMotivoDiv] = useState('');
+  // Produtos × pagamento que não batem (compra que confere um Pix): só a gerência confirma, justificando.
+  const difFin = c.financeiro && !c.financeiro.confere ? c.financeiro : null;
+  const [difMotivo, setDifMotivo] = useState<MotivoDiferenca | null>(null);
+  const [difObs, setDifObs] = useState('');
   const [erro, setErro] = useState<ErroApi | null>(null);
   const [procurando, setProcurando] = useState<string | null>(null);
   // Um envio por vez, mesmo com dois cliques antes de o botão desabilitar (o backend também é idempotente).
@@ -79,12 +83,15 @@ export function ConfirmarCompra({ c, perm, form, aoConfirmar, aoEnviando, aoAbri
     else if (escolha === 'nova') despesa = { criar_nova: true, motivo_nova: motivoNova.trim() };
     if (escolha === 'nova' && motivoNova.trim().length < 5) return setErro(new ErroApi('validacao', 'Explique por que esta compra precisa de outra conta (pelo menos 5 caracteres).'));
     if (divergencia && motivoDiv.trim().length < 5) return setErro(new ErroApi('validacao', 'Explique a diferença da nota (pelo menos 5 caracteres).'));
+    if (difFin && !perm.editar) return setErro(new ErroApi('validacao', 'Os produtos não somam o pagamento: só a gerência confirma, justificando a diferença.'));
+    if (difFin && !difMotivo) return setErro(new ErroApi('validacao', 'Escolha o motivo da diferença entre produtos e pagamento.'));
+    if (difFin && difObs.trim().length < 5) return setErro(new ErroApi('validacao', 'Explique a diferença entre produtos e pagamento (pelo menos 5 caracteres).'));
     if (enviandoRef.current) return;
     enviandoRef.current = true;
     aoEnviando(true);
     setErro(null);
     try {
-      const r = await estoque.confirmarCompra(c.id, { versao: c.versao, despesa, ...(divergencia ? { motivo_divergencia: motivoDiv.trim() } : {}) });
+      const r = await estoque.confirmarCompra(c.id, { versao: c.versao, despesa, ...(divergencia ? { motivo_divergencia: motivoDiv.trim() } : {}), ...(difFin && difMotivo ? { diferenca_financeira: { motivo: difMotivo, observacao: difObs.trim() } } : {}) });
       atualizarEstoque();
       aoConfirmar({ despesa_id: r.despesa_id, movimentos: r.movimentos, ja_estava_confirmada: r.ja_estava_confirmada });
     } catch (x) {
@@ -221,6 +228,8 @@ export function ConfirmarCompra({ c, perm, form, aoConfirmar, aoEnviando, aoAbri
         </div>
       </fieldset>
 
+      {difFin && <DiferencaPagamento f={difFin} gerencia={perm.editar} motivo={difMotivo} aoMotivo={setDifMotivo} obs={difObs} aoObs={setDifObs} />}
+
       {divergencia &&
         (gerencia ? (
           <Campo rotulo="A nota não fecha: explique a diferença" ajuda="Só a gerência confirma uma nota com diferença. Ex.: frete cobrado à parte.">
@@ -243,5 +252,50 @@ export function ConfirmarCompra({ c, perm, form, aoConfirmar, aoEnviando, aoAbri
         </Aviso>
       )}
     </form>
+  );
+}
+
+/** O que cada motivo faz — e não faz — no Financeiro e nos custos. Nenhum valor é distribuído entre os insumos. */
+export const MOTIVO_DIFERENCA: Record<MotivoDiferenca, { rotulo: string; efeito: (f: NonNullable<CompraDetalhe['financeiro']>) => string }> = {
+  desconto: { rotulo: 'Desconto no pagamento', efeito: () => 'O pagamento fica como está no Financeiro. Os insumos entram pelos valores informados: o desconto não é distribuído entre eles.' },
+  pagamento_parcial: { rotulo: 'Pagamento parcial', efeito: (f) => `A mesma despesa passa a ${moeda(f.total_itens)} e ${moeda(Number(f.diferenca))} ficam em aberto para pagar depois. Nenhuma despesa nova, nada dado como pago.` },
+  frete: { rotulo: 'Frete pago junto', efeito: () => 'O pagamento fica como está. O frete não entra no custo dos insumos.' },
+  itens_fora_do_estoque: { rotulo: 'Itens que não são de estoque', efeito: () => 'O pagamento fica como está. A parte que não é estoque não entra no custo dos insumos.' },
+  outro: { rotulo: 'Outro motivo', efeito: () => 'O pagamento fica como está; a diferença fica registrada com a sua explicação.' },
+};
+
+function DiferencaPagamento({ f, gerencia, motivo, aoMotivo, obs, aoObs }: {
+  f: NonNullable<CompraDetalhe['financeiro']>;
+  gerencia: boolean;
+  motivo: MotivoDiferenca | null;
+  aoMotivo: (m: MotivoDiferenca) => void;
+  obs: string;
+  aoObs: (v: string) => void;
+}) {
+  const acima = Number(f.diferenca) > 0;
+  const opcoes: MotivoDiferenca[] = acima ? ['desconto', 'pagamento_parcial', 'outro'] : ['frete', 'itens_fora_do_estoque', 'outro'];
+  if (!gerencia)
+    return <Aviso tom="atencao" icone={<AlertTriangle aria-hidden="true" />}>Os produtos ({moeda(f.total_itens)}) não somam o pagamento ({moeda(f.valor_financeiro)}). Corrija os produtos ou peça à gerência para justificar a diferença.</Aviso>;
+  return (
+    <fieldset class="pilha pilha--p" style={{ border: 0, padding: 0, margin: 0 }} aria-label="Diferença entre produtos e pagamento">
+      <legend class="secao-titulo" style={{ marginBottom: '8px' }}>Diferença entre produtos e pagamento</legend>
+      <p class="fraco" style={{ margin: 0 }}>
+        Produtos {moeda(f.total_itens)} · pagamento {moeda(f.valor_financeiro)} · produtos {moeda(Math.abs(Number(f.diferenca)))} {acima ? 'acima' : 'abaixo'} do pagamento. Por quê?
+      </p>
+      <div class="opcoes-despesa" role="radiogroup" aria-label="Motivo da diferença">
+        {opcoes.map((m) => (
+          <label class="opcao" key={m}>
+            <input type="radio" name="diferenca" checked={motivo === m} onChange={() => aoMotivo(m)} />
+            <span class="opcao__texto">
+              <strong>{MOTIVO_DIFERENCA[m].rotulo}</strong>
+              <span>{MOTIVO_DIFERENCA[m].efeito(f)}</span>
+            </span>
+          </label>
+        ))}
+      </div>
+      <Campo rotulo="Explique a diferença" ajuda="Fica registrada na compra, com o seu nome. Ex.: entrega de R$ 12 cobrada no mesmo Pix.">
+        {(id, d) => <textarea id={id} class="area" aria-describedby={d} maxLength={300} value={obs} onInput={(e) => aoObs(e.currentTarget.value)} />}
+      </Campo>
+    </fieldset>
   );
 }
