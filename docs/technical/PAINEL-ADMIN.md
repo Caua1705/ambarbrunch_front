@@ -200,26 +200,24 @@ Nada disto foi simulado no painel; a tela mostra o que existe e diz o que falta.
    `/reservas/lotacao` é por ambiente e data, uma chamada por vez.
 7. **Contador de pendências num endpoint só** (o sino faz até 6 consultas leves por página, com cache de 45 s).
 
-Estoque (02/11/2026) — nada disto foi simulado; o painel usa o caminho rastreável que existe hoje:
+Estoque (02/11/2026). Resolvidos no backend `giardini_back` **e814c29** (local, sem migração, ainda não publicado):
+ajuste avulso com motivo (`POST /estoque/ajustes`), `uso_interno` fora das perdas, abertura marcada no livro
+(motivo "abertura"), nomes de quem registrou e diferença produtos × Pix justificada (ver §4c). Continuam em aberto —
+nada disto é simulado no painel:
 
-8. **Ajuste avulso com motivo** (`POST /estoque/ajustes`: insumo, quantidade real, motivo, referência) gravando
-   `ajuste_inventario` (ou um tipo `ajuste`) com o motivo no movimento. Hoje o ajuste é uma contagem de um item: fica o
-   responsável, o antes, o contado e a diferença, mas **não o motivo**, e não dá para ajustar com outra contagem aberta.
-9. **Motivo `uso_interno`** em `/estoque/perdas` (hoje vai como `outro` + observação) — e, se a gestão quiser, saída que
-   não seja tratada como perda nos relatórios.
-10. **Abertura de estoque marcada no movimento** (`saldo_inicial` na primeira contagem, ou `abertura: true` no item da
-    contagem). Hoje a primeira contagem vira `ajuste_inventario` como as outras; o painel só distingue a abertura na
-    hora da contagem (item sem contagem anterior), não no histórico depois.
-11. **Nome de quem registrou** nas respostas (`registrado_por_nome`, `aberto_por_nome`, `criada_por_nome`), como já existe
-    em Reservas. Sem isso, só o Proprietário vê o nome de outra pessoa (lista da equipe); os demais veem "Equipe".
-12. **Observação/justificativa e documento de origem no recebimento sem nota** (`POST /estoque/compras/manual` não tem
-    campo de observação; a ausência de nota fica identificada só pela fonte "Digitada").
-13. **Recebimento parcial com saldo pendente**: hoje um item pode ser ignorado ou ter a quantidade-base corrigida, mas o
-    que falta chegar não fica registrado como pendente.
-14. **Ficha incompleta** (ingrediente faltando) não é detectável pelo backend: ele sabe se há ficha e se algum ingrediente
-    está sem custo ("Custo indisponível").
-15. **Vínculo de entrada manual a uma despesa escolhida pela pessoa**: hoje a confirmação oferece as candidatas que o
-    backend encontra (mesmo fornecedor/valor, até 2%); não há busca livre de despesas na conferência.
+8. **Observação/justificativa e documento de origem no recebimento sem nota** (`POST /estoque/compras/manual` não tem
+   campo de observação; a ausência de nota fica identificada só pela fonte "Digitada").
+9. **Recebimento parcial com quantidade pendente**: um item pode ser marcado "Não chegou / ignorar" (não entra no
+   estoque e aparece assim na compra confirmada) ou ter a quantidade-base corrigida, mas o que falta chegar não fica
+   registrado como pendente para um recebimento seguinte.
+10. **Ficha incompleta** (ingrediente faltando) não é detectável: o backend sabe se há ficha e se algum ingrediente está
+    sem custo. O painel diz "Custo calculado" (não "Completa") e avisa que o custo considera só os ingredientes listados.
+11. **Vínculo de entrada manual a uma despesa escolhida pela pessoa**: a confirmação oferece as candidatas que o backend
+    encontra (mesmo fornecedor/valor, até 2%); não há busca livre de despesas na conferência.
+12. **Tipo próprio para uso interno no livro**: hoje é `tipo = perda` com motivo `uso_interno` (o CHECK do banco só
+    aceita esse tipo de saída manual); toda leitura que quiser perdas precisa filtrar pelo motivo, como
+    `analises.divergencias` já faz (`classe`). Um tipo novo exige migração — combinar a numeração com o Atendimento (0022).
+13. **Nome de quem criou a versão da ficha** (`criada_por_nome` em `/fichas`): só o Proprietário vê o nome hoje.
 
 ## 5. Contrato: o que foi conferido e ainda vale saber
 
@@ -291,18 +289,29 @@ Regras de tela (nenhum cálculo de regra no painel):
   contagem").
 - **Unidade de exibição**: kg/L quando os números da linha passam de mil, senão g/ml/un; o painel só desloca a vírgula
   (÷/× 1000, por texto) e o backend recebe sempre a unidade-base.
-- **Responsável**: o backend grava `usuario:<id>`; o painel mostra o nome de quem está usando, o nome da equipe (lista
-  `GET /usuarios`, só Proprietário) ou "Equipe"; `integracao:julia` → "Júlia". Nenhum id técnico na tela.
-- **Entrada** = recebimento (estoque só muda em "Confirmar recebimento"). **Saída** = `POST /estoque/perdas` (motivos
-  vencido, quebra, preparo, outro; "Uso interno" vai como `outro` + observação "Uso interno: …"). **Ajuste** = contagem
-  de um item (`inventarios` lista → contar → fechar; se algo falhar no meio, a contagem é cancelada). Com outra contagem
-  aberta na unidade, o ajuste manda para ela.
+- **Responsável**: o nome vem do backend (`registrado_por_nome`, `aberto_por_nome`); com o backend anterior, o painel
+  deduz pelo id (quem está usando, a lista da equipe do Proprietário ou "Equipe"). Nenhum id técnico na tela.
+- **Entrada** = recebimento (estoque só muda em "Confirmar recebimento"). **Saída** = `POST /estoque/perdas` (vencido,
+  quebra, preparo, `uso_interno`, outro); uso interno aparece como "Uso interno", nunca como perda, e o relatório de
+  divergências o separa (`classe`). **Ajuste** = `POST /estoque/ajustes` (motivo: contagem física, erro de registro ou
+  outro com explicação); a resposta e o histórico trazem saldo anterior, saldo novo, diferença, motivo, responsável e
+  data. Vale com uma contagem geral aberta. A primeira contagem de um insumo é gravada como "abertura" e aparece como
+  "Contagem inicial". Backend anterior: sem a rota, nada é lançado e a tela manda para a Contagem; sem `uso_interno`, a
+  saída é recusada — o painel nunca troca o motivo sozinho.
 - **Financeiro**: a confirmação continua com as regras do backend (B1–B3): pagamento da Júlia já vinculado ("É o
   pagamento que a Júlia registrou"), candidata forte pré-selecionada, conta nova só com motivo, nada de segunda despesa
-  quando um pagamento espera a conferência, produtos precisam somar o pagamento (nenhum rateio automático).
+  quando um pagamento espera a conferência.
+- **Produtos × Pix**: se não somam o pagamento, a gerência confirma **justificando** — motivo coerente com o sentido
+  (produtos acima: desconto, pagamento parcial, outro; abaixo: frete, itens fora do estoque, outro) e uma explicação.
+  Nada é rateado entre os insumos (cada um entra pelo valor informado) e nenhuma despesa nova nasce. Pagamento parcial:
+  a MESMA despesa passa ao valor dos produtos e o restante fica em aberto nela; os outros motivos mantêm o valor do
+  pagamento. Sem justificativa, 409 `total_diverge_do_financeiro` como antes. A compra confirmada mostra a diferença,
+  o motivo, a explicação e o que ficou no Financeiro.
+- **Sem dado, sem número**: CMV teórico só aparece com vendas no mês, cobertura conhecida e nenhuma ficha faltando
+  ("R$ 0,00" sem vendas virou "Indisponível"); custo e margem da ficha só com todos os ingredientes com custo.
 
-Testes: `tests-painel/estoque.spec.ts` (demonstração) e `tests-painel-real/estoque.spec.ts` (backend real local,
-base isolada; JSON em `PAINEL_REAL_ESTOQUE`).
+Testes: `tests-painel/estoque.spec.ts` (demonstração, 11) e `tests-painel-real/estoque.spec.ts` (backend real local,
+base isolada; JSON em `PAINEL_REAL_ESTOQUE`, 10 cenários). No backend: `tests/test_estoque_rastreabilidade.py`.
 
 ## 6. Rodar, testar
 
