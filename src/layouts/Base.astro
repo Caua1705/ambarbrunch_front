@@ -19,6 +19,8 @@ interface Props {
   /** Página só com o próprio conteúdo (confirmação da reserva): sem “pular para a reserva”, barra de progresso, botão
    *  fixo “Reservar mesa” nem menu. */
   enxuta?: boolean;
+  /** Preview próprio no WhatsApp e nas redes: título curto, descrição e arte de public/og/, sem mudar o que o Google lê. */
+  social?: { titulo: string; descricao: string; imagem: string; alt: string };
 }
 const {
   titulo = seo.titulo,
@@ -26,11 +28,13 @@ const {
   indexar = !REVISAO,
   home = true,
   enxuta = false,
+  social,
 } = Astro.props;
 // SEO (2026-10-30): endereço canônico sempre no domínio oficial — o mesmo HTML também responde em *.vercel.app, e o
 // Google deve contar só o ambarbrunch.com. Imagem de compartilhamento: o salão principal, 1200 × 630.
 const canonico = new URL(Astro.url.pathname, SITE).href;
 const { capa } = await imagensSeo();
+const imagemSocial = social ? new URL(social.imagem, SITE).href : capa;
 const medir = MEDICAO_LIGADA && paginaMedida(Astro.url.pathname);
 // Faixa Latin (português incluso), igual ao subconjunto do Google Fonts usado no protótipo.
 const LATIN = 'U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD';
@@ -57,14 +61,15 @@ const fontes = `
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content={seo.nome} />
   <meta property="og:url" content={canonico} />
-  <meta property="og:title" content={titulo} />
-  <meta property="og:description" content={descricao} />
+  <meta property="og:title" content={social?.titulo ?? titulo} />
+  <meta property="og:description" content={social?.descricao ?? descricao} />
   <meta property="og:locale" content="pt_BR" />
-  {capa && <meta property="og:image" content={capa} />}
-  {capa && <meta property="og:image:width" content="1200" />}
-  {capa && <meta property="og:image:height" content="630" />}
-  {capa && <meta property="og:image:alt" content="Salão do Âmbar, com paredes cor de âmbar e luminárias acesas" />}
-  <meta name="twitter:card" content={capa ? 'summary_large_image' : 'summary'} />
+  {imagemSocial && <meta property="og:image" content={imagemSocial} />}
+  {imagemSocial && <meta property="og:image:type" content="image/jpeg" />}
+  {imagemSocial && <meta property="og:image:width" content="1200" />}
+  {imagemSocial && <meta property="og:image:height" content="630" />}
+  {imagemSocial && <meta property="og:image:alt" content={social?.alt ?? 'Salão do Âmbar, com paredes cor de âmbar e luminárias acesas'} />}
+  <meta name="twitter:card" content={imagemSocial ? 'summary_large_image' : 'summary'} />
   {medir && <Medicao />}
   <!-- ícone oficial: o logo do Âmbar Brunch sobre creme -->
   <link rel="icon" href="/favicon-48.png" type="image/png" sizes="48x48" />

@@ -9,7 +9,7 @@ import { REVISAO } from '../lib/conteudo';
 export const prerender = true;
 
 /** Caminhos indexáveis. O Clube só entra quando for lançado (o convite volta à home com PUBLIC_CLUBE_HOME=1). */
-const PAGINAS_INDEXADAS = ['/', '/reservar/', ...(CLUBE_NA_HOME ? ['/clube/'] : [])];
+const PAGINAS_INDEXADAS = ['/', '/reservar/', '/cardapio/', ...(CLUBE_NA_HOME ? ['/clube/'] : [])];
 
 export const GET: APIRoute = () => {
   const urls = REVISAO ? [] : PAGINAS_INDEXADAS;
