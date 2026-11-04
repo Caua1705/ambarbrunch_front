@@ -10,7 +10,7 @@ import { TODOS, GERENCIA, ADMIN, ErroDemo, agoraMenos, uuid, paginar, exigirMoti
 import type {
   AutorMensagem, ConversaDetalhe, MensagemPainel, EstadoConversa, CadastroContato, ReservaContato, FichaContato, TemplateWhatsapp,
   Campanha, CampanhaDetalhe, DestinatarioCampanha, ItemConhecimento, GrupoDuplicidade, MembroLista, MembroFicha, VendaClube, ConviteClube,
-  EventoAtendimento, StatusEvento, TipoEvento, CanalEvento,
+  EventoAtendimento, StatusEvento, TipoEvento, CanalEvento, CardapioItem, CardapioPdf,
 } from '../../lib/tipos/atendimento-clube';
 import { usuarioDemo } from './sessao';
 import { NOMES_DEMO, telefoneDemo, reservasDosClientes, AMBIENTES } from './reservas';
@@ -469,6 +469,31 @@ const acharCampanha = (id: number) => {
   campanhas.push({ id: CAMPANHA_TESTE_ID, nome: 'Teste do template de boas-vindas', template_nome: TEMPLATES[0].nome, template_idioma: 'pt_BR', categoria: 'utilidade', teste: true, situacao: 'concluida', criada_em: quando, iniciada_em: quando, concluida_em: quando, lista });
 }
 
+// Cardápio (amostra do catálogo oficial de 3/11/2026) e capacidades oficiais dos ambientes.
+const ITEM_DEMO = (chave: string, tipo: 'produto' | 'adicional', categoria: string, nome: string, reais: number, descricao: string | null, categoria_observacao: string | null = null): CardapioItem => ({
+  chave, tipo, categoria, categoria_observacao, nome, preco_centavos: reais * 100, preco: `R$ ${reais}`, descricao, versao: '2026-11-03.1',
+  fonte: 'Cardápio oficial provisório (PDF de 3 páginas) e duas imagens fornecidas pelo proprietário em 03/11/2026', atualizado_em: '2026-11-03T23:00:00Z',
+});
+const CARDAPIO_DEMO: CardapioItem[] = [
+  ITEM_DEMO('croissants.classico', 'produto', 'Croissants', 'Clássico', 16, 'Massa folhada e amanteigada.'),
+  ITEM_DEMO('croissants.brie_e_geleia', 'produto', 'Croissants', 'Brie e geleia', 30, 'Queijo brie e geleia artesanal.'),
+  ITEM_DEMO('brunches.american_brunch', 'produto', 'Brunches', 'American Brunch', 40, 'Ovos mexidos cremosos, bacon crocante, pão de fermentação natural e maple syrup.', 'Pratos completos, servidos o dia todo.'),
+  ITEM_DEMO('cafes.cappuccino', 'produto', 'Cafés', 'Cappuccino', 14, null),
+  ITEM_DEMO('cafes_gelados.cinnamon_latte', 'produto', 'Cafés gelados', 'Cinnamon Latte', 26, 'Café, leite, caramelo e mini cinnamon roll.'),
+  ITEM_DEMO('personalize_seu_pao.sem_gluten', 'adicional', 'Personalize seu pão', 'Sem glúten', 6, null, 'No cardápio, fica no quadro dos Brunches.'),
+];
+const PDF_DEMO: CardapioPdf = {
+  id: 1, versao: '2026-11-03.1', nome_arquivo: 'Cardapio-Ambar-Cafe.pdf', tamanho: 2163951, paginas: 3,
+  sha256: 'a66e4c7030f270d198c12da25be70fe5b2565c7fb59484de6cff710dd864e34e', fonte: 'Cardápio oficial provisório autorizado pelo proprietário',
+  vigente: true, criado_por: 'sistema:cli', criado_em: '2026-11-03T23:00:00Z', midia_meta: { enviada_em: null, valida: false },
+};
+const CAPACIDADES_OFICIAIS = [
+  { codigo: 'jardim', nome: 'Jardim externo', capacidade: 20, descricao: 'ao ar livre; é o ÚNICO espaço pet friendly' },
+  { codigo: 'salao', nome: 'Salão principal', capacidade: 30, descricao: 'fechado, com ar-condicionado e tomadas' },
+  { codigo: 'lounge', nome: 'Lounge', capacidade: 15, descricao: 'reservado, com sofás' },
+  { codigo: 'privativa', nome: 'Sala privativa', capacidade: 20, descricao: 'no piso superior, com ar-condicionado e piano' },
+];
+
 // Base de conhecimento fictícia.
 const TEMAS_SUGERIDOS: Record<string, string> = {
   animais: 'Animais de estimação', criancas: 'Crianças', acessibilidade: 'Acessibilidade', estacionamento: 'Estacionamento', wifi: 'Wi-Fi',
@@ -511,7 +536,7 @@ const ROTAS_ATENDIMENTO: Rota[] = [
       aguardando_equipe: conversas.filter((c) => c.aguardando_equipe).length,
       inativas: 0,
       falhas_de_envio_24h: conversas.flatMap((c) => c.mensagens).filter((m) => m.direcao === 'saida' && m.status === 'falhou').length,
-      configuracao: { ...CONFIGURACAO, templates: TEMPLATES.length, contato_comercial_configurado: false },
+      configuracao: { ...CONFIGURACAO, templates: TEMPLATES.length, cardapio_pdf_vigente: true, cardapio_itens: CARDAPIO_DEMO.length },
       eventos: Object.fromEntries(ABERTOS_EVENTO.map((s) => [s, oportunidades.filter((o) => o.status === s).length])),
     };
   }],
@@ -740,6 +765,23 @@ const ROTAS_ATENDIMENTO: Rota[] = [
     Object.assign(item, { ativo: false, atualizado_em: new Date().toISOString() });
     return item;
   }],
+
+  ['GET', /^atendimento\/cardapio$/, TODOS, ({ query }) => {
+    const sem = (t: string) => t.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+    const termo = sem(query.get('busca') ?? '').trim();
+    return {
+      pdf: PDF_DEMO, versoes: [PDF_DEMO],
+      itens: CARDAPIO_DEMO.filter((i) => !termo || sem(`${i.categoria} ${i.nome} ${i.descricao ?? ''}`).includes(termo)),
+    };
+  }],
+  ['POST', /^atendimento\/cardapio\/pdf$/, GERENCIA, () => {
+    throw new ErroDemo(422, 'regra_violada', 'Na demonstração o PDF não é trocado.');
+  }],
+  ['GET', /^atendimento\/capacidades$/, TODOS, () => ({
+    oficiais: CAPACIDADES_OFICIAIS,
+    conferencia: CAPACIDADES_OFICIAIS.map((o) => ({ ambiente: o.nome, oficial: o.capacidade, cadastro: { codigo: o.codigo, nome: o.nome, capacidade: o.capacidade, confirmado: true }, situacao: 'ok' as const })),
+    tudo_certo: true,
+  })],
 
   ['GET', /^atendimento\/duplicidades$/, GERENCIA, ({ papel }) => duplicidades(papel)],
   ['POST', /^atendimento\/vinculos$/, GERENCIA, async ({ corpo }) => {

@@ -8,12 +8,14 @@ import type { Pagina } from '../tipos/comum';
 import type {
   ConversaDetalhe, ConversaResumo, FalhaAtendimento, MensagemPainel, EstadoConversa, ResumoAtendimento, FichaContato, TemplateWhatsapp,
   ContatoBusca, NovaConversaEntrada, Campanha, CampanhaDetalhe, NovaCampanhaEntrada, BaseConhecimento, ItemConhecimento, Duplicidades,
-  EventoAtendimento, ListaEventos, OpcoesEventos, EventoDados, EventoAlteracao, StatusEvento,
+  EventoAtendimento, ListaEventos, OpcoesEventos, EventoDados, EventoAlteracao, StatusEvento, CardapioPainel, CardapioPdf, CapacidadesPainel,
   ResumoClube, MembroLista, MembroFicha, HistoricoMembro, VendaClube, ConviteClube, MensagemClube, EstadoMembro,
 } from '../tipos/atendimento-clube';
 
 /** Endereço da mídia de uma mensagem (imagem, áudio, documento) pela ponte do painel: vai com o login, nunca com a URL da Meta. */
 export const urlMidia = (mensagemId: number) => `/admin/api/atendimento/mensagens/${mensagemId}/midia`;
+/** PDF vigente do cardápio pela ponte do painel (com o login). */
+export const urlCardapioPdf = '/admin/api/atendimento/cardapio/pdf';
 
 export const atendimento = {
   resumo: () => pedir<ResumoAtendimento>('atendimento/resumo'),
@@ -61,6 +63,18 @@ export const atendimento = {
     pedir<ItemConhecimento>(`atendimento/conhecimento/${encodeURIComponent(chave)}`, { metodo: 'PUT', corpo: item }),
   /** Desativa (não apaga): o assistente deixa de usar; o registro fica. */
   desativarConhecimento: (chave: string) => pedir<ItemConhecimento>(`atendimento/conhecimento/${encodeURIComponent(chave)}`, { metodo: 'DELETE' }),
+  /** Cardápio oficial: PDF vigente, versões e catálogo (só leitura; `busca` filtra nome, categoria ou descrição). */
+  cardapio: (busca?: string) => pedir<CardapioPainel>('atendimento/cardapio', { query: { busca: busca?.trim() ? busca.trim().slice(0, 80) : undefined } }),
+  /** Nova versão do PDF (vira a vigente; a anterior fica guardada). Exige atendimento.conhecimento. PDF de até 15 MB. */
+  trocarCardapioPdf: (arquivo: File, versao: string, fonte: string) => {
+    const f = new FormData();
+    f.append('arquivo', arquivo);
+    f.append('versao', versao);
+    f.append('fonte', fonte);
+    return pedir<CardapioPdf & { nova: boolean }>('atendimento/cardapio/pdf', { metodo: 'POST', formulario: f });
+  },
+  /** Capacidades oficiais × cadastro de ambientes (só aponta divergências; nada muda). */
+  capacidades: () => pedir<CapacidadesPainel>('atendimento/capacidades'),
   duplicidades: () => pedir<Duplicidades>('atendimento/duplicidades'),
   /** Liga um cadastro duplicado ao principal (mesmo telefone ou e-mail). Nada é apagado nem fundido. */
   vincular: (cliente_id: string, principal_id: string, motivo: string) =>

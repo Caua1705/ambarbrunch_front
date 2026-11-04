@@ -356,6 +356,8 @@ function Mensagem({ m }: { m: MensagemPainel }) {
         <div class="msg__autor">
           {a.icone} {a.rotulo}
           {m.tipo === 'template' && <Etiqueta tom="info"><span title={m.template_nome ?? undefined}>Template</span></Etiqueta>}
+          {m.tipo === 'documento' && <Etiqueta tom="info">PDF do cardápio</Etiqueta>}
+          {m.tipo === 'localizacao' && <Etiqueta tom="info">Localização no mapa</Etiqueta>}
         </div>
       )}
       {m.tem_midia && <Midia m={m} />}

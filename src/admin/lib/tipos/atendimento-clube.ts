@@ -103,11 +103,64 @@ export interface ResumoAtendimento {
     followup_ativo: boolean;
     /** Quantos templates aprovados estão configurados. */
     templates: number;
-    /** AMBAR_ATENDIMENTO_CONTATO_COMERCIAL preenchido (o assistente só passa o número quando o cliente pede). */
-    contato_comercial_configurado?: boolean;
+    /** Há PDF oficial do cardápio vigente (sai como documento nativo). Ausente num backend anterior à 0024. */
+    cardapio_pdf_vigente?: boolean;
+    /** Itens ativos do catálogo que o assistente usa para preço e ingredientes. */
+    cardapio_itens?: number;
   };
   /** Eventos abertos das unidades do usuário, por status. Ausente = backend sem eventos (anterior à 0023). */
   eventos?: Record<StatusEventoAberto, number>;
+}
+
+// Cardápio oficial (migração 0024): PDF vigente (documento nativo do WhatsApp) e catálogo — CONTRATO em ATENDIMENTO-PUBLICO.md.
+
+export interface CardapioPdf {
+  id: number;
+  versao: string;
+  nome_arquivo: string;
+  tamanho: number;
+  paginas: number | null;
+  sha256: string;
+  fonte: string;
+  vigente: boolean;
+  criado_por: string;
+  criado_em: Instante;
+  /** Upload na Meta (vale 30 dias; o backend sobe de novo sozinho). */
+  midia_meta: { enviada_em: Instante | null; valida: boolean };
+}
+
+export interface CardapioItem {
+  chave: string;
+  tipo: 'produto' | 'adicional';
+  categoria: string;
+  categoria_observacao: string | null;
+  nome: string;
+  preco_centavos: number;
+  /** Já formatado ("R$ 16"); no adicional, o acréscimo. */
+  preco: string;
+  descricao: string | null;
+  versao: string;
+  fonte: string;
+  atualizado_em: Instante;
+}
+
+export interface CardapioPainel {
+  pdf: CardapioPdf | null;
+  versoes: CardapioPdf[];
+  itens: CardapioItem[];
+}
+
+export type SituacaoCapacidade = 'ok' | 'capacidade_diferente' | 'limites_nao_confirmados' | 'ausente_no_cadastro';
+
+export interface CapacidadesPainel {
+  oficiais: { codigo: string; nome: string; capacidade: number; descricao: string }[];
+  conferencia: {
+    ambiente: string;
+    oficial: number;
+    cadastro: { codigo: string; nome: string; capacidade: number | null; confirmado: boolean } | null;
+    situacao: SituacaoCapacidade;
+  }[];
+  tudo_certo: boolean;
 }
 
 // Eventos (oportunidades ligadas à conversa) ---------------------------------------------------------------------------

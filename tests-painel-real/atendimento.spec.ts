@@ -17,7 +17,7 @@ interface Integracao {
   contas: Record<'atendente' | 'gerente', string>; cliente: { wa_id: string; nome: string };
 }
 const A: Integracao = caminho ? JSON.parse(fs.readFileSync(caminho, 'utf8')) : ({} as Integracao);
-const AVISO = 'Recebemos sua mensagem! Nossa equipe vai te responder em breve.';
+const AVISO = 'Recebemos sua mensagem! Nossa equipe vai te responder por aqui.';
 const escrever = { 'X-Painel': '1', 'Content-Type': 'application/json', Origin: PAINEL };
 
 interface Enviada { to: string; type: string; text?: { body: string } }

@@ -186,6 +186,26 @@ test('base de conhecimento: a gerência cadastra com fonte; o Atendente só lê 
   expect((await page.request.get(`${DEMO}/admin/api/atendimento/duplicidades`)).status()).toBe(403);
 });
 
+test('cardápio e capacidades: PDF vigente, catálogo com busca e só a gerência troca o PDF', async ({ page }) => {
+  await abrirAtendimento(page, 'operador');
+  await page.getByRole('button', { name: 'Mais opções do Atendimento' }).click();
+  await page.getByRole('menuitem', { name: 'Cardápio e capacidades' }).click();
+  const g = page.getByRole('dialog', { name: 'Cardápio e capacidades' });
+  await expect(g.getByText('Versão 2026-11-03.1')).toBeVisible();
+  await expect(g.getByRole('link', { name: 'Abrir o PDF vigente' })).toBeVisible();
+  await expect(g.getByRole('button', { name: 'Nova versão' })).toHaveCount(0);
+  await g.getByLabel('Buscar no catálogo').fill('brie');
+  await expect(g.getByText('Brie e geleia')).toBeVisible();
+  await expect(g.getByText('Cappuccino')).toHaveCount(0);
+  await expect(g.getByText('Jardim externo', { exact: true })).toBeVisible();
+  await expect(g.getByText('Sala privativa', { exact: true })).toBeVisible();
+
+  await abrirAtendimento(page, 'gerente');
+  await page.getByRole('button', { name: 'Mais opções do Atendimento' }).click();
+  await page.getByRole('menuitem', { name: 'Cardápio e capacidades' }).click();
+  await expect(page.getByRole('dialog', { name: 'Cardápio e capacidades' }).getByRole('button', { name: 'Nova versão' })).toBeVisible();
+});
+
 test('cadastros duplicados: liga ao principal sem apagar nada', async ({ page }) => {
   await abrirAtendimento(page, 'gerente');
   await page.getByRole('button', { name: 'Mais opções do Atendimento' }).click();

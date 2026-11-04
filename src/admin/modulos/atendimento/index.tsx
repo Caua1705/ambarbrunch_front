@@ -10,7 +10,7 @@
 // Eventos (backend com a 0023): etiqueta "Evento" na conversa e, acima da lista, o atalho "Eventos" com os que aguardam
 // contato — abre a visão compacta das oportunidades (gaveta), que leva de volta à conversa. Sem página nova no menu.
 import { useEffect, useState } from 'preact/hooks';
-import { Search, Inbox, MessageSquareOff, MessageSquarePlus, Ellipsis, Megaphone, BookOpen, UsersRound, BotOff, CloudOff, AlertCircle, PartyPopper } from 'lucide-preact';
+import { Search, Inbox, MessageSquareOff, MessageSquarePlus, Ellipsis, Megaphone, BookOpen, UtensilsCrossed, UsersRound, BotOff, CloudOff, AlertCircle, PartyPopper } from 'lucide-preact';
 import type { ContextoPainel } from '../../lib/sessao';
 import { useConsulta } from '../../lib/consulta';
 import { atendimento } from '../../lib/api/atendimento-clube';
@@ -26,11 +26,12 @@ import { Conversa } from './Conversa';
 import { NovaConversa, type DestinoInicial } from './NovaConversa';
 import { Campanhas } from './Campanhas';
 import { Conhecimento } from './Conhecimento';
+import { Cardapio } from './Cardapio';
 import { Duplicidades } from './Duplicidades';
 import { Oportunidades } from './Evento';
 
 type Filtro = 'todas' | EstadoConversa;
-type Gestao = 'campanhas' | 'conhecimento' | 'duplicidades' | null;
+type Gestao = 'campanhas' | 'conhecimento' | 'cardapio' | 'duplicidades' | null;
 
 /** Filtro da URL, aceitando os nomes antigos (links do sino e favoritos de antes dos quatro estados). */
 function filtroInicial(): Filtro {
@@ -93,6 +94,7 @@ export default function Atendimento({ contexto }: { contexto: ContextoPainel }) 
                   <>
                     {veCampanhas && <button type="button" class="suspenso__item" role="menuitem" onClick={() => { fechar(); setGestao('campanhas'); }}><Megaphone aria-hidden="true" /> Campanhas</button>}
                     <button type="button" class="suspenso__item" role="menuitem" onClick={() => { fechar(); setGestao('conhecimento'); }}><BookOpen aria-hidden="true" /> Base de conhecimento</button>
+                    <button type="button" class="suspenso__item" role="menuitem" onClick={() => { fechar(); setGestao('cardapio'); }}><UtensilsCrossed aria-hidden="true" /> Cardápio e capacidades</button>
                     {veDuplicidades && <button type="button" class="suspenso__item" role="menuitem" onClick={() => { fechar(); setGestao('duplicidades'); }}><UsersRound aria-hidden="true" /> Cadastros duplicados</button>}
                   </>
                 )}
@@ -182,6 +184,7 @@ export default function Atendimento({ contexto }: { contexto: ContextoPainel }) 
       <Falhas aberta={verFalhas} aoFechar={() => setVerFalhas(false)} aoAbrir={(id) => { setVerFalhas(false); setAberta(id); }} />
       {veCampanhas && <Campanhas aberta={gestao === 'campanhas'} aoFechar={() => setGestao(null)} aoAbrirConversa={abrirConversa} confirmar={confirmar} />}
       <Conhecimento aberta={gestao === 'conhecimento'} aoFechar={() => setGestao(null)} podeEditar={pode(papel, 'atendimento.conhecimento')} confirmar={confirmar} />
+      <Cardapio aberta={gestao === 'cardapio'} aoFechar={() => setGestao(null)} podeEditar={pode(papel, 'atendimento.conhecimento')} />
       {veDuplicidades && <Duplicidades aberta={gestao === 'duplicidades'} aoFechar={() => setGestao(null)} podeVincular={pode(papel, 'clientes.editar')} confirmar={confirmar} />}
       {dialogo}
     </Raiz>

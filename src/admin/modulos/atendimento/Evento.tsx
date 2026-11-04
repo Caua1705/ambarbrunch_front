@@ -4,6 +4,7 @@
 // O backend decide tudo (ATENDIMENTO-EVENTOS.md §7): uma oportunidade ABERTA por conversa (409 evento_aberto_na_conversa),
 // o resumo e o que falta são gerados lá, o status comercial é separado do estado da conversa. Quem atende registra e
 // corrige os dados; status, responsável e motivo da perda só com atendimento.eventos (Gerente e Proprietário).
+// Desde a 0024 o assistente não qualifica evento: faz handoff imediato (assunto "evento") e quem registra é a equipe.
 import { useEffect, useState } from 'preact/hooks';
 import { PartyPopper, Pencil, Plus, Search, TriangleAlert, UserRound, CalendarDays } from 'lucide-preact';
 import { useConsulta, invalidar } from '../../lib/consulta';

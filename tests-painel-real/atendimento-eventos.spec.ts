@@ -1,8 +1,9 @@
-// Eventos do Atendimento CONTRA O BACKEND REAL local (giardini_back com a migração 0023, banco isolado, dados fictícios,
+// Eventos do Atendimento CONTRA O BACKEND REAL local (giardini_back com a migração 0024, banco isolado, dados fictícios,
 // Meta simulada em 127.0.0.1, assistente LIGADO). O "n8n" é este teste: pede a rodada e devolve a resposta que um modelo
-// daria, com o campo `evento` (contrato de ATENDIMENTO-EVENTOS.md). Caminho inteiro, sem celular:
-// cliente pede um aniversário → a IA qualifica em duas rodadas (a MESMA oportunidade) → o backend encaminha → o painel
-// mostra "Evento" e a ficha → a Atendente corrige os dados, não muda o status, assume e responde (assistente calado) →
+// daria (regra definitiva: evento = HANDOFF IMEDIATO, sem questionário e sem oportunidade criada pelo assistente).
+// Caminho inteiro, sem celular: cliente pede um aniversário → o backend encaminha na hora (a pergunta da IA não sai) →
+// a gerência registra a oportunidade no painel → o painel mostra "Evento" e a ficha → a Atendente corrige os dados, não
+// muda o status, assume e responde (assistente calado) →
 // a Gerente cuida do status comercial e do responsável → evento novo depois do perdido, sem duplicar o aberto →
 // registro manual numa conversa sem evento → outra unidade não vê nada.
 //   PAINEL_REAL_API=http://127.0.0.1:8767 PAINEL_REAL_CHAVE=<painel_chave> PAINEL_REAL_EVENTOS=<eventos.json> \
@@ -58,11 +59,10 @@ async function rodadaDe(r: APIRequestContext, conversaId: string): Promise<Rodad
   }, { timeout: 20_000, intervals: [1000] }).toBe(true);
   return achada!;
 }
-const evento = (campos: Record<string, unknown>) => ({ tipo: null, data: null, horario: null, convidados: null, ambiente: null, necessidades: null, observacoes: null, desistiu: false, ...campos });
-async function iaResponde(r: APIRequestContext, rodada: Rodada, texto: string, ev: Record<string, unknown> | null) {
+async function iaResponde(r: APIRequestContext, rodada: Rodada, texto: string) {
   const resp = await r.post(`${A.api}/internal/atendimento/conversas/${rodada.conversa_id}/resposta`, {
     headers: N8N(),
-    data: { lote: rodada.lote, ate_mensagem_id: rodada.ate_mensagem_id, partes: [texto], intencao: 'evento', links: [], encaminhar: false, motivo: null, followup: null, evento: ev },
+    data: { lote: rodada.lote, ate_mensagem_id: rodada.ate_mensagem_id, partes: [texto], intencao: 'evento', links: [], encaminhar: false, motivo: null, followup: null },
   });
   expect(resp.status(), await resp.text()).toBe(200);
   return resp.json() as Promise<{ resultado: string; encaminhada: boolean }>;
@@ -95,38 +95,34 @@ async function abrirConversa(page: Page, c: Cliente) {
 let conversaId = '';
 let oportunidadeId = 0;
 
-test('1. IA qualifica em duas rodadas: UMA oportunidade, completada, encaminhada à equipe e ligada ao contato', async ({ page }) => {
+test('1. evento: handoff imediato sem perguntas; a gerência registra a oportunidade no painel', async ({ page }) => {
   const c = A.clientes.aniversario;
   await page.request.delete(`${A.meta}/_enviadas`);
-  await entrar(page, 'atendente');
+  await entrar(page, 'gerente');
   await clienteEscreve(page.request, c, 'Oi! Queria comemorar meu aniversário aí, umas 20 pessoas');
   conversaId = (await conversaDoCliente(page, c)).id;
   const r1 = await rodadaDe(page.request, conversaId);
-  const primeira = await iaResponde(page.request, r1, 'Que legal! Qual a data e o horário que você pensou?', evento({ tipo: 'aniversario', convidados: 20 }));
-  expect(primeira.encaminhada).toBe(false);
-  // ainda em qualificação: novo interesse, conversa com o assistente, faltam data e horário
-  let lista = await api(page, 'atendimento/eventos');
-  expect(lista.total).toBe(1);
-  expect(lista.itens[0]).toMatchObject({ conversa_id: conversaId, status: 'novo_interesse', origem: 'assistente', convidados: 20, faltando: ['data', 'horário'] });
-
-  await clienteEscreve(page.request, c, `Dia ${DATA.split('-').reverse().join('/')} às 19h, de preferência no jardim`);
-  const r2 = await rodadaDe(page.request, conversaId);
-  const segunda = await iaResponde(page.request, r2, 'Perfeito, anotei!', evento({ data: DATA, horario: '19h', ambiente: 'jardim' }));
-  // tipo + data + pessoas + horário: o backend encaminha mesmo sem a IA pedir
-  expect(segunda.encaminhada).toBe(true);
-  lista = await api(page, 'atendimento/eventos');
-  expect(lista.total).toBe(1);
-  const ev = lista.itens[0];
-  oportunidadeId = ev.id;
-  expect(ev).toMatchObject({ conversa_id: conversaId, telefone_e164: `+${c.wa_id}`, nome_contato: c.nome, status: 'aguardando_contato', tipo: 'aniversario', data_pretendida: DATA, horario: '19h', convidados: 20, ambiente_codigo: 'jardim', ambiente_nome: 'Jardim', faltando: [] });
-  expect(ev.encaminhada_em).toBeTruthy();
+  const primeira = await iaResponde(page.request, r1, 'Que legal! Qual a data e o horário que você pensou?');
+  // a intenção "evento" encaminha na hora; a pergunta da IA não sai e nada é registrado sozinho
+  expect(primeira.encaminhada).toBe(true);
+  const enviados = await textosEnviados(page.request, c.wa_id);
+  expect(enviados.some((t) => t.includes('Vou chamar alguém da nossa equipe'))).toBe(true);
+  expect(enviados.some((t) => t.includes('?'))).toBe(false);
+  expect((await api(page, 'atendimento/eventos')).total).toBe(0);
   const det = await api(page, `atendimento/conversas/${conversaId}`);
   expect(det).toMatchObject({ assunto: 'evento', estado: 'esperando', assistente_ligado: false });
-  expect(det.evento.id).toBe(ev.id);
-  const resumo = await api(page, 'atendimento/resumo');
-  expect(resumo.eventos.aguardando_contato).toBe(1);
-  // o cliente recebeu o aviso do encaminhamento do evento (no lugar do aviso genérico), sem telefone comercial
-  expect((await textosEnviados(page.request, c.wa_id)).some((t) => t.includes('detalhes do seu evento'))).toBe(true);
+
+  // a gerência registra o que o cliente contou à equipe e marca "aguardando contato"
+  const criado = await page.request.post(`${PAINEL}/admin/api/atendimento/conversas/${conversaId}/evento`, {
+    headers: escrever, data: { tipo: 'aniversario', data_pretendida: DATA, horario: '19h', convidados: 20, ambiente_codigo: 'jardim' } });
+  expect(criado.status(), await criado.text()).toBe(200);
+  oportunidadeId = (await criado.json()).id;
+  const status = await page.request.patch(`${PAINEL}/admin/api/atendimento/eventos/${oportunidadeId}`, { headers: escrever, data: { status: 'aguardando_contato' } });
+  expect(status.status(), await status.text()).toBe(200);
+  const lista = await api(page, 'atendimento/eventos');
+  expect(lista.total).toBe(1);
+  expect(lista.itens[0]).toMatchObject({ conversa_id: conversaId, telefone_e164: `+${c.wa_id}`, nome_contato: c.nome, status: 'aguardando_contato', origem: 'equipe', tipo: 'aniversario', data_pretendida: DATA, horario: '19h', convidados: 20, ambiente_codigo: 'jardim', ambiente_nome: 'Jardim', faltando: [] });
+  expect((await api(page, 'atendimento/resumo')).eventos.aguardando_contato).toBe(1);
 });
 
 test('2. painel: etiqueta Evento na caixa, atalho e ficha com o que o cliente disse', async ({ page }) => {
@@ -141,7 +137,7 @@ test('2. painel: etiqueta Evento na caixa, atalho e ficha com o que o cliente di
   await expect(gaveta.getByRole('list', { name: 'Eventos' }).getByRole('button').first()).toContainText(A.clientes.aniversario.nome);
   await gaveta.getByRole('list', { name: 'Eventos' }).getByRole('button').first().click();
   const f = ficha(page);
-  for (const t of ['Aguardando contato', 'Aniversário', '19h', '~20', 'Jardim', 'Pelo assistente']) await expect(f).toContainText(t);
+  for (const t of ['Aguardando contato', 'Aniversário', '19h', '~20', 'Jardim', 'Pela equipe']) await expect(f).toContainText(t);
   await expect(page.locator('.conversa__motivo')).toContainText('evento');
 });
 
