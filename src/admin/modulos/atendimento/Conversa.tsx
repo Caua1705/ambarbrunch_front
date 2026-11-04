@@ -5,23 +5,26 @@
 // Mídia (imagem, áudio, documento) vem pela ponte do painel com o login, carregada só quando aparece na tela.
 // Um controle só para o assistente: ligar = devolver ao assistente (vale para o que o cliente escrever depois); desligar =
 // a conversa vai para "Esperando". Responder também desliga o assistente (o backend faz isso ANTES do envio).
+// Evento: com oportunidade (aberta ou a última), a ficha fica na coluna lateral (tela larga) ou numa faixa que abre a gaveta
+// (tablet e celular); sem evento aberto, "Registrar evento" no menu "…". O status comercial não muda o estado da conversa.
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { ComponentChildren } from 'preact';
 import {
   Bot, UserRound, Headset, Send, ArrowLeft, Hand, CheckCheck, AlertCircle, Clock, Phone, Mic, ArrowLeftRight, Megaphone, Zap,
-  Ellipsis, MessageSquarePlus, Bell, BellOff, Contact, FileText, ImageOff, CalendarCheck, Award,
+  Ellipsis, MessageSquarePlus, Bell, BellOff, Contact, FileText, ImageOff, CalendarCheck, Award, PartyPopper,
 } from 'lucide-preact';
 import { useConsulta, invalidar } from '../../lib/consulta';
 import { atendimento, urlMidia } from '../../lib/api/atendimento-clube';
 import { ErroApi } from '../../lib/api/cliente';
 import { telefone, horaDe, dataHora } from '../../lib/formato';
-import { Suspenso, avisar, avisarErro, type useConfirmacao } from '../../ui/camadas';
+import { Gaveta, Suspenso, avisar, avisarErro, type useConfirmacao } from '../../ui/camadas';
 import { Botao, Situacao, Aviso, Etiqueta } from '../../ui/base';
 import { Esqueleto, Falha } from '../../ui/estados';
 import type { ConversaDetalhe, MensagemExterna, MensagemPainel } from '../../lib/tipos/atendimento-clube';
 import { ESTADO, TEXTO_MAX, motivoHumano, mensagemDeEnvio } from './comum';
 import { Contato } from './Contato';
 import type { DestinoInicial } from './NovaConversa';
+import { FaixaEvento, FichaEvento, RegistrarEvento, useOpcoesEventos } from './Evento';
 
 type Confirmar = ReturnType<typeof useConfirmacao>['confirmar'];
 
@@ -37,9 +40,13 @@ function falhaDoEnvio(c: ConversaDetalhe): string | null {
   return ultima?.status === 'falhou' ? ultima.erro ?? 'a Meta recusou o envio' : null;
 }
 
-export function Conversa({ id, meuId, assistenteAtivo, aoVoltar, aoEnviarTemplate, confirmar }: {
+export function Conversa({ id, meuId, assistenteAtivo, eventos, podeMudarStatus, aoVoltar, aoEnviarTemplate, confirmar }: {
   id: string;
   meuId: string;
+  /** O backend tem eventos (resumo.eventos presente; anterior à 0023 não tem). */
+  eventos: boolean;
+  /** Plano B do papel para atendimento.eventos, enquanto as opções do backend não chegam. */
+  podeMudarStatus: boolean;
   /** Assistente ligado na configuração do servidor (resumo.configuracao); desconhecido = undefined. */
   assistenteAtivo: boolean | undefined;
   aoVoltar: () => void;
@@ -55,6 +62,9 @@ export function Conversa({ id, meuId, assistenteAtivo, aoVoltar, aoEnviarTemplat
   const [enviando, setEnviando] = useState(false);
   const [ocupado, setOcupado] = useState<string | null>(null);
   const [verContato, setVerContato] = useState(false);
+  const [verEvento, setVerEvento] = useState(false);
+  const [registrar, setRegistrar] = useState(false);
+  const opcoesEventos = useOpcoesEventos(eventos);
   const fim = useRef<HTMLDivElement>(null);
   const c = consulta.dados;
 
@@ -63,6 +73,8 @@ export function Conversa({ id, meuId, assistenteAtivo, aoVoltar, aoEnviarTemplat
     setSemMais(false);
     setTexto('');
     setVerContato(false);
+    setVerEvento(false);
+    setRegistrar(false);
   }, [id]);
   const qtd = (c?.mensagens.length ?? 0) + (c?.externas?.length ?? 0);
   useEffect(() => {
@@ -137,6 +149,11 @@ export function Conversa({ id, meuId, assistenteAtivo, aoVoltar, aoEnviarTemplat
   const estado = ESTADO[c.estado] ?? ESTADO.automatico;
   const nome = c.nome_contato || telefone(c.telefone_e164);
   const assistenteBloqueado = assistenteAtivo === false && !c.assistente_ligado;
+  const evento = eventos ? c.evento ?? null : null;
+  const comStatus = opcoesEventos.dados?.pode_mudar_status ?? podeMudarStatus;
+  const ficha = evento && (
+    <FichaEvento evento={evento} podeMudarStatus={comStatus} confirmar={confirmar} aoRegistrarNovo={() => { setVerEvento(false); setRegistrar(true); }} />
+  );
 
   const alternarAssistente = () => {
     if (c.assistente_ligado) {
@@ -169,6 +186,7 @@ export function Conversa({ id, meuId, assistenteAtivo, aoVoltar, aoEnviarTemplat
           <div class="linha fraco" style={{ gap: '8px' }}>
             <span class="num">{telefone(c.telefone_e164)}</span>
             <Situacao tom={estado.tom}>{c.estado === 'em_atendimento' ? (comigo ? 'Com você' : `Com ${c.atendente_nome ?? 'a equipe'}`) : estado.rotulo}</Situacao>
+            {eventos && (c.assunto === 'evento' || evento?.aberta) && <Etiqueta tom="marca" icone={<PartyPopper aria-hidden="true" />}>Evento</Etiqueta>}
           </div>
         </div>
         <div class="linha" style={{ flexWrap: 'nowrap', gap: '4px' }}>
@@ -193,6 +211,11 @@ export function Conversa({ id, meuId, assistenteAtivo, aoVoltar, aoEnviarTemplat
                 >
                   {c.followup_desligado ? <Bell aria-hidden="true" /> : <BellOff aria-hidden="true" />} {c.followup_desligado ? 'Ligar follow-up' : 'Desligar follow-up'}
                 </button>
+                {eventos && !evento?.aberta && (
+                  <button type="button" class="suspenso__item" role="menuitem" onClick={() => { fechar(); setRegistrar(true); }}>
+                    <PartyPopper aria-hidden="true" /> Registrar evento
+                  </button>
+                )}
               </>
             )}
           </Suspenso>
@@ -235,6 +258,9 @@ export function Conversa({ id, meuId, assistenteAtivo, aoVoltar, aoEnviarTemplat
         <div class="conversa__motivo fraco">Motivo do encaminhamento: {motivoHumano(c.motivo_humano)}</div>
       )}
 
+      <div class={`conversa__corpo${evento ? ' conversa__corpo--evento' : ''}`}>
+      <div class="conversa__fluxo">
+      {evento && <FaixaEvento evento={evento} aoAbrir={() => setVerEvento(true)} />}
       <div class="mensagens" aria-live="polite" aria-label="Mensagens">
         {!semMais && (c.mensagens.length + anteriores.length) >= 20 && (
           <Botao tamanho="p" variante="fantasma" carregando={carregandoMais} onClick={carregarAnteriores} style={{ alignSelf: 'center' }}>Carregar mensagens anteriores</Botao>
@@ -276,8 +302,17 @@ export function Conversa({ id, meuId, assistenteAtivo, aoVoltar, aoEnviarTemplat
           <Botao type="submit" variante="primario" so_icone aria-label="Enviar resposta" carregando={enviando} disabled={!podeEscrever || !texto.trim()} icone={<Send aria-hidden="true" />} />
         </div>
       </form>
+      </div>
+      {ficha && <aside class="conversa__lateral" aria-label="Ficha do evento">{ficha}</aside>}
+      </div>
 
       <Contato conversaId={verContato ? c.id : null} aoFechar={() => setVerContato(false)} />
+      {ficha && (
+        <Gaveta aberta={verEvento} aoFechar={() => setVerEvento(false)} titulo="Evento" subtitulo={nome} largura="media">
+          {ficha}
+        </Gaveta>
+      )}
+      {eventos && <RegistrarEvento conversaId={c.id} nome={nome} aberta={registrar} aoFechar={() => setRegistrar(false)} />}
     </>
   );
 }

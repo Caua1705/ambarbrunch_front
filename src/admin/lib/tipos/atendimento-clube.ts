@@ -1,6 +1,7 @@
 // Atendimento (WhatsApp oficial da Meta) e Clube Âmbar — CONTRATO-PAINEL-ADMIN.md §6 e §7.
 // Atendimento conferido com app/modulos/atendimento/api_admin.py (central única: estados, ficha do contato, nova conversa,
-// campanhas, base de conhecimento e cadastros duplicados — backend com a migração 0022).
+// campanhas, base de conhecimento e cadastros duplicados — backend com a migração 0022). Eventos (oportunidades ligadas à
+// conversa) conferidos com app/modulos/atendimento/eventos.py e ATENDIMENTO-EVENTOS.md §7 — backend com a migração 0023.
 import type { Data, Dec, Instante, Uuid } from './comum';
 
 export type ModoConversa = 'robo' | 'humano' | 'encerrada';
@@ -36,6 +37,8 @@ export interface ConversaResumo {
   /** Dentro da janela de 24 h da Meta: só assim a equipe pode responder com texto livre. */
   dentro_da_janela: boolean;
   followup_desligado: boolean;
+  /** "evento": há (ou houve) evento nesta conversa. Ausente num backend anterior à 0023. */
+  assunto?: 'evento' | null;
 }
 
 /** Status de uma mensagem: recebida (do cliente), pendente (saindo), enviada, entregue, lida, falhou, descartada. */
@@ -82,6 +85,8 @@ export interface MensagemExterna {
 export interface ConversaDetalhe extends ConversaResumo {
   mensagens: MensagemPainel[];
   externas: MensagemExterna[];
+  /** Oportunidade de evento da conversa: a aberta, senão a mais recente (só de uma unidade do usuário). */
+  evento?: EventoAtendimento | null;
 }
 
 export interface ResumoAtendimento {
@@ -98,7 +103,96 @@ export interface ResumoAtendimento {
     followup_ativo: boolean;
     /** Quantos templates aprovados estão configurados. */
     templates: number;
+    /** AMBAR_ATENDIMENTO_CONTATO_COMERCIAL preenchido (o assistente só passa o número quando o cliente pede). */
+    contato_comercial_configurado?: boolean;
   };
+  /** Eventos abertos das unidades do usuário, por status. Ausente = backend sem eventos (anterior à 0023). */
+  eventos?: Record<StatusEventoAberto, number>;
+}
+
+// Eventos (oportunidades ligadas à conversa) ---------------------------------------------------------------------------
+
+export type TipoEvento = 'aniversario' | 'comemoracao' | 'reuniao' | 'evento_intimista' | 'confraternizacao' | 'grupo_grande' | 'outro';
+export type StatusEventoAberto = 'novo_interesse' | 'aguardando_contato' | 'em_negociacao' | 'proposta_enviada';
+/** Status COMERCIAL (não substitui o estado da conversa). Fechado e perdido concluem; um evento novo abre outra oportunidade. */
+export type StatusEvento = StatusEventoAberto | 'fechado' | 'perdido';
+export type CanalEvento = 'whatsapp' | 'instagram' | 'site' | 'telefone' | 'presencial' | 'outro';
+
+export interface EventoAtendimento {
+  id: number;
+  conversa_id: Uuid;
+  cliente_id: Uuid | null;
+  nome_contato: string | null;
+  telefone_e164: string;
+  estado_conversa: EstadoConversa;
+  unidade_id: number;
+  canal: CanalEvento;
+  /** Quem registrou: o assistente (pela conversa) ou a equipe (no painel). */
+  origem: 'assistente' | 'equipe';
+  tipo: TipoEvento | null;
+  tipo_rotulo: string | null;
+  data_pretendida: Data | null;
+  /** Texto livre do cliente ("19h", "à tarde"). */
+  horario: string | null;
+  convidados: number | null;
+  ambiente_codigo: string | null;
+  ambiente_nome: string | null;
+  necessidades: string | null;
+  observacoes: string | null;
+  /** Gerado pelo backend a cada mudança: "Aniversário · sáb 21/11/2026 · 19h · ~20 pessoas · Jardim." */
+  resumo: string | null;
+  /** O que falta para a equipe continuar, em português: "tipo", "data", "pessoas", "horário". */
+  faltando: string[];
+  responsavel_id: Uuid | null;
+  responsavel_nome: string | null;
+  status: StatusEvento;
+  status_rotulo: string;
+  aberta: boolean;
+  motivo_perda: string | null;
+  cliente_desistiu_em: Instante | null;
+  encaminhada_em: Instante | null;
+  concluida_em: Instante | null;
+  criado_em: Instante;
+  atualizado_em: Instante;
+}
+
+export interface ListaEventos {
+  itens: EventoAtendimento[];
+  total: number;
+  /** Todas as do escopo do usuário, por status (sem os outros filtros). */
+  por_status: Record<StatusEvento, number>;
+}
+
+export interface OpcoesEventos {
+  /** Unidade do atendimento, se o usuário tiver acesso a ela (senão null e listas vazias). */
+  unidade_id: number | null;
+  tipos: { codigo: TipoEvento; rotulo: string }[];
+  status: { codigo: StatusEvento; rotulo: string; aberto: boolean }[];
+  canais: CanalEvento[];
+  /** Ambientes ativos do cadastro; capacidade só com os limites confirmados. */
+  espacos: { codigo: string; nome: string; capacidade: number | null }[];
+  responsaveis: { id: Uuid; nome: string }[];
+  /** atendimento.eventos (Gerente e Proprietário): status comercial, responsável e motivo da perda. */
+  pode_mudar_status: boolean;
+}
+
+/** Dados do evento que a equipe registra ou corrige (só o que o cliente disse; nada de preço ou pacote). null apaga. */
+export interface EventoDados {
+  tipo?: TipoEvento | null;
+  data_pretendida?: Data | null;
+  horario?: string | null;
+  convidados?: number | null;
+  ambiente_codigo?: string | null;
+  necessidades?: string | null;
+  observacoes?: string | null;
+  canal?: CanalEvento | null;
+}
+
+/** PATCH: só os campos enviados mudam. status, responsavel_id e motivo_perda exigem atendimento.eventos (senão 403). */
+export interface EventoAlteracao extends EventoDados {
+  status?: StatusEvento;
+  responsavel_id?: Uuid | null;
+  motivo_perda?: string | null;
 }
 
 export interface FalhaAtendimento extends MensagemPainel {

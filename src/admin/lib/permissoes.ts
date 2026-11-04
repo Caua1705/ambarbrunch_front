@@ -38,6 +38,8 @@ const ACOES = {
   // Atendimento: conversas para todos; campanhas e a base de conhecimento do assistente com a gerência.
   'atendimento.campanhas': GERENCIA,
   'atendimento.conhecimento': GERENCIA,
+  // Eventos: todos veem, registram e corrigem os dados; status comercial, responsável e motivo da perda com a gerência.
+  'atendimento.eventos': GERENCIA,
   'clube.suspender': GERENCIA,
   'clube.revogar_sessoes': GERENCIA,
   'clube.confirmar_telefone': GERENCIA,

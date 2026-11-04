@@ -3,7 +3,7 @@
 // aqui só se traduz código do backend para o que a equipe lê.
 import { ErroApi } from '../../lib/api/cliente';
 import type { Tom } from '../../ui/base';
-import type { EstadoConversa, TemplateWhatsapp } from '../../lib/tipos/atendimento-clube';
+import type { CanalEvento, EstadoConversa, StatusEvento, TemplateWhatsapp } from '../../lib/tipos/atendimento-clube';
 
 /** Limite de texto da resposta da equipe (servico.TEXTO_MAX do backend; o que passar é cortado lá). */
 export const TEXTO_MAX = 2000;
@@ -14,6 +14,50 @@ export const ESTADO: Record<EstadoConversa, { rotulo: string; tom: Tom }> = {
   em_atendimento: { rotulo: 'Equipe', tom: 'marca' },
   encerrada: { rotulo: 'Encerrada', tom: 'apagado' },
 };
+
+/** Status COMERCIAL do evento (os rótulos vêm do backend em status_rotulo; aqui só o tom). Aguardando contato é a prioridade. */
+export const TOM_EVENTO: Record<StatusEvento, Tom> = {
+  novo_interesse: 'info',
+  aguardando_contato: 'atencao',
+  em_negociacao: 'marca',
+  proposta_enviada: 'marca',
+  fechado: 'ok',
+  perdido: 'apagado',
+};
+
+/** Rótulos dos status, para quando só o código está à mão (filtros e contagens). Mesmos de eventos.STATUS do backend. */
+export const ROTULO_STATUS_EVENTO: Record<StatusEvento, string> = {
+  novo_interesse: 'Novo interesse',
+  aguardando_contato: 'Aguardando contato',
+  em_negociacao: 'Em negociação',
+  proposta_enviada: 'Proposta enviada',
+  fechado: 'Fechado',
+  perdido: 'Perdido',
+};
+
+export const CANAL_EVENTO: Record<CanalEvento, string> = {
+  whatsapp: 'WhatsApp', instagram: 'Instagram', site: 'Site', telefone: 'Telefone', presencial: 'Presencial', outro: 'Outro',
+};
+
+/** Limites do backend (EventoDados em api_admin.py). */
+export const EVENTO_LIMITES = { horario: 80, necessidades: 500, observacoes: 1000, motivo_perda: 300, convidados: 2000 } as const;
+
+/** Mensagem humana para os erros das oportunidades de evento. */
+export function mensagemDeEvento(e: unknown): string {
+  if (!(e instanceof ErroApi)) return 'Não foi possível salvar o evento.';
+  switch (e.codigo) {
+    case 'evento_aberto_na_conversa':
+      return 'Esta conversa já tem um evento em andamento. Atualize o que já existe em vez de registrar outro.';
+    case 'sem_permissao':
+      return 'Só a gerência muda o status comercial, o responsável e o motivo da perda.';
+    case 'ambiente_desconhecido':
+      return 'Esse ambiente não existe (ou foi desativado) nesta unidade. Escolha outro.';
+    case 'responsavel_invalido':
+      return 'O responsável precisa ser alguém ativo da equipe desta unidade.';
+    default:
+      return e.status === 404 ? 'Evento não encontrado nesta unidade.' : e.message;
+  }
+}
 
 /** Prefixo da última mensagem na lista: quem falou por último, quando não foi o cliente. */
 export const PREFIXO_ORIGEM: Record<string, string> = {
@@ -30,6 +74,7 @@ const MOTIVO_HUMANO: Record<string, string> = {
   assistente_desligado: 'assistente desligado',
   assistente_desligado_no_painel: 'assistente desligado nesta conversa pela equipe',
   falha_na_ia: 'o assistente não conseguiu responder',
+  evento: 'evento — o assistente passou os detalhes para a equipe',
 };
 
 /** Por que a conversa foi para a equipe (motivo_humano do backend), em português. Prefixos viram uma frase só. */

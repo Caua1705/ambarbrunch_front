@@ -55,9 +55,12 @@ async function consultar(fontes: string[]): Promise<Resultado> {
   if (fontes.includes('atendimento')) {
     tarefas.push(
       // Esperando = encaminhada à equipe e ninguém assumiu (o mesmo contador do filtro "Esperando" da caixa de entrada).
-      pedir<{ aguardando_equipe?: number; por_estado?: { esperando?: number } }>('atendimento/resumo').then((r) => {
+      pedir<{ aguardando_equipe?: number; por_estado?: { esperando?: number }; eventos?: { aguardando_contato?: number } }>('atendimento/resumo').then((r) => {
         const n = r.por_estado?.esperando ?? r.aguardando_equipe ?? 0;
         if (n > 0) avisos.push({ id: 'conversas', modulo: 'Atendimento', titulo: plural(n, 'conversa esperando a equipe', 'conversas esperando a equipe'), detalhe: 'Encaminhada à equipe e ninguém assumiu', href: '/admin/atendimento?filtro=esperando', prioridade: 0, quantidade: n });
+        // Eventos (backend com a 0023): encaminhados pelo assistente e ainda sem contato comercial.
+        const ev = r.eventos?.aguardando_contato ?? 0;
+        if (ev > 0) avisos.push({ id: 'eventos', modulo: 'Atendimento', titulo: plural(ev, 'evento aguardando contato', 'eventos aguardando contato'), detalhe: 'Oportunidade encaminhada à equipe', href: '/admin/atendimento?eventos=1', prioridade: 1, quantidade: ev });
       }),
     );
   }

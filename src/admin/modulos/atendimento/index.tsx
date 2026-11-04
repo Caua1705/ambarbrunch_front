@@ -7,8 +7,10 @@
 // cadastros duplicados) num menu discreto "Mais", cada um numa gaveta. Não existe mais página Clientes: quem é o contato
 // aparece na ficha da própria conversa.
 // Tempo real: a caixa é relida a cada 15 s e a conversa aberta a cada 5 s (com a aba visível), sem WebSocket.
+// Eventos (backend com a 0023): etiqueta "Evento" na conversa e, acima da lista, o atalho "Eventos" com os que aguardam
+// contato — abre a visão compacta das oportunidades (gaveta), que leva de volta à conversa. Sem página nova no menu.
 import { useEffect, useState } from 'preact/hooks';
-import { Search, Inbox, MessageSquareOff, MessageSquarePlus, Ellipsis, Megaphone, BookOpen, UsersRound, BotOff, CloudOff, AlertCircle } from 'lucide-preact';
+import { Search, Inbox, MessageSquareOff, MessageSquarePlus, Ellipsis, Megaphone, BookOpen, UsersRound, BotOff, CloudOff, AlertCircle, PartyPopper } from 'lucide-preact';
 import type { ContextoPainel } from '../../lib/sessao';
 import { useConsulta } from '../../lib/consulta';
 import { atendimento } from '../../lib/api/atendimento-clube';
@@ -25,6 +27,7 @@ import { NovaConversa, type DestinoInicial } from './NovaConversa';
 import { Campanhas } from './Campanhas';
 import { Conhecimento } from './Conhecimento';
 import { Duplicidades } from './Duplicidades';
+import { Oportunidades } from './Evento';
 
 type Filtro = 'todas' | EstadoConversa;
 type Gestao = 'campanhas' | 'conhecimento' | 'duplicidades' | null;
@@ -46,9 +49,10 @@ export default function Atendimento({ contexto }: { contexto: ContextoPainel }) 
   const [verFalhas, setVerFalhas] = useState(false);
   const [nova, setNova] = useState<DestinoInicial | null>(null);
   const [gestao, setGestao] = useState<Gestao>(null);
+  const [verEventos, setVerEventos] = useState(lerParam('eventos') === '1');
   const { confirmar, elemento: dialogo } = useConfirmacao();
 
-  useEffect(() => gravarParams({ filtro: filtro === 'todas' ? null : filtro, conversa: aberta }), [filtro, aberta]);
+  useEffect(() => gravarParams({ filtro: filtro === 'todas' ? null : filtro, conversa: aberta, eventos: verEventos ? '1' : null }), [filtro, aberta, verEventos]);
   useEffect(() => {
     const t = setTimeout(() => setBuscaAplicada(busca.trim()), 300);
     return () => clearTimeout(t);
@@ -63,9 +67,15 @@ export default function Atendimento({ contexto }: { contexto: ContextoPainel }) 
   const config = r?.configuracao;
   const veCampanhas = pode(papel, 'atendimento.campanhas');
   const veDuplicidades = pode(papel, 'clientes.visualizar');
+  // Backend anterior à 0023 não manda `eventos` no resumo: nada de evento aparece (nem chamada a rota que não existe).
+  const eventos = r?.eventos;
+  const comEventos = !!eventos;
+  const aguardandoContato = eventos?.aguardando_contato ?? 0;
+  const eventosAbertos = eventos ? Object.values(eventos).reduce((s, n) => s + n, 0) : 0;
   const abrirConversa = (id: string) => {
     setNova(null);
     setGestao(null);
+    setVerEventos(false);
     setAberta(id);
   };
 
@@ -110,11 +120,24 @@ export default function Atendimento({ contexto }: { contexto: ContextoPainel }) 
                 { valor: 'encerrada', rotulo: 'Encerradas' },
               ]}
             />
-            {r?.falhas_de_envio_24h ? (
+            {r?.falhas_de_envio_24h || comEventos ? (
               <div class="caixa__extras">
-                <button type="button" class="pilula pilula--perigo" onClick={() => setVerFalhas(true)}>
-                  <MessageSquareOff aria-hidden="true" /> {plural(r.falhas_de_envio_24h, 'falha de envio', 'falhas de envio')} (24 h)
-                </button>
+                {comEventos && (
+                  <button
+                    type="button"
+                    class={`pilula ${aguardandoContato ? 'pilula--atencao' : 'pilula--neutra'}`}
+                    onClick={() => setVerEventos(true)}
+                    title={aguardandoContato ? plural(aguardandoContato, 'evento aguardando contato da equipe', 'eventos aguardando contato da equipe') : plural(eventosAbertos, 'evento em andamento', 'eventos em andamento')}
+                  >
+                    <PartyPopper aria-hidden="true" /> Eventos
+                    {aguardandoContato ? <span class="contador">{aguardandoContato}<span class="sr"> aguardando contato</span></span> : eventosAbertos ? <span class="fraco">· {eventosAbertos}</span> : null}
+                  </button>
+                )}
+                {r?.falhas_de_envio_24h ? (
+                  <button type="button" class="pilula pilula--perigo" onClick={() => setVerFalhas(true)}>
+                    <MessageSquareOff aria-hidden="true" /> {plural(r.falhas_de_envio_24h, 'falha de envio', 'falhas de envio')} (24 h)
+                  </button>
+                ) : null}
               </div>
             ) : null}
           </div>
@@ -124,7 +147,7 @@ export default function Atendimento({ contexto }: { contexto: ContextoPainel }) 
                 <ul class="lista" aria-label="Conversas">
                   {conversas.map((c) => (
                     <li key={c.id}>
-                      <ItemConversa c={c} ativa={c.id === aberta} aoAbrir={() => setAberta(c.id)} />
+                      <ItemConversa c={c} ativa={c.id === aberta} evento={comEventos && c.assunto === 'evento'} aoAbrir={() => setAberta(c.id)} />
                     </li>
                   ))}
                 </ul>
@@ -142,6 +165,8 @@ export default function Atendimento({ contexto }: { contexto: ContextoPainel }) 
               id={aberta}
               meuId={contexto.usuario.id}
               assistenteAtivo={config?.assistente_ativo}
+              eventos={comEventos}
+              podeMudarStatus={pode(papel, 'atendimento.eventos')}
               aoVoltar={() => setAberta(null)}
               aoEnviarTemplate={(destino) => setNova(destino)}
               confirmar={confirmar}
@@ -153,6 +178,7 @@ export default function Atendimento({ contexto }: { contexto: ContextoPainel }) 
       </div>
 
       <NovaConversa aberta={nova !== null} inicial={nova ?? {}} aoFechar={() => setNova(null)} aoAbrirConversa={abrirConversa} />
+      {comEventos && <Oportunidades aberta={verEventos} aoFechar={() => setVerEventos(false)} aoAbrirConversa={abrirConversa} />}
       <Falhas aberta={verFalhas} aoFechar={() => setVerFalhas(false)} aoAbrir={(id) => { setVerFalhas(false); setAberta(id); }} />
       {veCampanhas && <Campanhas aberta={gestao === 'campanhas'} aoFechar={() => setGestao(null)} aoAbrirConversa={abrirConversa} confirmar={confirmar} />}
       <Conhecimento aberta={gestao === 'conhecimento'} aoFechar={() => setGestao(null)} podeEditar={pode(papel, 'atendimento.conhecimento')} confirmar={confirmar} />
@@ -162,7 +188,7 @@ export default function Atendimento({ contexto }: { contexto: ContextoPainel }) 
   );
 }
 
-function ItemConversa({ c, ativa, aoAbrir }: { c: ConversaResumo; ativa: boolean; aoAbrir: () => void }) {
+function ItemConversa({ c, ativa, evento, aoAbrir }: { c: ConversaResumo; ativa: boolean; evento: boolean; aoAbrir: () => void }) {
   const estado = ESTADO[c.estado] ?? ESTADO.automatico;
   const esperando = c.estado === 'esperando';
   // Não respondidas: só o que importa agora (numa conversa encerrada, não cobra ninguém).
@@ -188,6 +214,8 @@ function ItemConversa({ c, ativa, aoAbrir }: { c: ConversaResumo; ativa: boolean
         </span>
         <span class="conversa-item__estado">
           <Situacao tom={estado.tom}>{c.estado === 'em_atendimento' && c.atendente_nome ? c.atendente_nome : estado.rotulo}</Situacao>
+          {/* Evento esperando a equipe é a prioridade comercial: a etiqueta ganha o tom de atenção. */}
+          {evento && <Etiqueta tom={esperando ? 'atencao' : 'neutro'} icone={<PartyPopper aria-hidden="true" />}>Evento</Etiqueta>}
           {c.inativa && <Etiqueta tom="perigo">Parada há 30+ min</Etiqueta>}
         </span>
       </span>

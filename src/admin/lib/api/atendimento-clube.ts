@@ -1,11 +1,14 @@
 // Atendimento (WhatsApp oficial) e Clube — rotas reais do backend. Atendimento conferido com
 // app/modulos/atendimento/api_admin.py: conversas com atendimento.visualizar (o servidor decide dono e janela); campanhas com
 // atendimento.campanhas; editar a base de conhecimento com atendimento.conhecimento; duplicidades com clientes.visualizar/editar.
+// Eventos (ATENDIMENTO-EVENTOS.md §7): ver com atendimento.visualizar; registrar e editar os dados com atendimento.responder;
+// status comercial, responsável e motivo da perda com atendimento.eventos (Gerente e Proprietário). Outra unidade = 404.
 import { pedir } from './cliente';
 import type { Pagina } from '../tipos/comum';
 import type {
   ConversaDetalhe, ConversaResumo, FalhaAtendimento, MensagemPainel, EstadoConversa, ResumoAtendimento, FichaContato, TemplateWhatsapp,
   ContatoBusca, NovaConversaEntrada, Campanha, CampanhaDetalhe, NovaCampanhaEntrada, BaseConhecimento, ItemConhecimento, Duplicidades,
+  EventoAtendimento, ListaEventos, OpcoesEventos, EventoDados, EventoAlteracao, StatusEvento,
   ResumoClube, MembroLista, MembroFicha, HistoricoMembro, VendaClube, ConviteClube, MensagemClube, EstadoMembro,
 } from '../tipos/atendimento-clube';
 
@@ -16,7 +19,7 @@ export const atendimento = {
   resumo: () => pedir<ResumoAtendimento>('atendimento/resumo'),
   falhas: (limite = 20) => pedir<FalhaAtendimento[]>('atendimento/falhas', { query: { limite } }),
   /** `busca`: nome ou 4+ dígitos do telefone; o backend exige 2 a 80 caracteres (menos que 2 não vai). Esperando vem primeiro. */
-  conversas: (q: { estado?: EstadoConversa; atendente_id?: string; busca?: string; limite?: number; deslocamento?: number }) =>
+  conversas: (q: { estado?: EstadoConversa; atendente_id?: string; assunto?: 'evento'; busca?: string; limite?: number; deslocamento?: number }) =>
     pedir<ConversaResumo[]>('atendimento/conversas', { query: { limite: 100, ...q, busca: q.busca && q.busca.trim().length >= 2 ? q.busca.trim().slice(0, 80) : undefined } }),
   conversa: (id: string) => pedir<ConversaDetalhe>(`atendimento/conversas/${id}`),
   anteriores: (id: string, antes_de: number) => pedir<MensagemPainel[]>(`atendimento/conversas/${id}/mensagens`, { query: { antes_de, limite: 50 } }),
@@ -31,6 +34,16 @@ export const atendimento = {
   assistente: (id: string, ligado: boolean) => pedir<ConversaDetalhe>(`atendimento/conversas/${id}/assistente`, { metodo: 'POST', corpo: { ligado } }),
   encerrar: (id: string) => pedir<ConversaDetalhe>(`atendimento/conversas/${id}/encerrar`, { metodo: 'POST' }),
   followup: (id: string, ligado: boolean) => pedir<ConversaDetalhe>(`atendimento/conversas/${id}/followup`, { metodo: 'POST', corpo: { ligado } }),
+  /** Oportunidades de evento (aguardando contato primeiro). `status` repete na query; `por_status` conta todas do escopo. */
+  eventos: (q: { status?: StatusEvento[]; abertas?: boolean; responsavel_id?: string; busca?: string; limite?: number; deslocamento?: number } = {}) =>
+    pedir<ListaEventos>('atendimento/eventos', { query: { limite: 50, ...q, busca: q.busca && q.busca.trim().length >= 2 ? q.busca.trim().slice(0, 80) : undefined } }),
+  opcoesEventos: () => pedir<OpcoesEventos>('atendimento/eventos/opcoes'),
+  evento: (id: number) => pedir<EventoAtendimento>(`atendimento/eventos/${id}`),
+  /** Só os campos enviados mudam (null apaga). Reabrir com outro aberto na conversa: 409 evento_aberto_na_conversa. */
+  alterarEvento: (id: number, mudancas: EventoAlteracao) => pedir<EventoAtendimento>(`atendimento/eventos/${id}`, { metodo: 'PATCH', corpo: mudancas }),
+  /** A equipe registra o evento da conversa. Já existe um aberto: 409 evento_aberto_na_conversa (dados.oportunidade_id). */
+  registrarEvento: (conversaId: string, dados: EventoDados & { responsavel_id?: string | null } = {}) =>
+    pedir<EventoAtendimento>(`atendimento/conversas/${conversaId}/evento`, { metodo: 'POST', corpo: dados }),
   templates: () => pedir<TemplateWhatsapp[]>('atendimento/templates'),
   /** Para "Nova conversa": cadastros (com ou sem conversa) por nome ou dígitos do telefone (2 a 80 caracteres). */
   contatos: (busca: string) => pedir<ContatoBusca[]>('atendimento/contatos', { query: { busca: busca.trim().slice(0, 80) } }),
