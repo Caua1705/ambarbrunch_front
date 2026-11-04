@@ -2,16 +2,18 @@
 // inventados; nada sai para a Meta). O Atendimento imita as regras de app/modulos/atendimento do backend: os quatro estados,
 // assumir/transferir, responder só na janela de 24 h, assistente ligado/desligado por conversa, nova conversa com template,
 // campanhas com bloqueios (teste, marketing sem autorização, pediu para parar), base de conhecimento e cadastros duplicados
-// ligados sem fundir. O Clube aparece como no backend antes do lançamento: inscrições fechadas e programa de pontos desligado.
+// ligados sem fundir. Eventos como app/modulos/atendimento/eventos.py: uma oportunidade ABERTA por conversa (409), resumo e
+// "faltando" gerados aqui, status comercial só com a gerência (403 sem_permissao), assunto "evento" na conversa. O Clube aparece como no backend antes do lançamento: inscrições fechadas e programa de pontos desligado.
 import { deflateSync, crc32 } from 'node:zlib';
 import type { Rota } from './roteador';
-import { TODOS, GERENCIA, ADMIN, ErroDemo, agoraMenos, uuid, paginar, exigirMotivo, hojeFortaleza, instante } from './roteador';
+import { TODOS, GERENCIA, ADMIN, ErroDemo, agoraMenos, uuid, paginar, exigirMotivo, hojeFortaleza, instante, dia } from './roteador';
 import type {
   AutorMensagem, ConversaDetalhe, MensagemPainel, EstadoConversa, CadastroContato, ReservaContato, FichaContato, TemplateWhatsapp,
   Campanha, CampanhaDetalhe, DestinatarioCampanha, ItemConhecimento, GrupoDuplicidade, MembroLista, MembroFicha, VendaClube, ConviteClube,
+  EventoAtendimento, StatusEvento, TipoEvento, CanalEvento,
 } from '../../lib/tipos/atendimento-clube';
 import { usuarioDemo } from './sessao';
-import { NOMES_DEMO, telefoneDemo, reservasDosClientes } from './reservas';
+import { NOMES_DEMO, telefoneDemo, reservasDosClientes, AMBIENTES } from './reservas';
 import type { Papel } from '../../lib/sessao';
 
 // Atendimento -----------------------------------------------------------------------------------------------------------
@@ -183,6 +185,114 @@ novaConversaDemo('+5585991230007', 'Teixeira', 'humano', [
   msg('entrada', 'cliente', null, 10, { tipo: 'documento', tem_midia: true, midia_mime: 'text/html', midia_nome: 'comprovante.html' }),
 ], { motivo_humano: 'reclamacao' });
 
+// Eventos ---------------------------------------------------------------------------------------------------------------
+const TIPOS_EVENTO: Record<TipoEvento, string> = {
+  aniversario: 'Aniversário', comemoracao: 'Comemoração', reuniao: 'Reunião', evento_intimista: 'Evento intimista',
+  confraternizacao: 'Confraternização', grupo_grande: 'Grupo grande', outro: 'Outro',
+};
+const STATUS_EVENTO: Record<StatusEvento, string> = {
+  novo_interesse: 'Novo interesse', aguardando_contato: 'Aguardando contato', em_negociacao: 'Em negociação',
+  proposta_enviada: 'Proposta enviada', fechado: 'Fechado', perdido: 'Perdido',
+};
+const ABERTOS_EVENTO: StatusEvento[] = ['novo_interesse', 'aguardando_contato', 'em_negociacao', 'proposta_enviada'];
+const CANAIS_EVENTO: CanalEvento[] = ['whatsapp', 'instagram', 'site', 'telefone', 'presencial', 'outro'];
+const DIAS_CURTOS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+const EQUIPE_DEMO = (['admin', 'gerente', 'operador'] as Papel[]).map(usuarioDemo);
+type OportunidadeDemo = Omit<EventoAtendimento, 'nome_contato' | 'telefone_e164' | 'estado_conversa' | 'tipo_rotulo' | 'ambiente_nome' | 'resumo' | 'faltando' | 'responsavel_nome' | 'status_rotulo' | 'aberta'>;
+const oportunidades: OportunidadeDemo[] = [];
+let seqOportunidade = 1;
+const espacoDemo = (codigo: string | null) => (codigo ? AMBIENTES.find((a) => a.codigo === codigo && a.ativo) ?? null : null);
+const faltandoDemo = (o: OportunidadeDemo) => ([['tipo', o.tipo], ['data', o.data_pretendida], ['pessoas', o.convidados], ['horário', o.horario]] as const).filter(([, v]) => !v).map(([r]) => r);
+/** Como eventos.resumo do backend: só o que o cliente disse. */
+function resumoEvento(o: OportunidadeDemo): string {
+  const partes: string[] = [o.tipo ? TIPOS_EVENTO[o.tipo] : 'Evento (tipo a definir)'];
+  if (o.data_pretendida) {
+    const [a, m, d] = o.data_pretendida.split('-').map(Number);
+    partes.push(`${DIAS_CURTOS[new Date(Date.UTC(a, m - 1, d, 12)).getUTCDay()]} ${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}/${a}`);
+  }
+  if (o.horario) partes.push(o.horario);
+  if (o.convidados) partes.push(`~${o.convidados} pessoas`);
+  const espaco = espacoDemo(o.ambiente_codigo);
+  if (espaco) partes.push(espaco.nome);
+  let texto = `${partes.join(' · ')}.`;
+  if (o.necessidades) texto += ` Necessidades: ${o.necessidades}.`;
+  if (o.observacoes) texto += ` Obs.: ${o.observacoes}.`;
+  const falta = faltandoDemo(o);
+  if (o.cliente_desistiu_em) texto += ' Cliente disse que desistiu.';
+  else if (falta.length) texto += ` Falta: ${falta.join(', ')}.`;
+  return texto.replace(/\.\./g, '.').replace(/\s+/g, ' ').slice(0, 600);
+}
+function eventoSaida(o: OportunidadeDemo): EventoAtendimento {
+  const c = conversas.find((x) => x.id === o.conversa_id)!;
+  atualizar(c);
+  return {
+    ...o, nome_contato: c.nome_contato, telefone_e164: c.telefone_e164, estado_conversa: c.estado, tipo_rotulo: o.tipo ? TIPOS_EVENTO[o.tipo] : null,
+    ambiente_nome: espacoDemo(o.ambiente_codigo)?.nome ?? null, resumo: resumoEvento(o), faltando: faltandoDemo(o),
+    responsavel_nome: EQUIPE_DEMO.find((u) => u.id === o.responsavel_id)?.nome ?? null, status_rotulo: STATUS_EVENTO[o.status], aberta: ABERTOS_EVENTO.includes(o.status),
+  };
+}
+const abertaDaConversa = (conversaId: string) => oportunidades.find((o) => o.conversa_id === conversaId && ABERTOS_EVENTO.includes(o.status));
+/** A aberta, senão a mais recente (como eventos.da_conversa). */
+function eventoDaConversa(conversaId: string): EventoAtendimento | null {
+  const o = abertaDaConversa(conversaId) ?? [...oportunidades].reverse().find((x) => x.conversa_id === conversaId);
+  return o ? eventoSaida(o) : null;
+}
+function rascunhoOportunidade(c: ConversaDemo, origem: OportunidadeDemo['origem'], dados: Partial<OportunidadeDemo> = {}, minutos = 0): OportunidadeDemo {
+  const quando = agoraMenos(minutos);
+  return {
+    id: 0, conversa_id: c.id, cliente_id: c.cliente_id, unidade_id: 1, canal: 'whatsapp', origem, tipo: null, data_pretendida: null,
+    horario: null, convidados: null, ambiente_codigo: null, necessidades: null, observacoes: null, responsavel_id: null, status: 'novo_interesse',
+    motivo_perda: null, cliente_desistiu_em: null, encaminhada_em: null, concluida_em: null, criado_em: quando, atualizado_em: quando, ...dados,
+  };
+}
+function guardarOportunidade(c: ConversaDemo, o: OportunidadeDemo): OportunidadeDemo {
+  o.id = seqOportunidade++;
+  oportunidades.push(o);
+  c.assunto = 'evento';
+  return o;
+}
+const CAMPOS_EVENTO = ['tipo', 'data_pretendida', 'horario', 'convidados', 'ambiente_codigo', 'necessidades', 'observacoes', 'canal'] as const;
+const LIMITES_EVENTO: Record<string, number> = { horario: 80, ambiente_codigo: 40, necessidades: 500, observacoes: 1000, motivo_perda: 300 };
+/** Valida como o EventoDados do backend (extra=forbid, limites, ambiente do cadastro) e aplica os campos da equipe. */
+function aplicarCamposEvento(o: OportunidadeDemo, e: Record<string, unknown>, extras: string[]) {
+  for (const k of Object.keys(e)) if (!([...CAMPOS_EVENTO, ...extras] as string[]).includes(k)) throw new ErroDemo(422, 'validacao', `Campo desconhecido: ${k}.`);
+  for (const [k, max] of Object.entries(LIMITES_EVENTO)) if (typeof e[k] === 'string' && (e[k] as string).length > max) throw new ErroDemo(422, 'validacao', `Use no máximo ${max} caracteres.`);
+  if (e.tipo != null && !(String(e.tipo) in TIPOS_EVENTO)) throw new ErroDemo(422, 'validacao', 'Tipo de evento inválido.');
+  if (e.canal != null && !CANAIS_EVENTO.includes(e.canal as CanalEvento)) throw new ErroDemo(422, 'validacao', 'Canal inválido.');
+  if (e.convidados != null && (!Number.isInteger(e.convidados) || (e.convidados as number) < 1 || (e.convidados as number) > 2000)) throw new ErroDemo(422, 'validacao', 'Convidados: de 1 a 2.000.');
+  if (e.data_pretendida != null && !/^\d{4}-\d{2}-\d{2}$/.test(String(e.data_pretendida))) throw new ErroDemo(422, 'validacao', 'Data inválida.');
+  if (e.ambiente_codigo && !espacoDemo(String(e.ambiente_codigo))) throw new ErroDemo(422, 'ambiente_desconhecido', 'Ambiente desconhecido nesta unidade.');
+  const alvo = o as unknown as Record<string, unknown>;
+  for (const k of CAMPOS_EVENTO) {
+    if (!(k in e)) continue;
+    const v = e[k];
+    if (k === 'canal' && v == null) continue;
+    alvo[k] = typeof v === 'string' ? (k === 'observacoes' ? v.trim() : v.replace(/\s+/g, ' ').trim()) || null : v ?? null;
+  }
+}
+
+// Conversas com evento: uma encaminhada (aguardando contato), uma ainda com o assistente e uma já fechada.
+{
+  const data = dia(18);
+  const larissa = novaConversaDemo('+5585991230011', 'Larissa Pontes', 'humano', [
+    msg('entrada', 'cliente', 'Oi! Vocês fazem aniversário? Queria comemorar meus 30 anos aí', 55),
+    msg('saida', 'robo', 'Que legal, Larissa! Fazemos sim. Para quantas pessoas e qual data você pensou?', 54, { intencao: 'evento' }),
+    msg('entrada', 'cliente', `Umas 20 pessoas, dia ${data.slice(8, 10)}/${data.slice(5, 7)} às 19h, se der no jardim. Vou levar o bolo`, 50),
+    msg('saida', 'robo', 'Vou passar os detalhes do seu evento para a nossa equipe, que continua o atendimento por aqui.', 49, { intencao: 'evento' }),
+  ], { motivo_humano: 'evento' });
+  guardarOportunidade(larissa, rascunhoOportunidade(larissa, 'assistente', { tipo: 'aniversario', data_pretendida: data, horario: '19h', convidados: 20, ambiente_codigo: 'jardim', necessidades: 'bolo próprio', status: 'aguardando_contato', encaminhada_em: agoraMenos(49) }, 54));
+  const bruno = novaConversaDemo('+5585991230012', 'Bruno Arrais', 'robo', [
+    msg('entrada', 'cliente', 'Vocês fazem evento intimista? Seria uma reunião da empresa', 15),
+    msg('saida', 'robo', 'Fazemos, sim! Quantas pessoas devem participar?', 14, { intencao: 'evento' }),
+  ]);
+  guardarOportunidade(bruno, rascunhoOportunidade(bruno, 'assistente', { tipo: 'reuniao' }, 14));
+  const sofia = novaConversaDemo('+5585991230013', 'Sofia Lins', 'encerrada', [
+    msg('entrada', 'cliente', 'Queria fechar a confraternização do escritório', 60 * 24 * 6),
+    msg('saida', 'equipe', 'Combinado, Sofia! Está tudo certo para o dia.', 60 * 24 * 5, { usuario_nome: 'Gabriela Gerente (demo)' }),
+  ]);
+  guardarOportunidade(sofia, rascunhoOportunidade(sofia, 'equipe', { tipo: 'confraternizacao', data_pretendida: dia(-2), horario: 'à tarde', convidados: 18, ambiente_codigo: 'salao', status: 'fechado', responsavel_id: usuarioDemo('gerente').id, encaminhada_em: agoraMenos(60 * 24 * 6), concluida_em: agoraMenos(60 * 24 * 5) }, 60 * 24 * 6));
+}
+
 const achar = (id: string) => {
   const c = conversas.find((x) => x.id === id);
   if (!c) throw new ErroDemo(404, 'nao_encontrado', 'Conversa não encontrada.');
@@ -191,11 +301,11 @@ const achar = (id: string) => {
 const detalhe = (c: ConversaDemo): ConversaDetalhe => {
   const { followup_motivo, ...d } = atualizar(c);
   void followup_motivo;
-  return d;
+  return { ...d, assunto: d.assunto ?? null, evento: eventoDaConversa(c.id) };
 };
 const resumoConversa = (c: ConversaDemo) => {
-  const { mensagens, externas, ...r } = detalhe(c);
-  void mensagens; void externas;
+  const { mensagens, externas, evento, ...r } = detalhe(c);
+  void mensagens; void externas; void evento;
   return r;
 };
 /** Regra de servico._assumir do backend: com outra pessoa atendendo, só com `transferir` (senão 409). */
@@ -401,19 +511,21 @@ const ROTAS_ATENDIMENTO: Rota[] = [
       aguardando_equipe: conversas.filter((c) => c.aguardando_equipe).length,
       inativas: 0,
       falhas_de_envio_24h: conversas.flatMap((c) => c.mensagens).filter((m) => m.direcao === 'saida' && m.status === 'falhou').length,
-      configuracao: { ...CONFIGURACAO, templates: TEMPLATES.length },
+      configuracao: { ...CONFIGURACAO, templates: TEMPLATES.length, contato_comercial_configurado: false },
+      eventos: Object.fromEntries(ABERTOS_EVENTO.map((s) => [s, oportunidades.filter((o) => o.status === s).length])),
     };
   }],
   ['GET', /^atendimento\/falhas$/, TODOS, () => conversas.flatMap((c) => c.mensagens.filter((m) => m.direcao === 'saida' && m.status === 'falhou').map((m) => ({ ...m, conversa_id: c.id, nome_contato: c.nome_contato, telefone_e164: c.telefone_e164 }))).reverse()],
   ['GET', /^atendimento\/conversas$/, TODOS, ({ query }) => {
     const estado = query.get('estado');
     const modo = query.get('modo');
+    const assunto = query.get('assunto');
     const busca = query.get('busca')?.toLowerCase();
     if (busca !== undefined && busca.trim().length < 2) throw new ErroDemo(422, 'validacao', 'A busca precisa de pelo menos 2 caracteres.');
     const digitos = busca?.replace(/\D/g, '') ?? '';
     conversas.forEach(atualizar);
     return conversas
-      .filter((c) => (!estado || c.estado === estado) && (!modo || c.modo === modo) && (!busca || (c.nome_contato ?? '').toLowerCase().includes(busca.trim()) || (digitos.length >= 4 && c.telefone_e164.includes(digitos))))
+      .filter((c) => (!estado || c.estado === estado) && (!modo || c.modo === modo) && (!assunto || c.assunto === assunto) && (!busca || (c.nome_contato ?? '').toLowerCase().includes(busca.trim()) || (digitos.length >= 4 && c.telefone_e164.includes(digitos))))
       .sort((a, b) => Number(b.estado === 'esperando') - Number(a.estado === 'esperando') || b.ultima_atividade_em.localeCompare(a.ultima_atividade_em))
       .map(resumoConversa);
   }],
@@ -475,6 +587,70 @@ const ROTAS_ATENDIMENTO: Rota[] = [
     const { ligado } = await corpo<{ ligado: boolean }>();
     Object.assign(c, { followup_desligado: !ligado, followup_motivo: ligado ? null : 'desligado_pela_equipe' });
     return detalhe(c);
+  }],
+  ['GET', /^atendimento\/eventos$/, TODOS, ({ query }) => {
+    const status = query.getAll('status');
+    const abertas = query.get('abertas');
+    const busca = query.get('busca')?.trim().toLowerCase();
+    if (busca !== undefined && busca.length < 2) throw new ErroDemo(422, 'validacao', 'A busca precisa de pelo menos 2 caracteres.');
+    const digitos = busca?.replace(/\D/g, '') ?? '';
+    const responsavel = query.get('responsavel_id');
+    const itens = oportunidades.map(eventoSaida)
+      .filter((e) => (!status.length || status.includes(e.status)) && (abertas === null || e.aberta === (abertas === 'true')) && (!responsavel || e.responsavel_id === responsavel)
+        && (!busca || (e.nome_contato ?? '').toLowerCase().includes(busca) || (digitos.length >= 4 && e.telefone_e164.includes(digitos))))
+      .sort((a, b) => Number(b.status === 'aguardando_contato') - Number(a.status === 'aguardando_contato') || b.atualizado_em.localeCompare(a.atualizado_em) || b.id - a.id);
+    const limite = Number(query.get('limite') ?? 50), deslocamento = Number(query.get('deslocamento') ?? 0);
+    return {
+      itens: itens.slice(deslocamento, deslocamento + limite), total: itens.length,
+      por_status: Object.fromEntries((Object.keys(STATUS_EVENTO) as StatusEvento[]).map((s) => [s, oportunidades.filter((o) => o.status === s).length])),
+    };
+  }],
+  ['GET', /^atendimento\/eventos\/opcoes$/, TODOS, ({ papel }) => ({
+    unidade_id: 1,
+    tipos: Object.entries(TIPOS_EVENTO).map(([codigo, rotulo]) => ({ codigo, rotulo })),
+    status: Object.entries(STATUS_EVENTO).map(([codigo, rotulo]) => ({ codigo, rotulo, aberto: ABERTOS_EVENTO.includes(codigo as StatusEvento) })),
+    canais: CANAIS_EVENTO,
+    espacos: AMBIENTES.filter((a) => a.ativo).map((a) => ({ codigo: a.codigo, nome: a.nome, capacidade: a.limites_confirmados_em ? a.capacidade_max : null })),
+    responsaveis: EQUIPE_DEMO.map((u) => ({ id: u.id, nome: u.nome })).sort((a, b) => a.nome.localeCompare(b.nome)),
+    pode_mudar_status: papel !== 'operador',
+  })],
+  ['GET', /^atendimento\/eventos\/(\d+)$/, TODOS, ({ params }) => {
+    const o = oportunidades.find((x) => x.id === Number(params[0]));
+    if (!o) throw new ErroDemo(404, 'nao_encontrado', 'Oportunidade não encontrada.');
+    return eventoSaida(o);
+  }],
+  ['PATCH', /^atendimento\/eventos\/(\d+)$/, TODOS, async ({ params, papel, corpo }) => {
+    const e = await corpo<Record<string, unknown>>();
+    if (['status', 'responsavel_id', 'motivo_perda'].some((k) => k in e) && papel === 'operador') throw new ErroDemo(403, 'sem_permissao', 'Só a gerência muda o status comercial e o responsável.');
+    const o = oportunidades.find((x) => x.id === Number(params[0]));
+    if (!o) throw new ErroDemo(404, 'nao_encontrado', 'Oportunidade não encontrada.');
+    if (e.status != null && !(String(e.status) in STATUS_EVENTO)) throw new ErroDemo(422, 'validacao', 'Status inválido.');
+    if (e.responsavel_id && !EQUIPE_DEMO.some((u) => u.id === e.responsavel_id)) throw new ErroDemo(422, 'responsavel_invalido', 'Responsável precisa ser alguém ativo da equipe desta unidade.');
+    const novo = (e.status ?? null) as StatusEvento | null;
+    if (novo && novo !== o.status && ABERTOS_EVENTO.includes(novo) && !ABERTOS_EVENTO.includes(o.status) && abertaDaConversa(o.conversa_id)) throw new ErroDemo(409, 'evento_aberto_na_conversa', 'Esta conversa já tem outro evento aberto.');
+    aplicarCamposEvento(o, e, ['status', 'responsavel_id', 'motivo_perda']);
+    if ('responsavel_id' in e) o.responsavel_id = (e.responsavel_id as string | null) ?? null;
+    if ('motivo_perda' in e) o.motivo_perda = String(e.motivo_perda ?? '').trim() || null;
+    if (novo && novo !== o.status) {
+      o.status = novo;
+      o.concluida_em = novo === 'fechado' || novo === 'perdido' ? new Date().toISOString() : null;
+      if (novo !== 'novo_interesse' && !o.encaminhada_em) o.encaminhada_em = new Date().toISOString();
+      if (novo !== 'perdido' && !('motivo_perda' in e)) o.motivo_perda = null;
+    }
+    o.atualizado_em = new Date().toISOString();
+    if (ABERTOS_EVENTO.includes(o.status)) achar(o.conversa_id).assunto = 'evento';
+    return eventoSaida(o);
+  }],
+  ['POST', /^atendimento\/conversas\/([0-9a-f-]{36})\/evento$/, TODOS, async ({ params, papel, corpo }) => {
+    const c = achar(params[0]);
+    const existente = abertaDaConversa(c.id);
+    if (existente) throw new ErroDemo(409, 'evento_aberto_na_conversa', `Esta conversa já tem um evento aberto (#${existente.id}).`, { oportunidade_id: existente.id });
+    const e = (await corpo<Record<string, unknown> | null>()) ?? {};
+    const o = rascunhoOportunidade(c, 'equipe');
+    aplicarCamposEvento(o, e, ['responsavel_id']);
+    // como o backend: o Atendente pode mandar responsavel_id, mas só a gerência define (o resto é ignorado)
+    if (e.responsavel_id && papel !== 'operador') o.responsavel_id = String(e.responsavel_id);
+    return eventoSaida(guardarOportunidade(c, o));
   }],
   ['GET', /^atendimento\/templates$/, TODOS, () => TEMPLATES],
   ['GET', /^atendimento\/contatos$/, TODOS, ({ query }) => {

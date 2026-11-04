@@ -9,7 +9,7 @@ import type { ReservaPainel, AmbienteConfig, StatusReservaBase, Comparecimento, 
 
 const TOLERANCIA_MIN = 15;
 
-const AMBIENTES: AmbienteConfig[] = [
+export const AMBIENTES: AmbienteConfig[] = [
   { id: 'a0000001-0000-4000-8000-000000000001', codigo: 'salao', nome: 'Salão', capacidade_max: 56, pessoas_min: 1, pessoas_max_por_reserva: 12, duracao_min: 120, exige_aprovacao: false, aceita_reserva_online: true, ordem: 1, limites_confirmados_em: null, ativo: true },
   { id: 'a0000001-0000-4000-8000-000000000002', codigo: 'jardim', nome: 'Jardim', capacidade_max: 40, pessoas_min: 1, pessoas_max_por_reserva: 10, duracao_min: 120, exige_aprovacao: false, aceita_reserva_online: true, ordem: 2, limites_confirmados_em: null, ativo: true },
   { id: 'a0000001-0000-4000-8000-000000000003', codigo: 'lounge', nome: 'Lounge', capacidade_max: 20, pessoas_min: 2, pessoas_max_por_reserva: 8, duracao_min: 120, exige_aprovacao: false, aceita_reserva_online: true, ordem: 3, limites_confirmados_em: null, ativo: true },
