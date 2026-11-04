@@ -3,7 +3,6 @@
 import type { Data, Instante, Uuid, Pagina } from './comum';
 
 /** Contrato do serviço público de reservas: o mesmo tipo que o site usa. */
-export type { ReservaConfig as ConfigReservasSite, Disponibilidade as DisponibilidadeSite } from '../../../lib/reservas/contrato';
 
 export type StatusReserva = 'pendente' | 'confirmada' | 'lembrada' | 'reconfirmada' | 'cancelada' | 'compareceu' | 'nao_compareceu';
 export type StatusReservaBase = 'pendente' | 'confirmada' | 'lembrada' | 'reconfirmada' | 'cancelada';
@@ -75,6 +74,24 @@ export interface Lotacao {
   ativo: boolean;
   pessoas: number;
   horarios: { hora: string; ocupadas: number; cabe: boolean }[];
+}
+
+/** GET /admin/reservas/disponibilidade: o que a equipe pode lançar, com as regras da unidade do ambiente. */
+export interface DisponibilidadeEquipe {
+  ambiente_id: Uuid;
+  ambiente: string;
+  unidade: string;
+  data: Data;
+  pessoas: number;
+  capacidade_max: number;
+  duracao_min: number;
+  /** AMBAR_PAINEL_CRIACAO_MANUAL: o POST responde 403 enquanto estiver desligada. */
+  criacao_manual: boolean;
+  /** Por que o ambiente não recebe este pedido (inativo, pessoas abaixo do mínimo, acima da capacidade). */
+  aviso: string | null;
+  horarios: { hora: string; disponivel: boolean; motivo: 'passado' | 'lotado' | null; ocupadas: number }[];
+  /** Sem horário nesta data: a próxima data em que este ambiente funciona. */
+  proxima_data: Data | null;
 }
 
 export interface HistoricoComparecimento {

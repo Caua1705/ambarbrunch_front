@@ -3,18 +3,12 @@
 import type { APIRoute } from 'astro';
 import { modoPainel, modulosLiberados, rotaLiberada, DEMO_PERMITIDO } from '../../servidor/config';
 import { lerSessao, apagarSessao, COOKIE_UNIDADE, requisicaoDoPainel } from '../../servidor/sessao';
-import { chamarBackend, chamarPublico, BackendForaDoAr } from '../../servidor/backend';
+import { chamarBackend, BackendForaDoAr } from '../../servidor/backend';
 
 export const prerender = false;
 
 const CAMINHO_VALIDO = /^[a-z0-9][a-z0-9_\-/.]*$/i;
 const REPASSAR = ['content-type', 'idempotency-key'];
-// A Nova reserva lê a disponibilidade no MESMO serviço público do site (só leitura, sem token): as regras ficam num lugar só.
-// Só estas duas rotas saem de /admin/ no backend; a unidade é a das reservas do site, então `unidade` não vai junto.
-const ROTAS_DO_SITE: Record<string, string> = {
-  'reservas/publica/config': 'reservas/config',
-  'reservas/publica/disponibilidade': 'reservas/disponibilidade',
-};
 
 // Arquivos que o backend devolve (mídia do WhatsApp no Atendimento): o corpo passa como veio (binário, em fluxo), mas só os
 // tipos que o navegador MOSTRA sem executar nada abrem no painel. O resto (HTML, SVG, XML…, que um cliente poderia mandar
@@ -86,18 +80,13 @@ export const ALL: APIRoute = async ({ params, request, cookies, url }) => {
     const v = request.headers.get(h);
     if (v) headers.set(h, v);
   }
-  const doSite = ROTAS_DO_SITE[caminho];
-  if (doSite && metodo !== 'GET') return erro(405, 'Método não permitido.', 'metodo');
   let res: Response;
   try {
-    if (doSite) query.delete('unidade');
-    res = doSite
-      ? await chamarPublico(query.size ? `${doSite}?${query}` : doSite)
-      : await chamarBackend(sessao.token, alvo, {
-          method: metodo,
-          headers,
-          body: metodo === 'GET' ? undefined : await request.arrayBuffer(),
-        });
+    res = await chamarBackend(sessao.token, alvo, {
+      method: metodo,
+      headers,
+      body: metodo === 'GET' ? undefined : await request.arrayBuffer(),
+    });
   } catch (e) {
     if (e instanceof BackendForaDoAr) return erro(502, 'O sistema do Âmbar não respondeu. Tente de novo em instantes.', 'backend_indisponivel');
     throw e;

@@ -19,17 +19,6 @@ export async function chamarBackend(token: string | null, caminho: string, init:
   }
 }
 
-/** Serviço público das reservas (o mesmo do site), sem token. `caminho` é relativo à raiz do backend. */
-export async function chamarPublico(caminho: string): Promise<Response> {
-  const base = apiBase();
-  if (!base) throw new BackendForaDoAr('PAINEL_API_URL não configurada');
-  try {
-    return await fetch(`${base}/${caminho}`, { headers: { Accept: 'application/json' }, redirect: 'manual', signal: AbortSignal.timeout(TEMPO_LIMITE) });
-  } catch (e) {
-    throw new BackendForaDoAr(e instanceof Error ? e.message : String(e));
-  }
-}
-
 export async function lerJson<T>(res: Response): Promise<T | null> {
   try {
     return (await res.json()) as T;

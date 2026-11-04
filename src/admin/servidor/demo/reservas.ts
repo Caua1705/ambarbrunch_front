@@ -155,18 +155,30 @@ function registrar(l: Linha, novo: Comparecimento, motivo: string | null, papel:
   r.comparecimento_registrado_em = novo === 'nao_registrado' ? null : new Date().toISOString();
 }
 
-function filtrar(q: URLSearchParams) {
+const semAcento = (t: string) => t.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+
+function filtrar(q: URLSearchParams, verContato = true) {
   montar();
   const de = q.get('data_de');
   const ate = q.get('data_ate');
   const st = q.getAll('status');
   const amb = q.get('ambiente_id');
-  const busca = q.get('busca')?.toLowerCase().trim();
+  const busca = semAcento(q.get('busca') ?? '').trim();
+  const digitos = verContato && busca.replace(/\D/g, '').length >= 4 ? busca.replace(/\D/g, '') : '§';
   return banco
     .filter((l) => (!de || l.r.data >= de) && (!ate || l.r.data <= ate) && (!amb || l.r.ambiente_id === amb))
     .filter((l) => !st.length || st.includes(saida(l).status))
-    .filter((l) => !busca || l.r.contato_nome.toLowerCase().includes(busca) || (l.r.contato_telefone_e164 ?? '').includes(busca.replace(/\D/g, '') || '§') || l.r.codigo.toLowerCase().includes(busca))
-    .sort((a, b) => (a.r.data + a.r.hora).localeCompare(b.r.data + b.r.hora));
+    .filter((l) => !busca || semAcento(l.r.contato_nome).includes(busca) || (l.r.contato_telefone_e164 ?? '').includes(digitos) || l.r.codigo.toLowerCase().includes(busca))
+    .sort((a, b) => {
+      if (busca) {
+        // como o backend: com busca, as próximas primeiro e depois as antigas
+        const hoje = hojeFortaleza();
+        const [fa, fb] = [a.r.data >= hoje, b.r.data >= hoje];
+        if (fa !== fb) return fa ? -1 : 1;
+        if (!fa) return (b.r.data + b.r.hora).localeCompare(a.r.data + a.r.hora);
+      }
+      return (a.r.data + a.r.hora).localeCompare(b.r.data + b.r.hora);
+    });
 }
 
 export function resumoReservasHoje() {
@@ -196,7 +208,7 @@ export const ROTAS_RESERVAS: Rota[] = [
       query.set('data_de', !de || de < hojeFortaleza() ? hojeFortaleza() : de);
       query.set('data_ate', !ateQ || ateQ > ate ? ate : ateQ);
     }
-    const itens = filtrar(query).map((l) => paraPapel(saida(l), papel));
+    const itens = filtrar(query, papel !== 'operador').map((l) => paraPapel(saida(l), papel));
     const lim = Number(query.get('limite') ?? 50);
     const des = Number(query.get('deslocamento') ?? 0);
     return { total: itens.length, itens: itens.slice(des, des + lim) };
@@ -227,24 +239,20 @@ export const ROTAS_RESERVAS: Rota[] = [
     const pessoas = Number(query.get('pessoas') ?? 0);
     return { ambiente_id: amb.id, ambiente: amb.nome, data, capacidade_max: amb.capacidade_max, duracao_min: amb.duracao_min, ativo: amb.ativo, pessoas, horarios: lotacaoDemo(amb, data, pessoas) };
   }],
-  // Serviço público do site (GET /reservas/config e /reservas/disponibilidade do backend), como a ponte o entrega ao painel.
-  ['GET', /^reservas\/publica\/config$/, TODOS, () => ({
-    ambientes: AMBIENTES.filter((a) => a.ativo && a.aceita_reserva_online).map((a) => ({ id: a.codigo, nome: a.nome, capacidadeMax: a.capacidade_max, pessoasMin: a.pessoas_min, pessoasMax: a.pessoas_max_por_reserva, datasFechadas: [] })),
-    pessoas: { min: 1, max: Math.max(...AMBIENTES.map((a) => a.pessoas_max_por_reserva)) },
-    antecedencia: { diasMax: politica.antecedencia_max_dias, horasMin: politica.antecedencia_min_horas },
-    exigeEmail: politica.exige_email,
-    fusoHorario: 'America/Fortaleza',
-    privacidadeVersao: politica.privacidade_texto_versao,
-  })],
-  ['GET', /^reservas\/publica\/disponibilidade$/, TODOS, ({ query }) => {
-    const amb = AMBIENTES.find((a) => a.codigo === query.get('ambiente') && a.ativo && a.aceita_reserva_online);
-    if (!amb) throw new ErroDemo(422, 'regra_violada', 'Ambiente indisponível para reserva online.');
+  // Como GET /admin/reservas/disponibilidade: grade do ambiente, lotação e horário que já passou, sem a antecedência do site.
+  ['GET', /^reservas\/disponibilidade$/, GERENCIA, ({ query }) => {
+    const amb = AMBIENTES.find((a) => a.id === query.get('ambiente_id'));
+    if (!amb) throw new ErroDemo(404, 'nao_encontrado', 'Ambiente não encontrado.');
     const data = query.get('data') ?? hojeFortaleza();
     const pessoas = Number(query.get('pessoas') ?? 1);
-    if (pessoas > amb.pessoas_max_por_reserva) throw new ErroDemo(422, 'grupo_acima_do_limite', `Reservas online em ${amb.nome} vão até ${amb.pessoas_max_por_reserva} pessoas. Para grupos maiores, fale com a equipe.`);
-    if (pessoas < amb.pessoas_min) throw new ErroDemo(422, 'abaixo_do_minimo', `${amb.nome} recebe reservas a partir de ${amb.pessoas_min} pessoas.`);
-    const limite = Date.now() + politica.antecedencia_min_horas * 3_600_000;
-    return { data, horarios: lotacaoDemo(amb, data, pessoas).map((h) => ({ hora: h.hora.slice(0, 5), disponivel: h.cabe && new Date(instante(data, h.hora)).getTime() >= limite && data <= dia(politica.antecedencia_max_dias) })) };
+    const base = { ambiente_id: amb.id, ambiente: amb.nome, unidade: 'ambar_cafe', data, pessoas, capacidade_max: amb.capacidade_max, duracao_min: amb.duracao_min, criacao_manual: true, proxima_data: null };
+    const aviso = !amb.ativo ? 'Ambiente inativo.' : pessoas < amb.pessoas_min ? `${amb.nome} recebe reservas a partir de ${amb.pessoas_min} pessoas.` : pessoas > amb.capacidade_max ? `${amb.nome} comporta até ${amb.capacidade_max} pessoas.` : null;
+    if (aviso) return { ...base, aviso, horarios: [] };
+    const horarios = lotacaoDemo(amb, data, pessoas).map((h) => {
+      const motivo = new Date(instante(data, h.hora)).getTime() < Date.now() ? 'passado' : h.cabe ? null : 'lotado';
+      return { hora: h.hora, disponivel: !motivo, motivo, ocupadas: h.ocupadas };
+    });
+    return { ...base, aviso, horarios };
   }],
   ['GET', /^reservas\/mensagens$/, GERENCIA, () => {
     montar();

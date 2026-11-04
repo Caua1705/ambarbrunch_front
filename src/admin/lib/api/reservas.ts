@@ -2,7 +2,7 @@
 // api_comparecimento.py do backend). Clientes ficam em ./clientes.
 import { pedir, novaChave } from './cliente';
 import type {
-  AmbienteOperacao, ComparecimentoReserva, Comparecimento, ConfigReservasSite, ConfiguracaoUnidade, DisponibilidadeSite, ListaReservas, Lotacao, OperacaoReserva,
+  AmbienteOperacao, ComparecimentoReserva, Comparecimento, ConfiguracaoUnidade, DisponibilidadeEquipe, ListaReservas, Lotacao, OperacaoReserva,
   PendenciaComparecimento, ReservaAlteracao, ReservaEquipeEntrada, ReservaPainel, StatusReserva, MensagemReservaFila,
   PoliticaReserva, AmbienteConfig, RegraReserva,
 } from '../tipos/reservas';
@@ -15,7 +15,7 @@ export interface FiltroReservas {
   status?: StatusReserva[];
   comparecimento?: Comparecimento[];
   ambiente_id?: string;
-  /** Código, nome ou telefone (trecho do +55…), até 80 caracteres. */
+  /** Código, nome ou telefone em qualquer formato, até 80 caracteres. Telefone só para quem vê o contato. */
   busca?: string;
   limite?: number;
   deslocamento?: number;
@@ -45,13 +45,12 @@ export const reservas = {
   operacao: (data: string, unidade?: string) => pedir<OperacaoReserva[]>('reservas/operacao', { query: { data, unidade } }),
   ambientes: (unidade?: string) => pedir<AmbienteOperacao[]>('reservas/ambientes', { query: { unidade } }),
   lotacao: (ambiente_id: string, data: string, pessoas?: number) => pedir<Lotacao>('reservas/lotacao', { query: { ambiente_id, data, pessoas } }),
-  /** Serviço público do site (GET /reservas/config e /reservas/disponibilidade), lido pela ponte do painel. */
-  configSite: () => pedir<ConfigReservasSite>('reservas/publica/config'),
-  disponibilidadeSite: (ambiente: string, data: string, pessoas: number) => pedir<DisponibilidadeSite>('reservas/publica/disponibilidade', { query: { ambiente, data, pessoas } }),
+  /** Horários para a equipe lançar, com as regras da unidade do ambiente e sem a antecedência do site (exige reservas.criar). */
+  disponibilidade: (ambiente_id: string, data: string, pessoas: number) => pedir<DisponibilidadeEquipe>('reservas/disponibilidade', { query: { ambiente_id, data, pessoas } }),
   /** Exige reservas.ver_contato (Gerente e Proprietário). */
   mensagens: (q: { status?: string[]; tipo?: string; data_de?: string; data_ate?: string; limite?: number; deslocamento?: number }) => pedir<Pagina<MensagemReservaFila>>('reservas/mensagens', { query: q }),
   obter: (id: string) => pedir<ReservaPainel>(`reservas/${id}`),
-  /** Desligado por padrão no backend (403 `criacao_manual_desativada`): na 1ª versão, reserva nova só pelo site. */
+  /** Exige reservas.criar e AMBAR_PAINEL_CRIACAO_MANUAL ligada no backend (senão 403 `criacao_manual_desativada`). */
   criar: (r: ReservaEquipeEntrada, chave = novaChave()) => pedir<ReservaPainel>('reservas', { metodo: 'POST', corpo: r, idempotencia: chave }),
   /** Na 1ª versão só contato e observações: data, horário, ambiente e pessoas diferentes dão 403 `alteracao_desativada`. */
   alterar: (id: string, r: ReservaAlteracao) => pedir<ReservaPainel>(`reservas/${id}`, { metodo: 'PATCH', corpo: r }),

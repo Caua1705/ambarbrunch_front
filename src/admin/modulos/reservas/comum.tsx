@@ -92,9 +92,8 @@ export async function registrarComparecimento(id: string, valor: Comparecimento,
 }
 
 /**
- * Criação manual de reserva pelo painel: o backend só diz que está desligada respondendo 403 `criacao_manual_desativada`
- * (config `painel_criacao_manual`, sem rota de leitura). Depois da primeira recusa, o painel lembra disso nesta sessão do
- * navegador e mostra o botão desligado ANTES de a pessoa preencher tudo de novo.
+ * Criação manual de reserva pelo painel: a disponibilidade informa `criacao_manual` e o POST responde 403
+ * `criacao_manual_desativada`. Depois de saber, o painel lembra disso nesta sessão do navegador para avisar na agenda.
  */
 const CHAVE_CRIACAO = 'painel-reserva-manual-desligada';
 export function criacaoManualDesligada(): boolean {

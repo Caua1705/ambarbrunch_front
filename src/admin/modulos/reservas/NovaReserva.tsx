@@ -1,7 +1,7 @@
 // Nova reserva pela equipe (ligação, WhatsApp, balcão) e alteração de contato. A equipe escolhe data e pessoas e vê, por
-// ambiente, os horários que o MESMO serviço do site oferece (./disponibilidade.ts); nenhuma regra é repetida aqui. Quem
-// decide é o backend: o horário é conferido de novo antes de gravar e a lotação é reconferida sob trava no POST. Sem resposta
-// do serviço, não há horário nem como gravar.
+// ambiente, os horários que o backend libera para a equipe (./disponibilidade.ts): valem os horários e a lotação da unidade,
+// sem a antecedência do site. Nenhuma regra é repetida aqui: o POST reconfere tudo sob trava e a tela só trata a resposta.
+// Sem resposta do backend, não há horário nem como gravar.
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { Check, Info, Lock } from 'lucide-preact';
 import { useConsulta } from '../../lib/consulta';
@@ -65,14 +65,14 @@ function CamposContato({ f, set, erros }: { f: Form; set: (m: Partial<Form>) => 
   );
 }
 
-const MOTIVO = { lotado: 'lotado', fora_do_prazo: 'fora do prazo do site' } as const;
+// Recusas do POST em que o horário deixou de valer: a escolha cai e a pessoa escolhe outro.
+const HORARIO_PERDIDO = ['lotacao_excedida', 'fora_da_agenda', 'horario_passado', 'antes_da_abertura'];
 
 function resumoAmbiente(a: OpcaoAmbiente, pessoas: number) {
   if (a.aviso) return a.aviso;
   if (!a.horarios.length) return 'Sem horários nesta data';
-  const livres = a.horarios.filter((h) => !h.indisponivel).length;
-  if (livres) return plural(livres, 'horário livre', 'horários livres');
-  return a.horarios.every((h) => h.indisponivel === 'lotado') ? `Sem lugar para ${plural(pessoas, 'pessoa', 'pessoas')}` : 'Sem horário dentro do prazo';
+  const livres = a.horarios.filter((h) => !h.lotado).length;
+  return livres ? plural(livres, 'horário livre', 'horários livres') : `Sem lugar para ${plural(pessoas, 'pessoa', 'pessoas')}`;
 }
 
 function fimDoHorario(hora: string, duracaoMin: number) {
@@ -110,13 +110,13 @@ function Horarios({ dados, f, pessoas, aoEscolher, aoIrPara }: { dados: Disponib
                       type="button"
                       role="radio"
                       aria-checked={marcado}
-                      disabled={!!h.indisponivel}
+                      disabled={h.lotado}
                       class={`btn btn--p${marcado ? ' btn--primario' : ''}`}
-                      title={h.indisponivel ? MOTIVO[h.indisponivel] : h.ocupadas !== null ? `${h.ocupadas} de ${a.capacidade} lugares ocupados` : undefined}
+                      title={h.lotado ? 'lotado' : `${h.ocupadas} de ${a.capacidade} lugares ocupados`}
                       onClick={() => aoEscolher(a, h)}
                     >
                       <span class="num">{h.hora}</span>
-                      {h.indisponivel && <span class="sr"> ({MOTIVO[h.indisponivel]})</span>}
+                      {h.lotado && <span class="sr"> (lotado)</span>}
                     </button>
                   );
                 })}
@@ -125,11 +125,11 @@ function Horarios({ dados, f, pessoas, aoEscolher, aoIrPara }: { dados: Disponib
           </div>
         ))}
       </div>
-      {dados.ambientes.some((a) => a.horarios.some((h) => h.indisponivel)) && <span class="campo__ajuda">Riscado: lotado ou fora do prazo do site.</span>}
+      {dados.ambientes.some((a) => a.horarios.some((h) => h.lotado)) && <span class="campo__ajuda">Riscado: lotado para esse número de pessoas.</span>}
       {ambiente && escolhido && (
         <p class="disp__escolha" role="status">
           <strong>{ambiente.nome}</strong> · <span class="num">{escolhido.hora} às {fimDoHorario(escolhido.hora, ambiente.duracaoMin)}</span> · {plural(pessoas, 'pessoa', 'pessoas')}
-          {escolhido.ocupadas !== null && <span class="fraco"> · {escolhido.ocupadas} de {ambiente.capacidade} lugares já ocupados</span>}
+          <span class="fraco"> · {escolhido.ocupadas} de {ambiente.capacidade} lugares já ocupados</span>
         </p>
       )}
     </>
@@ -175,7 +175,7 @@ export function NovaReserva({ aberta, aoFechar, unidade, dataInicial, aoCriar }:
   useEffect(() => {
     if (!f.hora || !disponibilidade.dados) return;
     const h = disponibilidade.dados.ambientes.find((a) => a.id === f.ambiente_id)?.horarios.find((x) => x.hora === f.hora);
-    if (!h || h.indisponivel) perderHorario();
+    if (!h || h.lotado) perderHorario();
   }, [disponibilidade.dados]);
 
   async function enviar(e: Event) {
@@ -187,20 +187,18 @@ export function NovaReserva({ aberta, aoFechar, unidade, dataInicial, aoCriar }:
       setErroGeral(new ErroApi('permissao', 'Seu usuário não tem unidade atribuída.'));
       return;
     }
-    const ambiente = ambientes.dados?.find((a) => a.id === f.ambiente_id);
-    if (!ambiente) return perderHorario();
     setEnviando(true);
     setErroGeral(null);
     setPerdeuHorario(false);
     try {
-      if (!(await horarioContinuaLivre(ambiente, f.data, pessoas, f.hora))) return perderHorario();
+      if (!(await horarioContinuaLivre(f.ambiente_id, f.data, pessoas, f.hora))) return perderHorario();
       const r = await reservas.criar({ unidade, ambiente_id: f.ambiente_id, data: f.data, hora: f.hora, pessoas, nome: f.nome.trim(), telefone: digitosTelefone(f.telefone), email: f.email || null, observacoes: f.observacoes || null, canal: f.canal }, chave.current);
       atualizarReservas();
       avisar(`Reserva de ${r.contato_nome} criada.`, 'ok');
       aoCriar(r);
     } catch (err) {
       const x = err instanceof ErroApi ? err : new ErroApi('servidor', 'Não foi possível criar a reserva.');
-      if (x.codigo === 'lotacao_excedida') return perderHorario();
+      if (x.codigo && HORARIO_PERDIDO.includes(x.codigo)) return perderHorario();
       setErros(x.campos);
       setErroGeral(x);
       if (x.tipo === 'conflito') atualizarReservas();
@@ -209,7 +207,7 @@ export function NovaReserva({ aberta, aoFechar, unidade, dataInicial, aoCriar }:
     }
   }
 
-  const desligada = erroGeral?.codigo === 'criacao_manual_desativada';
+  const desligada = erroGeral?.codigo === 'criacao_manual_desativada' || disponibilidade.dados?.criacaoManual === false;
   useEffect(() => {
     if (desligada) lembrarCriacaoDesligada();
   }, [desligada]);
@@ -230,7 +228,7 @@ export function NovaReserva({ aberta, aoFechar, unidade, dataInicial, aoCriar }:
       <form id="form-nova-reserva" onSubmit={enviar} noValidate class="pilha">
         {desligada ? (
           <Aviso tom="atencao" icone={<Lock aria-hidden="true" />}>
-            <strong>Nesta versão, reservas novas são feitas só pelo site.</strong> A criação pela equipe está desligada no sistema do Âmbar e pode ser ligada pelo administrador quando a operação decidir.
+            <strong>A criação de reservas pelo painel está desligada.</strong> Enquanto isso, reservas novas são feitas só pelo site. O administrador do sistema pode ligá-la.
           </Aviso>
         ) : (
           erroGeral && <Aviso tom="perigo" icone={<Info aria-hidden="true" />}>{erroGeral.message}</Aviso>
