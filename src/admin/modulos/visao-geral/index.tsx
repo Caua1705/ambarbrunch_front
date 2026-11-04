@@ -11,11 +11,14 @@
 //    indicador diz isso em vez de inventar um resultado.
 //  - Produtos mais vendidos: GET /estoque/analises/produtos (vendas da Eyemobile por produto). Sem eles, as vendas por
 //    forma de pagamento do próprio relatório de vendas.
+//
+// Estados: sem a loja do PDV ligada, o backend responde `disponivel: false` e a tela mostra "—", nunca zero, sem faixa de
+// aviso. Falha de API é outra coisa: fica no próprio indicador ou cartão, com "Tentar de novo", e nunca vira "sem vendas".
 import { useState } from 'preact/hooks';
-import { CalendarCheck, Users } from 'lucide-preact';
+import { AlertTriangle, CalendarCheck, Users } from 'lucide-preact';
 import type { ContextoPainel } from '../../lib/sessao';
 import { pode, type Modulo } from '../../lib/permissoes';
-import { useConsulta } from '../../lib/consulta';
+import { useConsulta, type Consulta } from '../../lib/consulta';
 import { reservas } from '../../lib/api/reservas';
 import { financeiro } from '../../lib/api/financeiro';
 import { estoque } from '../../lib/api/estoque';
@@ -23,7 +26,7 @@ import { moeda, num, hojeISO, dataLonga, dataCurta, inteiro, plural, relativo, m
 import { lerParam, gravarParams } from '../../lib/rotas';
 import { Raiz } from '../../ui/camadas';
 import { Indicador, Cartao, Segmentado, Variacao, Situacao, Aviso } from '../../ui/base';
-import { Dados, Esqueleto, Vazio } from '../../ui/estados';
+import { Dados, Esqueleto, Falha, Vazio } from '../../ui/estados';
 import { GraficoBarras, Legenda, Ranking } from '../../ui/graficos';
 import type { Lancamento, NivelQualidade, RelatorioVendas } from '../../lib/tipos/financeiro';
 import { statusBase } from '../reservas/comum';
@@ -38,6 +41,8 @@ const QUALIDADE: Record<NivelQualidade, { rotulo: string; tom: 'ok' | 'atencao' 
 
 const COR_RECEITA = 'var(--grafico-1)';
 const COR_DESPESA = 'var(--grafico-2)';
+
+const SEM_VENDAS = 'Sem vendas sincronizadas';
 
 const lerTipo = (v: string | null): TipoPeriodo => (OPCOES.some((o) => o.valor === v) ? (v as TipoPeriodo) : 'mes');
 
@@ -83,6 +88,16 @@ async function despesasDoPeriodo(de: string, ate: string): Promise<{ itens: Lanc
   return { itens, completo: false };
 }
 
+/** Erro discreto de um indicador. Enquanto ele aparece o cartão não é link: botão dentro de link não funciona. */
+function FalhaIndicador({ consulta }: { consulta: Consulta<unknown> }) {
+  return (
+    <span class="indicador__falha" role="status">
+      <AlertTriangle aria-hidden="true" /> {consulta.erro?.message}{' '}
+      <button type="button" class="link" onClick={consulta.recarregar}>Tentar de novo</button>
+    </span>
+  );
+}
+
 function Executiva({ produtos }: { produtos: boolean }) {
   const hoje = hojeISO();
   const [tipo, setTipoEstado] = useState<TipoPeriodo>(() => lerTipo(lerParam('periodo')));
@@ -111,6 +126,8 @@ function Executiva({ produtos }: { produtos: boolean }) {
   const va = vendasAnt.dados?.disponivel ? vendasAnt.dados : null;
   const res = resultado.dados;
   const naPeriodo = rotuloPeriodo(p);
+  // Só cai para "formas de pagamento" quando não há análise por produto. Erro de API aparece no cartão, com nova tentativa.
+  const semProdutos = !produtos || maisVendidos.erro?.tipo === 'nao_implantado' || (maisVendidos.dados?.length === 0 && !!v?.por_meio.length);
 
   return (
     <>
@@ -128,11 +145,6 @@ function Executiva({ produtos }: { produtos: boolean }) {
         )}
       </div>
 
-      {vendas.dados && !vendas.dados.disponivel && (
-        <Aviso tom="atencao">
-          <strong>Aguardando dados de vendas.</strong> {vendas.dados.motivo} Receita, ticket médio e resultado aparecem quando a sincronização com a Eyemobile estiver ligada.
-        </Aviso>
-      )}
       {v?.sincronizacao.atrasada && p.ate === hoje && (
         <Aviso tom="atencao">
           <strong>Vendas desatualizadas.</strong> {v.sincronizacao.ultimo_sucesso_em ? `Última sincronização com a Eyemobile ${relativo(v.sincronizacao.ultimo_sucesso_em)}.` : 'A sincronização com a Eyemobile ainda não concluiu.'} Os números de hoje podem estar incompletos.
@@ -145,22 +157,22 @@ function Executiva({ produtos }: { produtos: boolean }) {
           carregando={vendas.carregando}
           valor={v ? moeda(v.totais.receita_liquida) : '—'}
           rodape={
-            vendas.erro && !vendas.dados ? vendas.erro.message
-            : !v ? 'Aguardando dados de vendas'
+            vendas.erro ? <FalhaIndicador consulta={vendas} />
+            : !v ? SEM_VENDAS
             : <><Variacao atual={num(v.totais.receita_liquida)} anterior={va ? num(va.totais.receita_liquida) : null} /> <span>Vendas líquidas {naPeriodo}</span></>
           }
-          href="/admin/financeiro?aba=relatorios&relatorio=vendas"
+          href={vendas.erro ? undefined : '/admin/financeiro?aba=relatorios&relatorio=vendas'}
         />
         <Indicador
           rotulo="Despesas"
           carregando={categorias.carregando}
           valor={categorias.dados ? moeda(categorias.dados.total) : '—'}
           rodape={
-            categorias.erro && !categorias.dados ? categorias.erro.message
+            categorias.erro ? <FalhaIndicador consulta={categorias} />
             : categorias.dados ? <><Variacao inverter atual={num(categorias.dados.total)} anterior={categoriasAnt.dados ? num(categoriasAnt.dados.total) : null} /> <span>Confirmadas por competência</span></>
             : null
           }
-          href="/admin/financeiro?aba=lancamentos"
+          href={categorias.erro ? undefined : '/admin/financeiro?aba=lancamentos'}
         />
         <Indicador
           rotulo="Resultado gerencial"
@@ -172,30 +184,32 @@ function Executiva({ produtos }: { produtos: boolean }) {
           }
           rodape={
             !mes ? <span>Apurado por mês. <button type="button" class="link" onClick={() => setTipo('mes')}>Ver este mês</button></span>
-            : resultado.erro && !res ? resultado.erro.message
+            : resultado.erro ? <FalhaIndicador consulta={resultado} />
             : res ? <><Situacao tom={QUALIDADE[res.qualidade.nivel].tom}>{QUALIDADE[res.qualidade.nivel].rotulo}</Situacao> <span>{res.disponivel ? 'Não é lucro contábil' : res.qualidade.motivos[0]?.texto ?? 'Indisponível'}</span></>
             : null
           }
-          href={mes ? `/admin/financeiro?aba=relatorios&relatorio=resultado&mes=${mes}` : undefined}
+          href={mes && !resultado.erro ? `/admin/financeiro?aba=relatorios&relatorio=resultado&mes=${mes}` : undefined}
         />
         <Indicador
           rotulo="Ticket médio"
           carregando={vendas.carregando}
           valor={v && v.totais.ticket_medio !== null ? moeda(v.totais.ticket_medio) : '—'}
-          rodape={!v ? 'Aguardando dados de vendas' : v.totais.vendas ? <><Variacao atual={num(v.totais.ticket_medio)} anterior={va ? num(va.totais.ticket_medio) : null} /> <span>{plural(v.totais.vendas, 'venda', 'vendas')}</span></> : 'Nenhuma venda no período'}
+          rodape={vendas.erro ? <FalhaIndicador consulta={vendas} /> : !v ? SEM_VENDAS : v.totais.vendas ? <><Variacao atual={num(v.totais.ticket_medio)} anterior={va ? num(va.totais.ticket_medio) : null} /> <span>{plural(v.totais.vendas, 'venda', 'vendas')}</span></> : 'Nenhuma venda no período'}
         />
       </section>
 
       <Cartao titulo="Receitas × despesas" descricao={`${agrupar === 'dia' ? 'Por dia' : agrupar === 'semana' ? 'Por semana' : 'Por mês'}${janela.ampliada ? ' · últimos 7 dias' : ''}`} acoes={<Legenda series={[{ nome: 'Receita', cor: COR_RECEITA }, { nome: 'Despesas', cor: COR_DESPESA }]} />}>
         <Dados consulta={despesasGrafico} recurso="O gráfico" esqueleto={<Esqueleto linhas={6} altura={28} />} compacto>
-          {(desp) => (
-            <GraficoEvolucao de={janela.de} ate={janela.ate} agrupar={agrupar} vendas={vendasGrafico.dados ?? null} despesas={desp.itens} completo={desp.completo} />
-          )}
+          {(desp) =>
+            vendasGrafico.erro && !vendasGrafico.dados ? <Falha erro={vendasGrafico.erro} aoTentar={vendasGrafico.recarregar} compacto recurso="O relatório de vendas" />
+            : vendasGrafico.carregando ? <Esqueleto linhas={6} altura={28} />
+            : <GraficoEvolucao de={janela.de} ate={janela.ate} agrupar={agrupar} vendas={vendasGrafico.dados ?? null} despesas={desp.itens} completo={desp.completo} />
+          }
         </Dados>
       </Cartao>
 
       <div class="colunas-iguais">
-        {produtos && !(maisVendidos.dados && maisVendidos.dados.length === 0 && v?.por_meio.length) && !maisVendidos.erro ? (
+        {!semProdutos ? (
           <Cartao titulo="Produtos mais vendidos" descricao={`Top 5 por quantidade, ${naPeriodo}`}>
             <Dados consulta={maisVendidos} recurso="A análise de produtos" esqueleto={<Esqueleto linhas={5} />} compacto>
               {(lista) =>
@@ -289,7 +303,7 @@ function GraficoEvolucao({ de, ate, agrupar, vendas, despesas, completo }: { de:
 const MEIOS: Record<string, string> = { credito: 'Crédito', debito: 'Débito', pix: 'Pix', dinheiro: 'Dinheiro', outro: 'Outros' };
 
 function PorMeio({ relatorio }: { relatorio: RelatorioVendas }) {
-  if (!relatorio.disponivel) return <Vazio compacto titulo="Aguardando dados de vendas">{relatorio.motivo}</Vazio>;
+  if (!relatorio.disponivel) return <Vazio compacto titulo={SEM_VENDAS}>{relatorio.motivo}</Vazio>;
   if (!relatorio.por_meio.length) return <Vazio compacto titulo="Nenhuma venda no período" />;
   return (
     <Ranking
