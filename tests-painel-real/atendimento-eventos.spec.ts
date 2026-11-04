@@ -6,7 +6,7 @@
 // muda o status, assume e responde (assistente calado) →
 // a Gerente cuida do status comercial e do responsável → evento novo depois do perdido, sem duplicar o aberto →
 // registro manual numa conversa sem evento → outra unidade não vê nada.
-//   PAINEL_REAL_API=http://127.0.0.1:8767 PAINEL_REAL_CHAVE=<painel_chave> PAINEL_REAL_EVENTOS=<eventos.json> \
+//   PAINEL_REAL_API=http://127.0.0.1:8767 PAINEL_REAL_CHAVE=<painel_chave> PAINEL_REAL_EVENTOS=<eventos.json de integracao_local.py ... eventos> \
 //     npx playwright test -c playwright.painel-real.config.ts tests-painel-real/atendimento-eventos.spec.ts
 import { test, expect, type APIRequestContext, type Page } from '@playwright/test';
 import crypto from 'node:crypto';
@@ -208,7 +208,7 @@ test('4. Gerente: status comercial, responsável, perdido com motivo e evento no
   const nova = page.getByRole('dialog', { name: 'Registrar evento' });
   await nova.getByRole('combobox', { name: /Tipo de evento/ }).selectOption('comemoracao');
   await nova.getByRole('spinbutton', { name: /Convidados/ }).fill('12');
-  await nova.getByRole('combobox', { name: /Ambiente/ }).selectOption('sala_privativa');
+  await nova.getByRole('combobox', { name: /Ambiente/ }).selectOption('privativa');
   await nova.getByRole('button', { name: 'Registrar evento' }).click();
   await expect(page.getByText('Evento registrado nesta conversa.')).toBeVisible();
   await expect(f).toContainText('Novo interesse');
@@ -237,7 +237,7 @@ test('5. registro manual numa conversa sem evento (cliente que ligou), ligado ao
   await page.getByRole('button', { name: 'Mais ações da conversa' }).click();
   await page.getByRole('menuitem', { name: 'Registrar evento' }).click();
   const nova = page.getByRole('dialog', { name: 'Registrar evento' });
-  await expect(nova.getByRole('combobox', { name: /Ambiente/ })).toContainText('Jardim (até 30)');
+  await expect(nova.getByRole('combobox', { name: /Ambiente/ })).toContainText('Jardim (até 10)');
   await nova.getByRole('combobox', { name: /Tipo de evento/ }).selectOption('reuniao');
   await nova.getByRole('spinbutton', { name: /Convidados/ }).fill('8');
   await nova.getByRole('textbox', { name: /Horário/ }).fill('de manhã');
