@@ -2385,6 +2385,95 @@ button.lista__item {
   margin-left: auto;
 }
 
+/* Reservas por ambiente */
+.grade-ambientes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--e-3);
+  align-items: start;
+}
+@media (max-width: 720px) {
+  .grade-ambientes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.cartao-ambiente {
+  display: flex;
+  flex-direction: column;
+}
+.ambiente-resumo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-1) var(--e-4);
+  margin: 0;
+  font-size: var(--t-s);
+  color: var(--texto-2);
+}
+.ambiente-resumo svg {
+  vertical-align: -2px;
+}
+.ocupacao-dia {
+  display: grid;
+  gap: 6px;
+  font-size: var(--t-s);
+  color: var(--texto-2);
+}
+.ocupacao-dia strong {
+  color: var(--texto);
+  font-weight: 650;
+}
+.ocupacao-dia__barra {
+  height: 6px;
+  border-radius: var(--r-pilula);
+  background: var(--borda);
+  overflow: hidden;
+}
+.ocupacao-dia__barra span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--marca);
+}
+.ambiente-reservas {
+  display: grid;
+  gap: var(--e-2);
+  justify-items: start;
+  font-size: var(--t-s);
+}
+.ambiente-reservas > div {
+  width: 100%;
+}
+.ambiente-reservas__dia {
+  border: 0;
+  background: none;
+  padding: 4px 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--texto-2);
+  text-transform: capitalize;
+  cursor: pointer;
+}
+.ambiente-reservas__dia:hover {
+  color: var(--marca-texto);
+  text-decoration: underline;
+}
+.ambiente-reservas__item {
+  min-height: 40px;
+  padding: 6px 0;
+  gap: var(--e-2);
+}
+button.ambiente-reservas__item:hover {
+  background: none;
+}
+.ambiente-reservas__nome {
+  flex: 1;
+  min-width: 0;
+  color: var(--texto);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* Reservas: barra da agenda e calendário do mês ------------------------------------------------------------------- */
 .agenda-barra {
   display: flex;

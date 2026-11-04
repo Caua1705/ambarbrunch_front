@@ -1,6 +1,6 @@
-// Períodos da Lista e da visão por Ambientes (os mesmos do painel anterior: Hoje, Amanhã, Próximos 7 dias e Todas).
-// "Todas" começa 30 dias atrás, como o painel anterior lia: a operação olha para frente; o histórico fica na ficha do
-// cliente. Para o Atendente o backend corta a janela em hoje…+14 dias sozinho.
+// Ordem das reservas e períodos da Lista (Hoje, Amanhã, Próximos 7 dias e Todas). A Lista saiu da navegação em 04/11/2026; a
+// agenda e os ambientes usam o período Dia, Semana ou Mês da barra. "Todas" começa 30 dias atrás, como o painel anterior lia.
+// Para o Atendente o backend corta a janela em hoje…+14 dias sozinho.
 import { useConsulta } from '../../lib/consulta';
 import { reservas } from '../../lib/api/reservas';
 import { hojeISO, somarDias } from '../../lib/formato';
@@ -13,8 +13,6 @@ export const PERIODOS: { valor: Periodo; rotulo: string }[] = [
   { valor: 'semana', rotulo: 'Próximos 7 dias' },
   { valor: 'todas', rotulo: 'Todas' },
 ];
-
-export const NO_PERIODO: Record<Periodo, string> = { hoje: 'hoje', amanha: 'amanhã', semana: 'nos próximos 7 dias', todas: 'no total' };
 
 export function intervalo(p: Periodo): { data_de: string; data_ate?: string } {
   const hoje = hojeISO();

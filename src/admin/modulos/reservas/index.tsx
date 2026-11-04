@@ -1,14 +1,15 @@
-// Reservas: a agenda primeiro. Uma barra só com a navegação (‹ Hoje ›), o intervalo na tela e a visualização — Dia (por
-// horário, com as ações), Semana, Mês (calendário), Lista (com busca) e Por ambiente. Sem cartões de indicador: o resumo
-// do dia é uma linha (reservas · pessoas) e as aprovações pendentes abrem numa gaveta. Detalhe em gaveta. Rotas reais
-// /admin/reservas* (no ar); o fluxo público e as mensagens do WhatsApp não passam por aqui.
+// Reservas: a agenda primeiro. Uma barra só com a navegação (‹ Hoje ›) e o intervalo na tela, e duas escolhas independentes:
+// o PERÍODO (Dia, Semana, Mês) e a VISUALIZAÇÃO (Calendário ou Por ambiente). Trocar uma nunca muda a outra, e a data de
+// referência acompanha a troca de período. Sem cartões de indicador: o resumo do dia é uma linha (reservas · pessoas) e as
+// aprovações pendentes abrem numa gaveta. Detalhe em gaveta. Rotas reais /admin/reservas* (no ar); o fluxo público e as
+// mensagens do WhatsApp não passam por aqui. A antiga visão Lista (Lista.tsx) saiu da navegação em 04/11/2026.
 // Sem tempo real no backend: a agenda é relida a cada minuto com a aba visível, ao voltar para a aba e no Atualizar.
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { ChevronLeft, ChevronRight, Plus, Search, CalendarClock, Check, UserCheck, MoreHorizontal, X, CalendarCheck, Phone, RotateCw, Lock } from 'lucide-preact';
 import type { ContextoPainel } from '../../lib/sessao';
 import { useConsulta } from '../../lib/consulta';
 import { reservas } from '../../lib/api/reservas';
-import { hojeISO, somarDias, somarMeses, dataLonga, dataCurta, mesAno, hora, plural, inteiro, telefone, inicioMes } from '../../lib/formato';
+import { hojeISO, somarDias, somarMeses, dataLonga, dataCurta, mesAno, hora, plural, inteiro, telefone, inicioMes, fimMes } from '../../lib/formato';
 import { lerParam, gravarParams } from '../../lib/rotas';
 import { Raiz, useConfirmacao, Suspenso, avisar, avisarErro } from '../../ui/camadas';
 import { Botao, Segmentado, Cartao, Aviso } from '../../ui/base';
@@ -22,20 +23,23 @@ import { NovaReserva } from './NovaReserva';
 import { Pendentes } from './Pendentes';
 import { Semana } from './Semana';
 import { Mes } from './Mes';
-import { Lista } from './Lista';
 import { Ambientes } from './Ambientes';
-import { lerPeriodo, type Periodo } from './periodo';
 
 type FiltroStatus = 'todas' | 'pendente' | 'confirmada' | 'chegou' | 'cancelada';
-type Vista = 'dia' | 'semana' | 'mes' | 'lista' | 'ambientes';
-const VISTAS: { id: Vista; rotulo: string }[] = [
-  { id: 'dia', rotulo: 'Dia' },
-  { id: 'semana', rotulo: 'Semana' },
-  { id: 'mes', rotulo: 'Mês' },
-  { id: 'lista', rotulo: 'Lista' },
-  { id: 'ambientes', rotulo: 'Por ambiente' },
+type Periodo = 'dia' | 'semana' | 'mes';
+type Apresentacao = 'calendario' | 'ambiente';
+const PERIODOS: { valor: Periodo; rotulo: string }[] = [
+  { valor: 'dia', rotulo: 'Dia' },
+  { valor: 'semana', rotulo: 'Semana' },
+  { valor: 'mes', rotulo: 'Mês' },
 ];
-const lerVista = (v: string | null): Vista => (VISTAS.some((x) => x.id === v) ? (v as Vista) : 'dia');
+const APRESENTACOES: { valor: Apresentacao; rotulo: string }[] = [
+  { valor: 'calendario', rotulo: 'Calendário' },
+  { valor: 'ambiente', rotulo: 'Por ambiente' },
+];
+// `vista` guarda o período. Links antigos: ?vista=ambientes abre Por ambiente e ?vista=lista cai no Dia.
+const lerPeriodo = (v: string | null): Periodo => (v === 'semana' || v === 'mes' ? v : 'dia');
+const lerApresentacao = (): Apresentacao => (lerParam('apresentacao') === 'ambiente' || lerParam('vista') === 'ambientes' ? 'ambiente' : 'calendario');
 const ehData = (v: string | null) => /^\d{4}-\d{2}-\d{2}$/.test(v ?? '');
 
 export default function Reservas({ contexto }: { contexto: ContextoPainel }) {
@@ -45,8 +49,8 @@ export default function Reservas({ contexto }: { contexto: ContextoPainel }) {
   const janela = janelaDe(papel);
   const limitar = (d: string) => (janela ? (d < janela.de ? janela.de : d > janela.ate ? janela.ate : d) : d);
   const [data, setData] = useState(() => limitar(ehData(lerParam('data')) ? lerParam('data')! : hoje));
-  const [vista, setVista] = useState<Vista>(() => lerVista(lerParam('vista')));
-  const [periodo, setPeriodo] = useState<Periodo>(() => lerPeriodo(lerParam('periodo')));
+  const [periodo, setPeriodo] = useState<Periodo>(() => lerPeriodo(lerParam('vista')));
+  const [apresentacao, setApresentacao] = useState<Apresentacao>(lerApresentacao);
   const [mes, setMes] = useState(() => inicioMes(ehData(lerParam('mes')) ? lerParam('mes')! : hoje));
   const [diaMes, setDiaMes] = useState<string | null>(() => (ehData(lerParam('dia')) ? lerParam('dia') : hoje));
   const [filtro, setFiltro] = useState<FiltroStatus>('todas');
@@ -62,19 +66,22 @@ export default function Reservas({ contexto }: { contexto: ContextoPainel }) {
   useEffect(
     () =>
       gravarParams({
-        data: data === hoje || vista !== 'dia' ? null : data,
-        vista: vista === 'dia' ? null : vista,
-        periodo: vista === 'lista' || vista === 'ambientes' ? periodo : null,
-        mes: vista === 'mes' && mes !== inicioMes(hoje) ? mes : null,
-        dia: vista === 'mes' && diaMes && diaMes !== hoje ? diaMes : null,
+        data: data === hoje || periodo === 'mes' ? null : data,
+        vista: periodo === 'dia' ? null : periodo,
+        apresentacao: apresentacao === 'ambiente' ? 'ambiente' : null,
+        // parâmetro antigo da Lista e dos Ambientes: some da URL na primeira gravação
+        periodo: null,
+        mes: periodo === 'mes' && mes !== inicioMes(hoje) ? mes : null,
+        dia: periodo === 'mes' && diaMes && diaMes !== hoje ? diaMes : null,
         reserva: aberta,
         status: verPendentes ? 'pendente' : null,
       }),
-    [data, vista, periodo, mes, diaMes, aberta, verPendentes],
+    [data, periodo, apresentacao, mes, diaMes, aberta, verPendentes],
   );
 
   // Dia: relido a cada minuto (o resumo, os atrasos e as chegadas mudam sem a tela saber).
-  const dia = useConsulta(vista === 'dia' ? `reservas/operacao:${data}` : null, () => reservas.operacao(data), { intervalo: 60_000 });
+  const vistaDoDia = periodo === 'dia' && apresentacao === 'calendario';
+  const dia = useConsulta(vistaDoDia ? `reservas/operacao:${data}` : null, () => reservas.operacao(data), { intervalo: 60_000 });
   const ambientes = useConsulta('reservas/ambientes', () => reservas.ambientes());
   const pendentes = useConsulta(gerencia ? `reservas?pendentes:${hoje}` : null, () => reservas.listar({ data_de: hoje, status: ['pendente'], limite: 100 }));
   const ambientesAtivos = (ambientes.dados ?? []).filter((a) => a.ativo);
@@ -176,47 +183,59 @@ export default function Reservas({ contexto }: { contexto: ContextoPainel }) {
 
   const nPend = pendentes.dados?.total ?? 0;
   const ehHoje = data === hoje;
-  const calendario = vista === 'dia' || vista === 'semana' || vista === 'mes';
   const inicioSemana = segundaDe(data);
   // Navegação única para Dia, Semana e Mês: ‹ Hoje › mais o título do intervalo que está na tela.
   const passo = (n: number) => {
-    if (vista === 'mes') return setMes(somarMeses(mes, n));
-    setData(limitar(somarDias(data, vista === 'semana' ? 7 * n : n)));
+    if (periodo === 'mes') return setMes(somarMeses(mes, n));
+    setData(limitar(somarDias(data, periodo === 'semana' ? 7 * n : n)));
+  };
+  // A data de referência acompanha a troca: do dia 12 para a Semana ou o Mês do dia 12, e de volta. No Mês, vale o dia
+  // escolhido no calendário; sem ele (ou se o mês mudou), o dia 1 do mês na tela.
+  const trocarPeriodo = (p: Periodo) => {
+    if (p === 'mes') {
+      setMes(inicioMes(data));
+      setDiaMes(data);
+    } else if (periodo === 'mes') {
+      setData(limitar(diaMes && inicioMes(diaMes) === mes ? diaMes : mes));
+    }
+    setPeriodo(p);
+  };
+  const abrirDia = (d: string) => {
+    setData(limitar(d));
+    setPeriodo('dia');
   };
   const irHoje = () => {
     setData(hoje);
     setMes(inicioMes(hoje));
     setDiaMes(hoje);
   };
-  const noHoje = vista === 'mes' ? mes === inicioMes(hoje) : vista === 'semana' ? inicioSemana === segundaDe(hoje) : ehHoje;
+  const noHoje = periodo === 'mes' ? mes === inicioMes(hoje) : periodo === 'semana' ? inicioSemana === segundaDe(hoje) : ehHoje;
   const tituloIntervalo =
-    vista === 'dia' ? (ehHoje ? `Hoje, ${dataLonga(data).toLowerCase()}` : dataLonga(data))
-    : vista === 'semana' ? `${dataCurta(inicioSemana)} – ${dataCurta(somarDias(inicioSemana, 6), { ano: true })}`
+    periodo === 'dia' ? (ehHoje ? `Hoje, ${dataLonga(data).toLowerCase()}` : dataLonga(data))
+    : periodo === 'semana' ? `${dataCurta(inicioSemana)} – ${dataCurta(somarDias(inicioSemana, 6), { ano: true })}`
     : mesAno(mes);
+  const intervalo = periodo === 'dia' ? { de: data, ate: data } : periodo === 'semana' ? { de: inicioSemana, ate: somarDias(inicioSemana, 6) } : { de: mes, ate: fimMes(mes) };
   const podeCriar = pode(papel, 'reservas.criar');
   const criacaoDesligada = podeCriar && criacaoManualDesligada();
 
   return (
     <Raiz>
       <div class="agenda-barra">
-        {calendario ? (
-          <div class="agenda-barra__nav">
-            <Botao so_icone variante="fantasma" aria-label={vista === 'mes' ? 'Mês anterior' : vista === 'semana' ? 'Semana anterior' : 'Dia anterior'} icone={<ChevronLeft aria-hidden="true" />} disabled={vista !== 'mes' && !!janela && data <= janela.de} onClick={() => passo(-1)} />
-            <Botao tamanho="p" onClick={irHoje} disabled={noHoje}>Hoje</Botao>
-            <Botao so_icone variante="fantasma" aria-label={vista === 'mes' ? 'Próximo mês' : vista === 'semana' ? 'Próxima semana' : 'Próximo dia'} icone={<ChevronRight aria-hidden="true" />} disabled={vista !== 'mes' && !!janela && data >= janela.ate} onClick={() => passo(1)} />
-            <h2 class="agenda-barra__titulo" aria-live="polite">{tituloIntervalo}</h2>
-            {vista === 'dia' && (
-              <>
-                <label class="sr" for="data-reservas">Escolher data</label>
-                <input id="data-reservas" type="date" class="entrada entrada--data entrada--p" min={janela?.de} max={janela?.ate} value={data} onChange={(e) => e.currentTarget.value && setData(limitar(e.currentTarget.value))} />
-              </>
-            )}
-          </div>
-        ) : (
-          <h2 class="agenda-barra__titulo">{vista === 'lista' ? 'Lista de reservas' : 'Reservas por ambiente'}</h2>
-        )}
+        <div class="agenda-barra__nav">
+          <Botao so_icone variante="fantasma" aria-label={periodo === 'mes' ? 'Mês anterior' : periodo === 'semana' ? 'Semana anterior' : 'Dia anterior'} icone={<ChevronLeft aria-hidden="true" />} disabled={periodo !== 'mes' && !!janela && data <= janela.de} onClick={() => passo(-1)} />
+          <Botao tamanho="p" onClick={irHoje} disabled={noHoje}>Hoje</Botao>
+          <Botao so_icone variante="fantasma" aria-label={periodo === 'mes' ? 'Próximo mês' : periodo === 'semana' ? 'Próxima semana' : 'Próximo dia'} icone={<ChevronRight aria-hidden="true" />} disabled={periodo !== 'mes' && !!janela && data >= janela.ate} onClick={() => passo(1)} />
+          <h2 class="agenda-barra__titulo" aria-live="polite">{tituloIntervalo}</h2>
+          {periodo === 'dia' && (
+            <>
+              <label class="sr" for="data-reservas">Escolher data</label>
+              <input id="data-reservas" type="date" class="entrada entrada--data entrada--p" min={janela?.de} max={janela?.ate} value={data} onChange={(e) => e.currentTarget.value && setData(limitar(e.currentTarget.value))} />
+            </>
+          )}
+        </div>
         <div class="agenda-barra__acoes">
-          <Segmentado rotulo="Visualização" valor={vista} aoMudar={setVista} opcoes={VISTAS.map((v) => ({ valor: v.id, rotulo: v.rotulo }))} />
+          <Segmentado rotulo="Período" valor={periodo} aoMudar={trocarPeriodo} opcoes={PERIODOS} />
+          <Segmentado rotulo="Visualização" valor={apresentacao} aoMudar={setApresentacao} opcoes={APRESENTACOES} />
           <Botao variante="fantasma" so_icone aria-label="Atualizar agora" title="Atualizar agora" icone={<RotateCw aria-hidden="true" />} onClick={atualizarReservas} />
           {podeCriar && (
             <Botao variante="primario" icone={<Plus aria-hidden="true" />} onClick={() => setNova(true)} title={criacaoDesligada ? 'A criação de reservas pelo painel está desligada no sistema do Âmbar' : undefined} aria-describedby={criacaoDesligada ? 'criacao-desligada' : undefined}>
@@ -226,9 +245,9 @@ export default function Reservas({ contexto }: { contexto: ContextoPainel }) {
         </div>
       </div>
 
-      {(vista === 'dia' || (gerencia && nPend > 0) || criacaoDesligada) && (
+      {(vistaDoDia || (gerencia && nPend > 0) || criacaoDesligada) && (
         <div class="agenda-resumo">
-          {vista === 'dia' && (
+          {vistaDoDia && (
             <span aria-live="polite">
               {dia.dados ? (
                 <>
@@ -252,7 +271,7 @@ export default function Reservas({ contexto }: { contexto: ContextoPainel }) {
       )}
 
       <div class="pilha">
-        {vista === 'dia' && (
+        {vistaDoDia && (
           <>
             <Cartao justo>
               <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--borda)' }} class="filtros">
@@ -320,15 +339,14 @@ export default function Reservas({ contexto }: { contexto: ContextoPainel }) {
           </>
         )}
 
-        {vista === 'semana' && <Semana inicio={inicioSemana} aoEscolherDia={(d) => { setData(limitar(d)); setVista('dia'); }} aoAbrir={setAberta} />}
-        {vista === 'mes' && <Mes mes={mes} dia={diaMes} aoEscolherDia={setDiaMes} aoAbrirDia={(d) => { setData(limitar(d)); setVista('dia'); }} aoAbrir={setAberta} />}
-        {vista === 'lista' && <Lista periodo={periodo} aoMudarPeriodo={setPeriodo} papel={papel} ambientes={ambientesAtivos} aoAbrir={setAberta} confirmar={confirmar} />}
-        {vista === 'ambientes' && <Ambientes periodo={periodo} aoMudarPeriodo={setPeriodo} ambientes={ambientes.dados ?? []} aoAbrir={setAberta} />}
-        {ambientes.erro && <Aviso tom="atencao">Não foi possível carregar os ambientes: {ambientes.erro.message}</Aviso>}
+        {apresentacao === 'calendario' && periodo === 'semana' && <Semana inicio={inicioSemana} aoEscolherDia={abrirDia} aoAbrir={setAberta} />}
+        {apresentacao === 'calendario' && periodo === 'mes' && <Mes mes={mes} dia={diaMes} aoEscolherDia={setDiaMes} aoAbrirDia={abrirDia} aoAbrir={setAberta} />}
+        {apresentacao === 'ambiente' && <Ambientes periodo={periodo} de={intervalo.de} ate={intervalo.ate} ambientes={ambientes} aoAbrir={setAberta} aoAbrirDia={(d) => { setApresentacao('calendario'); abrirDia(d); }} />}
+        {apresentacao === 'calendario' && ambientes.erro && <Aviso tom="atencao">Não foi possível carregar os ambientes: {ambientes.erro.message}</Aviso>}
       </div>
 
       <DetalheReserva id={aberta} aoFechar={() => setAberta(null)} confirmar={confirmar} papel={papel} />
-      <NovaReserva aberta={nova} aoFechar={() => setNova(false)} unidade={contexto.unidade?.codigo ?? null} dataInicial={data} aoCriar={(r) => { setNova(false); setVista('dia'); setData(r.data); setAberta(r.id); }} />
+      <NovaReserva aberta={nova} aoFechar={() => setNova(false)} unidade={contexto.unidade?.codigo ?? null} dataInicial={data} aoCriar={(r) => { setNova(false); setApresentacao('calendario'); abrirDia(r.data); setAberta(r.id); }} />
       <Pendentes aberta={verPendentes} aoFechar={() => setVerPendentes(false)} aoAprovar={aprovar} aoRecusar={(r) => pedirCancelamento(r, confirmar)} aoAbrir={(id) => { setVerPendentes(false); setAberta(id); }} />
       {dialogo}
     </Raiz>
