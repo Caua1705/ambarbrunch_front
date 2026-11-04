@@ -29,8 +29,8 @@ Módulos e abas (paridade com o painel antigo):
 | Módulo | Abas / telas |
 |---|---|
 | Visão Geral | cartões do dia, atenção, radar, atividade |
-| Reservas | Dia, Semana, Mês, Lista (Hoje/Amanhã/7 dias/Todas), Ambientes; detalhe com chegada, ausência, corrigir/desfazer, aviso comunicado, alterar contato/observações; Modo Operação (tablet) |
-| Atendimento | caixa (Todas · Esperando · Assistente · Equipe · Encerradas), conversa com linha do tempo única (mídia, campanhas, templates de reserva/Clube, respostas automáticas), assistente ligado/desligado por conversa, assumir/transferir, responder, encerrar, follow-up; ficha do contato (gaveta); nova conversa com template; "Mais": Campanhas e Cadastros duplicados (gerência), Base de conhecimento (todos leem, gerência edita). **Não há mais página Clientes** (02/11/2026): `/admin/clientes` redireciona para cá |
+| Reservas | Período (Dia, Semana, Mês) e visualização (Calendário, Por ambiente); detalhe com chegada, ausência, corrigir/desfazer, aviso comunicado, alterar contato/observações; Modo Operação (tablet) |
+| Atendimento | caixa (Todas · Esperando · Assistente · Equipe · Encerradas), conversa com linha do tempo única (mídia, campanhas, templates de reserva/Clube, respostas automáticas), assistente ligado/desligado por conversa, assumir/transferir, responder, encerrar, follow-up; ficha do contato (gaveta); nova conversa com template; Cardápio e capacidades (gaveta). Campanhas, Base de conhecimento e Cadastros duplicados saíram da tela em 04/11/2026 (§4e). **Não há mais página Clientes** (02/11/2026): `/admin/clientes` redireciona para cá |
 | Clube Âmbar | (ainda não lançado ao público; selo "em breve") |
 | Financeiro | Resumo, Vendas (Eyemobile), Lançamentos (+ Banco/conciliação), Contas a pagar, Revisão (despesas e documentos da Júlia: corrigir leitura, pago × a pagar, vincular a conta/pagamento/despesa já lançados), Resultado (+ fechamento e participação — Proprietário), Contas fixas e taxas, Categorias (por unidade, do banco) |
 | Estoque | Estoque atual (saldos, situação, gaveta do insumo com histórico), Recebimentos (Júlia, nota, sem nota — uma conferência), Contagem (3 passos), Fichas e custos (fichas técnicas; CMV e custos); "Registrar movimento" (entrada, saída, ajuste); vendas canceladas depois da baixa numa gaveta |
@@ -146,9 +146,9 @@ valor indisponível vira "R$ 0,00".
 | Tela | Rotas do backend (`/admin/…`) |
 |---|---|
 | Login, sessão, unidades | `auth/login`, `auth/me`, `auth/sair`, `unidades` |
-| Reservas | `reservas`, `reservas/operacao`, `reservas/lotacao`, `reservas/ambientes`, `reservas/{id}` (PATCH só contato e observações), `…/status`, `…/comparecimento` (PUT; cai para PATCH `…/status` só em 404 de rota), `…/aviso-comunicado`, `reservas/comparecimento/pendentes`, `reservas/mensagens`. Nova reserva: desligada no backend (403 `criacao_manual_desativada`, a tela explica). |
+| Reservas | `reservas`, `reservas/operacao`, `reservas/lotacao`, `reservas/ambientes`, `reservas/{id}` (PATCH só contato e observações), `…/status`, `…/comparecimento` (PUT; cai para PATCH `…/status` só em 404 de rota), `…/aviso-comunicado`, `reservas/comparecimento/pendentes`, `reservas/mensagens`. Nova reserva: `reservas/publica/config` e `reservas/publica/disponibilidade` (a ponte lê `GET /reservas/config` e `/reservas/disponibilidade`, o serviço do site), `reservas/lotacao` e POST `reservas` (403 `criacao_manual_desativada` enquanto `AMBAR_PAINEL_CRIACAO_MANUAL` estiver desligada; a tela explica). |
 | Configurações | `reservas/configuracao/{unidade}`, `…/politica`, `reservas/ambientes/{id}`, `reservas/regras/{id}`, `usuarios` (equipe) |
-| Atendimento | `atendimento/resumo` (`por_estado`, `configuracao`), `atendimento/conversas?estado=` (busca com 2+ letras; POST = nova conversa), `…/{id}`, `…/{id}/contato`, `…/mensagens`, `…/responder`, `…/assumir`, `…/assistente`, `…/encerrar`, `…/followup`, `atendimento/mensagens/{id}/midia` (binário pela ponte; só imagem/áudio/vídeo/PDF/texto abrem, o resto desce como download), `atendimento/falhas`, `atendimento/templates`, `atendimento/contatos`, `atendimento/campanhas` (+ `{id}`, `…/enviar` em lotes, `…/cancelar`), `atendimento/conhecimento` (GET, `PUT/DELETE …/{chave}`), `atendimento/duplicidades`, `atendimento/vinculos` (POST); eventos (§4d): `atendimento/eventos` (+ `/opcoes`, `/{id}` GET/PATCH), `atendimento/conversas/{id}/evento` (POST), `assunto` e `evento` na conversa, `eventos` no resumo |
+| Atendimento | `atendimento/resumo` (`por_estado`, `configuracao`), `atendimento/conversas?estado=` (busca com 2+ letras; POST = nova conversa), `…/{id}`, `…/{id}/contato`, `…/mensagens`, `…/responder`, `…/assumir`, `…/assistente`, `…/encerrar`, `…/followup`, `atendimento/mensagens/{id}/midia` (binário pela ponte; só imagem/áudio/vídeo/PDF/texto abrem, o resto desce como download), `atendimento/falhas`, `atendimento/templates`, `atendimento/contatos`, `atendimento/campanhas` (+ `{id}`, `…/enviar` em lotes, `…/cancelar`), `atendimento/conhecimento` (GET, `PUT/DELETE …/{chave}`), `atendimento/duplicidades` e `atendimento/vinculos` (POST) seguem no backend e em `lib/api`, sem tela ligada (§4e); eventos (§4d): `atendimento/eventos` (+ `/opcoes`, `/{id}` GET/PATCH), `atendimento/conversas/{id}/evento` (POST), `assunto` e `evento` na conversa, `eventos` no resumo |
 | Visão Geral | `financeiro/relatorios/vendas` (receita, ticket médio, por meio), `financeiro/relatorios/despesas-por-categoria`, `financeiro/relatorios/resultado?mes=` (só mês civil), `financeiro/lancamentos?tipo=despesa&status=confirmada` (distribuição do gráfico), `estoque/analises/produtos` (top 5); sem Financeiro: `reservas/operacao` |
 | Sino (topo) | `reservas?status=pendente`, `reservas/comparecimento/pendentes`, `atendimento/resumo`, `financeiro/revisao?limite=1`, `financeiro/resumo`, `estoque/compras?etapa=aguardando_conferencia` — só módulos liberados ao papel, da unidade da aba |
 | Financeiro | `financeiro/resumo`, `relatorios/vendas`, `lancamentos`, `despesas` (+ confirmar/cancelar), `outras-receitas` (+ cancelar), `contas-a-pagar`, `parcelas/{id}/pagamentos`, `pagamentos/{id}/estornar`, `revisao`, `revisao/documentos/{id}` (GET/PATCH) e `…/resolver`, `despesas/{id}/documentos`, `despesas/{id}/unidade`, `comprovantes/{id}/enviar-para-compras`, `relatorios/resultado`, `relatorios/despesas-por-categoria`, `fechamento/{mes}`, `apuracoes/{mes}` (+ conferir/fechar/reabrir, `participacao`), `recorrencias`, `taxas-pagamento`, `conciliacao/*`, `extratos/*`, `contas-bancarias`, `categorias` (GET/POST/PATCH, `PUT …/{codigo}/unidades/{unidade}`), `fornecedores` (GET/POST, `fornecedores/{id}` GET/PATCH), `conciliacao/repasses`, `arquivos/{id}/url` |
@@ -164,8 +164,8 @@ backend; a tela mostra primeiro o essencial e o resto sob pedido (filtros recolh
 | Moldura | Lateral: só a marca e os módulos (Visão Geral, Reservas, Atendimento, Financeiro, Estoque); embaixo Modo Operação, Configurações, Recolher. **Clube Âmbar fora do menu** (rota, telas e contratos intactos). Topo: só o título da tela, o sino, o tema e a conta. **Unidade de trabalho no menu da conta** (vale para a aba; B4); o topo mostra a unidade só fora da padrão (`unidadePadrao`). |
 | Sino | Central das pendências reais (`layout/avisos.ts`), por prioridade e módulo, cada item leva à tela que resolve. Cache de 45 s na sessão do navegador; reconta depois de qualquer `invalidar()` (evento `painel:invalidar`). |
 | Visão Geral | Saudação + um filtro de período (Hoje, 7 dias, 30 dias, Este mês, Personalizado ≤ 400 dias) para 4 indicadores (Receita, Despesas, Resultado gerencial, Ticket médio), Receitas × despesas e dois rankings (top 5 produtos — ou vendas por meio — e despesas por categoria). |
-| Reservas | Barra única (‹ Hoje ›, intervalo, Dia · Semana · Mês · Lista · Por ambiente, Nova reserva); resumo do dia em uma linha; aprovações pendentes numa pílula → gaveta. |
-| Atendimento | Central única de conversas (02/11/2026): "Nova conversa" e "Mais" no topo da coluna, avisos discretos só quando o assistente ou o envio estão desligados no servidor, busca, Todas · Esperando · Assistente · Equipe · Encerradas (contador em Esperando), falhas de envio só quando existem. Conversa: cabeçalho com Contato (ficha em gaveta) e "…" (enviar template, follow-up), barra com o interruptor do assistente, Assumir e Encerrar. Sem indicadores e sem página Clientes. |
+| Reservas | Barra única (‹ Hoje ›, intervalo, período Dia · Semana · Mês, visualização Calendário · Por ambiente, Nova reserva); resumo do dia em uma linha; aprovações pendentes numa pílula → gaveta. |
+| Atendimento | Central única de conversas (02/11/2026): "Nova conversa" e "Cardápio" no topo da coluna, avisos discretos só quando o assistente ou o envio estão desligados no servidor, busca, Todas · Esperando · Assistente · Equipe · Encerradas (contador em Esperando), falhas de envio só quando existem. Conversa: cabeçalho com Contato (ficha em gaveta) e "…" (enviar template, follow-up), barra com o interruptor do assistente, Assumir e Encerrar. Sem indicadores e sem página Clientes. |
 | Financeiro | Lançamentos · Contas a pagar (Contas · Recorrentes) · Revisão · Conciliação (Banco · Stone e recebíveis · Divergências) · Relatórios e cadastros (Resultado do mês, Despesas por categoria, Evolução, Fechamento, Vendas; Categorias, Fornecedores). Sem o Resumo (o executivo é a Visão Geral). Endereços antigos redirecionados em `modulos/financeiro/index.tsx`. |
 | Estoque | Quatro áreas (02/11/2026, ver 4c): Estoque atual (tela inicial) · Recebimentos (Pendentes · Histórico) · Contagem (3 passos) · Fichas e custos (Fichas técnicas · CMV e custos). Uma ação principal em todas: "Registrar movimento". Baixa automática mostrada como está no backend (hoje desligada). |
 | Configurações | Grupos ao lado: Conta e aparência · Agenda e ambientes · Equipe e acessos · Financeiro (atalhos para os cadastros). |
@@ -337,6 +337,57 @@ Testes: `tests-painel/atendimento-eventos.spec.ts` (demonstração, 7: caixa e v
 responde, Gerência status/perda/novo sem duplicar, registro manual, erros e backend antigo, tablet e celular) e
 `tests-painel-real/atendimento-eventos.spec.ts` (backend real local com a 0023, base isolada, assistente ligado e o
 "n8n" feito pelo teste; JSON em `PAINEL_REAL_EVENTOS`, 6 cenários, inclusive outra unidade sem acesso).
+
+## 4e. Visão Geral, Reservas e Atendimento (04/11/2026)
+
+**Visão Geral.** Saiu a faixa "Aguardando dados de vendas". Sem a loja do PDV ligada (`disponivel: false` em
+`financeiro/relatorios/vendas`), Receita e Ticket médio mostram "—" e "Sem vendas sincronizadas", nunca zero. Falha de API é
+outro estado: fica no próprio indicador ou cartão, com "Tentar de novo", e não vira "sem vendas" (antes, um erro no relatório
+do gráfico dizia que as vendas não estavam sincronizadas, e um erro nos produtos trocava o cartão por outro assunto). A faixa
+"Vendas desatualizadas" continua: é sincronização atrasada de verdade. Fontes conferidas com o backend:
+
+- Receita = `receita_liquida` de `relatorios.v_vendas_dia` (produtos − descontos − devoluções, sem canceladas e sem taxa de
+  serviço). Não é faturamento bruto nem o que caiu na conta; o recebido por meio é o registrado no PDV.
+- Despesas = confirmadas por competência (`v_despesas_categoria`). O gráfico distribui as mesmas despesas por
+  `financeiro/lancamentos`, inclusive sem retiradas para a Gerente. Sem duplicidade: a venda entra uma vez por dia da view e o
+  repasse da Stone é recebimento.
+
+Pendência fora do código: `vendas_configuradas` só fica verdadeiro com uma linha em `pdv_lojas` com `sincronizar`. Em produção
+isso depende da seção C de `ops/DEPLOY.md` do backend: chaves da Eyemobile, `ligar-loja-pdv --point-id 39424 --unidade ambar_cafe
+--desde <data>`, carga do histórico e worker `ambar-sync`, além da decisão da data inicial e da taxa de serviço.
+
+**Reservas.** Período (Dia, Semana, Mês) e visualização (Calendário, Por ambiente) são duas escolhas independentes, e a data de
+referência acompanha a troca. Na URL: `vista` (período) e `apresentacao=ambiente`; links antigos continuam abrindo
+(`vista=lista` cai no Dia e `vista=ambientes` em Por ambiente). `Lista.tsx` ficou no código sem entrada na navegação: **a busca
+por nome, telefone ou código em todas as datas só existia nela**; a do Dia procura só no dia aberto. Por ambiente mostra a
+capacidade de `reservas/ambientes`; a ocupação do Dia é o pico de `reservas/lotacao` e em Semana e Mês não há esse número.
+
+**Nova reserva.** O painel consulta o MESMO serviço do site e não repete regra nenhuma (`modulos/reservas/disponibilidade.ts`):
+data e pessoas → horários por ambiente, com lotado e fora do prazo desligados. Sem resposta do serviço não há horário nem como
+gravar (saiu o campo de hora livre). Ao gravar: o horário é consultado de novo e o POST reconfere a lotação sob trava (409
+`lotacao_excedida`), o que a tela trata devolvendo a escolha. A ponte só lê `/reservas/config` e `/reservas/disponibilidade`,
+por GET, com sessão, sem token e sem `unidade`.
+
+Diferenças em relação ao site, todas do backend: a reserva da equipe nasce confirmada, o e-mail é opcional, não há consentimento
+registrado e grupo acima do limite online (`grupo_acima_do_limite`) segue só a lotação. Comportamento decidido nesta etapa: a
+antecedência mínima do site (2 h) também vale no painel, então o balcão não lança reserva para daqui a menos de 2 h.
+
+**Atendimento.** O menu "Mais" saiu: ficou o botão "Cardápio". `Campanhas.tsx`, `Conhecimento.tsx` e `Duplicidades.tsx`, os
+tipos, as chamadas e as rotas do backend continuam, sem entrada na tela, à espera de um lugar em Configurações.
+
+Contratos pedidos ao backend (nada disto foi simulado):
+
+1. **`GET /admin/reservas/disponibilidade?ambiente_id=&data=&pessoas=`**, por unidade, com `{hora, disponivel, motivo, ocupadas}`.
+   Hoje o serviço público atende só a unidade de `AMBAR_RESERVAS_UNIDADE`: numa unidade de ensaio o painel cruza a lotação dela
+   com as regras da unidade real. Essa rota dispensaria as duas leituras e o cruzamento.
+2. **`POST /admin/reservas` conferindo grade, bloqueios e antecedência.** Hoje ele confere capacidade, primeira data e lotação (sob
+   trava); o resto a tela confere antes de gravar. Quem chama a API direto não passa por essa conferência. Se a equipe deve poder
+   sair da grade, isso precisa ser uma exceção explícita, com permissão e motivo.
+3. **Leitura de `painel_criacao_manual`**, para o botão já nascer desligado (hoje só se sabe pelo 403 da primeira tentativa).
+
+Testes: `tests-painel/visao-geral.spec.ts`, `reservas-navegacao.spec.ts`, `reservas-nova.spec.ts` e `atendimento.spec.ts`
+(demonstração e respostas simuladas); `tests-painel-real/reservas-e-visao.spec.ts` (backend real local em base isolada, JSON em
+`PAINEL_REAL_RESERVAS`, 9 cenários, inclusive duas reservas simultâneas). Nenhum deles fala com a Eyemobile.
 
 ## 6. Rodar, testar
 
