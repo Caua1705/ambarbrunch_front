@@ -2453,8 +2453,10 @@ button.lista__item {
   font-size: var(--t-s);
   color: var(--texto-2);
 }
-.ambiente-resumo svg {
-  vertical-align: -2px;
+.ambiente-resumo > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 .ocupacao-dia {
   display: grid;
@@ -2494,8 +2496,10 @@ button.lista__item {
   font: inherit;
   font-weight: 600;
   color: var(--texto-2);
-  text-transform: capitalize;
   cursor: pointer;
+}
+.ambiente-reservas__dia::first-letter {
+  text-transform: uppercase;
 }
 .ambiente-reservas__dia:hover {
   color: var(--marca-texto);
