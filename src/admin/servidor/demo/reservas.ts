@@ -177,6 +177,15 @@ export const pendentesAprovacao = () => filtrar(new URLSearchParams({ data_de: h
 
 const UUID = '([0-9a-f-]{36})';
 
+function lotacaoDemo(amb: AmbienteConfig, data: string, pessoas: number) {
+  const doDia = filtrar(new URLSearchParams({ data_de: data, data_ate: data, ambiente_id: amb.id })).filter((l) => l.r.status_reserva !== 'cancelada' && l.r.comparecimento === 'nao_registrado');
+  return ['08:00', ...HORAS, '13:30', '14:00'].map((h) => {
+    const t = new Date(instante(data, h)).getTime();
+    const ocupadas = doDia.filter((l) => t >= inicio(l.r) && t < inicio(l.r) + l.r.duracao_min * 60_000).reduce((s, l) => s + l.r.pessoas, 0);
+    return { hora: `${h}:00`, ocupadas, cabe: ocupadas + pessoas <= amb.capacidade_max };
+  });
+}
+
 export const ROTAS_RESERVAS: Rota[] = [
   ['GET', /^reservas$/, TODOS, ({ query, papel }) => {
     if (papel === 'operador') {
@@ -216,13 +225,26 @@ export const ROTAS_RESERVAS: Rota[] = [
     if (!amb) throw new ErroDemo(404, 'nao_encontrado', 'Ambiente não encontrado.');
     const data = query.get('data') ?? hojeFortaleza();
     const pessoas = Number(query.get('pessoas') ?? 0);
-    const doDia = filtrar(new URLSearchParams({ data_de: data, data_ate: data, ambiente_id: amb.id })).filter((l) => l.r.status_reserva !== 'cancelada' && l.r.comparecimento === 'nao_registrado');
-    const horarios = ['08:00', ...HORAS, '13:30', '14:00'].map((h) => {
-      const t = new Date(instante(data, h)).getTime();
-      const ocupadas = doDia.filter((l) => t >= inicio(l.r) && t < inicio(l.r) + l.r.duracao_min * 60_000).reduce((s, l) => s + l.r.pessoas, 0);
-      return { hora: `${h}:00`, ocupadas, cabe: ocupadas + pessoas <= amb.capacidade_max };
-    });
-    return { ambiente_id: amb.id, ambiente: amb.nome, data, capacidade_max: amb.capacidade_max, duracao_min: amb.duracao_min, ativo: amb.ativo, pessoas, horarios };
+    return { ambiente_id: amb.id, ambiente: amb.nome, data, capacidade_max: amb.capacidade_max, duracao_min: amb.duracao_min, ativo: amb.ativo, pessoas, horarios: lotacaoDemo(amb, data, pessoas) };
+  }],
+  // Serviço público do site (GET /reservas/config e /reservas/disponibilidade do backend), como a ponte o entrega ao painel.
+  ['GET', /^reservas\/publica\/config$/, TODOS, () => ({
+    ambientes: AMBIENTES.filter((a) => a.ativo && a.aceita_reserva_online).map((a) => ({ id: a.codigo, nome: a.nome, capacidadeMax: a.capacidade_max, pessoasMin: a.pessoas_min, pessoasMax: a.pessoas_max_por_reserva, datasFechadas: [] })),
+    pessoas: { min: 1, max: Math.max(...AMBIENTES.map((a) => a.pessoas_max_por_reserva)) },
+    antecedencia: { diasMax: politica.antecedencia_max_dias, horasMin: politica.antecedencia_min_horas },
+    exigeEmail: politica.exige_email,
+    fusoHorario: 'America/Fortaleza',
+    privacidadeVersao: politica.privacidade_texto_versao,
+  })],
+  ['GET', /^reservas\/publica\/disponibilidade$/, TODOS, ({ query }) => {
+    const amb = AMBIENTES.find((a) => a.codigo === query.get('ambiente') && a.ativo && a.aceita_reserva_online);
+    if (!amb) throw new ErroDemo(422, 'regra_violada', 'Ambiente indisponível para reserva online.');
+    const data = query.get('data') ?? hojeFortaleza();
+    const pessoas = Number(query.get('pessoas') ?? 1);
+    if (pessoas > amb.pessoas_max_por_reserva) throw new ErroDemo(422, 'grupo_acima_do_limite', `Reservas online em ${amb.nome} vão até ${amb.pessoas_max_por_reserva} pessoas. Para grupos maiores, fale com a equipe.`);
+    if (pessoas < amb.pessoas_min) throw new ErroDemo(422, 'abaixo_do_minimo', `${amb.nome} recebe reservas a partir de ${amb.pessoas_min} pessoas.`);
+    const limite = Date.now() + politica.antecedencia_min_horas * 3_600_000;
+    return { data, horarios: lotacaoDemo(amb, data, pessoas).map((h) => ({ hora: h.hora.slice(0, 5), disponivel: h.cabe && new Date(instante(data, h.hora)).getTime() >= limite && data <= dia(politica.antecedencia_max_dias) })) };
   }],
   ['GET', /^reservas\/mensagens$/, GERENCIA, () => {
     montar();
@@ -242,7 +264,8 @@ export const ROTAS_RESERVAS: Rota[] = [
     if (!amb) throw new ErroDemo(422, 'regra_violada', 'Escolha o ambiente.');
     if (!e.nome || !e.telefone || !e.data || !e.hora) throw new ErroDemo(422, 'regra_violada', 'Preencha nome, telefone, data e horário.');
     const pessoas = Number(e.pessoas);
-    if (pessoas > amb.pessoas_max_por_reserva) throw new ErroDemo(422, 'regra_violada', `No ${amb.nome}, até ${amb.pessoas_max_por_reserva} pessoas por reserva.`);
+    if (pessoas > amb.capacidade_max) throw new ErroDemo(422, 'regra_violada', `${amb.nome} comporta até ${amb.capacidade_max} pessoas.`);
+    if (lotacaoDemo(amb, String(e.data), pessoas).find((h) => h.hora.startsWith(String(e.hora).slice(0, 5)))?.cabe === false) throw new ErroDemo(409, 'lotacao_excedida', 'Lotação do ambiente excedida nesse horário.');
     const r: ReservaPainel = { id: uuid(), codigo: `AMB-${(1000 + banco.length).toString(36).toUpperCase()}`, unidade: 'ambar_cafe', ambiente_id: amb.id, ambiente: amb.nome, data: String(e.data), hora: String(e.hora).length === 5 ? `${e.hora}:00` : String(e.hora), duracao_min: amb.duracao_min, pessoas, status: amb.exige_aprovacao ? 'pendente' : 'confirmada', status_reserva: amb.exige_aprovacao ? 'pendente' : 'confirmada', comparecimento: 'nao_registrado', comparecimento_registrado_em: null, comparecimento_registrado_por: null, canal: String(e.canal ?? 'painel'), contato_nome: String(e.nome), contato_telefone_e164: `+55${String(e.telefone).replace(/\D/g, '')}`, contato_email: (e.email as string) || null, observacoes: (e.observacoes as string) || null, importada_de: null, cancelada_em: null, motivo_cancelamento: null, fechada_em: null, criado_em: new Date().toISOString() };
     // cliente novo (fora dos fictícios) não ganha ficha fictícia no Atendimento
     banco.push({ r, historico: [], avisar: null, cliente: NOMES.indexOf(String(e.nome)) });

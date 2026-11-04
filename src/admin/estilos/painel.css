@@ -2385,6 +2385,50 @@ button.lista__item {
   margin-left: auto;
 }
 
+/* Nova reserva: horários por ambiente */
+.disp {
+  display: grid;
+  gap: var(--e-3);
+}
+.disp__ambiente {
+  display: grid;
+  gap: var(--e-2);
+  padding-bottom: var(--e-3);
+  border-bottom: 1px solid var(--borda);
+}
+.disp__ambiente:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+.disp__topo {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--e-2);
+  flex-wrap: wrap;
+  font-size: var(--t-s);
+}
+.disp__topo strong {
+  font-weight: 600;
+}
+.disp__horarios {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.disp__horarios .btn:disabled {
+  opacity: 0.5;
+  text-decoration: line-through;
+  cursor: not-allowed;
+}
+.disp__escolha {
+  margin: 0;
+  padding: var(--e-2) var(--e-3);
+  border-radius: var(--r-m);
+  background: var(--afundado);
+  font-size: var(--t-s);
+}
+
 /* Reservas por ambiente */
 .grade-ambientes {
   display: grid;

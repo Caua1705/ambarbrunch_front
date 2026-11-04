@@ -2,6 +2,9 @@
 // Conferido com app/modulos/reservas/esquemas.py do backend.
 import type { Data, Instante, Uuid, Pagina } from './comum';
 
+/** Contrato do serviço público de reservas: o mesmo tipo que o site usa. */
+export type { ReservaConfig as ConfigReservasSite, Disponibilidade as DisponibilidadeSite } from '../../../lib/reservas/contrato';
+
 export type StatusReserva = 'pendente' | 'confirmada' | 'lembrada' | 'reconfirmada' | 'cancelada' | 'compareceu' | 'nao_compareceu';
 export type StatusReservaBase = 'pendente' | 'confirmada' | 'lembrada' | 'reconfirmada' | 'cancelada';
 export type Comparecimento = 'nao_registrado' | 'compareceu' | 'nao_compareceu';

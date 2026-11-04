@@ -1,16 +1,19 @@
-// Nova reserva pela equipe (ligação, WhatsApp, balcão) e alteração de reserva. Usa a MESMA lotação do backend
-// (GET /admin/reservas/lotacao) — nada de agenda paralela; a lotação é reconferida pelo backend ao gravar.
+// Nova reserva pela equipe (ligação, WhatsApp, balcão) e alteração de contato. A equipe escolhe data e pessoas e vê, por
+// ambiente, os horários que o MESMO serviço do site oferece (./disponibilidade.ts); nenhuma regra é repetida aqui. Quem
+// decide é o backend: o horário é conferido de novo antes de gravar e a lotação é reconferida sob trava no POST. Sem resposta
+// do serviço, não há horário nem como gravar.
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { Check, Info, Lock } from 'lucide-preact';
 import { useConsulta } from '../../lib/consulta';
 import { reservas } from '../../lib/api/reservas';
 import { ErroApi, novaChave } from '../../lib/api/cliente';
-import { hojeISO, hora as fmtHora, telefone as fmtTel } from '../../lib/formato';
+import { hojeISO, dataCurta, plural, hora as fmtHora, telefone as fmtTel } from '../../lib/formato';
 import { Gaveta, avisar } from '../../ui/camadas';
 import { Botao, Campo, Aviso } from '../../ui/base';
-import { Esqueleto } from '../../ui/estados';
+import { Esqueleto, Falha, Vazio } from '../../ui/estados';
 import type { ReservaPainel, CanalEquipe } from '../../lib/tipos/reservas';
 import { atualizarReservas, lembrarCriacaoDesligada } from './comum';
+import { consultarDisponibilidade, horarioContinuaLivre, type DisponibilidadeManual, type OpcaoAmbiente, type OpcaoHorario } from './disponibilidade';
 
 interface Form {
   ambiente_id: string;
@@ -31,12 +34,11 @@ function digitosTelefone(t: string) {
 
 function validar(f: Form, novo: boolean): Record<string, string> {
   const e: Record<string, string> = {};
-  if (!f.ambiente_id) e.ambiente_id = 'Escolha o ambiente.';
   if (!f.data) e.data = 'Escolha a data.';
   else if (novo && f.data < hojeISO()) e.data = 'A data já passou.';
   const p = Number(f.pessoas);
   if (!Number.isInteger(p) || p < 1) e.pessoas = 'Informe quantas pessoas.';
-  if (!f.hora) e.hora = 'Escolha o horário.';
+  if (!f.hora || !f.ambiente_id) e.hora = 'Escolha um horário disponível.';
   if (f.nome.trim().length < 2) e.nome = 'Informe o nome do cliente.';
   const d = digitosTelefone(f.telefone);
   if (d.length < 10 || d.length > 11) e.telefone = 'Telefone com DDD, ex.: (85) 99999-1111.';
@@ -44,21 +46,8 @@ function validar(f: Form, novo: boolean): Record<string, string> {
   return e;
 }
 
-/**
- * `soContato` (alteração): data, horário, ambiente e pessoas aparecem só para leitura — o backend recusa mudá-los
- * pelo painel (403 alteracao_desativada); o mesmo vale no painel do backend (app/painel).
- */
-function CamposReserva({ f, set, erros, novo, soContato = false, ambienteNome = '' }: { f: Form; set: (m: Partial<Form>) => void; erros: Record<string, string>; novo: boolean; soContato?: boolean; ambienteNome?: string }) {
-  const ambientes = useConsulta('reservas/ambientes', () => reservas.ambientes());
-  const pessoas = Number(f.pessoas) || 1;
-  const lotacao = useConsulta(!soContato && f.ambiente_id && f.data ? `reservas/lotacao:${f.ambiente_id}:${f.data}:${pessoas}` : null, () => reservas.lotacao(f.ambiente_id, f.data, pessoas));
-  const ativos = (ambientes.dados ?? []).filter((a) => a.ativo);
-
-  useEffect(() => {
-    if (!f.ambiente_id && ativos.length === 1) set({ ambiente_id: ativos[0].id });
-  }, [ativos.length]);
-
-  const contato = (
+function CamposContato({ f, set, erros }: { f: Form; set: (m: Partial<Form>) => void; erros: Record<string, string> }) {
+  return (
     <>
       <Campo rotulo="Nome do cliente" erro={erros.nome} class="inteiro">
         {(id, d) => <input id={id} class="entrada" autocomplete="off" aria-describedby={d} aria-invalid={!!erros.nome || undefined} value={f.nome} onInput={(e) => set({ nome: e.currentTarget.value })} />}
@@ -74,81 +63,76 @@ function CamposReserva({ f, set, erros, novo, soContato = false, ambienteNome = 
       </Campo>
     </>
   );
+}
 
-  if (soContato) {
-    return (
-      <div class="grade-campos">
-        <dl class="inteiro" aria-label="Reserva (não muda pelo painel)">
-          <div><dt>Ambiente</dt><dd>{ambienteNome}</dd></div>
-          <div><dt>Data</dt><dd class="num">{f.data.split('-').reverse().join('/')}</dd></div>
-          <div><dt>Horário</dt><dd class="num">{f.hora}</dd></div>
-          <div><dt>Pessoas</dt><dd class="num">{f.pessoas}</dd></div>
-        </dl>
-        <p class="campo__ajuda inteiro">Data, horário, ambiente e pessoas não mudam pelo painel. Para mudar, cancele e peça ao cliente uma nova reserva pelo site.</p>
-        {contato}
-      </div>
-    );
-  }
+const MOTIVO = { lotado: 'lotado', fora_do_prazo: 'fora do prazo do site' } as const;
 
+function resumoAmbiente(a: OpcaoAmbiente, pessoas: number) {
+  if (a.aviso) return a.aviso;
+  if (!a.horarios.length) return 'Sem horários nesta data';
+  const livres = a.horarios.filter((h) => !h.indisponivel).length;
+  if (livres) return plural(livres, 'horário livre', 'horários livres');
+  return a.horarios.every((h) => h.indisponivel === 'lotado') ? `Sem lugar para ${plural(pessoas, 'pessoa', 'pessoas')}` : 'Sem horário dentro do prazo';
+}
+
+function fimDoHorario(hora: string, duracaoMin: number) {
+  const [h, m] = hora.split(':').map(Number);
+  const total = h * 60 + m + duracaoMin;
+  return `${String(Math.floor(total / 60) % 24).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+}
+
+function Horarios({ dados, f, pessoas, aoEscolher, aoIrPara }: { dados: DisponibilidadeManual; f: Form; pessoas: number; aoEscolher: (a: OpcaoAmbiente, h: OpcaoHorario) => void; aoIrPara: (data: string) => void }) {
+  if (!dados.ambientes.length) return <Vazio compacto titulo="Nenhum ambiente ativo">Os ambientes são cadastrados em Configurações.</Vazio>;
+  const semHorario = !dados.ambientes.some((a) => a.horarios.length);
+  const ambiente = dados.ambientes.find((a) => a.id === f.ambiente_id);
+  const escolhido = ambiente?.horarios.find((h) => h.hora === f.hora);
   return (
-    <div class="grade-campos">
-      <Campo rotulo="Ambiente" erro={erros.ambiente_id} class="inteiro">
-        {(id, d) => (
-          <select id={id} class="selecao" aria-describedby={d} aria-invalid={!!erros.ambiente_id || undefined} value={f.ambiente_id} onChange={(e) => set({ ambiente_id: e.currentTarget.value, hora: '' })}>
-            <option value="">Escolha…</option>
-            {ativos.map((a) => (
-              <option key={a.id} value={a.id}>{a.nome} — até {a.capacidade_max} pessoas</option>
-            ))}
-          </select>
-        )}
-      </Campo>
-      <Campo rotulo="Data" erro={erros.data}>
-        {(id, d) => <input id={id} type="date" class="entrada" min={novo ? hojeISO() : undefined} aria-describedby={d} aria-invalid={!!erros.data || undefined} value={f.data} onChange={(e) => set({ data: e.currentTarget.value, hora: '' })} />}
-      </Campo>
-      <Campo rotulo="Pessoas" erro={erros.pessoas}>
-        {(id, d) => <input id={id} type="number" inputMode="numeric" min={1} max={60} class="entrada num" aria-describedby={d} aria-invalid={!!erros.pessoas || undefined} value={f.pessoas} onInput={(e) => set({ pessoas: e.currentTarget.value })} />}
-      </Campo>
-      <div class="campo inteiro">
-        <span class="campo__rotulo" id="rotulo-horario">Horário</span>
-        {!f.ambiente_id || !f.data ? (
-          <span class="campo__ajuda">Escolha ambiente e data para ver os horários com lugar.</span>
-        ) : lotacao.carregando ? (
-          <Esqueleto linhas={2} />
-        ) : lotacao.erro ? (
-          <>
-            <span class="campo__ajuda">Não foi possível consultar a lotação ({lotacao.erro.message}). Digite o horário; o sistema confere ao gravar.</span>
-            <input type="time" class="entrada" style={{ maxWidth: '160px' }} aria-labelledby="rotulo-horario" value={f.hora} onChange={(e) => set({ hora: e.currentTarget.value })} />
-          </>
-        ) : (
-          <div role="radiogroup" aria-labelledby="rotulo-horario" class="linha" style={{ gap: '6px' }}>
-            {lotacao.dados!.horarios.map((h) => {
-              const v = h.hora.slice(0, 5);
-              const marcado = f.hora === v;
-              return (
-                <button
-                  key={h.hora}
-                  type="button"
-                  role="radio"
-                  aria-checked={marcado}
-                  class={`btn btn--p${marcado ? ' btn--primario' : ''}`}
-                  style={!h.cabe && !marcado ? { opacity: 0.55 } : undefined}
-                  title={`${h.ocupadas} de ${lotacao.dados!.capacidade_max} lugares ocupados`}
-                  onClick={() => set({ hora: v })}
-                >
-                  <span class="num">{v}</span>
-                  {!h.cabe && <span class="sr">(lotado para {pessoas})</span>}
-                </button>
-              );
-            })}
+    <>
+      {semHorario && dados.proximaData && (
+        <p class="campo__ajuda">
+          Sem horários em {dataCurta(f.data)}. <button type="button" class="link" onClick={() => aoIrPara(dados.proximaData!)}>Ver {dataCurta(dados.proximaData)}</button>
+        </p>
+      )}
+      <div class="disp" role="radiogroup" aria-labelledby="rotulo-horario">
+        {dados.ambientes.map((a) => (
+          <div key={a.id} class="disp__ambiente" role="group" aria-label={a.nome}>
+            <div class="disp__topo">
+              <strong>{a.nome}</strong>
+              <span class="fraco">Até {a.capacidade} pessoas · {resumoAmbiente(a, pessoas)}</span>
+            </div>
+            {a.horarios.length > 0 && (
+              <div class="disp__horarios">
+                {a.horarios.map((h) => {
+                  const marcado = f.ambiente_id === a.id && f.hora === h.hora;
+                  return (
+                    <button
+                      key={h.hora}
+                      type="button"
+                      role="radio"
+                      aria-checked={marcado}
+                      disabled={!!h.indisponivel}
+                      class={`btn btn--p${marcado ? ' btn--primario' : ''}`}
+                      title={h.indisponivel ? MOTIVO[h.indisponivel] : h.ocupadas !== null ? `${h.ocupadas} de ${a.capacidade} lugares ocupados` : undefined}
+                      onClick={() => aoEscolher(a, h)}
+                    >
+                      <span class="num">{h.hora}</span>
+                      {h.indisponivel && <span class="sr"> ({MOTIVO[h.indisponivel]})</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
-        )}
-        {lotacao.dados && f.hora && !lotacao.dados.horarios.find((h) => h.hora.startsWith(f.hora))?.cabe && (
-          <span class="campo__ajuda" style={{ color: 'var(--atencao)' }}>Este horário passa da lotação para {pessoas} pessoas. O sistema pode recusar ao gravar.</span>
-        )}
-        {erros.hora && <span class="campo__erro" role="alert">{erros.hora}</span>}
+        ))}
       </div>
-      {contato}
-    </div>
+      {dados.ambientes.some((a) => a.horarios.some((h) => h.indisponivel)) && <span class="campo__ajuda">Riscado: lotado ou fora do prazo do site.</span>}
+      {ambiente && escolhido && (
+        <p class="disp__escolha" role="status">
+          <strong>{ambiente.nome}</strong> · <span class="num">{escolhido.hora} às {fimDoHorario(escolhido.hora, ambiente.duracaoMin)}</span> · {plural(pessoas, 'pessoa', 'pessoas')}
+          {escolhido.ocupadas !== null && <span class="fraco"> · {escolhido.ocupadas} de {ambiente.capacidade} lugares já ocupados</span>}
+        </p>
+      )}
+    </>
   );
 }
 
@@ -158,16 +142,41 @@ export function NovaReserva({ aberta, aoFechar, unidade, dataInicial, aoCriar }:
   const [erros, setErros] = useState<Record<string, string>>({});
   const [enviando, setEnviando] = useState(false);
   const [erroGeral, setErroGeral] = useState<ErroApi | null>(null);
+  const [perdeuHorario, setPerdeuHorario] = useState(false);
   const chave = useRef(novaChave());
   useEffect(() => {
     if (aberta) {
       setF(vazio());
       setErros({});
       setErroGeral(null);
+      setPerdeuHorario(false);
       chave.current = novaChave();
     }
   }, [aberta]);
   const set = (m: Partial<Form>) => setF((x) => ({ ...x, ...m }));
+
+  const pessoas = Number(f.pessoas);
+  const pedidoValido = !!f.data && f.data >= hojeISO() && Number.isInteger(pessoas) && pessoas >= 1;
+  const ambientes = useConsulta(aberta ? 'reservas/ambientes' : null, () => reservas.ambientes());
+  const disponibilidade = useConsulta(
+    aberta && ambientes.dados && pedidoValido ? `reservas/disponibilidade:${f.data}:${pessoas}` : null,
+    () => consultarDisponibilidade(ambientes.dados!, f.data, pessoas),
+    { intervalo: 30_000 },
+  );
+
+  /** O horário escolhido deixou de valer: a escolha cai e a pessoa vê o porquê; nada é gravado. */
+  function perderHorario() {
+    set({ ambiente_id: '', hora: '' });
+    setPerdeuHorario(true);
+    chave.current = novaChave();
+    atualizarReservas();
+  }
+
+  useEffect(() => {
+    if (!f.hora || !disponibilidade.dados) return;
+    const h = disponibilidade.dados.ambientes.find((a) => a.id === f.ambiente_id)?.horarios.find((x) => x.hora === f.hora);
+    if (!h || h.indisponivel) perderHorario();
+  }, [disponibilidade.dados]);
 
   async function enviar(e: Event) {
     e.preventDefault();
@@ -178,15 +187,20 @@ export function NovaReserva({ aberta, aoFechar, unidade, dataInicial, aoCriar }:
       setErroGeral(new ErroApi('permissao', 'Seu usuário não tem unidade atribuída.'));
       return;
     }
+    const ambiente = ambientes.dados?.find((a) => a.id === f.ambiente_id);
+    if (!ambiente) return perderHorario();
     setEnviando(true);
     setErroGeral(null);
+    setPerdeuHorario(false);
     try {
-      const r = await reservas.criar({ unidade, ambiente_id: f.ambiente_id, data: f.data, hora: f.hora, pessoas: Number(f.pessoas), nome: f.nome.trim(), telefone: digitosTelefone(f.telefone), email: f.email || null, observacoes: f.observacoes || null, canal: f.canal }, chave.current);
+      if (!(await horarioContinuaLivre(ambiente, f.data, pessoas, f.hora))) return perderHorario();
+      const r = await reservas.criar({ unidade, ambiente_id: f.ambiente_id, data: f.data, hora: f.hora, pessoas, nome: f.nome.trim(), telefone: digitosTelefone(f.telefone), email: f.email || null, observacoes: f.observacoes || null, canal: f.canal }, chave.current);
       atualizarReservas();
       avisar(`Reserva de ${r.contato_nome} criada.`, 'ok');
       aoCriar(r);
     } catch (err) {
       const x = err instanceof ErroApi ? err : new ErroApi('servidor', 'Não foi possível criar a reserva.');
+      if (x.codigo === 'lotacao_excedida') return perderHorario();
       setErros(x.campos);
       setErroGeral(x);
       if (x.tipo === 'conflito') atualizarReservas();
@@ -221,17 +235,41 @@ export function NovaReserva({ aberta, aoFechar, unidade, dataInicial, aoCriar }:
         ) : (
           erroGeral && <Aviso tom="perigo" icone={<Info aria-hidden="true" />}>{erroGeral.message}</Aviso>
         )}
-        <Campo rotulo="Como o pedido chegou">
-          {(id) => (
-            <select id={id} class="selecao" value={f.canal} onChange={(e) => set({ canal: e.currentTarget.value as CanalEquipe })}>
-              <option value="telefone">Telefone</option>
-              <option value="whatsapp">WhatsApp</option>
-              <option value="balcao">Balcão</option>
-              <option value="instagram">Instagram</option>
-            </select>
-          )}
-        </Campo>
-        <CamposReserva f={f} set={set} erros={erros} novo />
+        <div class="grade-campos">
+          <Campo rotulo="Data" erro={erros.data}>
+            {(id, d) => <input id={id} type="date" class="entrada" min={hojeISO()} aria-describedby={d} aria-invalid={!!erros.data || undefined} value={f.data} onChange={(e) => { set({ data: e.currentTarget.value, ambiente_id: '', hora: '' }); setPerdeuHorario(false); }} />}
+          </Campo>
+          <Campo rotulo="Pessoas" erro={erros.pessoas}>
+            {(id, d) => <input id={id} type="number" inputMode="numeric" min={1} max={60} class="entrada num" aria-describedby={d} aria-invalid={!!erros.pessoas || undefined} value={f.pessoas} onInput={(e) => set({ pessoas: e.currentTarget.value })} />}
+          </Campo>
+          <div class="campo inteiro">
+            <span class="campo__rotulo" id="rotulo-horario">Ambiente e horário</span>
+            {perdeuHorario && <Aviso tom="atencao">O horário escolhido não está mais disponível. Escolha outro.</Aviso>}
+            {ambientes.erro && !ambientes.dados ? (
+              <Falha erro={ambientes.erro} aoTentar={ambientes.recarregar} compacto recurso="A lista de ambientes" />
+            ) : !pedidoValido ? (
+              <span class="campo__ajuda">Informe a data e quantas pessoas para ver os horários.</span>
+            ) : disponibilidade.erro ? (
+              <Falha erro={disponibilidade.erro} aoTentar={disponibilidade.recarregar} compacto recurso="A disponibilidade" />
+            ) : disponibilidade.dados ? (
+              <Horarios dados={disponibilidade.dados} f={f} pessoas={pessoas} aoEscolher={(a, h) => { set({ ambiente_id: a.id, hora: h.hora }); setPerdeuHorario(false); }} aoIrPara={(data) => set({ data, ambiente_id: '', hora: '' })} />
+            ) : (
+              <Esqueleto linhas={4} altura={32} />
+            )}
+            {erros.hora && <span class="campo__erro" role="alert">{erros.hora}</span>}
+          </div>
+          <CamposContato f={f} set={set} erros={erros} />
+          <Campo rotulo="Como o pedido chegou">
+            {(id) => (
+              <select id={id} class="selecao" value={f.canal} onChange={(e) => set({ canal: e.currentTarget.value as CanalEquipe })}>
+                <option value="telefone">Telefone</option>
+                <option value="whatsapp">WhatsApp</option>
+                <option value="balcao">Balcão</option>
+                <option value="instagram">Instagram</option>
+              </select>
+            )}
+          </Campo>
+        </div>
       </form>
     </Gaveta>
   );
@@ -277,7 +315,16 @@ export function EditarReserva({ reserva, aoTerminar }: { reserva: ReservaPainel;
     <form onSubmit={salvar} noValidate class="pilha">
       <h3 class="secao-titulo">Alterar contato e observações</h3>
       {erro && <Aviso tom="perigo" icone={<Info aria-hidden="true" />}>{erro}</Aviso>}
-      <CamposReserva f={f} set={set} erros={erros} novo={false} soContato ambienteNome={reserva.ambiente} />
+      <div class="grade-campos">
+        <dl class="inteiro" aria-label="Reserva (não muda pelo painel)">
+          <div><dt>Ambiente</dt><dd>{reserva.ambiente}</dd></div>
+          <div><dt>Data</dt><dd class="num">{f.data.split('-').reverse().join('/')}</dd></div>
+          <div><dt>Horário</dt><dd class="num">{f.hora}</dd></div>
+          <div><dt>Pessoas</dt><dd class="num">{f.pessoas}</dd></div>
+        </dl>
+        <p class="campo__ajuda inteiro">Data, horário, ambiente e pessoas não mudam pelo painel. Para mudar, cancele e peça ao cliente uma nova reserva pelo site.</p>
+        <CamposContato f={f} set={set} erros={erros} />
+      </div>
       <div class="linha" style={{ justifyContent: 'flex-end' }}>
         <Botao onClick={aoTerminar} disabled={enviando}>Voltar</Botao>
         <Botao variante="primario" type="submit" carregando={enviando}>Salvar contato e observações</Botao>

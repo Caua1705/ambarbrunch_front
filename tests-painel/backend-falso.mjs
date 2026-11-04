@@ -59,6 +59,8 @@ http.createServer(async (req, res) => {
   let corpo = '';
   for await (const parte of req) corpo += parte;
   if (url.pathname === '/saude') return json(res, 200, { status: 'ok' });
+  // Serviço público das reservas (sem token): responde com o que recebeu, para provar o que a ponte do painel repassa.
+  if (url.pathname === '/reservas/disponibilidade' || url.pathname === '/reservas/config') return json(res, 200, { rota: url.pathname, autorizacao: req.headers.authorization ?? null, query: url.search.slice(1) });
   if (url.pathname === '/__ultimo') return json(res, 200, { authorization: ultimo, ip_do_login: ipDoLogin, revogado, patches: controle.patches, unidade: unidadeConsultada ?? null });
   if (url.pathname === '/__controle' && req.method === 'POST') {
     // ?cenario=<instante ISO> monta um dia de movimento em volta desse instante; ?cenario= (vazio) volta ao padrão

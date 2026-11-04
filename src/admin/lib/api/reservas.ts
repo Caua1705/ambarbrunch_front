@@ -2,7 +2,7 @@
 // api_comparecimento.py do backend). Clientes ficam em ./clientes.
 import { pedir, novaChave } from './cliente';
 import type {
-  AmbienteOperacao, ComparecimentoReserva, Comparecimento, ConfiguracaoUnidade, ListaReservas, Lotacao, OperacaoReserva,
+  AmbienteOperacao, ComparecimentoReserva, Comparecimento, ConfigReservasSite, ConfiguracaoUnidade, DisponibilidadeSite, ListaReservas, Lotacao, OperacaoReserva,
   PendenciaComparecimento, ReservaAlteracao, ReservaEquipeEntrada, ReservaPainel, StatusReserva, MensagemReservaFila,
   PoliticaReserva, AmbienteConfig, RegraReserva,
 } from '../tipos/reservas';
@@ -45,6 +45,9 @@ export const reservas = {
   operacao: (data: string, unidade?: string) => pedir<OperacaoReserva[]>('reservas/operacao', { query: { data, unidade } }),
   ambientes: (unidade?: string) => pedir<AmbienteOperacao[]>('reservas/ambientes', { query: { unidade } }),
   lotacao: (ambiente_id: string, data: string, pessoas?: number) => pedir<Lotacao>('reservas/lotacao', { query: { ambiente_id, data, pessoas } }),
+  /** Serviço público do site (GET /reservas/config e /reservas/disponibilidade), lido pela ponte do painel. */
+  configSite: () => pedir<ConfigReservasSite>('reservas/publica/config'),
+  disponibilidadeSite: (ambiente: string, data: string, pessoas: number) => pedir<DisponibilidadeSite>('reservas/publica/disponibilidade', { query: { ambiente, data, pessoas } }),
   /** Exige reservas.ver_contato (Gerente e Proprietário). */
   mensagens: (q: { status?: string[]; tipo?: string; data_de?: string; data_ate?: string; limite?: number; deslocamento?: number }) => pedir<Pagina<MensagemReservaFila>>('reservas/mensagens', { query: q }),
   obter: (id: string) => pedir<ReservaPainel>(`reservas/${id}`),
