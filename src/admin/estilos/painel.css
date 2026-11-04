@@ -2429,6 +2429,46 @@ button.lista__item {
   font-size: var(--t-s);
 }
 
+/* Buscar reserva */
+.busca-reservas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.busca-reservas__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  background: none;
+  border: 1px solid var(--borda);
+  border-radius: 8px;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.busca-reservas__item:hover {
+  background: var(--sobre-hover);
+}
+.busca-reservas__quando {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  width: 124px;
+  white-space: nowrap;
+}
+.busca-reservas__quem {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
 /* Reservas por ambiente */
 .grade-ambientes {
   display: grid;

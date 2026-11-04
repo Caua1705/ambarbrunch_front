@@ -2,7 +2,8 @@
 // o PERÍODO (Dia, Semana, Mês) e a VISUALIZAÇÃO (Calendário ou Por ambiente). Trocar uma nunca muda a outra, e a data de
 // referência acompanha a troca de período. Sem cartões de indicador: o resumo do dia é uma linha (reservas · pessoas) e as
 // aprovações pendentes abrem numa gaveta. Detalhe em gaveta. Rotas reais /admin/reservas* (no ar); o fluxo público e as
-// mensagens do WhatsApp não passam por aqui. A antiga visão Lista (Lista.tsx) saiu da navegação em 04/11/2026.
+// mensagens do WhatsApp não passam por aqui. A antiga visão Lista (Lista.tsx) saiu da navegação em 04/11/2026: procurar em
+// todas as datas é a gaveta "Buscar reserva".
 // Sem tempo real no backend: a agenda é relida a cada minuto com a aba visível, ao voltar para a aba e no Atualizar.
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { ChevronLeft, ChevronRight, Plus, Search, CalendarClock, Check, UserCheck, MoreHorizontal, X, CalendarCheck, Phone, RotateCw, Lock } from 'lucide-preact';
@@ -24,6 +25,7 @@ import { Pendentes } from './Pendentes';
 import { Semana } from './Semana';
 import { Mes } from './Mes';
 import { Ambientes } from './Ambientes';
+import { BuscaReservas } from './BuscaReservas';
 
 type FiltroStatus = 'todas' | 'pendente' | 'confirmada' | 'chegou' | 'cancelada';
 type Periodo = 'dia' | 'semana' | 'mes';
@@ -58,6 +60,7 @@ export default function Reservas({ contexto }: { contexto: ContextoPainel }) {
   const [busca, setBusca] = useState('');
   const [aberta, setAberta] = useState<string | null>(lerParam('reserva'));
   const [nova, setNova] = useState(false);
+  const [buscar, setBuscar] = useState(false);
   const [verPendentes, setVerPendentes] = useState(lerParam('status') === 'pendente');
   const { confirmar, elemento: dialogo } = useConfirmacao();
   const gerencia = pode(papel, 'reservas.mudar_status');
@@ -237,6 +240,7 @@ export default function Reservas({ contexto }: { contexto: ContextoPainel }) {
           <Segmentado rotulo="Período" valor={periodo} aoMudar={trocarPeriodo} opcoes={PERIODOS} />
           <Segmentado rotulo="Visualização" valor={apresentacao} aoMudar={setApresentacao} opcoes={APRESENTACOES} />
           <Botao variante="fantasma" so_icone aria-label="Atualizar agora" title="Atualizar agora" icone={<RotateCw aria-hidden="true" />} onClick={atualizarReservas} />
+          <Botao icone={<Search aria-hidden="true" />} onClick={() => setBuscar(true)}>Buscar reserva</Botao>
           {podeCriar && (
             <Botao variante="primario" icone={<Plus aria-hidden="true" />} onClick={() => setNova(true)} title={criacaoDesligada ? 'A criação de reservas pelo painel está desligada no sistema do Âmbar' : undefined} aria-describedby={criacaoDesligada ? 'criacao-desligada' : undefined}>
               Nova reserva
@@ -346,6 +350,7 @@ export default function Reservas({ contexto }: { contexto: ContextoPainel }) {
       </div>
 
       <DetalheReserva id={aberta} aoFechar={() => setAberta(null)} confirmar={confirmar} papel={papel} />
+      <BuscaReservas aberta={buscar} aoFechar={() => setBuscar(false)} papel={papel} aoAbrir={(id) => { setBuscar(false); setAberta(id); }} />
       <NovaReserva aberta={nova} aoFechar={() => setNova(false)} unidade={contexto.unidade?.codigo ?? null} dataInicial={data} aoCriar={(r) => { setNova(false); setApresentacao('calendario'); abrirDia(r.data); setAberta(r.id); }} />
       <Pendentes aberta={verPendentes} aoFechar={() => setVerPendentes(false)} aoAprovar={aprovar} aoRecusar={(r) => pedirCancelamento(r, confirmar)} aoAbrir={(id) => { setVerPendentes(false); setAberta(id); }} />
       {dialogo}
