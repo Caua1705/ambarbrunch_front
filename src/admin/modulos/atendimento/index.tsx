@@ -3,15 +3,15 @@
 // grupo interno. O servidor decide tudo (estado, dono da conversa, janela de 24 h, bloqueios de campanha); a tela só mostra
 // e pede.
 // Uma central de mensagens, não um painel de números: quatro estados (Assistente · Esperando · Equipe · Encerradas) e as
-// conversas esperando a equipe primeiro (o backend ordena). O Cardápio abre numa gaveta. Campanhas, base de conhecimento e
-// cadastros duplicados saíram daqui (04/11/2026): as telas Campanhas.tsx, Conhecimento.tsx e Duplicidades.tsx e as rotas do
-// backend continuam no código, sem entrada no painel, à espera de um lugar em Configurações. Não existe mais página
-// Clientes: quem é o contato aparece na ficha da própria conversa.
+// conversas esperando a equipe primeiro (o backend ordena). Cardápio e Campanhas abrem em gavetas, com um botão discreto
+// cada. A Base de conhecimento e os Cadastros duplicados ficam em Configurações, seção Atendimento; o Atendente, que não
+// entra em Configurações, continua lendo a base por um botão aqui. Não existe mais página Clientes: quem é o contato
+// aparece na ficha da própria conversa.
 // Tempo real: a caixa é relida a cada 15 s e a conversa aberta a cada 5 s (com a aba visível), sem WebSocket.
 // Eventos (backend com a 0023): etiqueta "Evento" na conversa e, acima da lista, o atalho "Eventos" com os que aguardam
 // contato — abre a visão compacta das oportunidades (gaveta), que leva de volta à conversa. Sem página nova no menu.
 import { useEffect, useState } from 'preact/hooks';
-import { Search, Inbox, MessageSquareOff, MessageSquarePlus, UtensilsCrossed, BotOff, CloudOff, AlertCircle, PartyPopper } from 'lucide-preact';
+import { Search, Inbox, MessageSquareOff, MessageSquarePlus, UtensilsCrossed, Megaphone, BookOpen, BotOff, CloudOff, AlertCircle, PartyPopper } from 'lucide-preact';
 import type { ContextoPainel } from '../../lib/sessao';
 import { useConsulta } from '../../lib/consulta';
 import { atendimento } from '../../lib/api/atendimento-clube';
@@ -26,9 +26,12 @@ import { ESTADO, PREFIXO_ORIGEM } from './comum';
 import { Conversa } from './Conversa';
 import { NovaConversa, type DestinoInicial } from './NovaConversa';
 import { Cardapio } from './Cardapio';
+import { Campanhas } from './Campanhas';
+import { Conhecimento } from './Conhecimento';
 import { Oportunidades } from './Evento';
 
 type Filtro = 'todas' | EstadoConversa;
+type Gestao = 'cardapio' | 'campanhas' | 'conhecimento' | null;
 
 /** Filtro da URL, aceitando os nomes antigos (links do sino e favoritos de antes dos quatro estados). */
 function filtroInicial(): Filtro {
@@ -46,7 +49,8 @@ export default function Atendimento({ contexto }: { contexto: ContextoPainel }) 
   const [aberta, setAberta] = useState<string | null>(lerParam('conversa'));
   const [verFalhas, setVerFalhas] = useState(false);
   const [nova, setNova] = useState<DestinoInicial | null>(null);
-  const [verCardapio, setVerCardapio] = useState(false);
+  const [gestao, setGestao] = useState<Gestao>(null);
+  const veCampanhas = pode(papel, 'atendimento.campanhas');
   const [verEventos, setVerEventos] = useState(lerParam('eventos') === '1');
   const { confirmar, elemento: dialogo } = useConfirmacao();
 
@@ -83,7 +87,10 @@ export default function Atendimento({ contexto }: { contexto: ContextoPainel }) 
               <Botao tamanho="p" variante="primario" icone={<MessageSquarePlus aria-hidden="true" />} onClick={() => setNova({})}>
                 Nova conversa
               </Botao>
-              <Botao tamanho="p" variante="fantasma" icone={<UtensilsCrossed aria-hidden="true" />} title="Cardápio e capacidades" onClick={() => setVerCardapio(true)}>Cardápio</Botao>
+              <Botao tamanho="p" variante="fantasma" so_icone aria-label="Cardápio" title="Cardápio e capacidades" icone={<UtensilsCrossed aria-hidden="true" />} onClick={() => setGestao('cardapio')} />
+              {veCampanhas
+                ? <Botao tamanho="p" variante="fantasma" so_icone aria-label="Campanhas" title="Campanhas" icone={<Megaphone aria-hidden="true" />} onClick={() => setGestao('campanhas')} />
+                : <Botao tamanho="p" variante="fantasma" so_icone aria-label="Base de conhecimento" title="Base de conhecimento" icone={<BookOpen aria-hidden="true" />} onClick={() => setGestao('conhecimento')} />}
             </div>
             {config && !config.assistente_ativo && (
               <p class="caixa__aviso" role="note"><BotOff aria-hidden="true" /> Assistente virtual desligado: as conversas vão direto para a equipe.</p>
@@ -167,7 +174,10 @@ export default function Atendimento({ contexto }: { contexto: ContextoPainel }) 
       <NovaConversa aberta={nova !== null} inicial={nova ?? {}} aoFechar={() => setNova(null)} aoAbrirConversa={abrirConversa} />
       {comEventos && <Oportunidades aberta={verEventos} aoFechar={() => setVerEventos(false)} aoAbrirConversa={abrirConversa} />}
       <Falhas aberta={verFalhas} aoFechar={() => setVerFalhas(false)} aoAbrir={(id) => { setVerFalhas(false); setAberta(id); }} />
-      <Cardapio aberta={verCardapio} aoFechar={() => setVerCardapio(false)} podeEditar={pode(papel, 'atendimento.conhecimento')} />
+      <Cardapio aberta={gestao === 'cardapio'} aoFechar={() => setGestao(null)} podeEditar={pode(papel, 'atendimento.conhecimento')} />
+      {veCampanhas
+        ? <Campanhas aberta={gestao === 'campanhas'} aoFechar={() => setGestao(null)} aoAbrirConversa={(id) => { setGestao(null); setAberta(id); }} confirmar={confirmar} />
+        : <Conhecimento aberta={gestao === 'conhecimento'} aoFechar={() => setGestao(null)} podeEditar={false} confirmar={confirmar} />}
       {dialogo}
     </Raiz>
   );

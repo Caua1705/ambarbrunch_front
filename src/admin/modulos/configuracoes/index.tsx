@@ -1,9 +1,10 @@
 // Configurações (Proprietário e Gerente), em grupos numa lista ao lado: Conta e aparência; Agenda e ambientes (política
 // e ambientes das reservas, só Proprietário); Equipe e acessos (a equipe só para o Proprietário; os perfis para todos);
-// Financeiro (atalhos para os cadastros que já existem: categorias, fornecedores, contas fixas, taxas). Só o que tem
+// Atendimento (base de conhecimento da IA e cadastros duplicados, cada um na própria gaveta); Financeiro (atalhos para os
+// cadastros que já existem: categorias, fornecedores, contas fixas, taxas). Só o que tem
 // contrato no backend: contas novas e senhas só pela CLI, integrações sem rota de configuração — sem formulário de mentira.
 import { useEffect, useState } from 'preact/hooks';
-import { Sun, Moon, Monitor, LogOut, ShieldCheck, Pencil, CalendarCog, UserRound, Users, Wallet, ChevronRight } from 'lucide-preact';
+import { Sun, Moon, Monitor, LogOut, ShieldCheck, Pencil, CalendarCog, UserRound, Users, Wallet, ChevronRight, MessagesSquare, BookOpen, UsersRound } from 'lucide-preact';
 import type { ContextoPainel, Papel } from '../../lib/sessao';
 import { NOME_PAPEL } from '../../lib/sessao';
 import { pode, podeVer } from '../../lib/permissoes';
@@ -11,25 +12,32 @@ import { lerParam, gravarParams } from '../../lib/rotas';
 import { useConsulta, invalidar } from '../../lib/consulta';
 import { reservas } from '../../lib/api/reservas';
 import { ErroApi } from '../../lib/api/cliente';
-import { Raiz, Gaveta, avisar, avisarErro } from '../../ui/camadas';
+import { Raiz, Gaveta, avisar, avisarErro, useConfirmacao } from '../../ui/camadas';
 import { sair } from '../../layout/sair';
 import { Botao, Cartao, Segmentado, Campo, Aviso, Situacao } from '../../ui/base';
 import { Dados, EsqueletoTabela } from '../../ui/estados';
 import { Equipe } from './Equipe';
+import { Conhecimento } from '../atendimento/Conhecimento';
+import { Duplicidades } from '../atendimento/Duplicidades';
 import { Tabela } from '../../ui/tabela';
 import type { AmbienteConfig, PoliticaReserva } from '../../lib/tipos/reservas';
 
 type Tema = 'claro' | 'escuro' | 'sistema';
-type Secao = 'conta' | 'agenda' | 'equipe' | 'financeiro';
+type Secao = 'conta' | 'agenda' | 'equipe' | 'atendimento' | 'financeiro';
 
 export default function Configuracoes({ contexto }: { contexto: ContextoPainel }) {
   const { usuario, unidade, unidades } = contexto;
   const veAgenda = pode(usuario.papel, 'reservas.configurar') && contexto.modulos.includes('reservas') && !!unidade;
   const veFinanceiro = podeVer(usuario.papel, 'financeiro') && contexto.modulos.includes('financeiro');
+  const veAtendimento = podeVer(usuario.papel, 'atendimento') && contexto.modulos.includes('atendimento');
+  const veDuplicidades = pode(usuario.papel, 'clientes.visualizar');
+  const [gaveta, setGaveta] = useState<'conhecimento' | 'duplicidades' | null>(null);
+  const { confirmar, elemento: dialogo } = useConfirmacao();
   const secoes: { id: Secao; rotulo: string; icone: typeof UserRound }[] = [
     { id: 'conta', rotulo: 'Conta e aparência', icone: UserRound },
     ...(veAgenda ? [{ id: 'agenda' as const, rotulo: 'Agenda e ambientes', icone: CalendarCog }] : []),
     { id: 'equipe', rotulo: 'Equipe e acessos', icone: Users },
+    ...(veAtendimento ? [{ id: 'atendimento' as const, rotulo: 'Atendimento', icone: MessagesSquare }] : []),
     ...(veFinanceiro ? [{ id: 'financeiro' as const, rotulo: 'Financeiro', icone: Wallet }] : []),
   ];
   const [secao, setSecao] = useState<Secao>(() => {
@@ -135,6 +143,29 @@ export default function Configuracoes({ contexto }: { contexto: ContextoPainel }
       </Cartao>
       )}
 
+      {secao === 'atendimento' && veAtendimento && (
+        <Cartao titulo="Cadastros do Atendimento" justo>
+          <ul class="lista">
+            <li>
+              <button type="button" class="lista__item" onClick={() => setGaveta('conhecimento')}>
+                <span class="lista__icone"><BookOpen aria-hidden="true" /></span>
+                <span class="lista__texto"><strong>Base de conhecimento da IA</strong><span>O que o assistente pode afirmar, sempre com a fonte</span></span>
+                <span class="lista__fim"><ChevronRight aria-hidden="true" /></span>
+              </button>
+            </li>
+            {veDuplicidades && (
+              <li>
+                <button type="button" class="lista__item" onClick={() => setGaveta('duplicidades')}>
+                  <span class="lista__icone"><UsersRound aria-hidden="true" /></span>
+                  <span class="lista__texto"><strong>Cadastros duplicados</strong><span>Telefones e e-mails com mais de um cadastro, sem apagar nada</span></span>
+                  <span class="lista__fim"><ChevronRight aria-hidden="true" /></span>
+                </button>
+              </li>
+            )}
+          </ul>
+        </Cartao>
+      )}
+
       {secao === 'financeiro' && veFinanceiro && (
         <Cartao titulo="Cadastros do Financeiro" descricao="Ficam no Financeiro, onde são usados — aqui estão os atalhos" justo>
           <ul class="lista">
@@ -156,6 +187,13 @@ export default function Configuracoes({ contexto }: { contexto: ContextoPainel }
       )}
       </section>
       </div>
+      {dialogo}
+      {veAtendimento && (
+        <>
+          <Conhecimento aberta={gaveta === 'conhecimento'} aoFechar={() => setGaveta(null)} podeEditar={pode(usuario.papel, 'atendimento.conhecimento')} confirmar={confirmar} />
+          {veDuplicidades && <Duplicidades aberta={gaveta === 'duplicidades'} aoFechar={() => setGaveta(null)} podeVincular={pode(usuario.papel, 'clientes.editar')} confirmar={confirmar} />}
+        </>
+      )}
     </Raiz>
   );
 }

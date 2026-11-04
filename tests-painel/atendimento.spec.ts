@@ -1,6 +1,6 @@
 // Atendimento (demonstração): central única — estados da caixa, conversa com mídia e linha do tempo única, assistente
-// ligado/desligado, assumir, ficha do contato, nova conversa com template, cardápio e o fim da página Clientes (redireciona
-// para cá). Campanhas, base de conhecimento e cadastros duplicados saíram da tela em 04/11/2026; as rotas seguem no backend.
+// ligado/desligado, assumir, ficha do contato, nova conversa com template, cardápio, campanhas, base de conhecimento e
+// cadastros duplicados (estes dois em Configurações) e o fim da página Clientes (redireciona para cá).
 import { test, expect, type Page } from '@playwright/test';
 import { DEMO, entrarDemo, post, semRolagemHorizontal } from './apoio';
 
@@ -155,29 +155,87 @@ test('cardápio e capacidades: PDF vigente, catálogo com busca e só a gerênci
   await expect(page.getByRole('dialog', { name: 'Cardápio e capacidades' }).getByRole('button', { name: 'Nova versão' })).toBeVisible();
 });
 
-test('campanhas, base de conhecimento e cadastros duplicados saíram do Atendimento; a caixa continua inteira', async ({ page }) => {
-  for (const papel of ['gerente', 'operador'] as const) {
-    await abrirAtendimento(page, papel);
-    await expect(page.getByRole('button', { name: 'Mais opções do Atendimento' })).toHaveCount(0);
-    for (const nome of ['Campanhas', 'Base de conhecimento', 'Cadastros duplicados']) {
-      await expect(page.getByRole('menuitem', { name: nome })).toHaveCount(0);
-      await expect(page.getByRole('button', { name: nome })).toHaveCount(0);
-      await expect(page.getByRole('dialog', { name: nome })).toHaveCount(0);
-      await expect(page.getByText(nome, { exact: true })).toHaveCount(0);
-    }
-    // o que fica: nova conversa, cardápio, busca, filtros de estado e a lista de conversas
-    await expect(page.getByRole('button', { name: 'Nova conversa' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Cardápio', exact: true })).toBeVisible();
-    await expect(page.getByRole('searchbox', { name: 'Buscar conversa' })).toBeVisible();
-    await expect(page.getByRole('group', { name: 'Filtrar conversas' })).toBeVisible();
-    await expect(page.getByRole('list', { name: 'Conversas' })).toBeVisible();
-  }
-  // Nada foi apagado: as rotas continuam respondendo à gerência (e o Atendente segue sem acesso às campanhas).
+async function abrirConfiguracoes(page: Page) {
   await entrarDemo(page, 'gerente');
-  for (const rota of ['campanhas', 'conhecimento', 'duplicidades']) expect((await page.request.get(`${DEMO}/admin/api/atendimento/${rota}`)).status()).toBe(200);
-  await entrarDemo(page, 'operador');
+  await page.goto(`${DEMO}/admin/configuracoes?secao=atendimento`);
+}
+
+test('sem menu "Mais": Campanhas é um botão discreto da gerência; a Base e os Duplicados saíram do Atendimento', async ({ page }) => {
+  await abrirAtendimento(page, 'gerente');
+  await expect(page.getByRole('button', { name: 'Mais opções do Atendimento' })).toHaveCount(0);
+  const campanhas = page.getByRole('button', { name: 'Campanhas', exact: true });
+  await expect(campanhas).toBeVisible();
+  // dentro da coluna: o botão não pode sair cortado
+  expect(await campanhas.evaluate((b) => { const p = b.parentElement!; return p.scrollWidth <= p.clientWidth; })).toBe(true);
+  await expect(page.getByRole('button', { name: 'Base de conhecimento' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Cadastros duplicados' })).toHaveCount(0);
+  // o que fica: nova conversa, cardápio, busca, filtros de estado e a lista de conversas
+  await expect(page.getByRole('button', { name: 'Nova conversa' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Cardápio', exact: true })).toBeVisible();
+  await expect(page.getByRole('searchbox', { name: 'Buscar conversa' })).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Filtrar conversas' })).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Conversas' })).toBeVisible();
+});
+
+test('Gerente: campanha de teste — rascunho com bloqueio, confirmação e envio em lotes', async ({ page }) => {
+  await abrirAtendimento(page, 'gerente');
+  await page.getByRole('button', { name: 'Campanhas', exact: true }).click();
+  const g = page.getByRole('dialog', { name: 'Campanhas' });
+  await expect(g.getByText('Teste do template de boas-vindas')).toBeVisible();
+  await g.getByRole('button', { name: 'Nova campanha' }).click();
+  const n = page.getByRole('dialog', { name: 'Nova campanha' });
+  await n.getByLabel('Nome da campanha').fill('Teste de novembro');
+  await n.getByLabel('Template').selectOption('boas_vindas_ambar');
+  await n.getByLabel('Nome', { exact: true }).fill('Cliente');
+  await expect(n.getByRole('checkbox', { name: /Campanha de teste/ })).toBeChecked();
+  await n.getByLabel('Destinatários').fill('85 99123-0001\n85 97777-1234;Ana');
+  await n.getByRole('button', { name: 'Criar rascunho' }).click();
+  await expect(page.getByText(/Rascunho criado/)).toBeVisible();
+  const d = page.getByRole('dialog', { name: 'Campanhas' });
+  await expect(d.getByRole('list', { name: 'Destinatários' })).toContainText('não é número de teste');
+  await d.getByRole('button', { name: 'Enviar', exact: true }).click();
+  const confirmar = page.getByRole('dialog', { name: /Enviar a campanha de TESTE/ });
+  await expect(confirmar).toContainText('só para os números de teste');
+  await confirmar.getByRole('button', { name: 'Enviar teste' }).click();
+  await expect(page.getByText(/Envio concluído: 1 enviada/)).toBeVisible();
+});
+
+test('base de conhecimento em Configurações: a gerência cadastra com fonte; o Atendente só lê, no Atendimento', async ({ page }) => {
+  await abrirConfiguracoes(page);
+  await page.getByRole('button', { name: /Base de conhecimento da IA/ }).click();
+  const g = page.getByRole('dialog', { name: 'Base de conhecimento' });
+  await expect(g.getByText('Só o que o Âmbar confirmou. Sem a informação aqui, o assistente passa para a equipe.')).toBeVisible();
+  await g.getByRole('button', { name: /Estacionamento/ }).click();
+  await g.getByLabel('O que o assistente pode dizer').fill('Há vagas gratuitas na rua em frente; não temos estacionamento próprio.');
+  await g.getByLabel('Fonte').fill('Gerência, reunião de 02/11');
+  await g.getByRole('button', { name: 'Salvar' }).click();
+  await expect(page.getByText('Salvo: o assistente já pode usar.')).toBeVisible();
+  await expect(g.getByRole('list', { name: 'Itens da base de conhecimento' })).toContainText('vagas gratuitas');
+
+  await abrirAtendimento(page, 'operador');
+  await expect(page.getByRole('button', { name: 'Campanhas', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Base de conhecimento' }).click();
+  const leitura = page.getByRole('dialog', { name: 'Base de conhecimento' });
+  await expect(leitura.getByText('vagas gratuitas')).toBeVisible();
+  await expect(leitura.getByRole('button', { name: /Editar/ })).toHaveCount(0);
   expect((await page.request.get(`${DEMO}/admin/api/atendimento/campanhas`)).status()).toBe(403);
   expect((await page.request.get(`${DEMO}/admin/api/atendimento/duplicidades`)).status()).toBe(403);
+  await page.goto(`${DEMO}/admin/configuracoes`);
+  await expect(page.getByRole('button', { name: /Base de conhecimento da IA/ })).toHaveCount(0);
+});
+
+test('cadastros duplicados em Configurações: liga ao principal sem apagar nada', async ({ page }) => {
+  await abrirConfiguracoes(page);
+  await page.getByRole('button', { name: /Cadastros duplicados/ }).click();
+  const g = page.getByRole('dialog', { name: 'Cadastros duplicados' });
+  await expect(g.getByText('Nada é apagado nem fundido.', { exact: false })).toBeVisible();
+  const grupo = g.locator('.grupo-duplicado', { hasText: 'Provável mesma pessoa' });
+  await grupo.getByRole('button', { name: /Ligar 1 cadastro ao principal/ }).click();
+  const confirmar = page.getByRole('dialog', { name: /^Ligar 1 cadastro a / });
+  await confirmar.getByLabel('Por que são a mesma pessoa?').fill('Mesmo nome e e-mail, confirmado pelo WhatsApp');
+  await confirmar.getByRole('button', { name: 'Ligar' }).click();
+  await expect(page.getByText('Cadastros ligados ao principal.')).toBeVisible();
+  await expect(g.locator('.grupo-duplicado', { hasText: 'Provável mesma pessoa' })).toHaveCount(0);
 });
 
 test('a página Clientes saiu do menu e os links antigos caem no Atendimento', async ({ page }) => {
