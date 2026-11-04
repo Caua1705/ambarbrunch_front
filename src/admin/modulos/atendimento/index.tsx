@@ -2,36 +2,33 @@
 // e conversa à direita; no celular, uma de cada vez. O atendente automático é o "Assistente virtual" — não é a Júlia do
 // grupo interno. O servidor decide tudo (estado, dono da conversa, janela de 24 h, bloqueios de campanha); a tela só mostra
 // e pede.
-// Uma central de mensagens, não um painel de números: quatro estados (Assistente · Esperando · Equipe · Encerradas), as
-// conversas esperando a equipe primeiro (o backend ordena), e o que é da gerência (campanhas, base de conhecimento,
-// cadastros duplicados) num menu discreto "Mais", cada um numa gaveta. Não existe mais página Clientes: quem é o contato
-// aparece na ficha da própria conversa.
+// Uma central de mensagens, não um painel de números: quatro estados (Assistente · Esperando · Equipe · Encerradas) e as
+// conversas esperando a equipe primeiro (o backend ordena). O Cardápio abre numa gaveta. Campanhas, base de conhecimento e
+// cadastros duplicados saíram daqui (04/11/2026): as telas Campanhas.tsx, Conhecimento.tsx e Duplicidades.tsx e as rotas do
+// backend continuam no código, sem entrada no painel, à espera de um lugar em Configurações. Não existe mais página
+// Clientes: quem é o contato aparece na ficha da própria conversa.
 // Tempo real: a caixa é relida a cada 15 s e a conversa aberta a cada 5 s (com a aba visível), sem WebSocket.
 // Eventos (backend com a 0023): etiqueta "Evento" na conversa e, acima da lista, o atalho "Eventos" com os que aguardam
 // contato — abre a visão compacta das oportunidades (gaveta), que leva de volta à conversa. Sem página nova no menu.
 import { useEffect, useState } from 'preact/hooks';
-import { Search, Inbox, MessageSquareOff, MessageSquarePlus, Ellipsis, Megaphone, BookOpen, UtensilsCrossed, UsersRound, BotOff, CloudOff, AlertCircle, PartyPopper } from 'lucide-preact';
+import { Search, Inbox, MessageSquareOff, MessageSquarePlus, UtensilsCrossed, BotOff, CloudOff, AlertCircle, PartyPopper } from 'lucide-preact';
 import type { ContextoPainel } from '../../lib/sessao';
 import { useConsulta } from '../../lib/consulta';
 import { atendimento } from '../../lib/api/atendimento-clube';
 import { telefone, relativo, plural } from '../../lib/formato';
 import { lerParam, gravarParams } from '../../lib/rotas';
 import { pode } from '../../lib/permissoes';
-import { Raiz, Gaveta, Suspenso, useConfirmacao } from '../../ui/camadas';
+import { Raiz, Gaveta, useConfirmacao } from '../../ui/camadas';
 import { Botao, Segmentado, Situacao, Etiqueta } from '../../ui/base';
 import { Dados, Esqueleto, Vazio } from '../../ui/estados';
 import type { ConversaResumo, EstadoConversa } from '../../lib/tipos/atendimento-clube';
 import { ESTADO, PREFIXO_ORIGEM } from './comum';
 import { Conversa } from './Conversa';
 import { NovaConversa, type DestinoInicial } from './NovaConversa';
-import { Campanhas } from './Campanhas';
-import { Conhecimento } from './Conhecimento';
 import { Cardapio } from './Cardapio';
-import { Duplicidades } from './Duplicidades';
 import { Oportunidades } from './Evento';
 
 type Filtro = 'todas' | EstadoConversa;
-type Gestao = 'campanhas' | 'conhecimento' | 'cardapio' | 'duplicidades' | null;
 
 /** Filtro da URL, aceitando os nomes antigos (links do sino e favoritos de antes dos quatro estados). */
 function filtroInicial(): Filtro {
@@ -49,7 +46,7 @@ export default function Atendimento({ contexto }: { contexto: ContextoPainel }) 
   const [aberta, setAberta] = useState<string | null>(lerParam('conversa'));
   const [verFalhas, setVerFalhas] = useState(false);
   const [nova, setNova] = useState<DestinoInicial | null>(null);
-  const [gestao, setGestao] = useState<Gestao>(null);
+  const [verCardapio, setVerCardapio] = useState(false);
   const [verEventos, setVerEventos] = useState(lerParam('eventos') === '1');
   const { confirmar, elemento: dialogo } = useConfirmacao();
 
@@ -66,8 +63,6 @@ export default function Atendimento({ contexto }: { contexto: ContextoPainel }) 
 
   const r = resumo.dados;
   const config = r?.configuracao;
-  const veCampanhas = pode(papel, 'atendimento.campanhas');
-  const veDuplicidades = pode(papel, 'clientes.visualizar');
   // Backend anterior à 0023 não manda `eventos` no resumo: nada de evento aparece (nem chamada a rota que não existe).
   const eventos = r?.eventos;
   const comEventos = !!eventos;
@@ -75,7 +70,6 @@ export default function Atendimento({ contexto }: { contexto: ContextoPainel }) 
   const eventosAbertos = eventos ? Object.values(eventos).reduce((s, n) => s + n, 0) : 0;
   const abrirConversa = (id: string) => {
     setNova(null);
-    setGestao(null);
     setVerEventos(false);
     setAberta(id);
   };
@@ -89,16 +83,7 @@ export default function Atendimento({ contexto }: { contexto: ContextoPainel }) 
               <Botao tamanho="p" variante="primario" icone={<MessageSquarePlus aria-hidden="true" />} onClick={() => setNova({})}>
                 Nova conversa
               </Botao>
-              <Suspenso rotulo="Mais opções do Atendimento" gatilho={(p) => <Botao tamanho="p" variante="fantasma" icone={<Ellipsis aria-hidden="true" />} {...p}>Mais</Botao>}>
-                {(fechar) => (
-                  <>
-                    {veCampanhas && <button type="button" class="suspenso__item" role="menuitem" onClick={() => { fechar(); setGestao('campanhas'); }}><Megaphone aria-hidden="true" /> Campanhas</button>}
-                    <button type="button" class="suspenso__item" role="menuitem" onClick={() => { fechar(); setGestao('conhecimento'); }}><BookOpen aria-hidden="true" /> Base de conhecimento</button>
-                    <button type="button" class="suspenso__item" role="menuitem" onClick={() => { fechar(); setGestao('cardapio'); }}><UtensilsCrossed aria-hidden="true" /> Cardápio e capacidades</button>
-                    {veDuplicidades && <button type="button" class="suspenso__item" role="menuitem" onClick={() => { fechar(); setGestao('duplicidades'); }}><UsersRound aria-hidden="true" /> Cadastros duplicados</button>}
-                  </>
-                )}
-              </Suspenso>
+              <Botao tamanho="p" variante="fantasma" icone={<UtensilsCrossed aria-hidden="true" />} title="Cardápio e capacidades" onClick={() => setVerCardapio(true)}>Cardápio</Botao>
             </div>
             {config && !config.assistente_ativo && (
               <p class="caixa__aviso" role="note"><BotOff aria-hidden="true" /> Assistente virtual desligado: as conversas vão direto para a equipe.</p>
@@ -182,10 +167,7 @@ export default function Atendimento({ contexto }: { contexto: ContextoPainel }) 
       <NovaConversa aberta={nova !== null} inicial={nova ?? {}} aoFechar={() => setNova(null)} aoAbrirConversa={abrirConversa} />
       {comEventos && <Oportunidades aberta={verEventos} aoFechar={() => setVerEventos(false)} aoAbrirConversa={abrirConversa} />}
       <Falhas aberta={verFalhas} aoFechar={() => setVerFalhas(false)} aoAbrir={(id) => { setVerFalhas(false); setAberta(id); }} />
-      {veCampanhas && <Campanhas aberta={gestao === 'campanhas'} aoFechar={() => setGestao(null)} aoAbrirConversa={abrirConversa} confirmar={confirmar} />}
-      <Conhecimento aberta={gestao === 'conhecimento'} aoFechar={() => setGestao(null)} podeEditar={pode(papel, 'atendimento.conhecimento')} confirmar={confirmar} />
-      <Cardapio aberta={gestao === 'cardapio'} aoFechar={() => setGestao(null)} podeEditar={pode(papel, 'atendimento.conhecimento')} />
-      {veDuplicidades && <Duplicidades aberta={gestao === 'duplicidades'} aoFechar={() => setGestao(null)} podeVincular={pode(papel, 'clientes.editar')} confirmar={confirmar} />}
+      <Cardapio aberta={verCardapio} aoFechar={() => setVerCardapio(false)} podeEditar={pode(papel, 'atendimento.conhecimento')} />
       {dialogo}
     </Raiz>
   );
