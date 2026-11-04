@@ -148,7 +148,7 @@ valor indisponível vira "R$ 0,00".
 | Login, sessão, unidades | `auth/login`, `auth/me`, `auth/sair`, `unidades` |
 | Reservas | `reservas`, `reservas/operacao`, `reservas/lotacao`, `reservas/ambientes`, `reservas/{id}` (PATCH só contato e observações), `…/status`, `…/comparecimento` (PUT; cai para PATCH `…/status` só em 404 de rota), `…/aviso-comunicado`, `reservas/comparecimento/pendentes`, `reservas/mensagens`. Nova reserva: desligada no backend (403 `criacao_manual_desativada`, a tela explica). |
 | Configurações | `reservas/configuracao/{unidade}`, `…/politica`, `reservas/ambientes/{id}`, `reservas/regras/{id}`, `usuarios` (equipe) |
-| Atendimento | `atendimento/resumo` (`por_estado`, `configuracao`), `atendimento/conversas?estado=` (busca com 2+ letras; POST = nova conversa), `…/{id}`, `…/{id}/contato`, `…/mensagens`, `…/responder`, `…/assumir`, `…/assistente`, `…/encerrar`, `…/followup`, `atendimento/mensagens/{id}/midia` (binário pela ponte; só imagem/áudio/vídeo/PDF/texto abrem, o resto desce como download), `atendimento/falhas`, `atendimento/templates`, `atendimento/contatos`, `atendimento/campanhas` (+ `{id}`, `…/enviar` em lotes, `…/cancelar`), `atendimento/conhecimento` (GET, `PUT/DELETE …/{chave}`), `atendimento/duplicidades`, `atendimento/vinculos` (POST) |
+| Atendimento | `atendimento/resumo` (`por_estado`, `configuracao`), `atendimento/conversas?estado=` (busca com 2+ letras; POST = nova conversa), `…/{id}`, `…/{id}/contato`, `…/mensagens`, `…/responder`, `…/assumir`, `…/assistente`, `…/encerrar`, `…/followup`, `atendimento/mensagens/{id}/midia` (binário pela ponte; só imagem/áudio/vídeo/PDF/texto abrem, o resto desce como download), `atendimento/falhas`, `atendimento/templates`, `atendimento/contatos`, `atendimento/campanhas` (+ `{id}`, `…/enviar` em lotes, `…/cancelar`), `atendimento/conhecimento` (GET, `PUT/DELETE …/{chave}`), `atendimento/duplicidades`, `atendimento/vinculos` (POST); eventos (§4d): `atendimento/eventos` (+ `/opcoes`, `/{id}` GET/PATCH), `atendimento/conversas/{id}/evento` (POST), `assunto` e `evento` na conversa, `eventos` no resumo |
 | Visão Geral | `financeiro/relatorios/vendas` (receita, ticket médio, por meio), `financeiro/relatorios/despesas-por-categoria`, `financeiro/relatorios/resultado?mes=` (só mês civil), `financeiro/lancamentos?tipo=despesa&status=confirmada` (distribuição do gráfico), `estoque/analises/produtos` (top 5); sem Financeiro: `reservas/operacao` |
 | Sino (topo) | `reservas?status=pendente`, `reservas/comparecimento/pendentes`, `atendimento/resumo`, `financeiro/revisao?limite=1`, `financeiro/resumo`, `estoque/compras?etapa=aguardando_conferencia` — só módulos liberados ao papel, da unidade da aba |
 | Financeiro | `financeiro/resumo`, `relatorios/vendas`, `lancamentos`, `despesas` (+ confirmar/cancelar), `outras-receitas` (+ cancelar), `contas-a-pagar`, `parcelas/{id}/pagamentos`, `pagamentos/{id}/estornar`, `revisao`, `revisao/documentos/{id}` (GET/PATCH) e `…/resolver`, `despesas/{id}/documentos`, `despesas/{id}/unidade`, `comprovantes/{id}/enviar-para-compras`, `relatorios/resultado`, `relatorios/despesas-por-categoria`, `fechamento/{mes}`, `apuracoes/{mes}` (+ conferir/fechar/reabrir, `participacao`), `recorrencias`, `taxas-pagamento`, `conciliacao/*`, `extratos/*`, `contas-bancarias`, `categorias` (GET/POST/PATCH, `PUT …/{codigo}/unidades/{unidade}`), `fornecedores` (GET/POST, `fornecedores/{id}` GET/PATCH), `conciliacao/repasses`, `arquivos/{id}/url` |
@@ -312,6 +312,31 @@ Regras de tela (nenhum cálculo de regra no painel):
 
 Testes: `tests-painel/estoque.spec.ts` (demonstração, 11) e `tests-painel-real/estoque.spec.ts` (backend real local,
 base isolada; JSON em `PAINEL_REAL_ESTOQUE`, 10 cenários). No backend: `tests/test_estoque_rastreabilidade.py`.
+
+## 4d. Eventos no Atendimento (03/11/2026 — backend giardini_back 5ab71c8 + migração 0023)
+
+Contrato: `giardini_back/docs/auditoria-ambar/arquitetura/ATENDIMENTO-EVENTOS.md` §7. Sem página nova e sem item no
+menu: tudo mora no Atendimento. Tipos em `lib/tipos/atendimento-clube.ts` (`EventoAtendimento`, `OpcoesEventos`…),
+chamadas em `lib/api/atendimento-clube.ts`, telas em `modulos/atendimento/Evento.tsx`.
+
+| Onde | O que mostra |
+|---|---|
+| Caixa de entrada | Etiqueta discreta **Evento** na conversa com `assunto = "evento"` (tom de atenção quando a conversa está Esperando). Acima da lista, o atalho **Eventos** com o contador dos que estão em *Aguardando contato* (`resumo.eventos`). |
+| Visão compacta (gaveta "Eventos") | `GET /eventos` — Em andamento · Fechados · Perdidos, busca por nome/telefone, contagem por status; aguardando contato primeiro e destacado. Clicar abre a conversa. `?eventos=1` abre a gaveta (link do sino). |
+| Conversa | Ficha do evento na **coluna lateral** (≥ 1180 px) ou numa **faixa** acima das mensagens que abre a mesma ficha em gaveta (tablet e celular). Resumo do backend (já traz "Falta: …"), tipo, data com dia da semana, horário, convidados, ambiente, necessidades, observações, origem/canal. "Editar dados" (todos). Status comercial e responsável em seletores, perda com motivo opcional (diálogo) — só Gerente e Proprietário (`pode_mudar_status` das opções; o Atendente vê o texto). Evento concluído: "Registrar novo evento". Sem evento aberto: "…" → **Registrar evento**. |
+| Sino | "N eventos aguardando contato" → `/admin/atendimento?eventos=1`. |
+
+Regras que a tela respeita (quem decide é o backend): o status comercial **não** muda o estado da conversa (assumir,
+responder e o assistente seguem como antes); uma oportunidade aberta por conversa — `409 evento_aberto_na_conversa`
+vira aviso e a tela mostra a que já existe; o PATCH manda só o que mudou (`null` apaga); `403 sem_permissao`,
+`422 ambiente_desconhecido` e `responsavel_invalido` viram mensagem em português; opções indisponíveis → a ficha mostra
+os dados e avisa, sem editar. **Backend anterior à 0023** (`resumo` sem `eventos`): nada de evento aparece e nenhuma rota
+de evento é chamada — o painel novo pode ir para o ar antes do backend sem quebrar.
+
+Testes: `tests-painel/atendimento-eventos.spec.ts` (demonstração, 7: caixa e visão compacta, Atendente edita/assume/
+responde, Gerência status/perda/novo sem duplicar, registro manual, erros e backend antigo, tablet e celular) e
+`tests-painel-real/atendimento-eventos.spec.ts` (backend real local com a 0023, base isolada, assistente ligado e o
+"n8n" feito pelo teste; JSON em `PAINEL_REAL_EVENTOS`, 6 cenários, inclusive outra unidade sem acesso).
 
 ## 6. Rodar, testar
 
