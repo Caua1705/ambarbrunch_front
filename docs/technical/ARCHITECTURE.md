@@ -3,7 +3,8 @@
 Guia de onde cada coisa mora e de como acrescentar código sem duplicar nem acoplar. Atualizado em 2026-10-31 (refatoração
 estrutural). Regras de Git e publicação: [`../../CLAUDE.md`](../../CLAUDE.md). Painel em detalhe:
 [`PAINEL-ADMIN.md`](PAINEL-ADMIN.md). Contratos com o backend: [`CONTRATO-API-RESERVAS.md`](CONTRATO-API-RESERVAS.md),
-[`CONTRATO-API-CLUBE.md`](CONTRATO-API-CLUBE.md).
+[`CONTRATO-API-CLUBE.md`](CONTRATO-API-CLUBE.md),
+[`CONTRATO-API-CARDAPIO.md`](CONTRATO-API-CARDAPIO.md). Cardápio (fonte única, PDF e publicação): [`CARDAPIO.md`](CARDAPIO.md).
 
 ## 1. Visão geral
 
@@ -35,12 +36,13 @@ src/
 ├── lib/              Lógica TypeScript sem DOM (contratos, clientes HTTP, regras de exibição)
 │   ├── reservas/     contrato, cliente HTTP, simulação, datas, validação, agenda, confirmação
 │   ├── clube/        contrato e cliente (acesso), erros, modo, origem, simulação, prévia
+│   ├── cardapio/     contrato do catálogo e leitura da API no build (produtos e preços nunca moram no front)
 │   ├── medicao/      configuração e eventos do GA4 (desligado até aprovação)
 │   ├── conteudo.ts   revisão × produção, conteúdo pendente, origem das imagens
 │   ├── media.ts      catálogo de imagens/vídeos (src/assets/media, public/media)
 │   └── telefone.ts   máscara e validação de telefone (reserva e Clube)
 ├── scripts/          Comportamentos de página em JS puro (motion, carrossel, menu…) — importados por <script>
-├── data/             Conteúdo e textos (copies, cardápio, SEO, política de privacidade, ambientes)
+├── data/             Conteúdo e textos (copies, SEO, política de privacidade, ambientes); do cardápio, só a apresentação
 ├── styles/           CSS global em camadas: tokens/ → components/ → sections/ → acabamento → motion → docs
 ├── assets/media/     Originais de imagem usados pelo build (geram AVIF/WebP)
 ├── env.d.ts          Tipos das variáveis PUBLIC_* e de Astro.locals

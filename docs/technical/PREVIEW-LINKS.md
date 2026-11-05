@@ -18,8 +18,7 @@ guarda o preview antigo, e um nome novo evita misturar imagens em cache.
 
 ## PDF
 
-`public/cardapio/cardapio-ambar.pdf` é cópia de `app/modulos/atendimento/dados/cardapio_oficial.pdf` do backend (sha256 `a66e4c70…`), que
-ainda consta como oficial provisório. Trocou lá, troca aqui com um novo deploy do site.
+`public/cardapio/cardapio-ambar.pdf` é gerado do catálogo oficial e mantém o endereço. Como atualizar: [`CARDAPIO.md`](CARDAPIO.md).
 
 ## Como testar
 
