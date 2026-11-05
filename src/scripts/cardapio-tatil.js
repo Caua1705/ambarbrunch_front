@@ -5,8 +5,7 @@
 // A SAÍDA (ajuste final de 2026-10-18) é o espelho da entrada: o papel se dobra de volta para cima (o recorte sobe, a
 // opacidade some no fim) enquanto a altura do cartão encolhe junto — o que vem abaixo sobe deslizando, sem salto —,
 // e só no fim o cartão vira hidden. Duração e curva vêm dos tokens (--fechar-dur/--fechar-curva em bands.css).
-// Reabrir no meio da saída cancela a saída e desdobra de novo. Abas (doces | salgados) dentro do cartão: sem JS, os dois
-// grupos aparecem um embaixo do outro. Movimento reduzido: tudo direto.
+// Reabrir no meio da saída cancela a saída e desdobra de novo. Movimento reduzido: tudo direto.
 import { motionAllowed } from './motion.js';
 
 /** @param {string} v duração CSS (“320ms” ou “.32s”) */
@@ -74,8 +73,6 @@ export function initCardapioTatil(root) {
       root.setAttribute('data-tocado', '');   // o convite do 1º indicador “+” para de pulsar
       return;
     }
-    const aba = /** @type {HTMLButtonElement | null} */ (alvo.closest('[role="tab"]'));
-    if (aba) { escolherAba(aba); return; }
     const fechar = alvo.closest('[data-fechar]');
     if (fechar) {
       const painel = /** @type {HTMLElement} */ (fechar.closest('[data-painel]'));
@@ -83,36 +80,6 @@ export function initCardapioTatil(root) {
       mostrar(painel, null);
       dono?.focus();
     }
-  });
-
-  // Abas (padrão WAI-ARIA: setas trocam, só a aba ativa entra no Tab)
-  /** @param {HTMLButtonElement} aba */
-  const escolherAba = (aba) => {
-    const lista = /** @type {HTMLElement} */ (aba.closest('[role="tablist"]'));
-    lista.querySelectorAll('[role="tab"]').forEach((t) => {
-      const sel = t === aba;
-      t.setAttribute('aria-selected', String(sel));
-      t.setAttribute('tabindex', sel ? '0' : '-1');
-      const p = document.getElementById(t.getAttribute('aria-controls') ?? '');
-      if (p) p.hidden = !sel;
-    });
-  };
-  root.querySelectorAll('[data-abas]').forEach((lista) => {
-    /** @type {HTMLElement} */ (lista).hidden = false;
-    const abas = /** @type {HTMLButtonElement[]} */ ([...lista.querySelectorAll('[role="tab"]')]);
-    const sel = abas.find((a) => a.getAttribute('aria-selected') === 'true') ?? abas[0];
-    if (sel) escolherAba(sel);
-    lista.addEventListener('keydown', (ev) => {
-      const e = /** @type {KeyboardEvent} */ (ev);
-      const i = abas.indexOf(/** @type {HTMLButtonElement} */ (e.target));
-      if (i < 0) return;
-      const n = e.key === 'ArrowRight' ? i + 1 : e.key === 'ArrowLeft' ? i - 1 : e.key === 'Home' ? 0 : e.key === 'End' ? abas.length - 1 : null;
-      if (n === null) return;
-      e.preventDefault();
-      const prox = abas[(n + abas.length) % abas.length];
-      escolherAba(prox);
-      prox.focus();
-    });
   });
 
   // Esc no documento: no Safari o toque/clique num botão não lhe dá foco, então o evento não nasce dentro do cardápio

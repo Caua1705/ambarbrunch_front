@@ -71,7 +71,7 @@
   font: var(--t-chip); text-transform: uppercase; letter-spacing: var(--track-tight-caps); white-space: nowrap;
   box-shadow: var(--shadow-offset-xs);
 }
-.dupla__etiqueta--bebida { left: 50%; bottom: 16%; translate: -50% 0; rotate: 4deg; background: var(--butter); color: var(--wine); font-size: var(--fs-micro); max-width: 110%; }
+.dupla__etiqueta--bebida { left: 50%; bottom: 16%; translate: -50% 0; rotate: 4deg; background: var(--butter); color: var(--wine); font-size: var(--fs-micro); width: max-content; max-width: 86%; white-space: normal; text-align: center; line-height: 1.15; }
 .dupla__etiqueta--roll { left: 50%; bottom: -14px; translate: -50% 0; rotate: -3deg; background: var(--wine); color: var(--butter); }
 
 .dupla__selo { left: 33%; top: -2%; width: 21%; --z: 3; rotate: -10deg; box-shadow: var(--shadow-sticker); }
@@ -98,6 +98,8 @@
 .cafe-roll__rotulo { margin-bottom: var(--s-10); font: var(--t-kicker); color: var(--cacao); }
 html:not(.js) .cafe-roll__escolha > :is(#pares-rotulo, .pares) { display: none; }
 .pares { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-10); }
+/* número ímpar de duplas: a última ocupa a linha toda, sem buraco na grade */
+.pares > .par:last-child:nth-child(odd) { grid-column: 1 / -1; }
 .par {
   display: grid; align-content: center; gap: 2px; min-height: 64px; padding: var(--s-10) var(--s-12);
   border: var(--border-control) solid var(--cacao); border-radius: var(--radius-control);

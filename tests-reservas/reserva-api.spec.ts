@@ -19,6 +19,8 @@ async function abrir(page: Page, c: Cenario = {}, url = '/reservar/') {
 async function abrirCalendario(page: Page) {
   // espera a comanda com a configuração da API (o campo de data no celular ou a grade no desktop)
   await expect(page.locator('.data-campo:visible, .cal__grade:visible').first()).toBeVisible();
+  // o campo já vem no HTML: clicar antes de a ilha hidratar perde o clique (na máquina carregada, o teste corre mais que a ilha)
+  await expect(page.locator('astro-island[ssr]')).toHaveCount(0);
   const campo = page.locator('.data-campo');
   if ((await campo.isVisible()) && (await campo.getAttribute('aria-expanded')) !== 'true') await campo.click();
   await expect(page.locator('.cal__dia[data-valor]').first()).toBeVisible();

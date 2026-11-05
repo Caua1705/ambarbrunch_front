@@ -22,6 +22,8 @@
   --t-numeral: 800 32px/1 var(--display);
   --t-tagline: 800 30px/1 var(--display);
   --t-ticket-title: 800 30px/.9 var(--display);
+  --t-carta-titulo: 800 clamp(64px, 20vw, 128px)/.8 var(--display);    /* “Cardápio” no alto de /cardapio/ */
+  --t-carta-categoria: 800 clamp(28px, 8vw, 38px)/.9 var(--display);  /* título de cada categoria em /cardapio/ */
   --t-ficha-titulo: 800 clamp(26px, 7.4vw, 30px)/1.02 var(--display);   /* título em frase do cartão de acesso do Clube */
   --t-ticker: 800 25px/1 var(--display);
   --t-step-key: 700 22px/1 var(--display);           /* − e + do stepper */

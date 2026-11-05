@@ -9,15 +9,14 @@
 import Foto from '../components/Foto.astro';
 import MegaTitle from '../components/MegaTitle.astro';
 import Badge from '../components/Badge.astro';
-import { cafeRoll as cr } from '../data/cafe-roll';
-import { cardapio } from '../data/cardapio';
+import { cafeRoll as cr, resolverPares } from '../data/cafe-roll';
+import { carregarCatalogo } from '../lib/cardapio/catalogo';
 import { secoes } from '../data/secoes';
 import { imagem } from '../lib/media';
 
 const s = secoes.cafeRoll;
-const pares = cr.pares.filter((p) => imagem(p.foto.src));
+const pares = resolverPares(await carregarCatalogo()).filter((p) => imagem(p.foto.src));
 const [primeiro] = pares;
-const gelados = cardapio.beber.find((b) => b.id === 'gelados');
 ---
 {primeiro && (
   <section class="cafe-roll" id={s.id} aria-labelledby="cafe-roll-titulo" tabindex="-1" data-cafe-roll data-vivo>
@@ -83,7 +82,7 @@ const gelados = cardapio.beber.find((b) => b.id === 'gelados');
       </div>
       <p class="cafe-roll__rodape">
         <span class="cafe-roll__nota">{cr.nota}</span>
-        <a class="cafe-roll__link" href="#gastronomia" data-abrir={gelados?.id ?? 'gelados'}>ver bebidas no cardápio <span aria-hidden="true">↑</span></a>
+        <a class="cafe-roll__link" href="#gastronomia" data-abrir="gelados">ver bebidas no cardápio <span aria-hidden="true">↑</span></a>
       </p>
     </div>
   </section>

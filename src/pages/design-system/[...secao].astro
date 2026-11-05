@@ -21,7 +21,8 @@ import Footer from '../../sections/Footer.astro';
 import ReservaFlow from '../../islands/ReservaFlow';
 import { REVISAO, podeMostrar } from '../../lib/conteudo';
 import { video } from '../../lib/media';
-import { cardapio, PARES } from '../../data/cardapio';
+import { montarCardapio, PARES } from '../../data/cardapio';
+import { carregarCatalogo } from '../../lib/cardapio/catalogo';
 import { ambientes as amb, reservaveis } from '../../data/ambientes';
 import { roll } from '../../data/roll';
 import '../../styles/docs/design-system.css';
@@ -33,6 +34,7 @@ export function getStaticPaths() {
 // ---------------------------------------------------------------------------------------------------------------
 // Tokens: lidos dos arquivos de src/styles/tokens (fonte única). Bloco :root base + sobrescritas por media query.
 type Token = { nome: string; valor: string; nota?: string; arquivo: string; media: { cond: string; valor: string }[] };
+const cardapio = montarCardapio(await carregarCatalogo());
 const fontes = import.meta.glob('../../styles/tokens/*.css', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 const tokens = new Map<string, Token>();
 const DECL = /(--[\w-]+):\s*([^;]+);[ \t]*(?:\/\*\s*([\s\S]*?)\s*\*\/)?/g;

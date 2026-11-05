@@ -10,7 +10,8 @@ import StickerRoll from '../components/StickerRoll.astro';
 import Faiscas from '../components/Faiscas.astro';
 import Ticker from '../components/Ticker.astro';
 import { ambientes } from '../data/ambientes';
-import { cardapio } from '../data/cardapio';
+import { montarCardapio } from '../data/cardapio';
+import { carregarCatalogo } from '../lib/cardapio/catalogo';
 import { visita } from '../data/visita';
 import { roll } from '../data/roll';
 import { secoes } from '../data/secoes';
@@ -20,6 +21,7 @@ import { imagem } from '../lib/media';
 const fotoRoll = podeMostrar(roll.fotos.hero.autorizado) && imagem(roll.fotos.hero.foto) ? roll.fotos.hero : undefined;
 const circulo = fotoRoll ?? { foto: 'gastronomia/croissant-prato-azul.webp', alt: 'Croissant em prato azul sobre sofá laranja' };
 const [l1, l2, l3] = secoes.hero.linhas;
+const { faixa } = montarCardapio(await carregarCatalogo());
 ---
 <header class="hero" id="topo" data-hero data-vivo>
   <MenuButton variante="hero" />
@@ -58,4 +60,4 @@ const [l1, l2, l3] = secoes.hero.linhas;
 </header>
 
 <!-- Faixa de categorias (costura o hero à seção seguinte) -->
-<Ticker itens={cardapio.faixa} />
+<Ticker itens={faixa} />

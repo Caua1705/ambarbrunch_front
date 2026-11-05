@@ -1,30 +1,40 @@
 // CAFÉ + ROLL — a combinação de uma bebida gelada do Âmbar com um cinnamon roll da Roll.
-// Bebidas: cardápio “Cafés gelados” do cliente. Rolls: sabores e fotos da própria Roll (autorizadas em 2026-10-17).
-// As duplas são SUGESTÕES editoriais de combinação (nada de combo, preço ou disponibilidade do dia).
-// O copo da cena é um desenho (SVG) — não é foto nem mockup de embalagem; a caixa é a embalagem real da Roll.
-import type { Origem } from '../lib/conteudo';
+// Nomes de bebida e roll vêm do catálogo oficial, pelo id estável: um produto que sair do cardápio derruba o build em vez de seguir na
+// home. Só a foto (real, da Roll, autorizada em 2026-10-17) e a frase são daqui. As duplas são SUGESTÕES editoriais de combinação
+// (nada de combo, preço ou disponibilidade do dia). O copo da cena é um desenho (SVG), não é foto nem mockup de embalagem; a caixa é a
+// embalagem real da Roll. A dupla Biscoff saiu em 2026-11-05: o roll Biscoff não está no cardápio oficial.
+import { FOTOS_PRODUTO, type FotoCardapio } from './cardapio';
+import type { Catalogo } from '../lib/cardapio/contrato';
 
-export interface Par {
+interface Par {
   id: string;
-  bebida: string;
-  roll: string;
+  bebidaId: string;
+  rollId: string;
   frase: string;
   /** cores do desenho do copo: base e topo do líquido (tokens) */
   liquido: [string, string];
-  foto: { src: string; alt: string; origem: Origem };
 }
 
+const PARES: Par[] = [
+  { id: 'matcha', bebidaId: 'cafes_gelados.matcha_geleia_de_morango', rollId: 'cinnamon_rolls.mood_cheesecake', frase: 'verde, vermelho e cremoso', liquido: ['var(--berry)', 'var(--leaf)'] },
+  { id: 'iced', bebidaId: 'cafes_gelados.iced_latte', rollId: 'cinnamon_rolls.smores', frase: 'o gelado encontra o tostado', liquido: ['var(--cacao)', 'var(--caramel-dk)'] },
+  { id: 'honey', bebidaId: 'cafes_gelados.honey_latte', rollId: 'cinnamon_rolls.kinder_bueno', frase: 'mel, leite e chocolate', liquido: ['var(--caramel-lt)', 'var(--glaze)'] },
+];
+
 export const cafeRoll = {
-  pares: [
-    { id: 'biscoff', bebida: 'Biscoff latte', roll: 'Biscoff', frase: 'Biscoff em dobro', liquido: ['var(--caramel)', 'var(--butter)'],
-      foto: { src: 'roll/roll-biscoff.webp', alt: 'Cinnamon roll de Biscoff com creme e biscoito triturado', origem: 'real' } },
-    { id: 'matcha', bebida: 'Matcha frutas vermelhas', roll: 'Mood cheesecake', frase: 'verde, vermelho e cremoso', liquido: ['var(--berry)', 'var(--leaf)'],
-      foto: { src: 'roll/roll-mood-cheesecake.webp', alt: 'Cinnamon roll Mood cheesecake com geleia de morango e crumble', origem: 'real' } },
-    { id: 'americano', bebida: 'Iced americano', roll: 'S’mores', frase: 'o amargo encontra o doce', liquido: ['var(--cacao)', 'var(--caramel-dk)'],
-      foto: { src: 'roll/roll-smores.webp', alt: 'Cinnamon roll S’mores com marshmallow tostado e chocolate', origem: 'real' } },
-    { id: 'honey', bebida: 'Honey latte', roll: 'Kinder Bueno', frase: 'mel, leite e chocolate', liquido: ['var(--caramel-lt)', 'var(--glaze)'],
-      foto: { src: 'roll/roll-kinder-bueno.webp', alt: 'Cinnamon roll Kinder Bueno com fios de Nutella', origem: 'real' } },
-  ] satisfies Par[],
   caixa: { src: 'roll/caixa-roll.webp', alt: 'Caixa da Roll aberta com quatro cinnamon rolls de sabores diferentes' },
   nota: 'os sabores da Roll mudam com a fornada',
 };
+
+export interface ParVista { id: string; bebida: string; roll: string; frase: string; liquido: [string, string]; foto: FotoCardapio }
+
+export function resolverPares(catalogo: Catalogo): ParVista[] {
+  const itens = new Map(catalogo.categorias.flatMap((c) => c.itens.map((i) => [i.id, i.nome] as const)));
+  return PARES.map((p) => {
+    const bebida = itens.get(p.bebidaId);
+    const roll = itens.get(p.rollId);
+    const foto = FOTOS_PRODUTO[p.rollId];
+    if (!bebida || !roll || !foto) throw new Error(`Dupla Café + Roll “${p.id}” aponta para um produto fora do catálogo ou sem foto.`);
+    return { id: p.id, bebida, roll, frase: p.frase, liquido: p.liquido, foto };
+  });
+}

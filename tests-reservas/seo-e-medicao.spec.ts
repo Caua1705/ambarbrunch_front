@@ -56,7 +56,7 @@ test('robots.txt e sitemap.xml: só o painel bloqueado; o sitemap lista só pág
   const sitemap = await request.get('/sitemap.xml');
   expect(await sitemap.text()).toMatch(/^<\?xml version="1.0" encoding="UTF-8"\?>\n<urlset xmlns="http:\/\/www.sitemaps.org\/schemas\/sitemap\/0.9">/);
   const locs = [...(await sitemap.text()).matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
-  expect(locs).toEqual([`${OFICIAL}/`, `${OFICIAL}/reservar/`]);
+  expect(locs).toEqual([`${OFICIAL}/`, `${OFICIAL}/reservar/`, `${OFICIAL}/cardapio/`]);
   for (const loc of locs) {
     const caminho = new URL(loc).pathname;
     await page.goto(caminho);

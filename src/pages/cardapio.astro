@@ -1,17 +1,20 @@
 ---
-// /cardapio — endereço público do cardápio: página com a identidade do Âmbar, preview próprio no WhatsApp e o PDF oficial.
-// O PDF em public/cardapio/ é uma cópia do que o backend envia no WhatsApp (app/modulos/atendimento/dados/cardapio_oficial.pdf):
-// trocou lá, troca aqui. Ver docs/technical/PREVIEW-LINKS.md.
+// /cardapio — o cardápio completo: produtos, descrições, preços e adicionais vêm do catálogo oficial do backend no build
+// (lib/cardapio/catalogo.ts); esta página só apresenta. O PDF em public/cardapio/ é gerado do mesmo catálogo (npm run cardapio:pdf) e
+// mantém o mesmo endereço. Esta URL e o preview são os que o WhatsApp envia: não mudar (docs/technical/PREVIEW-LINKS.md).
 import Base from '../layouts/Base.astro';
 import PageBar from '../components/PageBar.astro';
-import Foto from '../components/Foto.astro';
+import CardapioCompleto from '../sections/CardapioCompleto.astro';
 import Footer from '../sections/Footer.astro';
+import { montarCardapio } from '../data/cardapio';
+import { carregarCatalogo } from '../lib/cardapio/catalogo';
+import { jsonLd, menuEstruturado } from '../data/seo';
 
-const PDF = '/cardapio/cardapio-ambar.pdf';
+const cardapio = montarCardapio(await carregarCatalogo());
 ---
 <Base
   titulo="Cardápio — Âmbar, cafeteria e brunch no Meireles, Fortaleza"
-  descricao="Confira o cardápio do Âmbar Café & Brunch, no Meireles, em Fortaleza: cafés, brunch e os cinnamon rolls da Roll."
+  descricao="Cardápio completo do Âmbar Café & Brunch, no Meireles, em Fortaleza: croissants, brunchs, sanduíches, bowls, cafés, cinnamon rolls e cheesecakes, com preços."
   home={false}
   social={{
     titulo: 'Cardápio — Âmbar Brunch',
@@ -21,66 +24,7 @@ const PDF = '/cardapio/cardapio-ambar.pdf';
   }}
 >
   <PageBar nome="Âmbar Brunch" voltar prioridade />
-  <main class="cardapio-pdf">
-    <div class="cardapio-pdf__foto">
-      <Foto src="gastronomia/croissant-prato-azul.webp" alt="Croissant num prato azul" sizes="(min-width: 800px) 420px, 100vw" widths={[420, 640, 840]} eager />
-    </div>
-    <div class="cardapio-pdf__texto">
-      <h1>Cardápio</h1>
-      <p>Confira o cardápio do Âmbar Café &amp; Brunch.</p>
-      <a class="btn btn--wine" href={PDF} target="_blank" rel="noopener">Abrir o cardápio</a>
-      <a class="cardapio-pdf__baixar" href={PDF} download="Cardapio-Ambar.pdf">Baixar em PDF</a>
-    </div>
-  </main>
+  <CardapioCompleto cardapio={cardapio} />
   <Footer />
+  <script is:inline type="application/ld+json" set:html={jsonLd(menuEstruturado(cardapio))} />
 </Base>
-
-<style>
-  .cardapio-pdf {
-    display: grid;
-    gap: 32px;
-    max-width: 960px;
-    margin: 0 auto;
-    padding: 24px 20px 72px;
-  }
-  .cardapio-pdf__foto {
-    aspect-ratio: 4 / 3;
-    overflow: hidden;
-    border-radius: 16px;
-  }
-  .cardapio-pdf__foto :global(img) {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
-  .cardapio-pdf__texto {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
-    color: var(--wine);
-  }
-  .cardapio-pdf__texto h1 {
-    margin: 0;
-    font-size: clamp(2.5rem, 9vw, 4rem);
-    line-height: 1;
-  }
-  .cardapio-pdf__texto p {
-    margin: 0 0 8px;
-    font-size: 1.125rem;
-  }
-  .cardapio-pdf__baixar {
-    color: inherit;
-    font-weight: 600;
-    text-underline-offset: 3px;
-  }
-  @media (min-width: 800px) {
-    .cardapio-pdf {
-      grid-template-columns: 420px 1fr;
-      align-items: center;
-      gap: 56px;
-      padding-block: 56px 96px;
-    }
-  }
-</style>

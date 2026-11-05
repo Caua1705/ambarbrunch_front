@@ -1,0 +1,113 @@
+---
+// Cardápio completo (/cardapio/): navegação fixa por categoria e, em cada uma, os produtos com foto real ou a apresentação neutra.
+// Categoria sem foto e sem descrição vira lista corrida, como nas artes. Sem JS, a navegação são âncoras comuns; o script só marca a
+// categoria da vez e leva a etiqueta dela para dentro da faixa (scripts/cardapio-nav.js).
+import Foto from '../components/Foto.astro';
+import IconeCardapio from '../components/IconeCardapio.astro';
+import type { Cardapio, CategoriaVista, GrupoVista } from '../data/cardapio';
+import { secoes } from '../data/secoes';
+import { imagem } from '../lib/media';
+
+interface Props { cardapio: Cardapio }
+const { cardapio } = Astro.props;
+const PDF = '/cardapio/cardapio-ambar.pdf';
+const grupos = [
+  { id: 'comer', rotulo: 'pra comer', categorias: cardapio.comer },
+  { id: 'beber', rotulo: 'pra beber', categorias: cardapio.beber },
+];
+const temAdicionais = cardapio.adicionaisBebidas.length > 0;
+---
+<main class="carta">
+  <header class="carta__topo">
+    <h1>Cardápio</h1>
+    <p class="carta__sub">{secoes.mesa.sub}</p>
+    <div class="carta__pdf">
+      <a class="btn btn--wine" href={PDF} target="_blank" rel="noopener">Abrir o PDF</a>
+      <a class="carta__baixar" href={PDF} download="Cardapio-Ambar.pdf">Baixar em PDF</a>
+    </div>
+  </header>
+
+  <nav class="carta__nav" aria-label="Categorias do cardápio" data-carta-nav>
+    <ul>
+      {[...cardapio.comer, ...cardapio.beber].map((c) => <li><a href={`#${c.ancora}`}>{c.nome}</a></li>)}
+      {temAdicionais && <li><a href="#adicionais">Adicionais</a></li>}
+    </ul>
+  </nav>
+
+  {grupos.map((g) => (
+    <div class="carta__grupo">
+      <p class="carta__rotulo">{g.rotulo}</p>
+      {g.categorias.map((c: CategoriaVista) => (
+        <section class="categoria" id={c.ancora} aria-labelledby={`titulo-${c.ancora}`} data-carta-secao>
+          <header class="categoria__topo">
+            <h2 id={`titulo-${c.ancora}`}>{c.nome}</h2>
+            {c.observacao && <p>{c.observacao}</p>}
+          </header>
+          {c.capa && imagem(c.capa.src) && (
+            <figure class="categoria__capa">
+              <Foto src={c.capa.src} alt={c.capa.alt} sizes="(min-width: 860px) 760px, 100vw" widths={[480, 760, 1080]} qualidade={66} />
+            </figure>
+          )}
+          {c.compacta ? (
+            <ul class="precos">
+              {c.produtos.map((p) => (
+                <li data-item={p.id} data-preco={p.precoCentavos}><span class="precos__nome">{p.nome}</span><i aria-hidden="true"></i><span class="precos__valor">{p.preco}</span></li>
+              ))}
+            </ul>
+          ) : (
+            <ul class="pratos">
+              {c.produtos.map((p) => (
+                <li class="prato" data-item={p.id} data-preco={p.precoCentavos} data-sem-foto={p.foto ? undefined : ''}>
+                  <div class="prato__foto">
+                    {p.foto && imagem(p.foto.src)
+                      ? <Foto src={p.foto.src} alt={p.foto.alt} sizes="88px" widths={[88, 176, 264]} qualidade={68} />
+                      : <IconeCardapio icone={c.icone} />}
+                  </div>
+                  <div class="prato__texto">
+                    <h3>{p.nome}</h3>
+                    {p.descricao && <p>{p.descricao}</p>}
+                  </div>
+                  <p class="prato__preco">{p.preco}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+          {c.adicionais.map((a: GrupoVista) => (
+            <aside class="adicional" aria-label={a.nome}>
+              <h3>{a.nome}</h3>
+              <ul class="precos">
+                {a.itens.map((i) => <li data-item={i.id} data-preco={i.precoCentavos}><span class="precos__nome">{i.nome}</span><i aria-hidden="true"></i><span class="precos__valor">{i.preco}</span></li>)}
+              </ul>
+            </aside>
+          ))}
+        </section>
+      ))}
+      {g.id === 'beber' && temAdicionais && (
+        <section class="categoria" id="adicionais" aria-labelledby="titulo-adicionais" data-carta-secao>
+          <header class="categoria__topo"><h2 id="titulo-adicionais">Adicionais</h2></header>
+          <div class="adicionais">
+            {cardapio.adicionaisBebidas.map((a: GrupoVista) => (
+              <aside class="adicional" aria-label={a.nome}>
+                <h3>{a.nome}</h3>
+                <ul class="precos">
+                  {a.itens.map((i) => <li data-item={i.id} data-preco={i.precoCentavos}><span class="precos__nome">{i.nome}</span><i aria-hidden="true"></i><span class="precos__valor">{i.preco}</span></li>)}
+                </ul>
+              </aside>
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
+  ))}
+
+  <footer class="carta__fim">
+    <a class="btn btn--wine" href={PDF} target="_blank" rel="noopener">Abrir o PDF</a>
+    <a class="carta__baixar" href={PDF} download="Cardapio-Ambar.pdf">Baixar em PDF</a>
+  </footer>
+</main>
+
+<script>
+  import { initCartaNav } from '../scripts/cardapio-nav.js';
+  const nav = document.querySelector<HTMLElement>('[data-carta-nav]');
+  if (nav) initCartaNav(nav);
+</script>

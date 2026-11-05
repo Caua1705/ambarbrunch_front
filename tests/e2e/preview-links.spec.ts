@@ -42,10 +42,11 @@ for (const p of PAGINAS) {
 test('/cardapio: abre e baixa o PDF oficial', async ({ page, request }) => {
   await page.goto('/cardapio/');
   await expect(page.getByRole('heading', { level: 1, name: 'Cardápio' })).toBeVisible();
-  const abrir = page.getByRole('link', { name: 'Abrir o cardápio' });
+  const abrir = page.getByRole('link', { name: 'Abrir o PDF' }).first();
   await expect(abrir).toHaveAttribute('target', '_blank');
   const href = await abrir.getAttribute('href');
-  await expect(page.getByRole('link', { name: 'Baixar em PDF' })).toHaveAttribute('href', href!);
+  await expect(page.getByRole('link', { name: 'Baixar em PDF' }).first()).toHaveAttribute('href', href!);
+  await expect(page.getByRole('link', { name: 'Baixar em PDF' }).first()).toHaveAttribute('download', 'Cardapio-Ambar.pdf');
   const pdf = await request.get(href!);
   expect(pdf.status()).toBe(200);
   expect((await pdf.body()).subarray(0, 5).toString()).toBe('%PDF-');

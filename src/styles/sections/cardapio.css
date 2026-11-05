@@ -1,0 +1,89 @@
+/* Cardápio completo (/cardapio/). Papel creme, tinta vinho e o preço sempre na mesma coluna. A leitura é o desenho principal: quase
+   todos os produtos ainda não têm foto real, então a página precisa ficar bonita só com tipografia; quando a foto chega, ela ocupa o
+   ladrilho que hoje mostra o ícone neutro, sem mudar o layout. */
+
+/* o body corta a largura com overflow-x: hidden, que anula o sticky da navegação; clip corta do mesmo jeito sem criar rolagem */
+body:has(.carta) { overflow-x: clip; }
+
+.carta { background: var(--cream); color: var(--ink); padding-bottom: 120px; }
+.carta__topo { display: grid; gap: var(--s-10); justify-items: start; max-width: 860px; margin: 0 auto; padding: var(--s-34) var(--gutter) var(--s-22); }
+.carta__topo h1 { font: var(--t-carta-titulo); font-variation-settings: var(--fvs-display); color: var(--wine); text-transform: uppercase; }
+.carta__sub { font: var(--t-scribble); color: var(--caramel-dk); }
+.carta__pdf, .carta__fim { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-12) var(--s-22); }
+.carta__pdf { margin-top: var(--s-14); }
+.carta__fim { justify-content: center; max-width: 860px; margin: var(--s-44) auto 0; padding-inline: var(--gutter); }
+.carta__baixar {
+  display: inline-flex; align-items: center; min-height: 44px;
+  font: var(--t-link); letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--wine); text-underline-offset: 4px;
+}
+
+/* Navegação: gruda no alto e rola de lado; a página nunca rola de lado */
+.carta__nav {
+  position: sticky; top: 0; z-index: var(--z-6);
+  background: var(--cream); border-block: 1px solid color-mix(in srgb, var(--wine) 18%, transparent);
+}
+.carta__nav ul {
+  display: flex; gap: var(--s-6); max-width: 860px; margin: 0 auto; padding: var(--s-8) var(--gutter);
+  overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; position: relative;
+}
+.carta__nav ul::-webkit-scrollbar { display: none; }
+.carta__nav li { flex: none; }
+.carta__nav a {
+  display: inline-flex; align-items: center; min-height: 44px; padding: 0 var(--s-14);
+  border-radius: var(--radius-pill); font: var(--t-chip); color: var(--wine); text-decoration: none; white-space: nowrap;
+  transition: background-color var(--dur-xs) var(--ease), color var(--dur-xs) var(--ease);
+}
+.carta__nav a[aria-current="true"] { background: var(--wine); color: var(--butter); }
+
+.carta__grupo { max-width: 860px; margin: 0 auto; padding-inline: var(--gutter); }
+.carta__rotulo { margin-top: var(--s-40); font: var(--t-scribble); color: var(--caramel-dk); }
+
+.categoria { margin-top: var(--s-26); scroll-margin-top: 76px; }
+.categoria + .categoria { margin-top: var(--s-44); }
+.categoria__topo { display: grid; gap: var(--s-6); padding-bottom: var(--s-10); border-bottom: 2px solid var(--wine); }
+.categoria__topo h2 { font: var(--t-carta-categoria); text-transform: uppercase; color: var(--wine); }
+.categoria__topo p { font: var(--t-caption); color: var(--text-muted); line-height: 1.25; }
+.categoria__capa { margin-top: var(--s-16); aspect-ratio: 16 / 9; overflow: hidden; border-radius: var(--radius-s); background: var(--butter); }
+.categoria__capa img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 78%; display: block; }
+
+/* Produto: ladrilho · texto · preço */
+.pratos { display: grid; }
+.prato {
+  display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: var(--s-14); align-items: start;
+  padding-block: var(--s-16); border-bottom: 1px solid color-mix(in srgb, var(--wine) 14%, transparent);
+}
+.prato:last-child { border-bottom: 0; }
+.prato__foto {
+  display: grid; place-items: center; width: 64px; aspect-ratio: 1; overflow: hidden;
+  border-radius: var(--radius-s); background: color-mix(in srgb, var(--butter) 45%, var(--cream));
+  color: color-mix(in srgb, var(--wine) 62%, var(--cream));
+}
+.prato__foto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.prato__texto { display: grid; gap: var(--s-6); }
+.prato__texto h3 { font: var(--t-band); color: var(--wine); line-height: 1.15; overflow-wrap: anywhere; }
+.prato__texto p { font: var(--t-body-s); color: var(--text-muted); }
+.prato__preco { font: var(--t-band); font-variant-numeric: tabular-nums; color: var(--wine); white-space: nowrap; line-height: 1.15; }
+
+/* Lista corrida: nome, pontilhado, preço */
+.precos { display: grid; padding-top: var(--s-6); }
+.precos li { display: flex; align-items: baseline; gap: var(--s-8); min-height: 40px; padding-block: var(--s-8); }
+.precos__nome { font: var(--t-chip); color: var(--wine); line-height: 1.25; min-width: 0; overflow-wrap: anywhere; }
+.precos i { flex: 1; min-width: var(--s-14); border-bottom: 2px dotted color-mix(in srgb, var(--wine) 35%, transparent); translate: 0 -3px; }
+.precos__valor { font: var(--t-chip); font-variant-numeric: tabular-nums; color: var(--wine); white-space: nowrap; }
+
+.adicional { margin-top: var(--s-18); padding: var(--s-14) var(--s-16) var(--s-8); border: 1.5px solid color-mix(in srgb, var(--wine) 40%, transparent); border-radius: var(--radius-control); }
+.adicional h3 { font: var(--t-pill); letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--wine); }
+.adicional .precos { padding-top: var(--s-6); }
+.adicional .precos li { min-height: 36px; padding-block: var(--s-6); }
+.adicionais { display: grid; gap: 0; }
+
+@media (min-width: 720px) {
+  .precos { grid-template-columns: 1fr 1fr; column-gap: var(--s-34); }
+  .adicional .precos { grid-template-columns: 1fr; }
+  .adicionais { grid-template-columns: 1fr 1fr; column-gap: var(--s-18); }
+  .prato { grid-template-columns: 88px minmax(0, 1fr) auto; column-gap: var(--s-18); }
+  .prato__foto { width: 88px; }
+}
+
+/* na home: o caminho para o cardápio completo */
+.mesa__completo { display: flex; width: fit-content; margin: var(--s-26) auto 0; }

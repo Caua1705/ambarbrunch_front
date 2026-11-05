@@ -8,7 +8,7 @@ import { CLUBE_NA_HOME } from '../lib/clube/modo';
 interface Props { base?: string }
 const { base = '' } = Astro.props;   // '' na home (âncoras locais), '/' nas páginas internas
 const itens = [
-  { href: `${base}#gastronomia`, texto: 'Cardápio' },
+  { href: '/cardapio/', texto: 'Cardápio' },
   { href: `${base}#roll`, texto: 'Fornada' },
   { href: `${base}#cafe-roll`, texto: 'Café + Roll' },
   { href: `${base}#quem-provou`, texto: 'Reações reais' },

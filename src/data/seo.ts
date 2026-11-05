@@ -6,6 +6,7 @@
 import { getImage } from 'astro:assets';
 import { visita } from './visita';
 import { imagem } from '../lib/media';
+import type { Cardapio } from './cardapio';
 
 export const SITE = `https://${visita.dominio}`;
 
@@ -101,5 +102,28 @@ export async function imagensSeo() {
   return {
     capa: salao && abs((await getImage({ src: salao, width: 1200, height: 630, fit: 'cover', position: 'center', format: 'jpg', quality: 80 })).src),
     logo: logo && abs((await getImage({ src: logo, width: 512, format: 'png' })).src),
+  };
+}
+
+/** Dados estruturados do cardápio (/cardapio/): as seções e os preços do catálogo oficial, ligados ao café da home. */
+export function menuEstruturado({ comer, beber }: Cardapio) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Menu',
+    '@id': `${SITE}/cardapio/#cardapio`,
+    name: 'Cardápio do Âmbar Café & Brunch',
+    url: `${SITE}/cardapio/`,
+    inLanguage: 'pt-BR',
+    provider: { '@id': `${SITE}/#cafe` },
+    hasMenuSection: [...comer, ...beber].map((c) => ({
+      '@type': 'MenuSection',
+      name: c.nome,
+      hasMenuItem: c.produtos.map((p) => ({
+        '@type': 'MenuItem',
+        name: p.nome,
+        ...(p.descricao ? { description: p.descricao } : {}),
+        offers: { '@type': 'Offer', price: (p.precoCentavos / 100).toFixed(2), priceCurrency: 'BRL' },
+      })),
+    })),
   };
 }

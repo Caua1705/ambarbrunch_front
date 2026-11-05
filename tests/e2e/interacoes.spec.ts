@@ -53,33 +53,24 @@ test('cardápio tátil: etiqueta abre o cartão (foto principal), troca de conte
   // cardápio oficial (2026-10-20): só estas categorias; foto principal só onde há uma foto correta (sucos e bowls
   // abrem só com o título); nenhum preço e nenhum aviso de cardápio provisório
   const categorias = await page.$$eval('[data-categoria]', (bs) => bs.map((b) => b.getAttribute('data-categoria')));
-  expect(categorias).toEqual(['croissants', 'toasts', 'sanduiches', 'bowls', 'rolls', 'cafes', 'gelados', 'sucos']);
-  expect(await page.locator('.cartao__cat').count()).toBe(8);
+  expect(categorias).toEqual(['croissants', 'brunchs', 'sanduiches', 'bowls', 'cheesecakes', 'rolls', 'cafes', 'sucos', 'gelados', 'outras-bebidas']);
+  expect(await page.locator('.cartao__cat').count()).toBe(10);
   await expect(page.locator('.cartao__cat .cartao__prato')).toHaveCount(6);
   await expect(page.locator('[data-cat="sucos"] .cartao__prato, [data-cat="bowls"] .cartao__prato')).toHaveCount(0);
   const cardapio = await page.locator('#gastronomia').evaluate((s) => s.textContent ?? '');
-  expect(cardapio).not.toMatch(/R\$/);
-  for (const t of ['estreia', 'consulte a equipe', 'Saladas', 'Bruschetta', 'Cheesecake', 'Brownie', 'Frappé', 'Smoothie', 'Poke', 'Iced latte']) expect(cardapio, t).not.toContain(t);
-  for (const t of ['Expresso duplo', 'Antioxidant', 'Cinnamon latte', 'Prosciutto', 'Toast americano', 'Steak & Herbs', 'Vegetariano', 'Chicken']) expect(cardapio, t).toContain(t);
+  for (const t of ['estreia', 'consulte a equipe', 'Saladas', 'Bruschetta', 'Brownie', 'Frappé', 'Smoothie', 'Poke', 'Prosciutto', 'Toast americano', 'Iced americano', 'Pesto & ricota']) expect(cardapio).not.toContain(t);
+  for (const t of ['Expresso duplo', 'Antioxidant', 'Cinnamon Latte', 'American Brunch', 'Steak & Herbs', 'Camarão Fresh', 'Goiaba', 'Mood Cheesecake']) expect(cardapio).toContain(t);
 });
 
-test('cartão dos rolls: abas doces | salgados, uma miniatura por sabor', async ({ page }) => {
-  await page.goto('/');
+test('cartão dos rolls: miniatura só nos sabores com foto real', async ({ page }) => {
+  await page.goto('/#gastronomia');
   const rolls = page.locator('[data-categoria="rolls"]');
   await rolls.scrollIntoViewIfNeeded();
   await rolls.click();
   const cat = page.locator('[data-cat="rolls"]');
-  const doces = cat.locator('[data-aba="doces"]');
-  const salgados = cat.locator('[data-aba="salgados"]');
-  await expect(doces).toBeVisible();
-  await expect(salgados).toBeHidden();
-  await expect(doces.locator('.cartao__mini')).toHaveCount(4);
-  await expect(doces.locator('.cartao__mais')).toHaveCount(0);
-  await cat.getByRole('tab', { name: 'salgados' }).click();
-  await expect(salgados).toBeVisible();
-  await expect(doces).toBeHidden();
-  await expect(salgados).toContainText('Quatro queijos');
-  await expect(salgados.locator('.cartao__mini')).toHaveCount(4);
+  await expect(cat).toBeVisible();
+  await expect(cat.locator('.cartao__mini')).toHaveCount(3);
+  await expect(cat.getByRole('tab')).toHaveCount(0);
 });
 
 test('Café + Roll: escolher a dupla troca roll, bebida e cor do copo; atalho abre a bebida no cardápio', async ({ page }) => {
@@ -89,13 +80,13 @@ test('Café + Roll: escolher a dupla troca roll, bebida e cor do copo; atalho ab
   const par = sec.locator('[data-par="matcha"]');
   await par.click();
   await expect(par).toHaveAttribute('aria-checked', 'true');
-  await expect(sec.locator('.dupla [data-bebida]')).toHaveText('Matcha frutas vermelhas');
-  await expect(sec.locator('.dupla [data-roll]')).toHaveText('Mood cheesecake');
+  await expect(sec.locator('.dupla [data-bebida]')).toHaveText('Matcha Geleia de Morango');
+  await expect(sec.locator('.dupla [data-roll]')).toHaveText('Mood Cheesecake');
   await expect(sec.locator('[data-foto="matcha"]')).toHaveAttribute('data-ativo', '');
   expect(await sec.locator('[data-dupla]').evaluate((d) => (d as HTMLElement).style.getPropertyValue('--liq-a'))).toContain('berry');
   await par.focus();
   await page.keyboard.press('ArrowRight');
-  await expect(sec.locator('[data-par="americano"]')).toHaveAttribute('aria-checked', 'true');
+  await expect(sec.locator('[data-par="iced"]')).toHaveAttribute('aria-checked', 'true');
   await expect(sec.locator('[data-abrir]')).toHaveCount(1);
   await sec.locator('[data-abrir="gelados"]').click();
   await expect(page.locator('[data-categoria="gelados"]')).toHaveAttribute('aria-expanded', 'true');

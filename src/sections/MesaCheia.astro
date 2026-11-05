@@ -2,19 +2,21 @@
 // 3 · PARA SUA MESA — quadro de cortiça + cardápio em faixas (markup do v1).
 // As fotos assentam como peças de colagem; as setas se desenham; parallax leve nas fotos.
 // Cardápio tátil: cada etiqueta é um botão (indicador “+” que vira “×”) e abre um cartão de papel logo abaixo, com a foto
-// principal da categoria (só quando há uma foto correta), os itens do cardápio oficial e, nos principais, miniaturas.
-// Sem selo de “imagem ilustrativa” (decisão da rodada final). O cartão dos rolls separa doces e salgados em abas
-// (scripts/cardapio-tatil.js).
+// da categoria (só quando há uma foto correta), os produtos e os preços do catálogo oficial e, onde há foto real, miniaturas.
+// Sem selo de “imagem ilustrativa” (decisão da rodada final). Nada de produto mora aqui: vem da API (lib/cardapio/catalogo.ts);
+// o cardápio completo fica em /cardapio/.
 // Fotos dos cartões: lazy, mas antecipadas quando o cardápio chega perto da tela (data-antecipar, scripts/site.js) — o
 // cartão nunca abre com a foto em branco.
 import Foto from '../components/Foto.astro';
 import MegaTitle from '../components/MegaTitle.astro';
 import Seta from '../components/Seta.astro';
-import { cardapio, PARES, type Categoria, type FotoCardapio } from '../data/cardapio';
+import { montarCardapio, PARES, type CategoriaVista, type FotoCardapio } from '../data/cardapio';
+import { carregarCatalogo } from '../lib/cardapio/catalogo';
 import { secoes } from '../data/secoes';
 import { origemVisivel } from '../lib/conteudo';
 import { imagem } from '../lib/media';
 const cor = (c: keyof typeof PARES) => { const p = PARES[c]; return `--b:${p.b}${'t' in p ? `;--t:${p.t}` : ''}`; };
+const cardapio = montarCardapio(await carregarCatalogo());
 const grupos = [
   { id: 'comer', rotulo: 'pra comer', itens: cardapio.comer, offset: 0 },
   { id: 'beber', rotulo: 'pra beber', itens: cardapio.beber, offset: cardapio.comer.length },
@@ -39,7 +41,7 @@ const s = secoes.mesa;
       <Foto src="gastronomia/bebida-chocolate-creme.webp" alt="Bebida gelada de chocolate com calda" sizes="(min-width: 960px) 274px, 40vw" />
     </figure>
 
-    <p class="note note--a">toasts</p>
+    <p class="note note--a">brunch</p>
     <Seta variante="a" />
     <p class="note note--b">croissant</p>
     <Seta variante="b" i={1} />
@@ -54,7 +56,7 @@ const s = secoes.mesa;
         <ul class="bands__list" aria-labelledby={`cardapio-${g.id}`}>
           {g.itens.map((c, n) => (
             <li style={`${cor(c.cor)};--n:${n + g.offset}`}>
-              <button type="button" class="bands__tap" aria-expanded="false" aria-controls={`painel-${g.id}`} data-categoria={c.id}>
+              <button type="button" class="bands__tap" aria-expanded="false" aria-controls={`painel-${g.id}`} data-categoria={c.ancora}>
                 <span>{c.nome}</span><i class="bands__mais" aria-hidden="true"></i>
               </button>
             </li>
@@ -62,65 +64,44 @@ const s = secoes.mesa;
         </ul>
         <div class="cartao" id={`painel-${g.id}`} data-painel hidden>
           <div class="cartao__dentro">
-            {g.itens.map((c: Categoria) => {
-              const d = c.detalhe;
-              return (
-                <article class="cartao__cat" data-cat={c.id} hidden aria-labelledby={`cat-${c.id}`}>
-                  <header class:list={['cartao__head', !ok(d.foto) && 'cartao__head--sem-foto']}>
-                    {ok(d.foto) && (
-                      <figure class="cartao__prato">
-                        <Foto src={d.foto.src} alt={d.foto.alt} sizes="(min-width: 960px) 132px, 104px" widths={[104, 208, 312]} qualidade={70} />
-                      </figure>
-                    )}
-                    <div class="cartao__titulo">
-                      <h3 class="cartao__nome" id={`cat-${c.id}`}>{c.nome}</h3>
-                      {d.linha && <p class="cartao__linha">{d.linha}</p>}
-                    </div>
-                    <button type="button" class="cartao__fechar" data-fechar aria-label={`Fechar ${c.nome}`}><span aria-hidden="true">×</span></button>
-                  </header>
-
-                  {d.abas && d.grupos.length > 1 && (
-                    <div class="cartao__abas" role="tablist" aria-label={c.nome} data-abas hidden>
-                      {d.grupos.map((gr, k) => (
-                        <button type="button" role="tab" id={`aba-${c.id}-${gr.id}`} aria-controls={`grupo-${c.id}-${gr.id}`} aria-selected={k === 0 ? 'true' : 'false'} tabindex={k === 0 ? 0 : -1}>{gr.titulo}</button>
-                      ))}
-                    </div>
+            {g.itens.map((c: CategoriaVista) => (
+              <article class="cartao__cat" data-cat={c.ancora} hidden aria-labelledby={`cat-${c.ancora}`}>
+                <header class:list={['cartao__head', !ok(c.fotoHome) && 'cartao__head--sem-foto']}>
+                  {ok(c.fotoHome) && (
+                    <figure class="cartao__prato">
+                      <Foto src={c.fotoHome.src} alt={c.fotoHome.alt} sizes="(min-width: 960px) 132px, 104px" widths={[104, 208, 312]} qualidade={70} />
+                    </figure>
                   )}
+                  <div class="cartao__titulo">
+                    <h3 class="cartao__nome" id={`cat-${c.ancora}`}>{c.nome}</h3>
+                    {c.observacao && <p class="cartao__linha">{c.observacao}</p>}
+                  </div>
+                  <button type="button" class="cartao__fechar" data-fechar aria-label={`Fechar ${c.nome}`}><span aria-hidden="true">×</span></button>
+                </header>
 
-                  {d.grupos.map((gr, k) => (
-                    <div class="cartao__grupo" id={d.abas ? `grupo-${c.id}-${gr.id}` : undefined} role={d.abas ? 'tabpanel' : undefined}
-                      aria-labelledby={d.abas ? `aba-${c.id}-${gr.id}` : undefined} data-aba={d.abas ? gr.id : undefined} data-primeira={d.abas && k === 0 ? '' : undefined}>
-                      {gr.titulo && <p class="cartao__sub">{gr.titulo}</p>}
-                      <ul class="cartao__itens">
-                        {gr.itens.map((it, j) => (
-                          <li class:list={[ok(it.foto) && 'cartao__item--foto']} style={`--k:${j}`}>
-                            {ok(it.foto) && (
-                              <span class="cartao__mini">
-                                <Foto src={it.foto.src} alt="" sizes="48px" widths={[48, 96, 144]} qualidade={70} />
-                              </span>
-                            )}
-                            <strong>{it.nome}</strong>{it.desc && <span>{it.desc}</span>}
-                          </li>
-                        ))}
-                      </ul>
-                      {gr.mais && (
-                        <details class="cartao__mais">
-                          <summary>+ {gr.mais.itens.length} {gr.mais.rotulo}</summary>
-                          <p>{gr.mais.itens.join(' · ')}</p>
-                        </details>
-                      )}
-                      {gr.nota && <p class="cartao__nota">{gr.nota}</p>}
-                    </div>
-                  ))}
-                  {d.nota && <p class="cartao__nota cartao__nota--so">{d.nota}</p>}
-                  {d.ancora && <a class="cartao__link" href={d.ancora.href}>{d.ancora.texto} <span aria-hidden="true">↓</span></a>}
-                </article>
-              );
-            })}
+                <div class="cartao__grupo">
+                  <ul class="cartao__itens">
+                    {c.produtos.map((p, j) => (
+                      <li class:list={[ok(p.foto) && 'cartao__item--foto']} style={`--k:${j}`} data-item={p.id} data-preco={p.precoCentavos}>
+                        {ok(p.foto) && (
+                          <span class="cartao__mini">
+                            <Foto src={p.foto.src} alt="" sizes="48px" widths={[48, 96, 144]} qualidade={70} />
+                          </span>
+                        )}
+                        <strong>{p.nome} <em class="cartao__preco">{p.preco}</em></strong>{p.descricao && <span>{p.descricao}</span>}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <a class="cartao__link" href={`/cardapio/#${c.ancora}`}>ver no cardápio completo <span aria-hidden="true">→</span></a>
+                {c.atalho && <a class="cartao__link" href={c.atalho.href}>{c.atalho.texto} <span aria-hidden="true">↓</span></a>}
+              </article>
+            ))}
           </div>
         </div>
       </>
     ))}
+    <a class="btn btn--wine mesa__completo" href="/cardapio/">Ver cardápio completo <span aria-hidden="true">→</span></a>
   </div>
 </section>
 
