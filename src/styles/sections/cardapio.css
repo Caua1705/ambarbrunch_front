@@ -12,10 +12,6 @@ body:has(.carta) { overflow-x: clip; }
 .carta__pdf, .carta__fim { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-12) var(--s-22); }
 .carta__pdf { margin-top: var(--s-14); }
 .carta__fim { justify-content: center; max-width: 860px; margin: var(--s-44) auto 0; padding-inline: var(--gutter); }
-.carta__baixar {
-  display: inline-flex; align-items: center; min-height: 44px;
-  font: var(--t-link); letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--wine); text-underline-offset: 4px;
-}
 
 /* Navegação: gruda no alto e rola de lado; a página nunca rola de lado */
 .carta__nav {
@@ -38,7 +34,8 @@ body:has(.carta) { overflow-x: clip; }
 .carta__grupo { max-width: 860px; margin: 0 auto; padding-inline: var(--gutter); }
 .carta__rotulo { margin-top: var(--s-40); font: var(--t-scribble); color: var(--caramel-dk); }
 
-.categoria { margin-top: var(--s-26); scroll-margin-top: 76px; }
+/* --carta-nav-altura: altura medida da barra (scripts/cardapio-nav.js). A folga de 14px precisa ficar menor que FOLGA, nesse script */
+.categoria { margin-top: var(--s-26); scroll-margin-top: calc(var(--carta-nav-altura, 62px) + 14px); }
 .categoria + .categoria { margin-top: var(--s-44); }
 .categoria__topo { display: grid; gap: var(--s-6); padding-bottom: var(--s-10); border-bottom: 2px solid var(--wine); }
 .categoria__topo h2 { font: var(--t-carta-categoria); text-transform: uppercase; color: var(--wine); }

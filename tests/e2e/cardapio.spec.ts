@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 import manifesto from '../../src/data/cardapio-pdf.json' with { type: 'json' };
 import { validarCatalogo, formatarPreco, temCentavos } from '../../src/lib/cardapio/contrato';
 import { lerFonte } from '../../src/lib/cardapio/fonte';
+import { FOTOS_PRODUTO } from '../../src/data/cardapio';
 
 const carregar = async () => validarCatalogo(await lerFonte());
 
@@ -49,10 +50,17 @@ test('Cinnamon Rolls: os quatro sabores aprovados, sem S’mores e separados dos
   await expect(page.locator('[data-item^="cheesecakes."]')).toHaveCount(7);
 });
 
-test('abrir e baixar levam ao PDF oficial, igual ao arquivo do repositório', async ({ page, request }) => {
+test('só o botão Abrir o PDF, levando ao PDF oficial, igual ao arquivo do repositório', async ({ page, request }) => {
   await page.goto('/cardapio/');
-  await expect(page.getByRole('link', { name: 'Abrir o PDF' }).first()).toHaveAttribute('href', '/cardapio/cardapio-ambar.pdf');
-  await expect(page.getByRole('link', { name: 'Baixar em PDF' }).first()).toHaveAttribute('download', 'Cardapio-Ambar.pdf');
+  const abrir = page.getByRole('link', { name: 'Abrir o PDF' });
+  await expect(abrir).toHaveCount(2);   // no alto e no fim da página
+  for (const link of await abrir.all()) {
+    await expect(link).toHaveAttribute('href', '/cardapio/cardapio-ambar.pdf');
+    await expect(link).toHaveAttribute('target', '_blank');
+    await expect(link).not.toHaveAttribute('download');
+  }
+  await expect(page.getByRole('link', { name: 'Baixar em PDF' })).toHaveCount(0);
+  await expect(page.locator('main a[download]')).toHaveCount(0);
   const pdf = await (await request.get('/cardapio/cardapio-ambar.pdf')).body();
   expect(createHash('sha256').update(pdf).digest('hex')).toBe(manifesto.pdf_sha256);
 });
@@ -85,11 +93,25 @@ test('sem rolagem horizontal, do menor celular ao desktop', async ({ page }) => 
   }
 });
 
-test('fotos: só as reais mapeadas, com texto alternativo; sem foto, apresentação neutra sem imagem', async ({ page }) => {
+test('imagens: só as mapeadas, com texto alternativo; sem imagem, apresentação neutra', async ({ page }) => {
   await page.goto('/cardapio/');
   const comFoto = page.locator('.prato:not([data-sem-foto]) img');
-  await expect(comFoto).toHaveCount(3);
+  await expect(comFoto).toHaveCount(Object.keys(FOTOS_PRODUTO).length);
   for (const alt of await comFoto.evaluateAll((l) => l.map((i) => i.getAttribute('alt')))) expect(alt).toBeTruthy();
+  // cada produto com a própria imagem, no ladrilho quadrado e sem arquivo quebrado
+  for (const [id, foto] of Object.entries(FOTOS_PRODUTO)) {
+    const img = page.locator(`[data-item="${id}"] .prato__foto img`);
+    await expect(img).toHaveAttribute('alt', foto.alt);
+    await expect(img).toHaveAttribute('width', /^[0-9]+$/);
+    await expect(img).toHaveAttribute('height', /^[0-9]+$/);
+    await img.scrollIntoViewIfNeeded();
+    await expect.poll(() => img.evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth > 0)).toBe(true);
+    const caixa = (await img.boundingBox())!;
+    expect(caixa.width, id).toBe(caixa.height);
+  }
+  expect(new Set(Object.values(FOTOS_PRODUTO).map((f) => f.src)).size).toBe(Object.keys(FOTOS_PRODUTO).length);
+  // Biscoff são três produtos: o cheesecake não herda a imagem do roll nem a do latte
+  await expect(page.locator('[data-item="cheesecakes.biscoff"] img')).toHaveCount(0);
   await expect(page.locator('.prato[data-sem-foto] img')).toHaveCount(0);
   await expect(page.locator('.prato[data-sem-foto] svg').first()).toBeAttached();
   // imagens responsivas e fora da primeira tela só sob demanda
@@ -119,6 +141,8 @@ test('SEO: canônico e cardápio estruturado com os preços do catálogo', async
 test('home: produtos e preços são os do catálogo e há caminho para o cardápio completo', async ({ page }) => {
   const catalogo = await carregar();
   await page.goto('/');
+  // miniatura na home é só foto real
+  await expect(page.locator('#gastronomia .cartao__mini')).toHaveCount(Object.values(FOTOS_PRODUTO).filter((f) => f.origem === 'real').length);
   const precos = new Map(catalogo.categorias.flatMap((c) => c.itens.map((i) => [i.id, i.preco_centavos])));
   const naHome = await page.locator('#gastronomia [data-item]').evaluateAll((l) => l.map((e) => [(e as HTMLElement).dataset.item, Number((e as HTMLElement).dataset.preco)] as const));
   expect(naHome.length).toBe(precos.size);

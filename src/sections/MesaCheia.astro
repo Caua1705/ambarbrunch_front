@@ -22,6 +22,7 @@ const grupos = [
   { id: 'beber', rotulo: 'pra beber', itens: cardapio.beber, offset: cardapio.comer.length },
 ];
 const ok = (f?: FotoCardapio): f is FotoCardapio => !!f && origemVisivel(f.origem) && !!imagem(f.src);
+const miniatura = (f?: FotoCardapio): f is FotoCardapio => ok(f) && f.origem === 'real';
 const s = secoes.mesa;
 ---
 <section class="mesa" id={s.id} aria-labelledby="mesa-titulo" tabindex="-1">
@@ -82,8 +83,8 @@ const s = secoes.mesa;
                 <div class="cartao__grupo">
                   <ul class="cartao__itens">
                     {c.produtos.map((p, j) => (
-                      <li class:list={[ok(p.foto) && 'cartao__item--foto']} style={`--k:${j}`} data-item={p.id} data-preco={p.precoCentavos}>
-                        {ok(p.foto) && (
+                      <li class:list={[miniatura(p.foto) && 'cartao__item--foto']} style={`--k:${j}`} data-item={p.id} data-preco={p.precoCentavos}>
+                        {miniatura(p.foto) && (
                           <span class="cartao__mini">
                             <Foto src={p.foto.src} alt="" sizes="48px" widths={[48, 96, 144]} qualidade={70} />
                           </span>

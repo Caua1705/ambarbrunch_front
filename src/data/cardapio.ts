@@ -1,7 +1,7 @@
 // Apresentação do cardápio no site: como cada categoria do catálogo oficial aparece (cor, grupo, ícone) e qual foto cada produto usa.
 // NÃO guarda produto, descrição nem preço: tudo isso vem da API do backend (lib/cardapio/catalogo.ts). Foto e categoria se ligam pelo id
-// estável do backend, nunca pelo nome. Regra das fotos de produto: só foto real em que dá para reconhecer aquele produto. Sem uma,
-// o site mostra a apresentação neutra (sem inventar imagem). Lista dos produtos sem foto: docs/technical/CARDAPIO.md.
+// estável do backend, nunca pelo nome. Regra das imagens de produto: só imagem em que dá para reconhecer aquele produto, com o que o catálogo
+// descreve. Sem uma, o site mostra a apresentação neutra (sem inventar imagem). Produtos sem imagem: docs/technical/CARDAPIO-FOTOS-PENDENTES.md.
 import type { Origem } from '../lib/conteudo';
 import { formatarPreco, temCentavos, type Catalogo, type CategoriaCatalogo, type GrupoAdicionais } from '../lib/cardapio/contrato';
 
@@ -61,11 +61,22 @@ const CATEGORIAS: Record<string, ApresentacaoCategoria> = {
   outras_bebidas: { ancora: 'outras-bebidas', grupo: 'beber', cor: 'butter', icone: 'lata' },
 };
 
-/** Foto real por produto (id estável do backend). Fotos da Roll autorizadas em 2026-10-17. */
+/**
+ * Imagem por produto (id estável do backend). `real`: fotos da Roll autorizadas em 2026-10-17. `ilustrativa`: não é foto do produto servido.
+ * Origem de cada arte em docs/technical/CARDAPIO.md. Só as reais aparecem como miniatura na home.
+ */
 export const FOTOS_PRODUTO: Record<string, FotoCardapio> = {
   'cinnamon_rolls.mood_cheesecake': real('roll/roll-mood-cheesecake.webp', 'Cinnamon roll Mood Cheesecake com geleia de morango e crumble'),
   'cinnamon_rolls.kinder_bueno': real('roll/roll-kinder-bueno.webp', 'Cinnamon roll Kinder Bueno com fios de Nutella'),
   'cinnamon_rolls.biscoff': real('roll/roll-biscoff.webp', 'Cinnamon roll de Biscoff com creme e biscoito triturado'),
+  'cinnamon_rolls.tradicional': ilustrativa('roll/roll-tradicional.webp', 'Cinnamon roll Tradicional em espiral, com glacê'),
+  'sanduiches.brie_blueberry': ilustrativa('cardapio/sanduiche-brie.webp', 'Sanduíche de brie derretido com geleia de mirtilo e lascas de parmesão'),
+  'cafes_gelados.matcha_latte': ilustrativa('cardapio/copo-matcha-latte.webp', 'Copo de Matcha Latte com gelo, com o verde do matcha sobre o leite'),
+  'cafes_gelados.matcha_geleia_de_morango': ilustrativa('cardapio/copo-matcha-geleia-de-morango.webp', 'Copo de Matcha Geleia de Morango com gelo, com camadas de matcha, leite e geleia'),
+  'cafes_gelados.honey_latte': ilustrativa('cardapio/copo-honey-latte.webp', 'Copo de Honey Latte com gelo'),
+  'cafes_gelados.iced_latte': ilustrativa('cardapio/copo-iced-latte.webp', 'Copo de Iced Latte com gelo'),
+  'cafes_gelados.biscoff_latte': ilustrativa('cardapio/copo-biscoff-latte.webp', 'Copo de Biscoff Latte com gelo e pedaços de biscoito'),
+  'cafes_gelados.cinnamon_latte': ilustrativa('cardapio/copo-cinnamon-latte.webp', 'Copo de Cinnamon Latte com gelo e um mini cinnamon roll por cima'),
 };
 
 export interface ProdutoVista { id: string; nome: string; descricao: string | null; preco: string; precoCentavos: number; foto?: FotoCardapio }

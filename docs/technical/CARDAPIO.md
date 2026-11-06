@@ -60,11 +60,28 @@ Item ou descrição muito maior pode não caber na página: a geração falha di
 
 ## Fotos
 
-Em `/cardapio/`, produto só usa foto real em que dá para reconhecer aquele produto. Sem uma, aparece o ícone neutro da categoria.
-**Trocar por foto real:** colocar a imagem em `src/assets/media/` e acrescentar `id do produto → { src, alt }` em `FOTOS_PRODUTO`
-(`src/data/cardapio.ts`). O layout não muda e o site gera os tamanhos no build.
+Em `/cardapio/`, produto só usa imagem em que dá para reconhecer aquele produto e que mostre o que o catálogo descreve. Sem uma, aparece o ícone neutro
+da categoria. **Lista do que falta, com os nomes de arquivo do ZIP:** [`CARDAPIO-FOTOS-PENDENTES.md`](CARDAPIO-FOTOS-PENDENTES.md).
 
-Com foto real hoje: `cinnamon_rolls.mood_cheesecake`, `cinnamon_rolls.kinder_bueno`, `cinnamon_rolls.biscoff`. Todos os outros usam o ícone neutro.
+**Trocar ou acrescentar:** colocar a imagem em `src/assets/media/` e acrescentar `id do produto → { src, alt }` em `FOTOS_PRODUTO` (`src/data/cardapio.ts`). O
+layout não muda e o site gera os tamanhos no build. Na home, só as de origem `real` aparecem como miniatura.
+
+| Produto | Arquivo em `src/assets/media/` | Origem | De onde veio |
+|---|---|---|---|
+| Rolls Mood Cheesecake, Kinder Bueno e Biscoff | `roll/roll-*.webp` | `real` | fotos da Roll autorizadas em 17/10/2026 |
+| Roll Tradicional | `roll/roll-tradicional.webp` | `ilustrativa` | arte da Roll que nomeia o sabor (Instagram, IG-16, `2026-09-14_DdRe2BOgPRt_image.jpg`), recorte quadrado. Pode ser render; fora da lista autorizada em 17/10 |
+| Os seis Cafés gelados | `cardapio/copo-*.webp` | `ilustrativa` | recorte dos copos nomeados na página 3 do PDF oficial do dono (6/11/2026). O PDF não muda |
+| Sanduíche Brie & Blueberry | `cardapio/sanduiche-brie.webp` | `ilustrativa` | imagem gerada por IA, aprovada para a home em 17/10/2026; bate com a descrição do catálogo |
+
+Não reaproveitar sem confirmação:
+
+- **Pistache e Mirtilo** das artes da Roll são sabores de cinnamon roll, não cheesecakes.
+- **Nutella, Oreo, Red Velvet e S’mores** não estão no catálogo.
+- **Croissant do prato azul:** tem recheio, e não dá para dizer qual sabor é. Segue só como foto da categoria.
+- **Torrada do prato branco e shake de chocolate:** não correspondem a produto atual.
+- **Sanduíches Ragu e Tuna e os bowls da proposta Âmbar × Roll:** mostram ingredientes fora do catálogo (rúcula, abacate).
+- **Cheesecake gerado por IA:** cheesecake não tem descrição no catálogo e “Maçã com Crumble (fatia)” indica que os outros talvez não sejam vendidos em
+  fatia. A imagem de fatia poderia prometer uma apresentação que não existe.
 
 Fotos de categoria, sem indicar um produto: Croissants (o croissant do prato azul tem recheio e não dá para dizer qual é) e Cinnamon Rolls (caixa
 da Roll). No cartão da home, Sanduíches, Cafés e Cafés gelados seguem com as imagens ilustrativas aprovadas em 17/10/2026, sempre como foto da

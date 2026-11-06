@@ -1,5 +1,5 @@
 ---
-// Cardápio completo (/cardapio/): navegação fixa por categoria e, em cada uma, os produtos com foto real ou a apresentação neutra.
+// Cardápio completo (/cardapio/): navegação fixa por categoria e, em cada uma, os produtos com imagem ou a apresentação neutra.
 // Categoria sem foto e sem descrição vira lista corrida, como nas artes. Sem JS, a navegação são âncoras comuns; o script só marca a
 // categoria da vez e leva a etiqueta dela para dentro da faixa (scripts/cardapio-nav.js).
 import Foto from '../components/Foto.astro';
@@ -23,7 +23,6 @@ const temAdicionais = cardapio.adicionaisBebidas.length > 0;
     <p class="carta__sub">{secoes.mesa.sub}</p>
     <div class="carta__pdf">
       <a class="btn btn--wine" href={PDF} target="_blank" rel="noopener">Abrir o PDF</a>
-      <a class="carta__baixar" href={PDF} download="Cardapio-Ambar.pdf">Baixar em PDF</a>
     </div>
   </header>
 
@@ -60,7 +59,7 @@ const temAdicionais = cardapio.adicionaisBebidas.length > 0;
                 <li class="prato" data-item={p.id} data-preco={p.precoCentavos} data-sem-foto={p.foto ? undefined : ''}>
                   <div class="prato__foto">
                     {p.foto && imagem(p.foto.src)
-                      ? <Foto src={p.foto.src} alt={p.foto.alt} sizes="88px" widths={[88, 176, 264]} qualidade={68} />
+                      ? <Foto src={p.foto.src} alt={p.foto.alt} sizes="(min-width: 720px) 88px, 64px" widths={[88, 176, 264]} qualidade={68} />
                       : <IconeCardapio icone={c.icone} />}
                   </div>
                   <div class="prato__texto">
@@ -102,7 +101,6 @@ const temAdicionais = cardapio.adicionaisBebidas.length > 0;
 
   <footer class="carta__fim">
     <a class="btn btn--wine" href={PDF} target="_blank" rel="noopener">Abrir o PDF</a>
-    <a class="carta__baixar" href={PDF} download="Cardapio-Ambar.pdf">Baixar em PDF</a>
   </footer>
 </main>
 
