@@ -8,7 +8,7 @@ const base = () => ({
   versao: 'teste', atualizado_em: null,
   categorias: [
     { id: 'cinnamon_rolls', nome: 'Cinnamon Rolls', observacao: null, ordem: 2, itens: [
-      item('cinnamon_rolls.mood_cheesecake', 'Mood Cheesecake', 2415, 1), item('cinnamon_rolls.smores', 'S’mores', 2520, 2), item('cinnamon_rolls.kinder_bueno', 'Kinder Bueno', 2500, 3),
+      item('cinnamon_rolls.mood_cheesecake', 'Mood Cheesecake', 2300, 1), item('cinnamon_rolls.biscoff', 'Biscoff', 2500, 2), item('cinnamon_rolls.kinder_bueno', 'Kinder Bueno', 2400, 3),
     ] },
     { id: 'cafes', nome: 'Cafés', observacao: null, ordem: 1, itens: [item('cafes.cafe_coado', 'Café coado', 600)] },
   ],
@@ -24,7 +24,7 @@ const invalidos: [string, (b: ReturnType<typeof base>) => void][] = [
   ['preço zero', (b) => { b.categorias[1].itens[0].preco_centavos = 0; }],
   ['produto sem nome', (b) => { b.categorias[1].itens[0].nome = ' '; }],
   ['produto sem id', (b) => { (b.categorias[1].itens[0] as { id?: string }).id = undefined; }],
-  ['id repetido', (b) => { b.categorias[1].itens[0].id = 'cinnamon_rolls.smores'; }],
+  ['id repetido', (b) => { b.categorias[1].itens[0].id = 'cinnamon_rolls.biscoff'; }],
   ['categoria vazia', (b) => { b.categorias[1].itens = []; }],
   ['sem categorias', (b) => { b.categorias = []; }],
   ['sem versão', (b) => { b.versao = ''; }],

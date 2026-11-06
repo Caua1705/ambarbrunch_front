@@ -1,6 +1,7 @@
 // Confere se os canais mostram o mesmo cardápio: npm run cardapio:conferir [site]
 // Lê a API oficial e compara, item a item (id, nome e preço), com /cardapio/ e a home do site indicado (padrão: produção) e com o PDF
-// público, pela assinatura gravada ao gerá-lo. Sai 0 com tudo igual e 1 na primeira divergência. Rodar depois de todo deploy.
+// público, pela assinatura gravada ao gerá-lo. PDF entregue pelo dono é só imagem: confere pelo sha256 gravado ao assiná-lo (o conteúdo foi conferido
+// a olho). Sai 0 com tudo igual e 1 na primeira divergência. Rodar depois de todo deploy.
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
@@ -48,12 +49,16 @@ const local = fs.readFileSync('public/cardapio/cardapio-ambar.pdf');
 const hash = (b) => createHash('sha256').update(b).digest('hex');
 if (hash(pdf) !== hash(local)) erros.push('o PDF público não é o do repositório (deploy pendente?)');
 
-// e, lendo o PDF que está no ar, os mesmos nomes e preços (mesma conferência da geração)
-const pasta = fs.mkdtempSync(path.join(os.tmpdir(), 'cardapio-conferir-'));
-fs.writeFileSync(path.join(pasta, 'cardapio.pdf'), pdf);
-fs.writeFileSync(path.join(pasta, 'catalogo.json'), JSON.stringify(catalogo));
-const r = spawnSync('uv', ['run', '--no-project', '--with', 'pymupdf', 'python', 'scripts/cardapio_pdf_conferir.py', path.join(pasta, 'cardapio.pdf'), path.join(pasta, 'catalogo.json'), pasta], { stdio: 'inherit', env: { ...process.env, PYTHONUTF8: '1' } });
-if (r.status !== 0) erros.push('o PDF público não confere com o catálogo');
+if (manifesto.pdf_sha256) {
+  if (hash(pdf) !== manifesto.pdf_sha256) erros.push('o PDF público não é o entregue pelo dono');
+} else {
+  // e, lendo o PDF que está no ar, os mesmos nomes e preços (mesma conferência da geração)
+  const pasta = fs.mkdtempSync(path.join(os.tmpdir(), 'cardapio-conferir-'));
+  fs.writeFileSync(path.join(pasta, 'cardapio.pdf'), pdf);
+  fs.writeFileSync(path.join(pasta, 'catalogo.json'), JSON.stringify(catalogo));
+  const r = spawnSync('uv', ['run', '--no-project', '--with', 'pymupdf', 'python', 'scripts/cardapio_pdf_conferir.py', path.join(pasta, 'cardapio.pdf'), path.join(pasta, 'catalogo.json'), pasta], { stdio: 'inherit', env: { ...process.env, PYTHONUTF8: '1' } });
+  if (r.status !== 0) erros.push('o PDF público não confere com o catálogo');
+}
 
 if (erros.length) {
   console.error(erros.map((e) => `ERRO ${e}`).join('\n'));

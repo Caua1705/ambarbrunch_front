@@ -2,7 +2,7 @@
 // Nomes de bebida e roll vêm do catálogo oficial, pelo id estável: um produto que sair do cardápio derruba o build em vez de seguir na
 // home. Só a foto (real, da Roll, autorizada em 2026-10-17) e a frase são daqui. As duplas são SUGESTÕES editoriais de combinação
 // (nada de combo, preço ou disponibilidade do dia). O copo da cena é um desenho (SVG), não é foto nem mockup de embalagem; a caixa é a
-// embalagem real da Roll. A dupla Biscoff saiu em 2026-11-05: o roll Biscoff não está no cardápio oficial.
+// embalagem real da Roll. Em 2026-11-06 o S’mores saiu do cardápio e o roll Biscoff entrou: a dupla Biscoff volta no lugar da dupla do S’mores.
 import { FOTOS_PRODUTO, type FotoCardapio } from './cardapio';
 import type { Catalogo } from '../lib/cardapio/contrato';
 
@@ -17,7 +17,7 @@ interface Par {
 
 const PARES: Par[] = [
   { id: 'matcha', bebidaId: 'cafes_gelados.matcha_geleia_de_morango', rollId: 'cinnamon_rolls.mood_cheesecake', frase: 'verde, vermelho e cremoso', liquido: ['var(--berry)', 'var(--leaf)'] },
-  { id: 'iced', bebidaId: 'cafes_gelados.iced_latte', rollId: 'cinnamon_rolls.smores', frase: 'o gelado encontra o tostado', liquido: ['var(--cacao)', 'var(--caramel-dk)'] },
+  { id: 'biscoff', bebidaId: 'cafes_gelados.biscoff_latte', rollId: 'cinnamon_rolls.biscoff', frase: 'Biscoff em dobro', liquido: ['var(--caramel)', 'var(--butter)'] },
   { id: 'honey', bebidaId: 'cafes_gelados.honey_latte', rollId: 'cinnamon_rolls.kinder_bueno', frase: 'mel, leite e chocolate', liquido: ['var(--caramel-lt)', 'var(--glaze)'] },
 ];
 

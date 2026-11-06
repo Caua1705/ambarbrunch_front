@@ -86,7 +86,8 @@ test('Café + Roll: escolher a dupla troca roll, bebida e cor do copo; atalho ab
   expect(await sec.locator('[data-dupla]').evaluate((d) => (d as HTMLElement).style.getPropertyValue('--liq-a'))).toContain('berry');
   await par.focus();
   await page.keyboard.press('ArrowRight');
-  await expect(sec.locator('[data-par="iced"]')).toHaveAttribute('aria-checked', 'true');
+  await expect(sec.locator('[data-par="biscoff"]')).toHaveAttribute('aria-checked', 'true');
+  await expect(sec.locator('.dupla [data-roll]')).toHaveText('Biscoff');
   await expect(sec.locator('[data-abrir]')).toHaveCount(1);
   await sec.locator('[data-abrir="gelados"]').click();
   await expect(page.locator('[data-categoria="gelados"]')).toHaveAttribute('aria-expanded', 'true');

@@ -6,7 +6,7 @@ Um só cadastro: o catálogo do backend (`GET https://api.ambarbrunch.com/cardap
 |---|---|
 | Atendimento no WhatsApp | direto do banco do backend; o cliente recebe o link `/cardapio`, nunca o PDF |
 | `/cardapio/` e home | no build do site (`src/lib/cardapio/catalogo.ts`): HTML estático com os dados do momento do deploy |
-| PDF `/cardapio/cardapio-ambar.pdf` | gerado da mesma API por `npm run cardapio:pdf`; o endereço não muda |
+| PDF `/cardapio/cardapio-ambar.pdf` | **hoje, o PDF entregue pelo dono** (6/11/2026), byte a byte, preso ao catálogo por `npm run cardapio:assinar`; o endereço não muda |
 
 O front **não guarda** produto, descrição nem preço. `src/data/cardapio.ts` guarda só apresentação: categoria → cor, âncora e ícone; id do
 produto → foto. As duplas do Café + Roll (`src/data/cafe-roll.ts`) apontam para ids do catálogo.
@@ -38,7 +38,19 @@ Requisitos da máquina: Node 24 (o gerador importa os `.ts` direto) e `uv` (lê 
 - Categoria nova, sem lugar em `src/data/cardapio.ts` ou em `PAGINAS` de `scripts/cardapio-pdf.mjs`: build e PDF falham dizendo qual falta.
 - Produto removido do catálogo que ainda tem foto ou está numa dupla do Café + Roll: o build falha dizendo qual.
 
-## PDF
+## PDF do dono (vigente desde 6/11/2026)
+
+O PDF público é a arte corrigida entregue pelo dono: 3 páginas, só imagem, sem texto. Por isso `cardapio:pdf` recusa gerar por cima dele, e
+`cardapio:conferir` compara o arquivo pelo sha256, sem ler o conteúdo: **o conteúdo precisa ser conferido a olho, item a item, contra a API**.
+A cada mudança de catálogo o build trava até haver PDF novo. Com a arte nova do dono:
+
+```bash
+npm run cardapio:assinar -- caminho/do/novo.pdf   # copia para public/cardapio/ e grava versão, assinatura e sha256 em src/data/cardapio-pdf.json
+```
+
+Depois, os passos 3 e 4 acima. Voltar ao PDF gerado: `npm run cardapio:pdf -- --trocar-pdf-do-dono`.
+
+## PDF gerado
 
 HTML → PDF pelo Chromium do Playwright: A4, 3 páginas, texto vetorial pesquisável, tipografia da marca, fundo branco para impressão. A
 conferência (`scripts/cardapio_pdf_conferir.py`) reprova se faltar nome, descrição ou preço, se o preço exato não estiver na linha do
@@ -52,7 +64,7 @@ Em `/cardapio/`, produto só usa foto real em que dá para reconhecer aquele pro
 **Trocar por foto real:** colocar a imagem em `src/assets/media/` e acrescentar `id do produto → { src, alt }` em `FOTOS_PRODUTO`
 (`src/data/cardapio.ts`). O layout não muda e o site gera os tamanhos no build.
 
-Com foto real hoje: `cinnamon_rolls.mood_cheesecake`, `cinnamon_rolls.smores`, `cinnamon_rolls.kinder_bueno`. Todos os outros usam o ícone neutro.
+Com foto real hoje: `cinnamon_rolls.mood_cheesecake`, `cinnamon_rolls.kinder_bueno`, `cinnamon_rolls.biscoff`. Todos os outros usam o ícone neutro.
 
 Fotos de categoria, sem indicar um produto: Croissants (o croissant do prato azul tem recheio e não dá para dizer qual é) e Cinnamon Rolls (caixa
 da Roll). No cartão da home, Sanduíches, Cafés e Cafés gelados seguem com as imagens ilustrativas aprovadas em 17/10/2026, sempre como foto da

@@ -34,6 +34,7 @@
     "media:kit": "node scripts/importar-kit-v2.mjs",
     "cardapio:pdf": "node scripts/cardapio-pdf.mjs",
     "cardapio:conferir": "node scripts/cardapio-conferir.mjs",
+    "cardapio:assinar": "node scripts/cardapio-assinar.mjs",
     "shots": "node scripts/shots.mjs",
     "perf": "node scripts/lighthouse.mjs"
   },

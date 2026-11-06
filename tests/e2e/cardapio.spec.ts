@@ -1,6 +1,8 @@
 // /cardapio/: o cardápio completo vem do catálogo oficial (o mesmo do build) e é igual na página, na home e no PDF.
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { createHash } from 'node:crypto';
+import manifesto from '../../src/data/cardapio-pdf.json' with { type: 'json' };
 import { validarCatalogo, formatarPreco, temCentavos } from '../../src/lib/cardapio/contrato';
 import { lerFonte } from '../../src/lib/cardapio/fonte';
 
@@ -33,6 +35,26 @@ test('Café coado R$ 6 e Coado na mesa R$ 14: dois produtos, sem confusão', asy
   await page.goto('/cardapio/');
   await expect(page.locator('[data-item="cafes.cafe_coado"]')).toHaveAttribute('data-preco', '600');
   await expect(page.locator('[data-item="cafes.coado_na_mesa"]')).toHaveAttribute('data-preco', '1400');
+});
+
+test('Cinnamon Rolls: os quatro sabores aprovados, sem S’mores e separados dos Cheesecakes', async ({ page }) => {
+  await page.goto('/cardapio/');
+  const rolls = page.locator('#' + (await page.locator('[data-item="cinnamon_rolls.biscoff"]').evaluate((e) => e.closest('section')!.id)));
+  await expect(rolls.locator('[data-item]')).toHaveCount(4);
+  for (const [id, preco] of [['tradicional', 1800], ['mood_cheesecake', 2300], ['kinder_bueno', 2400], ['biscoff', 2500]] as const) {
+    await expect(rolls.locator(`[data-item="cinnamon_rolls.${id}"]`)).toHaveAttribute('data-preco', String(preco));
+  }
+  await expect(page.locator('main')).not.toContainText(/S.mores/i);
+  await expect(page.locator('[data-item="cheesecakes.biscoff"]')).toHaveAttribute('data-preco', '2600');
+  await expect(page.locator('[data-item^="cheesecakes."]')).toHaveCount(7);
+});
+
+test('abrir e baixar levam ao PDF oficial, igual ao arquivo do repositório', async ({ page, request }) => {
+  await page.goto('/cardapio/');
+  await expect(page.getByRole('link', { name: 'Abrir o PDF' }).first()).toHaveAttribute('href', '/cardapio/cardapio-ambar.pdf');
+  await expect(page.getByRole('link', { name: 'Baixar em PDF' }).first()).toHaveAttribute('download', 'Cardapio-Ambar.pdf');
+  const pdf = await (await request.get('/cardapio/cardapio-ambar.pdf')).body();
+  expect(createHash('sha256').update(pdf).digest('hex')).toBe(manifesto.pdf_sha256);
 });
 
 test('navegação: etiqueta leva à categoria, fica visível ao rolar e marca a categoria da vez', async ({ page }) => {

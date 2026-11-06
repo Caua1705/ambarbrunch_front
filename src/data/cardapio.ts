@@ -64,8 +64,8 @@ const CATEGORIAS: Record<string, ApresentacaoCategoria> = {
 /** Foto real por produto (id estável do backend). Fotos da Roll autorizadas em 2026-10-17. */
 export const FOTOS_PRODUTO: Record<string, FotoCardapio> = {
   'cinnamon_rolls.mood_cheesecake': real('roll/roll-mood-cheesecake.webp', 'Cinnamon roll Mood Cheesecake com geleia de morango e crumble'),
-  'cinnamon_rolls.smores': real('roll/roll-smores.webp', 'Cinnamon roll S’mores com marshmallow tostado e chocolate'),
   'cinnamon_rolls.kinder_bueno': real('roll/roll-kinder-bueno.webp', 'Cinnamon roll Kinder Bueno com fios de Nutella'),
+  'cinnamon_rolls.biscoff': real('roll/roll-biscoff.webp', 'Cinnamon roll de Biscoff com creme e biscoito triturado'),
 };
 
 export interface ProdutoVista { id: string; nome: string; descricao: string | null; preco: string; precoCentavos: number; foto?: FotoCardapio }

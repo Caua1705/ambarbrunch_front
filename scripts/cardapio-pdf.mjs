@@ -17,6 +17,11 @@ const FINAL = path.join(RAIZ, 'public/cardapio/cardapio-ambar.pdf');
 const MANIFESTO = path.join(RAIZ, 'src/data/cardapio-pdf.json');
 const PAGINAS_DIR = path.join(RAIZ, 'reports/cardapio-pdf');
 
+// O PDF público pode ser o entregue pelo dono (npm run cardapio:assinar): gerar por cima dele trocaria a arte aprovada sem ninguém pedir.
+if (JSON.parse(fs.readFileSync(MANIFESTO, 'utf8')).pdf_sha256 && !process.argv.includes('--trocar-pdf-do-dono')) {
+  throw new Error('O PDF público é o entregue pelo dono. Catálogo novo: npm run cardapio:assinar -- <PDF novo do dono>. Para gerar por cima dele: --trocar-pdf-do-dono.');
+}
+
 // Onde cada categoria entra (ids do backend). Categoria nova sem lugar interrompe a geração.
 const PAGINAS = [
   { titulo: 'Menu', blocos: [['croissants', 'brunches'], ['sanduiches']] },
