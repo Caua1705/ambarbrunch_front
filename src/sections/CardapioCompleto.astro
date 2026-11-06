@@ -1,10 +1,10 @@
 ---
-// Cardápio completo (/cardapio/): navegação fixa por categoria e, em cada uma, os produtos com imagem ou a apresentação neutra.
-// Categoria sem foto e sem descrição vira lista corrida, como nas artes. Sem JS, a navegação são âncoras comuns; o script só marca a
-// categoria da vez e leva a etiqueta dela para dentro da faixa (scripts/cardapio-nav.js).
+// Cardápio completo (/cardapio/): navegação fixa por categoria e, em cada uma, os produtos com imagem ou a apresentação neutra. Tocar na linha do
+// produto abre o modal com a imagem ampliada (scripts/cardapio-modal.js). Sem JS, a navegação são âncoras comuns; o script só marca a categoria da vez
+// e leva a etiqueta dela para dentro da faixa (scripts/cardapio-nav.js).
 import Foto from '../components/Foto.astro';
 import IconeCardapio from '../components/IconeCardapio.astro';
-import type { Cardapio, CategoriaVista, GrupoVista } from '../data/cardapio';
+import type { Cardapio, CategoriaVista, FotoCardapio, GrupoVista } from '../data/cardapio';
 import { secoes } from '../data/secoes';
 import { imagem } from '../lib/media';
 
@@ -16,14 +16,13 @@ const grupos = [
   { id: 'beber', rotulo: 'pra beber', categorias: cardapio.beber },
 ];
 const temAdicionais = cardapio.adicionaisBebidas.length > 0;
+/** arquivo da imagem do modal: a largura natural limita a ampliação, para não esticar imagem pequena */
+const grande = (f?: FotoCardapio) => (f ? imagem(f.ampliada ?? f.src) : undefined);
 ---
 <main class="carta">
   <header class="carta__topo">
     <h1>Cardápio</h1>
     <p class="carta__sub">{secoes.mesa.sub}</p>
-    <div class="carta__pdf">
-      <a class="btn btn--wine" href={PDF} target="_blank" rel="noopener">Abrir o PDF</a>
-    </div>
   </header>
 
   <nav class="carta__nav" aria-label="Categorias do cardápio" data-carta-nav>
@@ -42,35 +41,29 @@ const temAdicionais = cardapio.adicionaisBebidas.length > 0;
             <h2 id={`titulo-${c.ancora}`}>{c.nome}</h2>
             {c.observacao && <p>{c.observacao}</p>}
           </header>
-          {c.capa && imagem(c.capa.src) && (
-            <figure class="categoria__capa">
-              <Foto src={c.capa.src} alt={c.capa.alt} sizes="(min-width: 860px) 760px, 100vw" widths={[480, 760, 1080]} qualidade={66} />
-            </figure>
-          )}
-          {c.compacta ? (
-            <ul class="precos">
-              {c.produtos.map((p) => (
-                <li data-item={p.id} data-preco={p.precoCentavos}><span class="precos__nome">{p.nome}</span><i aria-hidden="true"></i><span class="precos__valor">{p.preco}</span></li>
-              ))}
-            </ul>
-          ) : (
-            <ul class="pratos">
-              {c.produtos.map((p) => (
-                <li class="prato" data-item={p.id} data-preco={p.precoCentavos} data-sem-foto={p.foto ? undefined : ''}>
-                  <div class="prato__foto">
-                    {p.foto && imagem(p.foto.src)
-                      ? <Foto src={p.foto.src} alt={p.foto.alt} sizes="(min-width: 720px) 88px, 64px" widths={[88, 176, 264]} qualidade={68} />
-                      : <IconeCardapio icone={c.icone} />}
-                  </div>
-                  <div class="prato__texto">
-                    <h3>{p.nome}</h3>
-                    {p.descricao && <p>{p.descricao}</p>}
-                  </div>
-                  <p class="prato__preco">{p.preco}</p>
-                </li>
-              ))}
-            </ul>
-          )}
+          <ul class="pratos">
+            {c.produtos.map((p) => (
+              <li class="prato" data-item={p.id} data-preco={p.precoCentavos} data-sem-foto={p.foto ? undefined : ''}>
+                <div class="prato__foto">
+                  {p.foto && imagem(p.foto.src)
+                    ? <Foto src={p.foto.src} alt={p.foto.alt} sizes="(min-width: 720px) 88px, 64px" widths={[88, 176, 264]} qualidade={68} />
+                    : <IconeCardapio icone={c.icone} />}
+                </div>
+                <div class="prato__texto">
+                  <h3><button type="button" class="prato__abrir" data-abrir-produto aria-haspopup="dialog">{p.nome}</button></h3>
+                  {p.descricao && <p>{p.descricao}</p>}
+                </div>
+                <p class="prato__preco">{p.preco}</p>
+                {grande(p.foto) && (
+                  <template>
+                    <div class="produto-modal__quadro" style={`--natural:${grande(p.foto)!.width}px`}>
+                      <Foto src={p.foto!.ampliada ?? p.foto!.src} alt={p.foto!.alt} sizes="(min-width: 480px) 440px, calc(100vw - 32px)" widths={[320, 480, 660, 880]} qualidade={72} eager semPrevia />
+                    </div>
+                  </template>
+                )}
+              </li>
+            ))}
+          </ul>
           {c.adicionais.map((a: GrupoVista) => (
             <aside class="adicional" aria-label={a.nome}>
               <h3>{a.nome}</h3>
@@ -102,10 +95,25 @@ const temAdicionais = cardapio.adicionaisBebidas.length > 0;
   <footer class="carta__fim">
     <a class="btn btn--wine" href={PDF} target="_blank" rel="noopener">Abrir o PDF</a>
   </footer>
+
+  <dialog class="produto-modal" aria-labelledby="produto-modal-nome" data-produto-modal>
+    <div class="produto-modal__caixa">
+      <button type="button" class="produto-modal__fechar" aria-label="Fechar" data-modal-fechar autofocus><span aria-hidden="true">×</span></button>
+      <div class="produto-modal__foto" data-modal-foto hidden></div>
+      <div class="produto-modal__texto">
+        <h2 id="produto-modal-nome" data-modal-nome></h2>
+        <p class="produto-modal__descricao" data-modal-descricao></p>
+        <p class="produto-modal__preco" data-modal-preco></p>
+      </div>
+    </div>
+  </dialog>
 </main>
 
 <script>
   import { initCartaNav } from '../scripts/cardapio-nav.js';
+  import { initProdutoModal } from '../scripts/cardapio-modal.js';
   const nav = document.querySelector<HTMLElement>('[data-carta-nav]');
   if (nav) initCartaNav(nav);
+  const carta = document.querySelector<HTMLElement>('.carta');
+  if (carta) initProdutoModal(carta);
 </script>

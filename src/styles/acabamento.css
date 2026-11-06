@@ -67,11 +67,11 @@ main:has(.novo):not(:has(.clube-convite)) ~ .footer::after { content: ""; --cost
 .polvilho i:nth-child(3n) { background: var(--caramel-lt); }
 
 /* 5 · Detalhes de ponteiro (desktop): links com seta respiram; fotos do quadro “levantam” do papel */
-.novo__link span, .cafe-roll__link span, .cartao__link span { display: inline-block; transition: translate var(--dur-s) var(--ease-paper); }
-:is(.novo__link, .cafe-roll__link, .cartao__link) { transition: text-underline-offset var(--dur-s) var(--ease); }
+.novo__link span, .cafe-roll__link span { display: inline-block; transition: translate var(--dur-s) var(--ease-paper); }
+:is(.novo__link, .cafe-roll__link) { transition: text-underline-offset var(--dur-s) var(--ease); }
 @media (hover: hover) and (pointer: fine) {
-  :is(.novo__link, .cafe-roll__link, .cartao__link):hover { text-underline-offset: 8px; }
-  :is(.novo__link, .cartao__link):hover span { translate: 0 3px; }
+  :is(.novo__link, .cafe-roll__link):hover { text-underline-offset: 8px; }
+  .novo__link:hover span { translate: 0 3px; }
   .cafe-roll__link:hover span { translate: 0 -3px; }
   .board__item:hover { z-index: var(--z-5); scale: 1.035; box-shadow: var(--shadow-lift); }
 }

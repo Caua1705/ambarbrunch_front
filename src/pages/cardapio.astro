@@ -23,6 +23,7 @@ const cardapio = montarCardapio(await carregarCatalogo());
     alt: 'Logo do Âmbar Café & Brunch com o título Cardápio',
   }}
 >
+  <script is:inline slot="head">if(location.hash)document.documentElement.style.scrollBehavior='auto';</script>
   <PageBar nome="Âmbar Brunch" voltar prioridade />
   <CardapioCompleto cardapio={cardapio} />
   <Footer />

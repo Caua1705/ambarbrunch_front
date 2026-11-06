@@ -25,7 +25,7 @@ type Secao = { sel: string; pecas: string[]; pixels?: boolean; conta?: (chave: s
 const SECOES: Record<string, Secao> = {
   hero: { sel: 'header.hero', pixels: true, pecas: ['.hero__label', '.label', '.hero__headline', '.hero__headline .l1', '.hero__headline .l2', '.hero__headline .l3', '.hero__headline em', '.hero__collage', '.cut--circle', '.cut--polaroid', '.cut--polaroid figcaption', '.cut--tile', '.sticker--roll', '.sticker--roll svg', '.sparks', '.hero__foot .btn', '.hero__note'] },
   faixa: { sel: '.ticker', pecas: ['.ticker__track', '.ticker__track span'] },
-  mesa: { sel: '#gastronomia', pecas: ['.mega', '.mega span', '.scribble', '.board', '.board__item--a', '.board__item--b', '.board__item--c', '.tape', '.note--a', '.note--b', '.note--c', '.arrow--a', '.arrow--b', '.arrow--c', '.bands', '.bands__label', '.bands__list li'] },
+  mesa: { sel: '#gastronomia', pecas: ['.mega', '.mega span', '.scribble', '.board', '.board__item--a', '.board__item--b', '.board__item--c', '.tape', '.note--a', '.note--b', '.note--c', '.arrow--a', '.arrow--b', '.arrow--c'] },
   fornadas: {
     sel: '#roll', pecas: ['.roll__spiral', '.roll__badge', '.mega', '.mega span', '.roll__lead', '.stories', '.story', '.story__tag', '.roll__credit'],
     // desvio D16: as bandejas saíram em 2026-10-20 (a seção termina nos vídeos);

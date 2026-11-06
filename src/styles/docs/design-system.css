@@ -210,7 +210,6 @@
   /* Componentes: posições das peças na vitrine (no site, quem posiciona é a seção) ------------------------ */
   .ds-palco--canto .menu-btn--hero { top: var(--s-12); right: var(--s-12); }
   .ds-palco .chips--dates { width: 100%; }
-  .ds-palco .bands__list { width: 100%; }
   .ds-palco .notice { max-width: 34ch; }
   .ds-palco .ticket__status, .ds-palco .ticket__sim { width: 100%; }
   .ds-palco .field, .ds-palco .check { width: 100%; }

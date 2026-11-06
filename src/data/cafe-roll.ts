@@ -22,7 +22,7 @@ const PARES: Par[] = [
 ];
 
 export const cafeRoll = {
-  caixa: { src: 'roll/caixa-roll.webp', alt: 'Caixa da Roll aberta com quatro cinnamon rolls de sabores diferentes' },
+  caixa: { src: 'roll/caixa-roll-aberta.webp', alt: 'Caixa da Roll aberta com cinnamon rolls Tradicional e Kinder Bueno' },
   nota: 'os sabores da Roll mudam com a fornada',
 };
 

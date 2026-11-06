@@ -1,9 +1,8 @@
 // @ts-check
-// Âmbar Brunch — CAFÉ + ROLL: troca de dupla (bebida + roll), profundidade pelo ponteiro e atalho para o cardápio.
+// Âmbar Brunch — CAFÉ + ROLL: troca de dupla (bebida + roll) e profundidade pelo ponteiro.
 // - escolher uma dupla (toque, clique ou setas no grupo de rádio) troca a foto do roll, a cor do copo e as etiquetas;
 //   a troca é uma animação curta (data-trocando, ~420 ms) e some com movimento reduzido;
 // - desktop (ponteiro fino): as camadas da colagem acompanham o ponteiro em profundidades diferentes (--px, --py, rAF);
-// - “ver bebidas no cardápio”: o link leva ao cardápio e abre a etiqueta dos gelados.
 import { motionAllowed } from './motion.js';
 
 /** @param {HTMLElement} root */
@@ -59,15 +58,4 @@ export function initCafeRoll(root) {
     if (!raf) raf = requestAnimationFrame(aplicar);
   });
   palco.addEventListener('pointerleave', () => { px = 0; py = 0; if (!raf) raf = requestAnimationFrame(aplicar); });
-
-  // “ver bebidas no cardápio” → cardápio com a etiqueta aberta
-  root.querySelectorAll('[data-abrir]').forEach((a) => a.addEventListener('click', (ev) => {
-    const id = /** @type {HTMLElement} */ (a).dataset.abrir;
-    const tap = /** @type {HTMLButtonElement | null} */ (document.querySelector(`.bands__tap[data-categoria="${id}"]`));
-    if (!tap) return;
-    ev.preventDefault();
-    if (tap.getAttribute('aria-expanded') !== 'true') tap.click();
-    tap.scrollIntoView({ block: 'center', behavior: motionAllowed() ? 'smooth' : 'auto' });
-    tap.focus({ preventScroll: true });
-  }));
 }

@@ -12,7 +12,7 @@
 .sticker--roll svg {
   position: absolute; inset: 0;
   font: var(--t-legend); fill: var(--wine); text-transform: uppercase; letter-spacing: var(--track-tight-caps);
-  animation: spin var(--spin-period) linear infinite;
+  animation: spin-svg var(--spin-period) linear infinite;
 }
 .sticker--roll img { width: 58%; }
 

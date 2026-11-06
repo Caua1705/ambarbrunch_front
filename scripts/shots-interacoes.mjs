@@ -20,13 +20,6 @@ try {
     await page.addStyleTag({ content: '.sticky-cta,.menu-btn--fixo{display:none!important}' });
     const shot = (nome) => page.screenshot({ path: path.join(dir, `${nome}.png`) });
     const centro = (sel) => page.locator(sel).first().evaluate((el) => el.scrollIntoView({ block: 'center' }));
-    // cardápio tátil
-    await centro('[data-categoria="sanduiches"]'); await page.waitForTimeout(600);
-    await page.locator('[data-categoria="sanduiches"]').click(); await page.waitForTimeout(900);
-    await centro('#painel-comer'); await page.waitForTimeout(500); await shot('01-cardapio-sanduiches');
-    await page.locator('[data-categoria="rolls"]').click(); await page.waitForTimeout(900);
-    await centro('#painel-comer'); await page.waitForTimeout(500); await shot('02-cardapio-rolls');
-    await page.locator('[data-categoria="rolls"]').click(); await page.waitForTimeout(500);
     // anatomia
     await centro('.anatomia'); await page.waitForTimeout(420); await shot('03-anatomia-montando');
     await page.waitForTimeout(2200); await shot('04-anatomia-montada');

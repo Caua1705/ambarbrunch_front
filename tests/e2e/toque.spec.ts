@@ -27,7 +27,7 @@ test('nenhum elemento clicável com realce de toque (-webkit-tap-highlight-color
 test('controles não selecionam texto; textos e campos seguem selecionáveis', async ({ page }) => {
   await page.goto('/');
   const sel = (s: string) => page.locator(s).first().evaluate((e) => getComputedStyle(e).userSelect || getComputedStyle(e).webkitUserSelect);
-  for (const s of ['.hero__foot .btn', '.menu-btn', '.bands__tap', '[data-trilho]', '.provou__seta']) {
+  for (const s of ['.hero__foot .btn', '.menu-btn', '.mesa__completo', '[data-trilho]', '.provou__seta']) {
     if (await page.locator(s).count()) expect(await sel(s), s).toBe('none');
   }
   for (const s of ['.hero__note', '.provou__lead', '.footer__texto']) {

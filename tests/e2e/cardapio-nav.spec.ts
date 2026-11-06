@@ -159,7 +159,7 @@ test('a etiqueta marcada mantém o tamanho e não empurra as vizinhas', async ({
 test('imagens carregadas depois não mudam a altura das seções nem a marcação', async ({ page }) => {
   const alturas = () => page.locator('[data-carta-secao]').evaluateAll((l) => l.map((s) => s.getBoundingClientRect().height));
   const antes = await alturas();
-  await page.locator('.prato__foto img, .categoria__capa img').evaluateAll(async (imgs) => {
+  await page.locator('.prato__foto img').evaluateAll(async (imgs) => {
     await Promise.all((imgs as HTMLImageElement[]).map((i) => { i.loading = 'eager'; return i.decode().catch(() => undefined); }));
   });
   expect(await alturas()).toEqual(antes);
@@ -190,6 +190,59 @@ test('larguras de celular e tablet, em retrato e paisagem', async ({ page }) => 
     await pararDeRolar(page);
     expect((await estado(page)).ativas, `${width}x${height}`).toEqual(['Cheesecakes']);
   }
+});
+
+test('vindo da home: Ver cardápio de bebidas abre direto em Cafés, com o título visível e a categoria marcada', async ({ page }) => {
+  await page.goto('/');
+  const link = page.locator('#cafe-roll').getByRole('link', { name: 'Ver cardápio de bebidas' });
+  await expect(link).toHaveAttribute('href', '/cardapio/#cafes');
+  await link.scrollIntoViewIfNeeded();
+  await link.click();
+  await expect(page).toHaveURL(/\/cardapio\/#cafes$/);
+  await pararDeRolar(page);
+  expect((await estado(page)).ativas).toEqual(['Cafés']);
+  const nav = (await page.locator(NAV).boundingBox())!;
+  const titulo = (await page.getByRole('heading', { level: 2, name: 'Cafés', exact: true }).boundingBox())!;
+  expect(titulo.y).toBeGreaterThanOrEqual(nav.y + nav.height);
+  expect(titulo.y).toBeLessThan(nav.y + nav.height + 40);
+});
+
+test('estrutura: pra comer abre a lista, pra beber vem antes de Cafés e nenhuma foto gigante entre as categorias', async ({ page }) => {
+  const ordem = await page.evaluate(() => [...document.querySelectorAll('.carta__rotulo, .categoria h2')].map((e) => e.textContent));
+  expect(ordem.slice(0, 2)).toEqual(['pra comer', 'Croissants']);
+  expect(ordem[ordem.indexOf('Cafés') - 1]).toBe('pra beber');
+  await expect(page.locator('.categoria figure')).toHaveCount(0);
+  const nav = (await page.locator(NAV).boundingBox())!;
+  expect((await page.getByText('pra comer').boundingBox())!.y).toBeGreaterThan(nav.y);
+});
+
+test('clicar em Croissants, Brunchs e Cafés posiciona cada um logo abaixo da barra', async ({ page }) => {
+  for (const nome of ['Cafés', 'Croissants', 'Brunchs']) {
+    await tocar(page, nome);
+    await pararDeRolar(page);
+    const barra = (await page.locator(NAV).boundingBox())!;
+    const titulo = (await page.getByRole('heading', { level: 2, name: nome, exact: true }).boundingBox())!;
+    expect(titulo.y, nome).toBeGreaterThanOrEqual(barra.y + barra.height);
+    expect(titulo.y, nome).toBeLessThan(barra.y + barra.height + 40);
+    expect((await estado(page)).ativas, nome).toEqual([nome]);
+  }
+});
+
+test('abrir direto em /cardapio/#cafes salta para Cafés, sem rolar pelas comidas, e a barra volta a rolar suave', async ({ page }) => {
+  await page.goto('about:blank');
+  await page.addInitScript(() => {
+    const posicoes = new Set<number>();
+    (window as unknown as { posicoes: Set<number> }).posicoes = posicoes;
+    const f = () => { posicoes.add(Math.round(scrollY)); requestAnimationFrame(f); };
+    requestAnimationFrame(f);
+  });
+  await page.goto('/cardapio/#cafes');
+  await pararDeRolar(page);
+  expect((await estado(page)).ativas).toEqual(['Cafés']);
+  await expect(page.getByRole('heading', { level: 2, name: 'Cafés', exact: true })).toBeInViewport();
+  const posicoes = await page.evaluate(() => [...(window as unknown as { posicoes: Set<number> }).posicoes]);
+  expect(posicoes.length, 'sem passar pelas posições intermediárias').toBeLessThanOrEqual(4);
+  expect(await page.evaluate(() => document.documentElement.style.scrollBehavior)).toBe('');
 });
 
 test('tela alta: categoria que não chega à barra porque a página acabou segue marcada depois do toque', async ({ page }) => {

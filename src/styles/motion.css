@@ -7,6 +7,8 @@
    Tudo é decorativo: o conteúdo e o CTA são legíveis e clicáveis desde o primeiro quadro. */
 
 @keyframes spin { to { rotate: 360deg; } }
+/* elemento SVG: `rotate` não vai ao compositor, e cada quadro refazia a composição da página inteira na thread principal */
+@keyframes spin-svg { to { transform: rotate(360deg); } }
 @keyframes ticker { to { transform: translateX(-50%); } }
 @keyframes shimmer { to { background-position: -300% 0; } }
 
@@ -42,9 +44,6 @@
 /* fita estica depois que a foto assenta */
 .js .board__item[data-reveal="piece"] .tape { scale: 0 1; transition: scale var(--dur-m) var(--ease-paper); transition-delay: calc(var(--i, 0) * var(--stagger) + var(--reveal-delay-draw)); }
 .js .board__item[data-reveal="piece"].is-in .tape { scale: none; }
-/* pílulas do cardápio caem em cascata (--n = posição) */
-.js .bands[data-reveal] .bands__list li { opacity: 0; transform: translateY(calc(var(--lift) * -.5)); transition: opacity var(--dur-m) var(--ease), transform var(--dur-m) var(--ease-paper); transition-delay: calc(var(--n, 0) * var(--cascade) + var(--reveal-delay-scribble)); }
-.js .bands[data-reveal].is-in .bands__list li { opacity: 1; transform: none; }
 /* painéis de ambiente deslizam pela diagonal (o da manhã vem da esquerda; o âmbar, da direita) */
 .js [data-reveal="slide-l"] { translate: calc(var(--slide) * -1) var(--slide); }
 .js [data-reveal="slide-r"] { translate: var(--slide) var(--slide); }
@@ -135,17 +134,7 @@
 /* 2a · Cardápio tátil: o cartão se desdobra como papel (recorte que desce + leve assentar, ~320 ms),
    a foto principal estala, os itens descem em cascata. @keyframes recomeçam sozinhas quando o conteúdo
    aparece (hidden → visível): trocar de etiqueta com o cartão aberto troca o conteúdo com um esmaecimento curto. */
-.cartao:not([hidden]) .cartao__dentro { animation: cartao-in var(--dur-card-in) var(--ease) backwards; }
 /* a saída é o espelho da entrada, com a altura encolhendo junto (Web Animations em scripts/cardapio-tatil.js, com estes tokens) */
-.cartao { --fechar-dur: var(--dur-card-out); --fechar-curva: var(--ease-fold); }
-.cartao[data-fechando] { pointer-events: none; }
-.cartao[data-trocando] .cartao__cat:not([hidden]) { animation: cat-in var(--dur-s) var(--ease) both; }
-.cartao__cat:not([hidden]) .cartao__prato { animation: prato-in var(--dur-m) var(--ease-paper) var(--card-delay-photo) both; }
-.cartao__grupo:not([hidden]) .cartao__itens li { animation: item-in var(--dur-s) var(--ease) both; animation-delay: calc(var(--card-delay-items) + var(--k, 0) * var(--card-stagger)); }
-@keyframes cat-in { from { opacity: 0; transform: translateY(4px); } }
-@keyframes prato-in { from { opacity: 0; transform: scale(.6) rotate(-30deg); } }
-@keyframes cartao-in { from { opacity: 0; clip-path: inset(-40px -20px 72% -20px); transform: translateY(-6px) rotate(-1.2deg); } to { clip-path: inset(-40px -20px -20px -20px); } }
-@keyframes item-in { from { opacity: 0; transform: translateY(6px); } }
 
 /* 2b · Momentos da comanda: uma vez, quando o estado muda */
 .stamp[data-state="reservado"], .stamp[data-state="erro"] { animation: stamp-hit var(--dur-m) var(--ease-paper) both; }
@@ -162,7 +151,7 @@
   /* fio de leitura (acabamento.css §3) */
   .progresso { animation: progresso linear both; animation-timeline: scroll(root); }
   @keyframes progresso { to { transform: scaleX(1); } }
-  @keyframes twist { from { rotate: -40deg; } to { rotate: 80deg; } }
+  @keyframes twist { from { transform: rotate(-40deg); } to { transform: rotate(80deg); } }
 
   [data-parallax] { animation: drift linear both; animation-timeline: view(); }
   [data-parallax="up"] { --drift: -16px; }
@@ -180,7 +169,7 @@
 [data-float] { animation: boia var(--float-period) ease-in-out infinite alternate; }
 [data-float="b"] { animation-duration: var(--float-period-b); animation-delay: calc(var(--float-period) * -.5); }
 /* o selo gira inteiro (elemento svg = camada própria); girar um <g> por dentro repintava a cada quadro */
-.selo { animation: spin var(--selo-period) linear infinite; }
+.selo { animation: spin-svg var(--selo-period) linear infinite; }
 /* fora da tela, nada disso roda (scripts/vivo.js marca data-visivel) */
 [data-vivo]:not([data-visivel]) [data-float],
 [data-vivo]:not([data-visivel]) .ticker__track,
@@ -236,7 +225,6 @@
   .js .anatomia .anatomia__foto { transform: none; clip-path: none; }
   .js .anatomia .anatomia__selo { scale: 1; }
   .js .anatomia .anatomia__nota { opacity: 1; translate: none; }
-  .js .bands[data-reveal] .bands__list li { opacity: 1; transform: none; }
   .dupla__camada { translate: none; }
   /* CTA, doca e folha: só opacidade (a transição é religada de propósito, curta) */
   .sticky-cta, .menu-btn--fixo { transform: none !important; transition: opacity var(--dur-reduced) linear !important; }

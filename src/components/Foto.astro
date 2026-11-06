@@ -16,11 +16,12 @@ interface Props {
   prioridade?: boolean;      // só para o LCP (logo do hero): eager + fetchpriority alta
   eager?: boolean;           // outras peças da 1ª tela: eager, sem disputar prioridade com o LCP
   qualidade?: number;
+  semPrevia?: boolean;       // sem a prévia desfocada no HTML: quem usa traz a própria (imagem grande do modal do cardápio)
 }
-const { src, alt, sizes, widths = [240, 360, 540, 720, 1080], class: cls, prioridade = false, eager = false, qualidade = 64 } = Astro.props;
+const { src, alt, sizes, widths = [240, 360, 540, 720, 1080], class: cls, prioridade = false, eager = false, qualidade = 64, semPrevia = false } = Astro.props;
 const meta = imagem(src);
 const larguras = meta ? [...new Set(widths.map((w) => Math.min(w, meta.width)))] : [];
-const cor = meta ? await corDominante(src) : undefined;
+const cor = meta && !semPrevia ? await corDominante(src) : undefined;
 const borrada = cor ? await previa(src) : undefined;
 const fundo = cor && (borrada ? `background:${borrada} center/cover no-repeat ${cor}` : `background-color:${cor}`);
 ---

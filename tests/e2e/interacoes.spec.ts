@@ -30,50 +30,7 @@ test('ordem final das seções e títulos aprovados', async ({ page }) => {
   for (const l of ['jardim', 'salão principal', 'lounge', 'sala privativa']) expect(lugares).toContain(l);
 });
 
-test('cardápio tátil: etiqueta abre o cartão (foto principal), troca de conteúdo e fecha com Esc', async ({ page }) => {
-  await page.goto('/');
-  const sand = page.locator('[data-categoria="sanduiches"]');
-  await sand.scrollIntoViewIfNeeded();
-  await sand.click();
-  await expect(sand).toHaveAttribute('aria-expanded', 'true');
-  const painel = page.locator('#painel-comer');
-  await expect(painel).toBeVisible();
-  await expect(painel.locator('[data-cat="sanduiches"]')).toBeVisible();
-  await expect(painel.locator('[data-cat="sanduiches"]')).toContainText('Brie & Blueberry');
-  await expect(painel.locator('[data-cat="sanduiches"] .cartao__prato img')).toBeVisible();
-  // sem selo “imagem ilustrativa” desde a rodada final (a origem segue registrada em data/cardapio.ts)
-  await expect(painel.locator('.selo-ia')).toHaveCount(0);
-  // trocar de etiqueta troca o conteúdo sem fechar
-  await page.locator('[data-categoria="bowls"]').click();
-  await expect(painel.locator('[data-cat="bowls"]')).toBeVisible();
-  await expect(painel.locator('[data-cat="sanduiches"]')).toBeHidden();
-  await expect(sand).toHaveAttribute('aria-expanded', 'false');
-  await page.keyboard.press('Escape');
-  await expect(painel).toBeHidden();
-  // cardápio oficial (2026-10-20): só estas categorias; foto principal só onde há uma foto correta (sucos e bowls
-  // abrem só com o título); nenhum preço e nenhum aviso de cardápio provisório
-  const categorias = await page.$$eval('[data-categoria]', (bs) => bs.map((b) => b.getAttribute('data-categoria')));
-  expect(categorias).toEqual(['croissants', 'brunchs', 'sanduiches', 'bowls', 'cheesecakes', 'rolls', 'cafes', 'sucos', 'gelados', 'outras-bebidas']);
-  expect(await page.locator('.cartao__cat').count()).toBe(10);
-  await expect(page.locator('.cartao__cat .cartao__prato')).toHaveCount(6);
-  await expect(page.locator('[data-cat="sucos"] .cartao__prato, [data-cat="bowls"] .cartao__prato')).toHaveCount(0);
-  const cardapio = await page.locator('#gastronomia').evaluate((s) => s.textContent ?? '');
-  for (const t of ['estreia', 'consulte a equipe', 'Saladas', 'Bruschetta', 'Brownie', 'Frappé', 'Smoothie', 'Poke', 'Prosciutto', 'Toast americano', 'Iced americano', 'Pesto & ricota']) expect(cardapio).not.toContain(t);
-  for (const t of ['Expresso duplo', 'Antioxidant', 'Cinnamon Latte', 'American Brunch', 'Steak & Herbs', 'Camarão Fresh', 'Goiaba', 'Mood Cheesecake']) expect(cardapio).toContain(t);
-});
-
-test('cartão dos rolls: miniatura só nos sabores com foto real', async ({ page }) => {
-  await page.goto('/#gastronomia');
-  const rolls = page.locator('[data-categoria="rolls"]');
-  await rolls.scrollIntoViewIfNeeded();
-  await rolls.click();
-  const cat = page.locator('[data-cat="rolls"]');
-  await expect(cat).toBeVisible();
-  await expect(cat.locator('.cartao__mini')).toHaveCount(3);
-  await expect(cat.getByRole('tab')).toHaveCount(0);
-});
-
-test('Café + Roll: escolher a dupla troca roll, bebida e cor do copo; atalho abre a bebida no cardápio', async ({ page }) => {
+test('Café + Roll: escolher a dupla troca roll, bebida e cor do copo', async ({ page }) => {
   await page.goto('/');
   const sec = page.locator('#cafe-roll');
   await sec.scrollIntoViewIfNeeded();
@@ -88,10 +45,6 @@ test('Café + Roll: escolher a dupla troca roll, bebida e cor do copo; atalho ab
   await page.keyboard.press('ArrowRight');
   await expect(sec.locator('[data-par="biscoff"]')).toHaveAttribute('aria-checked', 'true');
   await expect(sec.locator('.dupla [data-roll]')).toHaveText('Biscoff');
-  await expect(sec.locator('[data-abrir]')).toHaveCount(1);
-  await sec.locator('[data-abrir="gelados"]').click();
-  await expect(page.locator('[data-categoria="gelados"]')).toHaveAttribute('aria-expanded', 'true');
-  await expect(page.locator('[data-cat="gelados"]')).toBeVisible();
 });
 
 test.describe('abertura da fornada (espiral ilustrativa)', () => {
@@ -134,21 +87,7 @@ test.describe('abertura da fornada (espiral ilustrativa)', () => {
   });
 });
 
-test('cardápio: sem aviso instrutivo nas etiquetas; o indicador “+” basta', async ({ page }) => {
+test('imagens: o hero inteiro é eager (as três fotos da colagem)', async ({ page }) => {
   await page.goto('/');
-  const sec = page.locator('#gastronomia');
-  await expect(sec).not.toContainText(/toque num/i);
-  await expect(sec.locator('.bands__hint')).toHaveCount(0);
-  await expect(sec.locator('.bands__tap .bands__mais').first()).toBeVisible();
-});
-
-test('imagens: as fotos dos cartões já estão baixadas quando o cartão abre (nada de quadro branco)', async ({ page }) => {
-  await page.goto('/');
-  // chega perto do cardápio sem abrir nada
-  await page.locator('#novo').evaluate((el) => el.scrollIntoView({ block: 'start' }));
-  await expect.poll(() => page.locator('.cartao__cat img').evaluateAll((imgs) => imgs.filter((i) => !(i as HTMLImageElement).complete || !(i as HTMLImageElement).naturalWidth).length), { timeout: 15_000 }).toBe(0);
-  // e cada foto tem a cor dominante como fundo enquanto baixa
-  expect(await page.locator('.cartao__cat .cartao__prato img').first().evaluate((i) => (i as HTMLElement).style.backgroundColor)).toMatch(/^rgb/);
-  // o hero inteiro é eager (as três fotos da colagem)
   expect(await page.locator('.hero__collage .cut img').evaluateAll((imgs) => imgs.map((i) => i.getAttribute('loading')))).toEqual(['eager', 'eager', 'eager']);
 });

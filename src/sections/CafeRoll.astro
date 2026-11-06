@@ -4,7 +4,7 @@
 // mockup de embalagem, então não finge ser produto oficial). Trocar a dupla muda o roll, a cor do copo e as etiquetas
 // (scripts/cafe-roll.js). Profundidade: as camadas derivam em velocidades diferentes com a rolagem (CSS, onde houver suporte)
 // e acompanham o ponteiro no desktop. Rodada final: sem a lista repetida de bebidas — só as duplas sugeridas e um link
-// discreto que abre os gelados no cardápio. A embalagem (caixa real) e o copo ficam só aqui.
+// discreto para as bebidas do cardápio completo. A embalagem (caixa real) e o copo ficam só aqui.
 // Movimento reduzido: colagem parada; a troca de dupla continua funcionando, sem animação.
 import Foto from '../components/Foto.astro';
 import MegaTitle from '../components/MegaTitle.astro';
@@ -82,7 +82,7 @@ const [primeiro] = pares;
       </div>
       <p class="cafe-roll__rodape">
         <span class="cafe-roll__nota">{cr.nota}</span>
-        <a class="cafe-roll__link" href="#gastronomia" data-abrir="gelados">ver bebidas no cardápio <span aria-hidden="true">↑</span></a>
+        <a class="cafe-roll__link" href="/cardapio/#cafes">ver cardápio de bebidas <span aria-hidden="true">→</span></a>
       </p>
     </div>
   </section>

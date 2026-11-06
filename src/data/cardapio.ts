@@ -5,65 +5,42 @@
 import type { Origem } from '../lib/conteudo';
 import { formatarPreco, temCentavos, type Catalogo, type CategoriaCatalogo, type GrupoAdicionais } from '../lib/cardapio/contrato';
 
-/** Pares fundo/texto aprovados em TOKENS.md §1 (faixas do cardápio). */
-export const PARES = {
-  wine: { b: 'var(--wine)', t: 'var(--butter)' },
-  caramel: { b: 'var(--caramel)' },
-  cacao: { b: 'var(--cacao)', t: 'var(--butter)' },
-  'cacao-lt': { b: 'var(--cacao)', t: 'var(--caramel-lt)' },
-  leaf: { b: 'var(--leaf)', t: 'var(--cream)' },
-  butter: { b: 'var(--butter)' },
-  berry: { b: 'var(--berry)', t: 'var(--cream)' },
-} as const;
-export type Cor = keyof typeof PARES;
-
-export interface FotoCardapio { src: string; alt: string; origem: Origem }
+export interface FotoCardapio {
+  src: string;
+  alt: string;
+  origem: Origem;
+  /** versão maior para o modal, quando o recorte da miniatura não aguenta ser ampliado */
+  ampliada?: string;
+}
 const real = (src: string, alt: string): FotoCardapio => ({ src, alt, origem: 'real' });
-const ilustrativa = (src: string, alt: string): FotoCardapio => ({ src, alt, origem: 'ilustrativa' });
+const ilustrativa = (src: string, alt: string, ampliada?: string): FotoCardapio => ({ src, alt, origem: 'ilustrativa', ampliada });
 
 export type Icone = 'croissant' | 'prato' | 'sanduiche' | 'bowl' | 'roll' | 'fatia' | 'cafe' | 'gelado' | 'suco' | 'lata';
 
 interface ApresentacaoCategoria {
-  /** âncora em /cardapio/ e etiqueta da home */
+  /** âncora em /cardapio/ */
   ancora: string;
   grupo: 'comer' | 'beber';
-  cor: Cor;
   icone: Icone;
-  /** foto de abertura da categoria (só real) em /cardapio/ */
-  capa?: FotoCardapio;
-  /** foto do cartão da home: pode ser ilustrativa aprovada, nunca apresentada como um produto específico */
-  fotoHome?: FotoCardapio;
-  /** leva à seção da home que aprofunda a categoria */
-  atalho?: { href: string; texto: string };
 }
-
-const croissantReal = real('gastronomia/croissant-prato-azul.webp', 'Croissant recheado num prato azul');
-const rollReal = real('roll/caixa-roll.webp', 'Caixa da Roll aberta com quatro cinnamon rolls de sabores diferentes');
 
 /** Chave: id da categoria no backend (o id de “Brunchs” segue `brunches`). */
 const CATEGORIAS: Record<string, ApresentacaoCategoria> = {
-  croissants: { ancora: 'croissants', grupo: 'comer', cor: 'caramel', icone: 'croissant', capa: croissantReal, fotoHome: croissantReal },
-  brunches: { ancora: 'brunchs', grupo: 'comer', cor: 'wine', icone: 'prato',
-    fotoHome: real('gastronomia/bruschetta-brunch.webp', 'Prato de brunch servido com xícara de café ao lado') },
-  sanduiches: { ancora: 'sanduiches', grupo: 'comer', cor: 'cacao', icone: 'sanduiche',
-    fotoHome: ilustrativa('cardapio/sanduiche-brie.webp', 'Sanduíche de brie derretido com geleia de mirtilo') },
-  bowls: { ancora: 'bowls', grupo: 'comer', cor: 'leaf', icone: 'bowl' },
-  cinnamon_rolls: { ancora: 'rolls', grupo: 'comer', cor: 'butter', icone: 'roll', capa: rollReal, fotoHome: rollReal,
-    atalho: { href: '#roll', texto: 'direto da fornada' } },
-  cheesecakes: { ancora: 'cheesecakes', grupo: 'comer', cor: 'berry', icone: 'fatia' },
-  cafes: { ancora: 'cafes', grupo: 'beber', cor: 'cacao', icone: 'cafe',
-    fotoHome: ilustrativa('cardapio/cafes-diversos.webp', 'Café expresso e café com leite em copos de vidro') },
-  // a âncora continua “gelados”: o atalho “ver bebidas no cardápio” do Café + Roll abre esta etiqueta
-  cafes_gelados: { ancora: 'gelados', grupo: 'beber', cor: 'caramel', icone: 'gelado',
-    fotoHome: ilustrativa('cardapio/cafes-gelados.webp', 'Café gelado e matcha em copos com gelo'),
-    atalho: { href: '#cafe-roll', texto: 'café + roll' } },
-  sucos: { ancora: 'sucos', grupo: 'beber', cor: 'berry', icone: 'suco' },
-  outras_bebidas: { ancora: 'outras-bebidas', grupo: 'beber', cor: 'butter', icone: 'lata' },
+  croissants: { ancora: 'croissants', grupo: 'comer', icone: 'croissant' },
+  brunches: { ancora: 'brunchs', grupo: 'comer', icone: 'prato' },
+  sanduiches: { ancora: 'sanduiches', grupo: 'comer', icone: 'sanduiche' },
+  bowls: { ancora: 'bowls', grupo: 'comer', icone: 'bowl' },
+  cinnamon_rolls: { ancora: 'rolls', grupo: 'comer', icone: 'roll' },
+  cheesecakes: { ancora: 'cheesecakes', grupo: 'comer', icone: 'fatia' },
+  cafes: { ancora: 'cafes', grupo: 'beber', icone: 'cafe' },
+  cafes_gelados: { ancora: 'gelados', grupo: 'beber', icone: 'gelado' },
+  sucos: { ancora: 'sucos', grupo: 'beber', icone: 'suco' },
+  outras_bebidas: { ancora: 'outras-bebidas', grupo: 'beber', icone: 'lata' },
 };
 
 /**
  * Imagem por produto (id estável do backend). `real`: fotos da Roll autorizadas em 2026-10-17. `ilustrativa`: não é foto do produto servido.
- * Origem de cada arte em docs/technical/CARDAPIO.md. Só as reais aparecem como miniatura na home.
+ * Origem de cada imagem em docs/technical/CARDAPIO.md; as recusadas e o motivo, em CARDAPIO-FOTOS-PENDENTES.md.
  */
 export const FOTOS_PRODUTO: Record<string, FotoCardapio> = {
   'cinnamon_rolls.mood_cheesecake': real('roll/roll-mood-cheesecake.webp', 'Cinnamon roll Mood Cheesecake com geleia de morango e crumble'),
@@ -77,6 +54,48 @@ export const FOTOS_PRODUTO: Record<string, FotoCardapio> = {
   'cafes_gelados.iced_latte': ilustrativa('cardapio/copo-iced-latte.webp', 'Copo de Iced Latte com gelo'),
   'cafes_gelados.biscoff_latte': ilustrativa('cardapio/copo-biscoff-latte.webp', 'Copo de Biscoff Latte com gelo e pedaços de biscoito'),
   'cafes_gelados.cinnamon_latte': ilustrativa('cardapio/copo-cinnamon-latte.webp', 'Copo de Cinnamon Latte com gelo e um mini cinnamon roll por cima'),
+  'croissants.classico': ilustrativa('cardapio/produtos/croissants/classico.webp', 'Croissant dourado e folhado', 'cardapio/produtos/ampliadas/croissants/classico.webp'),
+  'croissants.brie_e_geleia': ilustrativa('cardapio/produtos/croissants/brie-e-geleia.webp', 'Croissant recheado com queijo brie e geleia vermelha', 'cardapio/produtos/ampliadas/croissants/brie-e-geleia.webp'),
+  'croissants.mortadela_pistache': ilustrativa('cardapio/produtos/croissants/mortadela-pistache.webp', 'Croissant recheado com mortadela e pistache moído', 'cardapio/produtos/ampliadas/croissants/mortadela-pistache.webp'),
+  'croissants.caprese': ilustrativa('cardapio/produtos/croissants/caprese.webp', 'Croissant recheado com tomate, mussarela de búfala e pesto', 'cardapio/produtos/ampliadas/croissants/caprese.webp'),
+  'croissants.maca_caramelizada': ilustrativa('cardapio/produtos/croissants/maca-caramelizada.webp', 'Croissant com maçã caramelizada e amêndoas tostadas', 'cardapio/produtos/ampliadas/croissants/maca-caramelizada.webp'),
+  'brunches.green_morning': ilustrativa('cardapio/produtos/brunches/green-morning.webp', 'Ovos cremosos com fatias de avocado'),
+  'sanduiches.ragu': ilustrativa('cardapio/produtos/sanduiches/ragu.webp', 'Sanduíche de ragu de carne com queijo derretido', 'cardapio/produtos/ampliadas/sanduiches/ragu.webp'),
+  'bowls.ragu': ilustrativa('cardapio/produtos/bowls/ragu.webp', 'Bowl de ragu com quinoa e tomate'),
+  'bowls.atum': ilustrativa('cardapio/produtos/bowls/atum.webp', 'Bowl de atum com tomate'),
+  'bowls.citrico_chicken': ilustrativa('cardapio/produtos/bowls/citrico-chicken.webp', 'Bowl de frango com quinoa, tomate e folhas', 'cardapio/produtos/ampliadas/bowls/citrico-chicken.webp'),
+  'bowls.camarao_fresh': ilustrativa('cardapio/produtos/bowls/camarao-fresh.webp', 'Bowl com camarões grelhados'),
+  'cheesecakes.biscoff': ilustrativa('cardapio/produtos/cheesecakes/biscoff.webp', 'Fatia de cheesecake com calda e biscoito Biscoff', 'cardapio/produtos/ampliadas/cheesecakes/biscoff.webp'),
+  'cheesecakes.pistache': ilustrativa('cardapio/produtos/cheesecakes/pistache.webp', 'Fatia de cheesecake com creme de pistache', 'cardapio/produtos/ampliadas/cheesecakes/pistache.webp'),
+  'cheesecakes.mirtilo_ao_limmone': ilustrativa('cardapio/produtos/cheesecakes/mirtilo-ao-limmone.webp', 'Fatia de cheesecake com mirtilos e raspas de limão', 'cardapio/produtos/ampliadas/cheesecakes/mirtilo-ao-limmone.webp'),
+  'cheesecakes.morango': ilustrativa('cardapio/produtos/cheesecakes/morango.webp', 'Fatia de cheesecake com morangos e calda', 'cardapio/produtos/ampliadas/cheesecakes/morango.webp'),
+  'cheesecakes.goiaba': ilustrativa('cardapio/produtos/cheesecakes/goiaba.webp', 'Fatia de cheesecake com calda de goiaba', 'cardapio/produtos/ampliadas/cheesecakes/goiaba.webp'),
+  'cheesecakes.frutas_vermelhas': ilustrativa('cardapio/produtos/cheesecakes/frutas-vermelhas.webp', 'Fatia de cheesecake com frutas vermelhas', 'cardapio/produtos/ampliadas/cheesecakes/frutas-vermelhas.webp'),
+  'cheesecakes.maca_com_crumble_fatia': ilustrativa('cardapio/produtos/cheesecakes/maca-com-crumble-fatia.webp', 'Fatia de torta de maçã com crumble', 'cardapio/produtos/ampliadas/cheesecakes/maca-com-crumble-fatia.webp'),
+  'cafes.cappuccino': ilustrativa('cardapio/produtos/cafes/cappuccino.webp', 'Xícara de cappuccino com desenho na espuma'),
+  'cafes.cappuccino_gelado': ilustrativa('cardapio/produtos/cafes/cappuccino-gelado.webp', 'Copo de cappuccino gelado com creme e calda'),
+  'cafes.cappuccino_italiano': ilustrativa('cardapio/produtos/cafes/cappuccino-italiano.webp', 'Xícara de cappuccino italiano com cacau sobre a espuma'),
+  'cafes.cafe_expresso': ilustrativa('cardapio/produtos/cafes/cafe-expresso.webp', 'Xícara de café expresso'),
+  'cafes.macchiato': ilustrativa('cardapio/produtos/cafes/macchiato.webp', 'Macchiato com espuma de leite'),
+  'cafes.cafe_coado': ilustrativa('cardapio/produtos/cafes/cafe-coado.webp', 'Xícara de café coado'),
+  'cafes.coado_na_mesa': ilustrativa('cardapio/produtos/cafes/coado-na-mesa.webp', 'Coador de vidro com café moído'),
+  'cafes.cafe_na_prensa_francesa': ilustrativa('cardapio/produtos/cafes/cafe-na-prensa-francesa.webp', 'Café em prensa francesa de vidro'),
+  'cafes.matcha_latte': ilustrativa('cardapio/produtos/cafes/matcha-latte.webp', 'Xícara de matcha latte com desenho na espuma'),
+  'cafes.matcha_honey': ilustrativa('cardapio/produtos/cafes/matcha-honey.webp', 'Copo de matcha honey'),
+  'sucos.laranja': ilustrativa('cardapio/produtos/sucos/laranja.webp', 'Copo de suco de laranja'),
+  'sucos.morango': ilustrativa('cardapio/produtos/sucos/morango.webp', 'Copo de suco de morango'),
+  'sucos.laranja_e_morango': ilustrativa('cardapio/produtos/sucos/laranja-e-morango.webp', 'Copo de suco de laranja e morango'),
+  'sucos.green': ilustrativa('cardapio/produtos/sucos/green.webp', 'Copo de suco verde'),
+  'sucos.antioxidant': ilustrativa('cardapio/produtos/sucos/antioxidant.webp', 'Copo de suco de frutas vermelhas'),
+  'outras_bebidas.agua': ilustrativa('cardapio/produtos/outras-bebidas/agua.webp', 'Garrafa de água'),
+  'outras_bebidas.agua_com_gas': ilustrativa('cardapio/produtos/outras-bebidas/agua-com-gas.webp', 'Garrafa de água com gás'),
+  'brunches.american_brunch': ilustrativa('cardapio/produtos/brunches/american-brunch.webp', 'Ovos mexidos, bacon crocante, pão de fermentação natural e maple syrup'),
+  'brunches.italian_morning': ilustrativa('cardapio/produtos/brunches/italian-morning.webp', 'Ovos cremosos, mussarela de búfala, tomate confitado, rúcula, pesto e pão de fermentação natural'),
+  'brunches.blueberry_morning': ilustrativa('cardapio/produtos/brunches/blueberry-morning.webp', 'Ovos mexidos, pão de fermentação natural tostado, ricota e geleia de mirtilo'),
+  'sanduiches.steak_herbs': ilustrativa('cardapio/produtos/sanduiches/steak-herbs.webp', 'Sanduíche com tiras de carne, molho de ervas, provolone derretido e crosta de parmesão'),
+  'sanduiches.tuna': ilustrativa('cardapio/produtos/sanduiches/tuna.webp', 'Sanduíche de atum fresco com pepino, cebola roxa, cebolinha e gergelim'),
+  'cafes.expresso_duplo': ilustrativa('cardapio/produtos/cafes/expresso-duplo.webp', 'Expresso duplo em copo de vidro'),
+  'sucos.retinol': ilustrativa('cardapio/produtos/sucos/retinol.webp', 'Copo de suco Retinol, de cenoura, limão e cúrcuma'),
 };
 
 export interface ProdutoVista { id: string; nome: string; descricao: string | null; preco: string; precoCentavos: number; foto?: FotoCardapio }
@@ -85,8 +104,6 @@ export interface CategoriaVista extends ApresentacaoCategoria {
   nome: string;
   observacao: string | null;
   produtos: ProdutoVista[];
-  /** sem foto e sem descrição em nenhum produto: lista corrida, como nas artes */
-  compacta: boolean;
   adicionais: GrupoVista[];
 }
 export interface GrupoVista { id: string; nome: string; itens: { id: string; nome: string; preco: string; precoCentavos: number }[] }
@@ -105,7 +122,6 @@ function categoriaVista(c: CategoriaCatalogo, catalogo: Catalogo): CategoriaVist
   }));
   return {
     ...a, id: c.id, nome: c.nome, observacao: c.observacao, produtos,
-    compacta: produtos.every((p) => !p.foto && !p.descricao),
     adicionais: catalogo.adicionais.filter((g) => g.aplicavel_a.includes(c.id)).map(grupoVista),
   };
 }

@@ -1,5 +1,5 @@
 // Confere se os canais mostram o mesmo cardápio: npm run cardapio:conferir [site]
-// Lê a API oficial e compara, item a item (id, nome e preço), com /cardapio/ e a home do site indicado (padrão: produção) e com o PDF
+// Lê a API oficial e compara, item a item (id, nome e preço), com /cardapio/ do site indicado (padrão: produção) e com o PDF
 // público, pela assinatura gravada ao gerá-lo. PDF entregue pelo dono é só imagem: confere pelo sha256 gravado ao assiná-lo (o conteúdo foi conferido
 // a olho). Sai 0 com tudo igual e 1 na primeira divergência. Rodar depois de todo deploy.
 import { spawnSync } from 'node:child_process';
@@ -36,11 +36,9 @@ for (const [id, preco] of pagina) {
 }
 for (const id of esperados.keys()) if (!vistos.has(id)) erros.push(`/cardapio/: faltou ${id}`);
 
+// a home não mostra produto nem preço: tudo mora em /cardapio/
 const home = itensNoHtml(await (await ler('/')).text());
-if (!home.length) erros.push('home: nenhum produto com preço');
-for (const [id, preco] of home) {
-  if (esperados.get(id) !== preco) erros.push(`home: ${id} = ${preco}, catálogo = ${esperados.get(id)}`);
-}
+if (home.length) erros.push(`home: ${home.length} produtos com preço, a home não deveria ter nenhum`);
 
 // o PDF público é o que o site publicou? E ele foi gerado deste catálogo?
 if (assinaturaCatalogo(catalogo) !== manifesto.assinatura) erros.push(`PDF gerado do catálogo ${manifesto.versao}, a API está em ${catalogo.versao}: rode npm run cardapio:pdf`);
@@ -64,4 +62,4 @@ if (erros.length) {
   console.error(erros.map((e) => `ERRO ${e}`).join('\n'));
   process.exit(1);
 }
-console.log(`Catálogo ${catalogo.versao}: ${esperados.size} itens iguais na API, em ${site}/cardapio/ e no PDF; ${home.length} itens da home conferidos.`);
+console.log(`Catálogo ${catalogo.versao}: ${esperados.size} itens iguais na API, em ${site}/cardapio/ e no PDF; a home não mostra preços.`);

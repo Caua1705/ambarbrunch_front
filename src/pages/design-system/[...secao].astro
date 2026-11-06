@@ -21,7 +21,7 @@ import Footer from '../../sections/Footer.astro';
 import ReservaFlow from '../../islands/ReservaFlow';
 import { REVISAO, podeMostrar } from '../../lib/conteudo';
 import { video } from '../../lib/media';
-import { montarCardapio, PARES } from '../../data/cardapio';
+import { montarCardapio } from '../../data/cardapio';
 import { carregarCatalogo } from '../../lib/cardapio/catalogo';
 import { ambientes as amb, reservaveis } from '../../data/ambientes';
 import { roll } from '../../data/roll';
@@ -164,7 +164,6 @@ const ESTADOS = [
 ];
 
 const historia = roll.videos.find((v) => podeMostrar(v.autorizado) && video(v.arquivo));
-const cor = (c: keyof typeof PARES) => { const p = PARES[c]; return `--b:${p.b}${'t' in p ? `;--t:${p.t}` : ''}`; };
 const SECOES = [
   ['identidade', 'Identidade'], ['cores', 'Cores'], ['tipografia', 'Tipografia'], ['espaco', 'Espaço e layout'],
   ['componentes', 'Componentes'], ['reserva', 'Reserva'], ['colagens', 'Colagens e fotos'], ['movimento', 'Movimento'], ['telas', 'Telas'],
@@ -455,7 +454,6 @@ const SECOES = [
 
       <h3 class="ds-h3">Etiquetas, selos e carimbos</h3>
       <div class="ds-vitrine">
-        <div class="ds-palco ds-palco--largo"><ul class="bands__list">{cardapio.comer.slice(0, 5).map((i) => <li style={cor(i.cor)}>{i.nome}</li>)}</ul><span class="ds-legenda">pílulas do cardápio · pares de cor aprovados</span></div>
         <div class="ds-palco ds-palco--butter"><span class="tagline">luz do jardim</span><span class="ds-legenda">.tagline</span></div>
         <div class="ds-palco ds-palco--papel"><span class="ds-solto story__tag">do forno</span><span class="ds-legenda">etiqueta de vídeo (.story__tag)</span></div>
         <div class="ds-palco ds-palco--papel ds-carimbos"><Stamp>em breve</Stamp><Stamp estado="reservado">reservado</Stamp><Stamp estado="erro">tente de novo</Stamp><span class="ds-legenda">carimbo · prévia, reservado, erro</span></div>

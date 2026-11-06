@@ -5,7 +5,8 @@ Um só cadastro: o catálogo do backend (`GET https://api.ambarbrunch.com/cardap
 | Canal | Como recebe o catálogo |
 |---|---|
 | Atendimento no WhatsApp | direto do banco do backend; o cliente recebe o link `/cardapio`, nunca o PDF |
-| `/cardapio/` e home | no build do site (`src/lib/cardapio/catalogo.ts`): HTML estático com os dados do momento do deploy |
+| `/cardapio/` | no build do site (`src/lib/cardapio/catalogo.ts`): HTML estático com os dados do momento do deploy |
+| home | só nomes de categoria na faixa e as duplas do Café + Roll, no build. Nenhum preço |
 | PDF `/cardapio/cardapio-ambar.pdf` | **hoje, o PDF entregue pelo dono** (6/11/2026), byte a byte, preso ao catálogo por `npm run cardapio:assinar`; o endereço não muda |
 
 O front **não guarda** produto, descrição nem preço. `src/data/cardapio.ts` guarda só apresentação: categoria → cor, âncora e ícone; id do
@@ -23,7 +24,7 @@ produto → foto. As duplas do Café + Roll (`src/data/cafe-roll.ts`) apontam pa
 3. **Publicar:** testes, commit do PDF e do JSON, `git push origin main` (o push publica). O build lê a API de novo.
 4. **Conferir o site real:**
    ```bash
-   npm run cardapio:conferir   # API × /cardapio/ × home × PDF; sai 0 só com tudo igual
+   npm run cardapio:conferir   # API × /cardapio/ × PDF, e nenhum preço na home; sai 0 só com tudo igual
    ```
 
 **Entre os passos 1 e 3 o atendimento já está na versão nova e o site, na anterior.** Por isso o passo 2 vem logo depois do 1.
@@ -60,35 +61,28 @@ Item ou descrição muito maior pode não caber na página: a geração falha di
 
 ## Fotos
 
-Em `/cardapio/`, produto só usa imagem em que dá para reconhecer aquele produto e que mostre o que o catálogo descreve. Sem uma, aparece o ícone neutro
-da categoria. **Lista do que falta, com os nomes de arquivo do ZIP:** [`CARDAPIO-FOTOS-PENDENTES.md`](CARDAPIO-FOTOS-PENDENTES.md).
+Em `/cardapio/`, produto só usa imagem em que dá para reconhecer aquele produto e que mostre o que o catálogo descreve. Sem uma, aparece o ícone neutro da categoria.
+**Origem de cada imagem e o que falta:** [`CARDAPIO-FOTOS-PENDENTES.md`](CARDAPIO-FOTOS-PENDENTES.md).
 
-**Trocar ou acrescentar:** colocar a imagem em `src/assets/media/` e acrescentar `id do produto → { src, alt }` em `FOTOS_PRODUTO` (`src/data/cardapio.ts`). O
-layout não muda e o site gera os tamanhos no build. Na home, só as de origem `real` aparecem como miniatura.
-
-| Produto | Arquivo em `src/assets/media/` | Origem | De onde veio |
-|---|---|---|---|
-| Rolls Mood Cheesecake, Kinder Bueno e Biscoff | `roll/roll-*.webp` | `real` | fotos da Roll autorizadas em 17/10/2026 |
-| Roll Tradicional | `roll/roll-tradicional.webp` | `ilustrativa` | arte da Roll que nomeia o sabor (Instagram, IG-16, `2026-09-14_DdRe2BOgPRt_image.jpg`), recorte quadrado. Pode ser render; fora da lista autorizada em 17/10 |
-| Os seis Cafés gelados | `cardapio/copo-*.webp` | `ilustrativa` | recorte dos copos nomeados na página 3 do PDF oficial do dono (6/11/2026). O PDF não muda |
-| Sanduíche Brie & Blueberry | `cardapio/sanduiche-brie.webp` | `ilustrativa` | imagem gerada por IA, aprovada para a home em 17/10/2026; bate com a descrição do catálogo |
+**Trocar ou acrescentar:** colocar a imagem em `src/assets/media/cardapio/` e acrescentar `id do produto → { src, alt }` em `FOTOS_PRODUTO` (`src/data/cardapio.ts`), com `real` ou
+`ilustrativa`. O layout não muda e o site gera os tamanhos no build.
 
 Não reaproveitar sem confirmação:
 
 - **Pistache e Mirtilo** das artes da Roll são sabores de cinnamon roll, não cheesecakes.
 - **Nutella, Oreo, Red Velvet e S’mores** não estão no catálogo.
-- **Croissant do prato azul:** tem recheio, e não dá para dizer qual sabor é. Segue só como foto da categoria.
-- **Torrada do prato branco e shake de chocolate:** não correspondem a produto atual.
+- **Croissant do prato azul e torrada do prato branco:** não dá para dizer qual produto são.
 - **Sanduíches Ragu e Tuna e os bowls da proposta Âmbar × Roll:** mostram ingredientes fora do catálogo (rúcula, abacate).
-- **Cheesecake gerado por IA:** cheesecake não tem descrição no catálogo e “Maçã com Crumble (fatia)” indica que os outros talvez não sejam vendidos em
-  fatia. A imagem de fatia poderia prometer uma apresentação que não existe.
 
-Fotos de categoria, sem indicar um produto: Croissants (o croissant do prato azul tem recheio e não dá para dizer qual é) e Cinnamon Rolls (caixa
-da Roll). No cartão da home, Sanduíches, Cafés e Cafés gelados seguem com as imagens ilustrativas aprovadas em 17/10/2026, sempre como foto da
-categoria: `origem` registrada em `src/data/cardapio.ts`, para a troca quando houver fotos reais.
+A caixa real da Roll mostrava o S’mores, fora do cardápio desde 6/11/2026: na cena do Café + Roll, foi recortada acima dele (`roll/caixa-roll-aberta.webp`). `roll/caixa-roll.webp` e
+`roll/roll-smores.webp` ficam no acervo, sem uso: o build não os publica.
 
-A seção “Direto da fornada” segue com a foto do roll de Nutella (`roll.fotos.anatomia`), sabor que não está no catálogo: é a história da Roll,
-sem nome de produto à venda nem preço.
+A seção “Direto da fornada” segue com a foto do roll de Nutella (`roll.fotos.anatomia`), sabor que não está no catálogo: é a história da Roll, sem nome de produto à venda nem preço.
+
+## Modal do produto
+
+Cada linha de `/cardapio/` abre um `<dialog>` com a imagem ampliada, o nome, a descrição e o preço (`scripts/cardapio-modal.js`). O texto vem da própria linha, ou seja, do catálogo
+oficial, e a imagem grande fica num `<template>`: só baixa ao abrir. Com o modal aberto a página não rola, e fechar devolve o foco à linha, no mesmo ponto da lista.
 
 ## Previews
 

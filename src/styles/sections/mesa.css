@@ -1,4 +1,4 @@
-/* MESA CHEIA · quadro de cortiça + cardápio em faixas. Origem: .mesa e .board do v1.
+/* MESA CHEIA · quadro de cortiça e o caminho para o cardápio completo. Origem: .mesa e .board do v1.
    Palco do quadro: 358 px de largura em 390 px. --u = 1 px do protótipo, pela largura do contêiner. */
 
 .mesa { padding: var(--rhythm-a) var(--gutter) calc(var(--rhythm-a) + var(--rhythm-tail)); overflow: hidden; container-type: inline-size; }
@@ -37,5 +37,4 @@
   .arrow--b { display: none; }
   .note--c { right: auto; left: 70%; top: 640px; }
   .arrow--c { right: auto; left: 64%; top: 580px; }
-  .bands { max-width: var(--container-m); margin-left: auto; margin-right: auto; }
 }

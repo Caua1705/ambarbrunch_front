@@ -9,9 +9,7 @@ body:has(.carta) { overflow-x: clip; }
 .carta__topo { display: grid; gap: var(--s-10); justify-items: start; max-width: 860px; margin: 0 auto; padding: var(--s-34) var(--gutter) var(--s-22); }
 .carta__topo h1 { font: var(--t-carta-titulo); font-variation-settings: var(--fvs-display); color: var(--wine); text-transform: uppercase; }
 .carta__sub { font: var(--t-scribble); color: var(--caramel-dk); }
-.carta__pdf, .carta__fim { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-12) var(--s-22); }
-.carta__pdf { margin-top: var(--s-14); }
-.carta__fim { justify-content: center; max-width: 860px; margin: var(--s-44) auto 0; padding-inline: var(--gutter); }
+.carta__fim { display: flex; justify-content: center; max-width: 860px; margin: var(--s-44) auto 0; padding-inline: var(--gutter); }
 
 /* Navegação: gruda no alto e rola de lado; a página nunca rola de lado */
 .carta__nav {
@@ -40,14 +38,30 @@ body:has(.carta) { overflow-x: clip; }
 .categoria__topo { display: grid; gap: var(--s-6); padding-bottom: var(--s-10); border-bottom: 2px solid var(--wine); }
 .categoria__topo h2 { font: var(--t-carta-categoria); text-transform: uppercase; color: var(--wine); }
 .categoria__topo p { font: var(--t-caption); color: var(--text-muted); line-height: 1.25; }
-.categoria__capa { margin-top: var(--s-16); aspect-ratio: 16 / 9; overflow: hidden; border-radius: var(--radius-s); background: var(--butter); }
-.categoria__capa img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 78%; display: block; }
 
 /* Produto: ladrilho · texto · preço */
 .pratos { display: grid; }
+/* A linha inteira abre o modal: o botão fica no nome (mantém o título e o teclado) e a área de toque dele cobre a linha. A seta discreta diz que abre. */
 .prato {
+  position: relative;
   display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: var(--s-14); align-items: start;
   padding-block: var(--s-16); border-bottom: 1px solid color-mix(in srgb, var(--wine) 14%, transparent);
+  transition: background-color var(--dur-xs) var(--ease);
+}
+.prato::after {
+  content: ""; position: absolute; right: 3px; top: calc(var(--s-16) + 7px); width: 7px; height: 7px;
+  border-top: 2px solid currentColor; border-right: 2px solid currentColor; rotate: 45deg;
+  color: color-mix(in srgb, var(--wine) 55%, transparent); pointer-events: none;
+}
+.prato__abrir {
+  display: inline; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; scale: none;
+}
+.prato__abrir::after { content: ""; position: absolute; inset: 0; }
+.prato__abrir:focus-visible { outline: none; box-shadow: none; }
+.prato:has(.prato__abrir:focus-visible) { outline: 3px solid var(--focus-ring); outline-offset: 2px; border-radius: var(--radius-2xs); }
+.prato:active { background: color-mix(in srgb, var(--butter) 35%, transparent); }
+@media (hover: hover) {
+  .prato:hover { background: color-mix(in srgb, var(--butter) 22%, transparent); }
 }
 .prato:last-child { border-bottom: 0; }
 .prato__foto {
@@ -59,9 +73,9 @@ body:has(.carta) { overflow-x: clip; }
 .prato__texto { display: grid; gap: var(--s-6); }
 .prato__texto h3 { font: var(--t-band); color: var(--wine); line-height: 1.15; overflow-wrap: anywhere; }
 .prato__texto p { font: var(--t-body-s); color: var(--text-muted); }
-.prato__preco { font: var(--t-band); font-variant-numeric: tabular-nums; color: var(--wine); white-space: nowrap; line-height: 1.15; }
+.prato__preco { padding-right: var(--s-16); font: var(--t-band); font-variant-numeric: tabular-nums; color: var(--wine); white-space: nowrap; line-height: 1.15; }
 
-/* Lista corrida: nome, pontilhado, preço */
+/* Lista corrida dos adicionais: nome, pontilhado, preço */
 .precos { display: grid; padding-top: var(--s-6); }
 .precos li { display: flex; align-items: baseline; gap: var(--s-8); min-height: 40px; padding-block: var(--s-8); }
 .precos__nome { font: var(--t-chip); color: var(--wine); line-height: 1.25; min-width: 0; overflow-wrap: anywhere; }
@@ -81,6 +95,39 @@ body:has(.carta) { overflow-x: clip; }
   .prato { grid-template-columns: 88px minmax(0, 1fr) auto; column-gap: var(--s-18); }
   .prato__foto { width: 88px; }
 }
+
+/* Modal do produto: <dialog> na camada superior do navegador, acima da barra fixa e da doca. Com ele aberto, a página não rola. */
+html:has(.carta) { scrollbar-gutter: stable; }
+html:has(.produto-modal[open]) { overflow: hidden; }
+.produto-modal {
+  width: min(440px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); margin: auto; padding: 0; overflow: auto; overscroll-behavior: contain;
+  border: 0; border-radius: var(--radius-s); background: var(--cream); color: var(--ink); box-shadow: var(--shadow-offset-s);
+}
+.produto-modal::backdrop { background: color-mix(in srgb, var(--ink) 62%, transparent); }
+.produto-modal__caixa { position: relative; }
+.produto-modal__fechar {
+  position: absolute; top: var(--s-10); right: var(--s-10); z-index: var(--z-1);
+  display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%;
+  background: var(--wine); color: var(--butter); font: var(--t-band); font-size: 26px; line-height: 1; cursor: pointer;
+}
+.produto-modal__foto { display: grid; place-items: center; background: color-mix(in srgb, var(--butter) 45%, var(--cream)); }
+.produto-modal__foto[hidden] { display: none; }
+.produto-modal__foto:has(img[src*="copo-"]) { background: #fff; }   /* os copos vêm da arte do PDF, com fundo branco */
+/* --natural: a imagem cresce até o tamanho do arquivo, sem esticar além disso */
+.produto-modal__quadro { width: min(100%, var(--natural)); }
+.produto-modal__foto img { display: block; width: 100%; height: auto; max-height: 62dvh; object-fit: contain; }
+.produto-modal__texto { display: grid; gap: var(--s-8); padding: var(--s-18) var(--s-18) var(--s-22); }
+.produto-modal__foto[hidden] + .produto-modal__texto { padding-top: var(--s-22); padding-right: 70px; }
+.produto-modal__texto h2 { font: var(--t-band); font-size: 1.35rem; color: var(--wine); line-height: 1.15; overflow-wrap: anywhere; }
+.produto-modal__descricao { font: var(--t-body-s); color: var(--text-muted); }
+.produto-modal__descricao[hidden] { display: none; }
+.produto-modal__preco { font: var(--t-band); font-variant-numeric: tabular-nums; color: var(--wine); }
+@media (prefers-reduced-motion: no-preference) {
+  .produto-modal[open] { animation: produto-abre var(--dur-s) var(--ease); }
+  .produto-modal[open]::backdrop { animation: produto-fundo var(--dur-s) var(--ease); }
+}
+@keyframes produto-abre { from { opacity: 0; translate: 0 10px; } }
+@keyframes produto-fundo { from { opacity: 0; } }
 
 /* na home: o caminho para o cardápio completo */
 .mesa__completo { display: flex; width: fit-content; margin: var(--s-26) auto 0; }

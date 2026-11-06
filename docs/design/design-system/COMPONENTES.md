@@ -59,7 +59,6 @@ Legenda: **v1** = existe no protótipo, visual idêntico · **v1+** = existe, co
 | Selo simples | `.badge` | `sticker.css` | v1 | Logo da Roll em círculo creme, −8°. A Roll aparece **sempre sobre creme** |
 | Faíscas, espiral | `.sparks`, `.spiral`, `.roll__spiral` | `ornament.css` | v1 | Sempre `aria-hidden`. Redesenhos inline de CR-15…18 |
 | Faixa | `.ticker` | `ticker.css` | v1 | Cacau, −2,5°, loop de 32 s, costura o hero à seção seguinte |
-| Pílulas do cardápio | `.bands` | `bands.css` | v1 | Pares de cor fixos (TOKENS §1); rotação ±1,5° alternada |
 | Painel diagonal | `.panel--day`, `--amber`, `.tagline` | `panel.css` | v1 | Dois painéis encaixados pela diagonal de 16% |
 | Bolha | `.bubble` | `bubble.css` | v1 | Foto circular com borda manteiga e legenda em pílula cacau |
 | Avisos de procedência | `.notice`, `.ref-note`, `--on-light` | `notice.css` | v1 | **Obrigatórios** enquanto houver foto do espaço anterior |

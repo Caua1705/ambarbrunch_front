@@ -75,6 +75,7 @@ export function initCartaNav(nav) {
       y = scrollY;
       if (parados < QUADROS_PARADA) { quadro = requestAnimationFrame(passo); return; }
       quadro = 0;
+      document.documentElement.style.removeProperty('scroll-behavior');   // a chegada por link foi direta (pages/cardapio.astro)
       // seção visível que não chega à linha porque a página acabou: segue marcada até a próxima rolagem
       const topo = document.getElementById(alvo)?.getBoundingClientRect().top ?? 0;
       if (topo > linha() && topo < innerHeight) return;
@@ -123,5 +124,8 @@ export function initCartaNav(nav) {
 
   const doEndereco = location.hash.slice(1);
   if (links.has(doEndereco)) irPara(doEndereco, false);
-  else marcar(secaoDaVez(), false);
+  else {
+    document.documentElement.style.removeProperty('scroll-behavior');
+    marcar(secaoDaVez(), false);
+  }
 }

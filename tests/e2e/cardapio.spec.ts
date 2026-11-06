@@ -50,10 +50,13 @@ test('Cinnamon Rolls: os quatro sabores aprovados, sem S’mores e separados dos
   await expect(page.locator('[data-item^="cheesecakes."]')).toHaveCount(7);
 });
 
-test('só o botão Abrir o PDF, levando ao PDF oficial, igual ao arquivo do repositório', async ({ page, request }) => {
+test('um único botão Abrir o PDF, abaixo da última categoria, levando ao PDF oficial', async ({ page, request }) => {
   await page.goto('/cardapio/');
   const abrir = page.getByRole('link', { name: 'Abrir o PDF' });
-  await expect(abrir).toHaveCount(2);   // no alto e no fim da página
+  await expect(abrir).toHaveCount(1);
+  await expect(page.locator('.carta__topo a')).toHaveCount(0);
+  const ultima = (await page.locator('[data-carta-secao]').last().boundingBox())!;
+  expect((await abrir.boundingBox())!.y).toBeGreaterThan(ultima.y + ultima.height - 1);
   for (const link of await abrir.all()) {
     await expect(link).toHaveAttribute('href', '/cardapio/cardapio-ambar.pdf');
     await expect(link).toHaveAttribute('target', '_blank');
@@ -110,10 +113,15 @@ test('imagens: só as mapeadas, com texto alternativo; sem imagem, apresentaçã
     expect(caixa.width, id).toBe(caixa.height);
   }
   expect(new Set(Object.values(FOTOS_PRODUTO).map((f) => f.src)).size).toBe(Object.keys(FOTOS_PRODUTO).length);
-  // Biscoff são três produtos: o cheesecake não herda a imagem do roll nem a do latte
-  await expect(page.locator('[data-item="cheesecakes.biscoff"] img')).toHaveCount(0);
+  // Biscoff são três produtos, cada um com a própria imagem
+  const biscoff = ['cheesecakes.biscoff', 'cinnamon_rolls.biscoff', 'cafes_gelados.biscoff_latte'].map((id) => FOTOS_PRODUTO[id].src);
+  expect(new Set(biscoff).size).toBe(3);
   await expect(page.locator('.prato[data-sem-foto] img')).toHaveCount(0);
   await expect(page.locator('.prato[data-sem-foto] svg').first()).toBeAttached();
+  // refrigerante com rótulo gerado por IA não entra: só foto real autorizada (docs/technical/CARDAPIO-FOTOS-PENDENTES.md)
+  for (const id of ['outras_bebidas.coca_cola', 'outras_bebidas.coca_cola_zero', 'outras_bebidas.guarana', 'outras_bebidas.guarana_zero']) {
+    await expect(page.locator(`[data-item="${id}"] img`)).toHaveCount(0);
+  }
   // imagens responsivas e fora da primeira tela só sob demanda
   await expect(page.locator('.prato__foto img').first()).toHaveAttribute('loading', 'lazy');
   await expect(page.locator('.prato__foto img').first()).toHaveAttribute('srcset', /avif|webp/);
@@ -138,16 +146,38 @@ test('SEO: canônico e cardápio estruturado com os preços do catálogo', async
   expect(menu.hasMenuSection.flatMap((s: { hasMenuItem: unknown[] }) => s.hasMenuItem)).toHaveLength(catalogo.categorias.flatMap((c) => c.itens).length);
 });
 
-test('home: produtos e preços são os do catálogo e há caminho para o cardápio completo', async ({ page }) => {
-  const catalogo = await carregar();
+test('home: sem produtos nem etiquetas de categoria, só o caminho para o cardápio completo', async ({ page }) => {
   await page.goto('/');
-  // miniatura na home é só foto real
-  await expect(page.locator('#gastronomia .cartao__mini')).toHaveCount(Object.values(FOTOS_PRODUTO).filter((f) => f.origem === 'real').length);
-  const precos = new Map(catalogo.categorias.flatMap((c) => c.itens.map((i) => [i.id, i.preco_centavos])));
-  const naHome = await page.locator('#gastronomia [data-item]').evaluateAll((l) => l.map((e) => [(e as HTMLElement).dataset.item, Number((e as HTMLElement).dataset.preco)] as const));
-  expect(naHome.length).toBe(precos.size);
-  for (const [id, preco] of naHome) expect(precos.get(id!)).toBe(preco);
-  await expect(page.locator('#gastronomia').getByRole('link', { name: 'Ver cardápio completo' })).toHaveAttribute('href', '/cardapio/');
+  const secao = page.locator('#gastronomia');
+  await expect(secao.getByRole('button')).toHaveCount(0);
+  await expect(page.locator('main [data-item], main [data-preco]')).toHaveCount(0);
+  await expect(secao).not.toContainText(/pra comer|pra beber/i);
+  for (const nome of ['Croissants', 'Brunchs', 'Sanduíches', 'Bowls', 'Cheesecakes', 'Cinnamon Rolls', 'Sucos', 'Cafés gelados', 'Outras bebidas']) {
+    await expect(secao.getByText(nome, { exact: true })).toHaveCount(0);
+  }
+  const completo = secao.getByRole('link', { name: 'Ver cardápio completo' });
+  await expect(completo).toHaveAttribute('href', '/cardapio/');
+  await completo.click();
+  await expect(page).toHaveURL(/\/cardapio\/$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Cardápio' })).toBeVisible();
+});
+
+test('home: só as polaroids de brunch e croissant mudaram; a de bebidas e a composição seguem', async ({ page }) => {
+  await page.goto('/');
+  const fotos = page.locator('#gastronomia .board__item img');
+  await expect(fotos).toHaveCount(3);
+  const fontes = await fotos.evaluateAll((l) => l.map((i) => (i as HTMLImageElement).src));
+  expect(fontes[0]).toContain('brunch-home');
+  expect(fontes[1]).toContain('croissant-home');
+  expect(fontes[2]).toContain('bebida-chocolate-creme');
+  await expect(page.locator('#gastronomia .tape')).toHaveCount(3);
+  await expect(page.locator('#gastronomia .note')).toHaveText(['brunch', 'croissant', /bebidas\s*geladas/]);
+  await expect(page.locator('#gastronomia .arrow')).toHaveCount(3);
+  for (const i of [0, 1, 2]) {
+    const foto = fotos.nth(i);
+    await foto.scrollIntoViewIfNeeded();
+    await expect.poll(() => foto.evaluate((e: HTMLImageElement) => e.complete && e.naturalWidth > 0)).toBe(true);
+  }
 });
 
 test('links oficiais de reserva e cardápio continuam no ar', async ({ request }) => {

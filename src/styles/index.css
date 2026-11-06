@@ -17,7 +17,6 @@
 @import url("components/ticker.css") layer(components);
 @import url("components/framed.css") layer(components);
 @import url("components/note.css") layer(components);
-@import url("components/bands.css") layer(components);
 @import url("components/story.css") layer(components);
 @import url("components/panel.css") layer(components);
 @import url("components/bubble.css") layer(components);

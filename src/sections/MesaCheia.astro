@@ -1,28 +1,11 @@
 ---
-// 3 · PARA SUA MESA — quadro de cortiça + cardápio em faixas (markup do v1).
+// 3 · PARA SUA MESA — quadro de cortiça e o caminho para o cardápio completo (markup do v1).
 // As fotos assentam como peças de colagem; as setas se desenham; parallax leve nas fotos.
-// Cardápio tátil: cada etiqueta é um botão (indicador “+” que vira “×”) e abre um cartão de papel logo abaixo, com a foto
-// da categoria (só quando há uma foto correta), os produtos e os preços do catálogo oficial e, onde há foto real, miniaturas.
-// Sem selo de “imagem ilustrativa” (decisão da rodada final). Nada de produto mora aqui: vem da API (lib/cardapio/catalogo.ts);
-// o cardápio completo fica em /cardapio/.
-// Fotos dos cartões: lazy, mas antecipadas quando o cardápio chega perto da tela (data-antecipar, scripts/site.js) — o
-// cartão nunca abre com a foto em branco.
+// Produto e preço moram só em /cardapio/, que lê o catálogo oficial.
 import Foto from '../components/Foto.astro';
 import MegaTitle from '../components/MegaTitle.astro';
 import Seta from '../components/Seta.astro';
-import { montarCardapio, PARES, type CategoriaVista, type FotoCardapio } from '../data/cardapio';
-import { carregarCatalogo } from '../lib/cardapio/catalogo';
 import { secoes } from '../data/secoes';
-import { origemVisivel } from '../lib/conteudo';
-import { imagem } from '../lib/media';
-const cor = (c: keyof typeof PARES) => { const p = PARES[c]; return `--b:${p.b}${'t' in p ? `;--t:${p.t}` : ''}`; };
-const cardapio = montarCardapio(await carregarCatalogo());
-const grupos = [
-  { id: 'comer', rotulo: 'pra comer', itens: cardapio.comer, offset: 0 },
-  { id: 'beber', rotulo: 'pra beber', itens: cardapio.beber, offset: cardapio.comer.length },
-];
-const ok = (f?: FotoCardapio): f is FotoCardapio => !!f && origemVisivel(f.origem) && !!imagem(f.src);
-const miniatura = (f?: FotoCardapio): f is FotoCardapio => ok(f) && f.origem === 'real';
 const s = secoes.mesa;
 ---
 <section class="mesa" id={s.id} aria-labelledby="mesa-titulo" tabindex="-1">
@@ -31,11 +14,11 @@ const s = secoes.mesa;
   <div class="board">
     <figure class="board__item board__item--a" data-reveal="piece" data-parallax="soft">
       <i class="tape" aria-hidden="true"></i>
-      <Foto src="gastronomia/bruschetta-brunch.webp" alt="Torrada coberta vista de cima com xícara de café" sizes="(min-width: 960px) 431px, 61vw" />
+      <Foto src="gastronomia/brunch-home.webp" alt="Prato de brunch com ovos mexidos sobre pão, salada e xícara de café" sizes="(min-width: 960px) 431px, 61vw" />
     </figure>
     <figure class="board__item board__item--b" data-reveal="piece" data-parallax="up" style="--i:1">
       <i class="tape tape--r" aria-hidden="true"></i>
-      <Foto src="gastronomia/croissant-prato-azul.webp" alt="Croissant em prato azul" sizes="(min-width: 960px) 353px, 50vw" />
+      <Foto src="gastronomia/croissant-home.webp" alt="Croissant dourado num prato, com morango e mirtilos" sizes="(min-width: 960px) 353px, 50vw" />
     </figure>
     <figure class="board__item board__item--c" data-reveal="piece" data-parallax="soft" style="--i:2">
       <i class="tape" aria-hidden="true"></i>
@@ -50,64 +33,5 @@ const s = secoes.mesa;
     <Seta variante="c" i={2} />
   </div>
 
-  <div class="bands" data-reveal data-cardapio data-vivo data-antecipar>
-    {grupos.map((g) => (
-      <>
-        <p class="bands__label" id={`cardapio-${g.id}`}>{g.rotulo}</p>
-        <ul class="bands__list" aria-labelledby={`cardapio-${g.id}`}>
-          {g.itens.map((c, n) => (
-            <li style={`${cor(c.cor)};--n:${n + g.offset}`}>
-              <button type="button" class="bands__tap" aria-expanded="false" aria-controls={`painel-${g.id}`} data-categoria={c.ancora}>
-                <span>{c.nome}</span><i class="bands__mais" aria-hidden="true"></i>
-              </button>
-            </li>
-          ))}
-        </ul>
-        <div class="cartao" id={`painel-${g.id}`} data-painel hidden>
-          <div class="cartao__dentro">
-            {g.itens.map((c: CategoriaVista) => (
-              <article class="cartao__cat" data-cat={c.ancora} hidden aria-labelledby={`cat-${c.ancora}`}>
-                <header class:list={['cartao__head', !ok(c.fotoHome) && 'cartao__head--sem-foto']}>
-                  {ok(c.fotoHome) && (
-                    <figure class="cartao__prato">
-                      <Foto src={c.fotoHome.src} alt={c.fotoHome.alt} sizes="(min-width: 960px) 132px, 104px" widths={[104, 208, 312]} qualidade={70} />
-                    </figure>
-                  )}
-                  <div class="cartao__titulo">
-                    <h3 class="cartao__nome" id={`cat-${c.ancora}`}>{c.nome}</h3>
-                    {c.observacao && <p class="cartao__linha">{c.observacao}</p>}
-                  </div>
-                  <button type="button" class="cartao__fechar" data-fechar aria-label={`Fechar ${c.nome}`}><span aria-hidden="true">×</span></button>
-                </header>
-
-                <div class="cartao__grupo">
-                  <ul class="cartao__itens">
-                    {c.produtos.map((p, j) => (
-                      <li class:list={[miniatura(p.foto) && 'cartao__item--foto']} style={`--k:${j}`} data-item={p.id} data-preco={p.precoCentavos}>
-                        {miniatura(p.foto) && (
-                          <span class="cartao__mini">
-                            <Foto src={p.foto.src} alt="" sizes="48px" widths={[48, 96, 144]} qualidade={70} />
-                          </span>
-                        )}
-                        <strong>{p.nome} <em class="cartao__preco">{p.preco}</em></strong>{p.descricao && <span>{p.descricao}</span>}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <a class="cartao__link" href={`/cardapio/#${c.ancora}`}>ver no cardápio completo <span aria-hidden="true">→</span></a>
-                {c.atalho && <a class="cartao__link" href={c.atalho.href}>{c.atalho.texto} <span aria-hidden="true">↓</span></a>}
-              </article>
-            ))}
-          </div>
-        </div>
-      </>
-    ))}
-    <a class="btn btn--wine mesa__completo" href="/cardapio/">Ver cardápio completo <span aria-hidden="true">→</span></a>
-  </div>
+  <a class="btn btn--wine mesa__completo" href="/cardapio/">Ver cardápio completo <span aria-hidden="true">→</span></a>
 </section>
-
-<script>
-  import { initCardapioTatil } from '../scripts/cardapio-tatil.js';
-  const raiz = document.querySelector<HTMLElement>('[data-cardapio]');
-  if (raiz) initCardapioTatil(raiz);
-</script>
