@@ -5,6 +5,7 @@ import sharp from 'sharp';
 
 const ROBO = { 'User-Agent': 'WhatsApp/2.23.20.0 A' };
 const PAGINAS = [
+  { rota: '/', titulo: 'Âmbar — cafeteria e brunch no Meireles, Fortaleza', descricao: 'Cafeteria e brunch no Meireles, em Fortaleza: mesa cheia, café e os cinnamon rolls da Roll. Aberto todos os dias, das 07h às 19h. Reserve sua mesa pelo site.', imagem: '/og/home.jpg' },
   { rota: '/reservar/', titulo: 'Reservar mesa — Âmbar Brunch', descricao: 'Reserve sua mesa no Âmbar Café & Brunch.', imagem: '/og/reservar.jpg' },
   { rota: '/cardapio/', titulo: 'Cardápio — Âmbar Brunch', descricao: 'Confira o cardápio do Âmbar Café & Brunch.', imagem: '/og/cardapio.jpg' },
 ];

@@ -15,7 +15,7 @@ test('home: título local, canonical e Open Graph no domínio oficial, imagem 12
   expect(await meta(page, 'meta[property="og:url"]')).toBe(`${OFICIAL}/`);
   await expect(page.locator('meta[name="robots"]')).toHaveCount(0);
   const imagem = await meta(page, 'meta[property="og:image"]');
-  expect(imagem).toMatch(new RegExp(`^${OFICIAL}/_astro/.+\\.jpg$`));
+  expect(imagem).toBe(`${OFICIAL}/og/home.jpg`);
   // o arquivo existe no build (não foi podado como “não referenciado”)
   expect((await request.get(new URL(imagem!).pathname)).status()).toBe(200);
 });

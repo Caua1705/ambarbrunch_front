@@ -2,16 +2,19 @@
 
 | Link | Título no preview | Imagem |
 |---|---|---|
+| `https://ambarbrunch.com/` | Âmbar — cafeteria e brunch no Meireles, Fortaleza | `https://ambarbrunch.com/og/home.jpg` |
 | `https://ambarbrunch.com/reservar` | Reservar mesa — Âmbar Brunch | `https://ambarbrunch.com/og/reservar.jpg` |
 | `https://ambarbrunch.com/cardapio` | Cardápio — Âmbar Brunch | `https://ambarbrunch.com/og/cardapio.jpg` |
 
 As tags Open Graph saem no HTML estático de cada página, pela prop `social` de `src/layouts/Base.astro`. O `<title>` e a descrição do
-Google continuam separados, com as palavras de busca. A imagem da home segue sendo o salão (`imagensSeo()` em `src/data/seo.ts`).
+Google continuam separados, com as palavras de busca. Na home, título e descrição do preview são os de `seo` (`src/data/seo.ts`). As
+páginas sem a prop `social` seguem com o salão (`imagensSeo()`), que também continua nos dados estruturados da home.
 
 ## Imagens
 
 `public/og/` guarda as artes em 1200 × 630, JPEG, com endereço fixo. O WhatsApp pode recortar em quadrado no centro, então logo e título
-ficam nos 630 px centrais. Para refazer: ajustar `scripts/gerar-previews.mjs` e rodar `node scripts/gerar-previews.mjs`.
+ficam nos 630 px centrais. Para refazer: ajustar `scripts/gerar-previews.mjs` e rodar `node scripts/gerar-previews.mjs home.jpg`, com o
+nome da arte, para não regravar as outras.
 
 Ao trocar uma arte, **troque também o nome do arquivo** (ex.: `reservar-2.jpg`) e a prop `social.imagem` da página. Quem já leu o link
 guarda o preview antigo, e um nome novo evita misturar imagens em cache.
