@@ -123,7 +123,8 @@ test('imagens: só as mapeadas, com texto alternativo; sem imagem, apresentaçã
     await expect(page.locator(`[data-item="${id}"] img`)).toHaveCount(0);
   }
   // imagens responsivas e fora da primeira tela só sob demanda
-  await expect(page.locator('.prato__foto img').first()).toHaveAttribute('loading', 'lazy');
+  await expect(page.locator('.prato__foto img[loading="eager"]')).toHaveCount(3);
+  await expect(page.locator('.prato__foto img').nth(3)).toHaveAttribute('loading', 'lazy');
   await expect(page.locator('.prato__foto img').first()).toHaveAttribute('srcset', /avif|webp/);
 });
 
@@ -162,13 +163,13 @@ test('home: sem produtos nem etiquetas de categoria, só o caminho para o cardá
   await expect(page.getByRole('heading', { level: 1, name: 'Cardápio' })).toBeVisible();
 });
 
-test('home: só as polaroids de brunch e croissant mudaram; a de bebidas e a composição seguem', async ({ page }) => {
+test('home: croissant com a foto original, brunch e bebidas aprovados e a mesma composição', async ({ page }) => {
   await page.goto('/');
   const fotos = page.locator('#gastronomia .board__item img');
   await expect(fotos).toHaveCount(3);
   const fontes = await fotos.evaluateAll((l) => l.map((i) => (i as HTMLImageElement).src));
   expect(fontes[0]).toContain('brunch-home');
-  expect(fontes[1]).toContain('croissant-home');
+  expect(fontes[1]).toContain('croissant-prato-azul');
   expect(fontes[2]).toContain('bebida-chocolate-creme');
   await expect(page.locator('#gastronomia .tape')).toHaveCount(3);
   await expect(page.locator('#gastronomia .note')).toHaveText(['brunch', 'croissant', /bebidas\s*geladas/]);

@@ -1,7 +1,9 @@
 // Contrato do catálogo: o que o build aceita e o que recusa. Sem navegador e sem API.
+import fs from 'node:fs';
+import sharp from 'sharp';
 import { test, expect } from '@playwright/test';
 import { assinaturaCatalogo, formatarPreco, temCentavos, validarCatalogo } from '../src/lib/cardapio/contrato';
-import { montarCardapio } from '../src/data/cardapio';
+import { FOTOS_PRODUTO, montarCardapio } from '../src/data/cardapio';
 
 const item = (id: string, nome: string, preco_centavos: number, ordem = 1) => ({ id, nome, descricao: null, preco_centavos, disponivel: true, imagem: null, ordem });
 const base = () => ({
@@ -65,4 +67,16 @@ test('adicionais sem categoria definida ficam em bebidas, sem prometer por produ
   const { adicionaisBebidas, beber } = montarCardapio(validarCatalogo(base()));
   expect(adicionaisBebidas.map((a) => a.id)).toEqual(['extras']);
   expect(beber.flatMap((c) => c.adicionais)).toEqual([]);
+});
+
+test('imagens do cardápio: cada produto tem o par miniatura 320 × 320 e ampliada, da mesma base', async () => {
+  for (const [id, f] of Object.entries(FOTOS_PRODUTO)) {
+    expect(f.ampliada, id).toBe(f.src.replace('/miniaturas/', '/modal/'));
+    const mini = await sharp(`src/assets/media/${f.src}`).metadata();
+    expect([mini.width, mini.height, mini.format], id).toEqual([320, 320, 'webp']);
+    const grande = await sharp(`src/assets/media/${f.ampliada}`).metadata();
+    expect(grande.format, id).toBe('webp');
+    expect(grande.width, id).toBeGreaterThanOrEqual(488);
+    expect(fs.statSync(`src/assets/media/${f.src}`).size, id).toBeLessThan(40 * 1024);
+  }
 });

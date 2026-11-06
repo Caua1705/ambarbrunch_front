@@ -8,6 +8,8 @@ import { lerFonte } from '../../src/lib/cardapio/fonte';
 const modal = (page: Page) => page.locator('[data-produto-modal]');
 const linha = (page: Page, id: string) => page.locator(`.prato[data-item="${id}"]`);
 const scrollY = (page: Page) => page.evaluate(() => Math.round(window.scrollY));
+/** originais da Roll, menores que uma tela 2× de 430 px: nunca são ampliados (limites em CARDAPIO-FOTOS-PENDENTES.md) */
+const ORIGINAL_MENOR = new Set(['cinnamon_rolls.tradicional', 'cinnamon_rolls.mood_cheesecake', 'cinnamon_rolls.biscoff']);
 
 test('cada um dos 57 produtos abre pelo clique na linha, com os dados oficiais, a imagem certa e fecha', async ({ page }) => {
   test.setTimeout(240_000);
@@ -32,6 +34,14 @@ test('cada um dos 57 produtos abre pelo clique na linha, com os dados oficiais, 
       if (foto) {
         await expect(img, i.id).toHaveAttribute('alt', foto.alt);
         await expect.poll(() => img.evaluate((e: HTMLImageElement) => e.complete && e.naturalWidth > 0), i.id).toBe(true);
+        // nitidez: o arquivo entregue cobre a largura na tela, sem esticar, até 2×. Com srcset, naturalWidth já vem dividido pela densidade: mede o arquivo.
+        const { natural, tela, escala } = await img.evaluate(async (e: HTMLImageElement) => {
+          const arquivo = new Image();
+          arquivo.src = e.currentSrc;
+          await arquivo.decode();
+          return { natural: arquivo.naturalWidth, tela: e.getBoundingClientRect().width, escala: Math.min(devicePixelRatio, 2) };
+        });
+        if (!ORIGINAL_MENOR.has(i.id)) expect(natural, i.id).toBeGreaterThanOrEqual(Math.floor(tela * escala * 0.98));
       } else {
         await expect(img, i.id).toHaveCount(0);
       }

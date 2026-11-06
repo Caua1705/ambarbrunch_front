@@ -4,7 +4,7 @@
 // e leva a etiqueta dela para dentro da faixa (scripts/cardapio-nav.js).
 import Foto from '../components/Foto.astro';
 import IconeCardapio from '../components/IconeCardapio.astro';
-import type { Cardapio, CategoriaVista, FotoCardapio, GrupoVista } from '../data/cardapio';
+import type { Cardapio, CategoriaVista, GrupoVista } from '../data/cardapio';
 import { secoes } from '../data/secoes';
 import { imagem } from '../lib/media';
 
@@ -16,8 +16,9 @@ const grupos = [
   { id: 'beber', rotulo: 'pra beber', categorias: cardapio.beber },
 ];
 const temAdicionais = cardapio.adicionaisBebidas.length > 0;
-/** arquivo da imagem do modal: a largura natural limita a ampliação, para não esticar imagem pequena */
-const grande = (f?: FotoCardapio) => (f ? imagem(f.ampliada ?? f.src) : undefined);
+/** só as primeiras miniaturas estão na primeira tela: nelas o carregamento não espera a rolagem */
+const MINIATURAS_IMEDIATAS = 3;
+const imediata = (categoria: CategoriaVista, n: number) => categoria === cardapio.comer[0] && n < MINIATURAS_IMEDIATAS;
 ---
 <main class="carta">
   <header class="carta__topo">
@@ -42,11 +43,11 @@ const grande = (f?: FotoCardapio) => (f ? imagem(f.ampliada ?? f.src) : undefine
             {c.observacao && <p>{c.observacao}</p>}
           </header>
           <ul class="pratos">
-            {c.produtos.map((p) => (
+            {c.produtos.map((p, n) => (
               <li class="prato" data-item={p.id} data-preco={p.precoCentavos} data-sem-foto={p.foto ? undefined : ''}>
                 <div class="prato__foto">
                   {p.foto && imagem(p.foto.src)
-                    ? <Foto src={p.foto.src} alt={p.foto.alt} sizes="(min-width: 720px) 88px, 64px" widths={[88, 176, 264]} qualidade={68} />
+                    ? <Foto src={p.foto.src} alt={p.foto.alt} sizes="(min-width: 720px) 88px, 64px" widths={[88, 176, 264]} qualidade={50} eager={imediata(c, n)} semPrevia />
                     : <IconeCardapio icone={c.icone} />}
                 </div>
                 <div class="prato__texto">
@@ -54,10 +55,10 @@ const grande = (f?: FotoCardapio) => (f ? imagem(f.ampliada ?? f.src) : undefine
                   {p.descricao && <p>{p.descricao}</p>}
                 </div>
                 <p class="prato__preco">{p.preco}</p>
-                {grande(p.foto) && (
+                {p.foto && imagem(p.foto.ampliada) && (
                   <template>
-                    <div class="produto-modal__quadro" style={`--natural:${grande(p.foto)!.width}px`}>
-                      <Foto src={p.foto!.ampliada ?? p.foto!.src} alt={p.foto!.alt} sizes="(min-width: 480px) 440px, calc(100vw - 32px)" widths={[320, 480, 660, 880]} qualidade={72} eager semPrevia />
+                    <div class="produto-modal__quadro" style={`--natural:${imagem(p.foto.ampliada)!.width}px`}>
+                      <Foto src={p.foto.ampliada} alt={p.foto.alt} sizes="(min-width: 480px) 440px, calc(100vw - 32px)" widths={[480, 720, 960, 1200]} qualidade={72} eager semPrevia />
                     </div>
                   </template>
                 )}

@@ -5,15 +5,16 @@
 import type { Origem } from '../lib/conteudo';
 import { formatarPreco, temCentavos, type Catalogo, type CategoriaCatalogo, type GrupoAdicionais } from '../lib/cardapio/contrato';
 
+/** Par de arquivos de um produto, sempre da mesma imagem-base: `src` é a miniatura 320 × 320 da lista e `ampliada` é a imagem do modal. */
 export interface FotoCardapio {
   src: string;
+  ampliada: string;
   alt: string;
   origem: Origem;
-  /** versão maior para o modal, quando o recorte da miniatura não aguenta ser ampliado */
-  ampliada?: string;
 }
-const real = (src: string, alt: string): FotoCardapio => ({ src, alt, origem: 'real' });
-const ilustrativa = (src: string, alt: string, ampliada?: string): FotoCardapio => ({ src, alt, origem: 'ilustrativa', ampliada });
+const par = (base: string, alt: string, origem: Origem): FotoCardapio => ({ src: `cardapio/miniaturas/${base}.webp`, ampliada: `cardapio/modal/${base}.webp`, alt, origem });
+const real = (base: string, alt: string) => par(base, alt, 'real');
+const ilustrativa = (base: string, alt: string) => par(base, alt, 'ilustrativa');
 
 export type Icone = 'croissant' | 'prato' | 'sanduiche' | 'bowl' | 'roll' | 'fatia' | 'cafe' | 'gelado' | 'suco' | 'lata';
 
@@ -40,62 +41,62 @@ const CATEGORIAS: Record<string, ApresentacaoCategoria> = {
 
 /**
  * Imagem por produto (id estável do backend). `real`: fotos da Roll autorizadas em 2026-10-17. `ilustrativa`: não é foto do produto servido.
- * Origem de cada imagem em docs/technical/CARDAPIO.md; as recusadas e o motivo, em CARDAPIO-FOTOS-PENDENTES.md.
+ * Origem de cada imagem e o que falta: docs/technical/CARDAPIO-FOTOS-PENDENTES.md.
  */
 export const FOTOS_PRODUTO: Record<string, FotoCardapio> = {
-  'cinnamon_rolls.mood_cheesecake': real('roll/roll-mood-cheesecake.webp', 'Cinnamon roll Mood Cheesecake com geleia de morango e crumble'),
-  'cinnamon_rolls.kinder_bueno': real('roll/roll-kinder-bueno.webp', 'Cinnamon roll Kinder Bueno com fios de Nutella'),
-  'cinnamon_rolls.biscoff': real('roll/roll-biscoff.webp', 'Cinnamon roll de Biscoff com creme e biscoito triturado'),
-  'cinnamon_rolls.tradicional': ilustrativa('roll/roll-tradicional.webp', 'Cinnamon roll Tradicional em espiral, com glacê'),
-  'sanduiches.brie_blueberry': ilustrativa('cardapio/sanduiche-brie.webp', 'Sanduíche de brie derretido com geleia de mirtilo e lascas de parmesão'),
-  'cafes_gelados.matcha_latte': ilustrativa('cardapio/copo-matcha-latte.webp', 'Copo de Matcha Latte com gelo, com o verde do matcha sobre o leite'),
-  'cafes_gelados.matcha_geleia_de_morango': ilustrativa('cardapio/copo-matcha-geleia-de-morango.webp', 'Copo de Matcha Geleia de Morango com gelo, com camadas de matcha, leite e geleia'),
-  'cafes_gelados.honey_latte': ilustrativa('cardapio/copo-honey-latte.webp', 'Copo de Honey Latte com gelo'),
-  'cafes_gelados.iced_latte': ilustrativa('cardapio/copo-iced-latte.webp', 'Copo de Iced Latte com gelo'),
-  'cafes_gelados.biscoff_latte': ilustrativa('cardapio/copo-biscoff-latte.webp', 'Copo de Biscoff Latte com gelo e pedaços de biscoito'),
-  'cafes_gelados.cinnamon_latte': ilustrativa('cardapio/copo-cinnamon-latte.webp', 'Copo de Cinnamon Latte com gelo e um mini cinnamon roll por cima'),
-  'croissants.classico': ilustrativa('cardapio/produtos/croissants/classico.webp', 'Croissant dourado e folhado', 'cardapio/produtos/ampliadas/croissants/classico.webp'),
-  'croissants.brie_e_geleia': ilustrativa('cardapio/produtos/croissants/brie-e-geleia.webp', 'Croissant recheado com queijo brie e geleia vermelha', 'cardapio/produtos/ampliadas/croissants/brie-e-geleia.webp'),
-  'croissants.mortadela_pistache': ilustrativa('cardapio/produtos/croissants/mortadela-pistache.webp', 'Croissant recheado com mortadela e pistache moído', 'cardapio/produtos/ampliadas/croissants/mortadela-pistache.webp'),
-  'croissants.caprese': ilustrativa('cardapio/produtos/croissants/caprese.webp', 'Croissant recheado com tomate, mussarela de búfala e pesto', 'cardapio/produtos/ampliadas/croissants/caprese.webp'),
-  'croissants.maca_caramelizada': ilustrativa('cardapio/produtos/croissants/maca-caramelizada.webp', 'Croissant com maçã caramelizada e amêndoas tostadas', 'cardapio/produtos/ampliadas/croissants/maca-caramelizada.webp'),
-  'brunches.green_morning': ilustrativa('cardapio/produtos/brunches/green-morning.webp', 'Ovos cremosos com fatias de avocado'),
-  'sanduiches.ragu': ilustrativa('cardapio/produtos/sanduiches/ragu.webp', 'Sanduíche de ragu de carne com queijo derretido', 'cardapio/produtos/ampliadas/sanduiches/ragu.webp'),
-  'bowls.ragu': ilustrativa('cardapio/produtos/bowls/ragu.webp', 'Bowl de ragu com quinoa e tomate'),
-  'bowls.atum': ilustrativa('cardapio/produtos/bowls/atum.webp', 'Bowl de atum com tomate'),
-  'bowls.citrico_chicken': ilustrativa('cardapio/produtos/bowls/citrico-chicken.webp', 'Bowl de frango com quinoa, tomate e folhas', 'cardapio/produtos/ampliadas/bowls/citrico-chicken.webp'),
-  'bowls.camarao_fresh': ilustrativa('cardapio/produtos/bowls/camarao-fresh.webp', 'Bowl com camarões grelhados'),
-  'cheesecakes.biscoff': ilustrativa('cardapio/produtos/cheesecakes/biscoff.webp', 'Fatia de cheesecake com calda e biscoito Biscoff', 'cardapio/produtos/ampliadas/cheesecakes/biscoff.webp'),
-  'cheesecakes.pistache': ilustrativa('cardapio/produtos/cheesecakes/pistache.webp', 'Fatia de cheesecake com creme de pistache', 'cardapio/produtos/ampliadas/cheesecakes/pistache.webp'),
-  'cheesecakes.mirtilo_ao_limmone': ilustrativa('cardapio/produtos/cheesecakes/mirtilo-ao-limmone.webp', 'Fatia de cheesecake com mirtilos e raspas de limão', 'cardapio/produtos/ampliadas/cheesecakes/mirtilo-ao-limmone.webp'),
-  'cheesecakes.morango': ilustrativa('cardapio/produtos/cheesecakes/morango.webp', 'Fatia de cheesecake com morangos e calda', 'cardapio/produtos/ampliadas/cheesecakes/morango.webp'),
-  'cheesecakes.goiaba': ilustrativa('cardapio/produtos/cheesecakes/goiaba.webp', 'Fatia de cheesecake com calda de goiaba', 'cardapio/produtos/ampliadas/cheesecakes/goiaba.webp'),
-  'cheesecakes.frutas_vermelhas': ilustrativa('cardapio/produtos/cheesecakes/frutas-vermelhas.webp', 'Fatia de cheesecake com frutas vermelhas', 'cardapio/produtos/ampliadas/cheesecakes/frutas-vermelhas.webp'),
-  'cheesecakes.maca_com_crumble_fatia': ilustrativa('cardapio/produtos/cheesecakes/maca-com-crumble-fatia.webp', 'Fatia de torta de maçã com crumble', 'cardapio/produtos/ampliadas/cheesecakes/maca-com-crumble-fatia.webp'),
-  'cafes.cappuccino': ilustrativa('cardapio/produtos/cafes/cappuccino.webp', 'Xícara de cappuccino com desenho na espuma'),
-  'cafes.cappuccino_gelado': ilustrativa('cardapio/produtos/cafes/cappuccino-gelado.webp', 'Copo de cappuccino gelado com creme e calda'),
-  'cafes.cappuccino_italiano': ilustrativa('cardapio/produtos/cafes/cappuccino-italiano.webp', 'Xícara de cappuccino italiano com cacau sobre a espuma'),
-  'cafes.cafe_expresso': ilustrativa('cardapio/produtos/cafes/cafe-expresso.webp', 'Xícara de café expresso'),
-  'cafes.macchiato': ilustrativa('cardapio/produtos/cafes/macchiato.webp', 'Macchiato com espuma de leite'),
-  'cafes.cafe_coado': ilustrativa('cardapio/produtos/cafes/cafe-coado.webp', 'Xícara de café coado'),
-  'cafes.coado_na_mesa': ilustrativa('cardapio/produtos/cafes/coado-na-mesa.webp', 'Coador de vidro com café moído'),
-  'cafes.cafe_na_prensa_francesa': ilustrativa('cardapio/produtos/cafes/cafe-na-prensa-francesa.webp', 'Café em prensa francesa de vidro'),
-  'cafes.matcha_latte': ilustrativa('cardapio/produtos/cafes/matcha-latte.webp', 'Xícara de matcha latte com desenho na espuma'),
-  'cafes.matcha_honey': ilustrativa('cardapio/produtos/cafes/matcha-honey.webp', 'Copo de matcha honey'),
-  'sucos.laranja': ilustrativa('cardapio/produtos/sucos/laranja.webp', 'Copo de suco de laranja'),
-  'sucos.morango': ilustrativa('cardapio/produtos/sucos/morango.webp', 'Copo de suco de morango'),
-  'sucos.laranja_e_morango': ilustrativa('cardapio/produtos/sucos/laranja-e-morango.webp', 'Copo de suco de laranja e morango'),
-  'sucos.green': ilustrativa('cardapio/produtos/sucos/green.webp', 'Copo de suco verde'),
-  'sucos.antioxidant': ilustrativa('cardapio/produtos/sucos/antioxidant.webp', 'Copo de suco de frutas vermelhas'),
-  'outras_bebidas.agua': ilustrativa('cardapio/produtos/outras-bebidas/agua.webp', 'Garrafa de água'),
-  'outras_bebidas.agua_com_gas': ilustrativa('cardapio/produtos/outras-bebidas/agua-com-gas.webp', 'Garrafa de água com gás'),
-  'brunches.american_brunch': ilustrativa('cardapio/produtos/brunches/american-brunch.webp', 'Ovos mexidos, bacon crocante, pão de fermentação natural e maple syrup'),
-  'brunches.italian_morning': ilustrativa('cardapio/produtos/brunches/italian-morning.webp', 'Ovos cremosos, mussarela de búfala, tomate confitado, rúcula, pesto e pão de fermentação natural'),
-  'brunches.blueberry_morning': ilustrativa('cardapio/produtos/brunches/blueberry-morning.webp', 'Ovos mexidos, pão de fermentação natural tostado, ricota e geleia de mirtilo'),
-  'sanduiches.steak_herbs': ilustrativa('cardapio/produtos/sanduiches/steak-herbs.webp', 'Sanduíche com tiras de carne, molho de ervas, provolone derretido e crosta de parmesão'),
-  'sanduiches.tuna': ilustrativa('cardapio/produtos/sanduiches/tuna.webp', 'Sanduíche de atum fresco com pepino, cebola roxa, cebolinha e gergelim'),
-  'cafes.expresso_duplo': ilustrativa('cardapio/produtos/cafes/expresso-duplo.webp', 'Expresso duplo em copo de vidro'),
-  'sucos.retinol': ilustrativa('cardapio/produtos/sucos/retinol.webp', 'Copo de suco Retinol, de cenoura, limão e cúrcuma'),
+  'croissants.classico': ilustrativa('croissants/classico', 'Croissant dourado e folhado num prato de cerâmica'),
+  'croissants.brie_e_geleia': ilustrativa('croissants/brie-e-geleia', 'Croissant recheado com queijo brie e geleia vermelha'),
+  'croissants.mortadela_pistache': ilustrativa('croissants/mortadela-pistache', 'Croissant recheado com mortadela e mussarela de búfala, com pistache moído e melado de cana'),
+  'croissants.caprese': ilustrativa('croissants/caprese', 'Croissant recheado com tomate confit, pesto e mussarela de búfala'),
+  'croissants.maca_caramelizada': ilustrativa('croissants/maca-caramelizada', 'Croissant recheado com geleia de maçã caramelizada e amêndoas tostadas'),
+  'brunches.american_brunch': ilustrativa('brunches/american-brunch', 'Ovos mexidos, bacon crocante, pão de fermentação natural e maple syrup'),
+  'brunches.italian_morning': ilustrativa('brunches/italian-morning', 'Ovos cremosos, mussarela de búfala, tomate confitado, rúcula, pesto e pão de fermentação natural'),
+  'brunches.green_morning': ilustrativa('brunches/green-morning', 'Ovos mexidos, avocado, espinafre, cottage, pão de fermentação natural e melaço de cana'),
+  'brunches.blueberry_morning': ilustrativa('brunches/blueberry-morning', 'Ovos mexidos, pão de fermentação natural tostado, ricota e geleia de mirtilo'),
+  'sanduiches.steak_herbs': ilustrativa('sanduiches/steak-herbs', 'Sanduíche com tiras de carne, molho de ervas, provolone derretido e crosta de parmesão'),
+  'sanduiches.ragu': ilustrativa('sanduiches/ragu', 'Sanduíche de ragu de carne com cebola caramelizada, creme de gouda e parmesão maçaricado'),
+  'sanduiches.tuna': ilustrativa('sanduiches/tuna', 'Sanduíche de atum fresco com pepino, cebola roxa, cebolinha e gergelim'),
+  'sanduiches.brie_blueberry': ilustrativa('sanduiches/brie-blueberry', 'Sanduíche de brie derretido com geleia de mirtilo e lascas de parmesão'),
+  'bowls.ragu': ilustrativa('bowls/ragu', 'Bowl de quinoa com ragu, tomate confitado, rúcula, milho crocante e cebola roxa'),
+  'bowls.atum': ilustrativa('bowls/atum', 'Bowl de quinoa com atum fresco, folhas, avocado, tomate confitado e gergelim'),
+  'bowls.citrico_chicken': ilustrativa('bowls/citrico-chicken', 'Bowl de quinoa com frango, tomate confitado, folhas, milho e gergelim'),
+  'bowls.camarao_fresh': ilustrativa('bowls/camarao-fresh', 'Bowl de quinoa com camarões grelhados, manga, folhas, tomate confitado e pepino'),
+  'cheesecakes.biscoff': ilustrativa('cheesecakes/biscoff', 'Fatia de cheesecake com creme e farofa de biscoito Biscoff'),
+  'cheesecakes.pistache': ilustrativa('cheesecakes/pistache', 'Fatia de cheesecake com creme de pistache'),
+  'cheesecakes.mirtilo_ao_limmone': ilustrativa('cheesecakes/mirtilo-ao-limmone', 'Fatia de cheesecake com mirtilos e raspas de limão'),
+  'cheesecakes.morango': ilustrativa('cheesecakes/morango', 'Fatia de cheesecake com morangos e calda'),
+  'cheesecakes.goiaba': ilustrativa('cheesecakes/goiaba', 'Fatia de cheesecake com calda de goiaba'),
+  'cheesecakes.frutas_vermelhas': ilustrativa('cheesecakes/frutas-vermelhas', 'Fatia de cheesecake com frutas vermelhas'),
+  'cheesecakes.maca_com_crumble_fatia': ilustrativa('cheesecakes/maca-com-crumble-fatia', 'Fatia de maçã com crumble dourado'),
+  'cinnamon_rolls.tradicional': ilustrativa('cinnamon-rolls/tradicional', 'Cinnamon roll Tradicional em espiral, com glacê'),
+  'cinnamon_rolls.mood_cheesecake': real('cinnamon-rolls/mood-cheesecake', 'Cinnamon roll Mood Cheesecake com geleia de morango e crumble'),
+  'cinnamon_rolls.kinder_bueno': real('cinnamon-rolls/kinder-bueno', 'Cinnamon roll Kinder Bueno com fios de Nutella'),
+  'cinnamon_rolls.biscoff': real('cinnamon-rolls/biscoff', 'Cinnamon roll de Biscoff com creme e biscoito triturado'),
+  'cafes.cappuccino': ilustrativa('cafes/cappuccino', 'Xícara de cappuccino com desenho na espuma'),
+  'cafes.cappuccino_gelado': ilustrativa('cafes/cappuccino-gelado', 'Copo de cappuccino gelado com creme e calda'),
+  'cafes.cappuccino_italiano': ilustrativa('cafes/cappuccino-italiano', 'Xícara de cappuccino italiano com cacau sobre a espuma'),
+  'cafes.cafe_expresso': ilustrativa('cafes/cafe-expresso', 'Xícara de café expresso'),
+  'cafes.macchiato': ilustrativa('cafes/macchiato', 'Macchiato com espuma de leite em copo de vidro'),
+  'cafes.cafe_coado': ilustrativa('cafes/cafe-coado', 'Xícara de café coado'),
+  'cafes.coado_na_mesa': ilustrativa('cafes/coado-na-mesa', 'Coador de vidro com café ao lado de uma xícara'),
+  'cafes.cafe_na_prensa_francesa': ilustrativa('cafes/cafe-na-prensa-francesa', 'Café em prensa francesa de vidro ao lado de uma xícara'),
+  'cafes.expresso_duplo': ilustrativa('cafes/expresso-duplo', 'Expresso duplo em copo de vidro'),
+  'cafes.matcha_latte': ilustrativa('cafes/matcha-latte', 'Xícara de matcha latte com desenho na espuma'),
+  'cafes.matcha_honey': ilustrativa('cafes/matcha-honey', 'Copo de matcha honey'),
+  'sucos.laranja': ilustrativa('sucos/laranja', 'Copo de suco de laranja'),
+  'sucos.morango': ilustrativa('sucos/morango', 'Copo de suco de morango'),
+  'sucos.laranja_e_morango': ilustrativa('sucos/laranja-e-morango', 'Copo de suco de laranja e morango'),
+  'sucos.retinol': ilustrativa('sucos/retinol', 'Copo de suco Retinol, de cenoura, limão e cúrcuma'),
+  'sucos.green': ilustrativa('sucos/green', 'Copo de suco verde com couve, laranja, kiwi, hortelã e abacaxi'),
+  'sucos.antioxidant': ilustrativa('sucos/antioxidant', 'Copo de suco de frutas vermelhas, limão e melancia'),
+  'cafes_gelados.matcha_latte': ilustrativa('cafes-gelados/copo-matcha-latte', 'Copo de Matcha Latte com gelo, com o verde do matcha sobre o leite'),
+  'cafes_gelados.matcha_geleia_de_morango': ilustrativa('cafes-gelados/copo-matcha-geleia-de-morango', 'Copo de Matcha Geleia de Morango com gelo, com camadas de matcha, leite e geleia'),
+  'cafes_gelados.honey_latte': ilustrativa('cafes-gelados/copo-honey-latte', 'Copo de Honey Latte com gelo'),
+  'cafes_gelados.iced_latte': ilustrativa('cafes-gelados/copo-iced-latte', 'Copo de Iced Latte com gelo'),
+  'cafes_gelados.biscoff_latte': ilustrativa('cafes-gelados/copo-biscoff-latte', 'Copo de Biscoff Latte com gelo e pedaços de biscoito'),
+  'cafes_gelados.cinnamon_latte': ilustrativa('cafes-gelados/copo-cinnamon-latte', 'Copo de Cinnamon Latte com gelo e um mini cinnamon roll por cima'),
+  'outras_bebidas.agua': ilustrativa('outras-bebidas/agua', 'Garrafa de água sem rótulo'),
+  'outras_bebidas.agua_com_gas': ilustrativa('outras-bebidas/agua-com-gas', 'Garrafa de água com gás sem rótulo'),
 };
 
 export interface ProdutoVista { id: string; nome: string; descricao: string | null; preco: string; precoCentavos: number; foto?: FotoCardapio }

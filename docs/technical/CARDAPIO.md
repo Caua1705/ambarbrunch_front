@@ -64,14 +64,14 @@ Item ou descrição muito maior pode não caber na página: a geração falha di
 Em `/cardapio/`, produto só usa imagem em que dá para reconhecer aquele produto e que mostre o que o catálogo descreve. Sem uma, aparece o ícone neutro da categoria.
 **Origem de cada imagem e o que falta:** [`CARDAPIO-FOTOS-PENDENTES.md`](CARDAPIO-FOTOS-PENDENTES.md).
 
-**Trocar ou acrescentar:** colocar a imagem em `src/assets/media/cardapio/` e acrescentar `id do produto → { src, alt }` em `FOTOS_PRODUTO` (`src/data/cardapio.ts`), com `real` ou
+**Trocar ou acrescentar:** cada produto tem um par com o mesmo nome em `src/assets/media/cardapio/modal/` e `miniaturas/`, ligado por id em `FOTOS_PRODUTO` (`src/data/cardapio.ts`), com `real` ou
 `ilustrativa`. O layout não muda e o site gera os tamanhos no build.
 
 Não reaproveitar sem confirmação:
 
 - **Pistache e Mirtilo** das artes da Roll são sabores de cinnamon roll, não cheesecakes.
 - **Nutella, Oreo, Red Velvet e S’mores** não estão no catálogo.
-- **Croissant do prato azul e torrada do prato branco:** não dá para dizer qual produto são.
+- **Croissant do prato azul e torrada do prato branco:** não dá para dizer qual produto são. O croissant do prato azul segue na polaroid da home, sem ligação com um produto do catálogo.
 - **Sanduíches Ragu e Tuna e os bowls da proposta Âmbar × Roll:** mostram ingredientes fora do catálogo (rúcula, abacate).
 
 A caixa real da Roll mostrava o S’mores, fora do cardápio desde 6/11/2026: na cena do Café + Roll, foi recortada acima dele (`roll/caixa-roll-aberta.webp`). `roll/caixa-roll.webp` e
