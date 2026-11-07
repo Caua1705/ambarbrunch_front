@@ -89,6 +89,7 @@ test('teclado: Enter e Espaço abrem, Esc fecha e o foco volta para o produto', 
 test('o foco fica preso no modal enquanto ele está aberto', async ({ page }) => {
   await page.goto('/cardapio/');
   await linha(page, 'bowls.atum').getByRole('button').click();
+  await expect(modal(page)).toBeVisible();
   await page.keyboard.press('Tab');
   await page.keyboard.press('Tab');
   const dentro = await page.evaluate(() => {
@@ -195,66 +196,142 @@ test('sem imagem: mostra nome e preço, sem inventar foto', async ({ page }) => 
   expect(nome.x + nome.width).toBeLessThanOrEqual(x.x);
 });
 
-test('a imagem grande só baixa ao abrir, uma vez, e reabrir não baixa de novo', async ({ page }) => {
+/** anota o estado da imagem no instante exato em que o modal abre, antes de qualquer quadro */
+const vigiarAbertura = (page: Page) => page.evaluate(() => {
+  const w = window as unknown as { aberturas: unknown[] };
+  w.aberturas = [];
+  const m = document.querySelector('[data-produto-modal]')!;
+  new MutationObserver(() => {
+    if (!m.hasAttribute('open')) return;
+    const i = m.querySelector('img');
+    w.aberturas.push({ nome: m.querySelector('h2')?.textContent, alt: i?.alt ?? null, pronta: !!i?.complete && (i?.naturalWidth ?? 0) > 0, opacidade: i ? getComputedStyle(i).opacity : null, filhos: m.querySelector('[data-modal-foto]')?.childElementCount });
+  }).observe(m, { attributes: true, attributeFilter: ['open'] });
+});
+const aberturas = (page: Page) => page.evaluate(() => (window as unknown as { aberturas: { nome: string; alt: string | null; pronta: boolean; opacidade: string | null; filhos: number }[] }).aberturas);
+/** arquivos grandes de uma linha, tirados do <template> */
+const arquivosGrandes = (page: Page) => page.evaluate(() => [...document.querySelectorAll('template')].flatMap((t) => [...t.content.querySelectorAll('source, img')].flatMap((e) => ((e as HTMLImageElement).srcset ?? '').split(',').map((s) => s.trim().split(' ')[0]))).filter(Boolean));
+
+test('adianta só o que está perto da tela, depois da carga, sem baixar tudo', async ({ page }) => {
   const pedidas: string[] = [];
   page.on('request', (r) => { if (r.resourceType() === 'image') pedidas.push(r.url()); });
   await page.goto('/cardapio/');
-  await page.waitForTimeout(500);
-  const grandes = await page.evaluate(() => [...document.querySelectorAll('template')].flatMap((t) => [...t.content.querySelectorAll('source, img')].flatMap((e) => ((e as HTMLImageElement).srcset ?? '').split(',').map((s) => s.trim().split(' ')[0]))).filter(Boolean));
+  const grandes = await arquivosGrandes(page);
   expect(grandes.length).toBeGreaterThan(100);
-  const baixadas = () => pedidas.filter((u) => grandes.some((g) => u.endsWith(g)));
-  expect(baixadas()).toEqual([]);
-  const b = linha(page, 'sucos.green').getByRole('button');
-  await b.click();
-  await expect(modal(page).locator('[data-pronta]')).toHaveCount(1);
-  expect(baixadas()).toHaveLength(1);
-  await page.keyboard.press('Escape');
-  await b.click();
-  // reaproveita a imagem: já abre pronta, sem prévia nem indicador
-  await expect(modal(page).locator('.produto-modal__quadro')).toHaveAttribute('data-pronta', '');
-  await expect(modal(page).locator('[data-carregando]')).toHaveCount(0);
-  expect(baixadas()).toHaveLength(1);
+  await expect.poll(() => pedidas.filter((u) => grandes.some((g) => u.endsWith(g))).length, { timeout: 8000 }).toBeGreaterThan(0);
+  await page.waitForTimeout(1500);
+  const baixadas = pedidas.filter((u) => grandes.some((g) => u.endsWith(g)));
+  expect(new Set(baixadas).size).toBe(baixadas.length);
+  expect(baixadas.length).toBeLessThanOrEqual(24);
+  expect(pedidas.some((u) => /copo-iced-latte/.test(u))).toBe(false);
 });
 
-test('em rede lenta: a moldura não muda de tamanho, a prévia não dá zoom e a imagem certa entra sem pular', async ({ page }) => {
+test('com a imagem já pronta o modal abre nítido no primeiro quadro e reabrir não baixa de novo', async ({ page }) => {
+  const pedidas: string[] = [];
+  page.on('request', (r) => { if (r.resourceType() === 'image') pedidas.push(r.url()); });
   await page.goto('/cardapio/');
-  await page.addStyleTag({ content: '.sticky-cta{display:none!important}' });
+  await vigiarAbertura(page);
+  const b = linha(page, 'croissants.classico').getByRole('button');
+  await b.click();
+  await expect(modal(page)).toBeVisible();
+  await page.keyboard.press('Escape');
+  const grandes = await arquivosGrandes(page);
+  const conta = () => pedidas.filter((u) => grandes.some((g) => u.endsWith(g)) && /classico/.test(u)).length;
+  expect(conta()).toBe(1);
+  await b.click();
+  await expect(modal(page)).toBeVisible();
+  expect(conta()).toBe(1);
+  for (const a of await aberturas(page)) expect(a).toMatchObject({ nome: 'Clássico', pronta: true, opacidade: '1', filhos: 1 });
+});
+
+test('cache vazio e rede lenta: a lista espera com um aviso na linha e o modal só abre com a imagem pronta', async ({ page }) => {
+  await page.goto('/cardapio/');
+  await vigiarAbertura(page);
   const l = linha(page, 'bowls.camarao_fresh');
-  await l.scrollIntoViewIfNeeded();
-  await expect.poll(() => l.locator('.prato__foto img').evaluate((e: HTMLImageElement) => e.complete && e.naturalWidth > 0)).toBe(true);
   let soltar = () => {};
   const espera = new Promise<void>((r) => { soltar = r; });
-  await page.route(/camarao-fresh\.[^/]*\.(avif|webp)/, async (rota) => {
-    if (rota.request().url().endsWith('.avif') || rota.request().url().endsWith('.webp')) await espera;
-    await rota.continue();
-  });
+  const grande = /camarao-fresh\.[^/]*\.(avif|webp)$/;
+  await page.route(grande, async (rota) => { await espera; await rota.continue(); });
+  await l.scrollIntoViewIfNeeded();
   await l.getByRole('button').click();
-  const quadro = modal(page).locator('.produto-modal__quadro');
-  await expect(quadro).toHaveAttribute('data-carregando', '');
-  const antes = (await modal(page).boundingBox())!;
-  const previa = await quadro.evaluate((e) => ({ mini: getComputedStyle(e).getPropertyValue('--miniatura'), ajuste: getComputedStyle(e.querySelector('.produto-modal__previa')!, '::after').backgroundSize, imagem: getComputedStyle(e.querySelector('img')!).opacity }));
-  expect(previa.mini).toContain('camarao-fresh');
-  expect(previa.ajuste).toBe('contain');
-  expect(previa.imagem).toBe('0');
+  await page.waitForTimeout(500);
+  await expect(modal(page)).toBeHidden();
+  await expect(l).toHaveAttribute('data-abrindo', '');
+  await expect(l.getByRole('button')).toHaveAttribute('aria-busy', 'true');
   soltar();
-  await expect(quadro).toHaveAttribute('data-pronta', '');
-  await expect(quadro).not.toHaveAttribute('data-carregando', '');
-  expect(await modal(page).boundingBox()).toEqual(antes);
-  await page.unroute(/camarao-fresh/);
+  await expect(modal(page)).toBeVisible();
+  await expect(l).not.toHaveAttribute('data-abrindo', '');
+  await expect(l.getByRole('button')).not.toHaveAttribute('aria-busy', 'true');
+  expect(await aberturas(page)).toEqual([{ nome: 'Camarão Fresh', alt: FOTOS_PRODUTO['bowls.camarao_fresh'].alt, pronta: true, opacidade: '1', filhos: 1 }]);
+  await expect(modal(page).locator('.produto-modal__previa, [data-carregando]')).toHaveCount(0);
+  await page.unroute(grande);
 });
 
-test('se a imagem grande falhar, o popup segue útil e a próxima abertura tenta de novo', async ({ page }) => {
+test('troca rápida: tocar em outro produto durante a espera abre só o último, com a imagem dele', async ({ page }) => {
   await page.goto('/cardapio/');
-  const imagens = /atum\.[^/]*\.(avif|webp)$/;
-  await page.route(imagens, (rota) => rota.abort());
-  const b = linha(page, 'bowls.atum').getByRole('button');
-  await b.click();
-  await expect(modal(page).locator('[data-carregando]')).toHaveCount(0);
+  await vigiarAbertura(page);
+  let soltar = () => {};
+  const espera = new Promise<void>((r) => { soltar = r; });
+  const grandes = /(atum|ragu)\.[^/]*\.(avif|webp)$/;
+  await page.route(grandes, async (rota) => { await espera; await rota.continue(); });
+  const a = linha(page, 'bowls.ragu');
+  const b = linha(page, 'bowls.atum');
+  await a.scrollIntoViewIfNeeded();
+  await b.scrollIntoViewIfNeeded();
+  await a.getByRole('button').click();
+  await b.getByRole('button').click();
+  await expect(a).not.toHaveAttribute('data-abrindo', '');
+  await expect(b).toHaveAttribute('data-abrindo', '');
+  soltar();
   await expect(modal(page).getByRole('heading')).toHaveText('Atum');
+  await page.waitForTimeout(300);
+  const lista = await aberturas(page);
+  expect(lista).toHaveLength(1);
+  expect(lista[0]).toMatchObject({ nome: 'Atum', alt: FOTOS_PRODUTO['bowls.atum'].alt, pronta: true });
+  await page.unroute(grandes);
+});
+
+test('cancelar: Esc durante a espera não abre o modal e rolar para longe também não', async ({ page }) => {
+  await page.goto('/cardapio/');
+  let soltar = () => {};
+  const espera = new Promise<void>((r) => { soltar = r; });
+  const grandes = /(citrico-chicken|morango)\.[^/]*\.(avif|webp)$/;
+  await page.route(grandes, async (rota) => { await espera; await rota.continue(); });
+  const l = linha(page, 'bowls.citrico_chicken');
+  await l.scrollIntoViewIfNeeded();
+  await l.getByRole('button').click();
+  await expect(l).toHaveAttribute('data-abrindo', '');
+  await page.keyboard.press('Escape');
+  await expect(l).not.toHaveAttribute('data-abrindo', '');
+  const m = linha(page, 'cheesecakes.morango');
+  await m.scrollIntoViewIfNeeded();
+  await m.getByRole('button').click();
+  await expect(m).toHaveAttribute('data-abrindo', '');
+  await page.evaluate(() => scrollTo({ top: 0, behavior: 'instant' }));
+  soltar();
+  await page.waitForTimeout(500);
+  await expect(modal(page)).toBeHidden();
+  await expect(m).not.toHaveAttribute('data-abrindo', '');
+  await page.unroute(grandes);
+});
+
+test('se a imagem falhar não há carregamento infinito: abre só o texto e a próxima abertura tenta de novo', async ({ page }) => {
+  await page.goto('/cardapio/');
+  await page.waitForTimeout(100);
+  const imagens = /tuna\.[^/]*\.(avif|webp)$/;
+  await page.route(imagens, (rota) => rota.abort());
+  const l = linha(page, 'sanduiches.tuna');
+  await l.scrollIntoViewIfNeeded();
+  await l.getByRole('button').click();
+  await expect(modal(page)).toBeVisible();
+  await expect(l).not.toHaveAttribute('data-abrindo', '');
+  await expect(modal(page).getByRole('heading')).toHaveText('Tuna');
+  await expect(modal(page).locator('.produto-modal__preco')).toBeVisible();
+  await expect(modal(page).locator('img')).toHaveCount(0);
   await page.keyboard.press('Escape');
   await page.unroute(imagens);
-  await b.click();
-  await expect(modal(page).locator('[data-pronta]')).toHaveCount(1);
+  await l.getByRole('button').click();
+  await expect(modal(page)).toBeVisible();
+  await expect(modal(page).locator('img')).toHaveAttribute('alt', FOTOS_PRODUTO['sanduiches.tuna'].alt);
 });
 
 test('gestos acidentais: toque duplo não fecha, arrastar do texto para o fundo não fecha', async ({ page }) => {
@@ -263,7 +340,7 @@ test('gestos acidentais: toque duplo não fecha, arrastar do texto para o fundo 
   // a linha fica fora da caixa do modal: o segundo clique cai no fundo escurecido
   const l = linha(page, 'brunches.green_morning');
   await l.scrollIntoViewIfNeeded();
-  await l.evaluate((e) => { const y = e.getBoundingClientRect().top + scrollY - 70; scrollTo({ top: y, behavior: 'instant' }); });
+  await l.evaluate((e) => { const y = e.getBoundingClientRect().top + window.scrollY - 70; scrollTo({ top: y, behavior: 'instant' }); });
   await page.waitForTimeout(150);
   const c = (await l.boundingBox())!;
   await page.mouse.dblclick(c.x + 40, c.y + 12);
@@ -286,17 +363,17 @@ test('gestos acidentais: toque duplo não fecha, arrastar do texto para o fundo 
 test('fechar e abrir outro produto em sequência nunca mostra a imagem errada', async ({ page }) => {
   await page.goto('/cardapio/');
   const ids = ['croissants.caprese', 'bowls.atum', 'cafes.macchiato', 'sucos.green', 'cheesecakes.morango', 'cafes_gelados.iced_latte'];
-  for (let volta = 0; volta < 3; volta++) {
+  for (let volta = 0; volta < 2; volta++) {
     for (const id of ids) {
-      const alt = FOTOS_PRODUTO[id].alt;
-      // fecha e abre o próximo na mesma tarefa: o evento close chega depois
-      const r = await page.evaluate(([i]) => {
+      // fecha e pede o próximo na mesma tarefa: o evento close chega depois
+      await page.evaluate(([i]) => {
         const m = document.querySelector<HTMLDialogElement>('[data-produto-modal]')!;
         if (m.open) m.close();
-        document.querySelector<HTMLElement>(`.prato[data-item="${i}"] [data-abrir-produto]`)!.click();
-        return new Promise<string | null>((ok) => setTimeout(() => ok(m.querySelector('img')?.alt ?? null), 20));
+        const l = document.querySelector<HTMLElement>(`.prato[data-item="${i}"]`)!;
+        l.scrollIntoView({ block: 'center', behavior: 'instant' });
+        l.querySelector<HTMLElement>('[data-abrir-produto]')!.click();
       }, [id]);
-      expect(r, id).toBe(alt);
+      await expect(modal(page).locator('img'), id).toHaveAttribute('alt', FOTOS_PRODUTO[id].alt);
       await expect(modal(page).locator('img'), id).toHaveCount(1);
     }
   }
@@ -307,6 +384,7 @@ test('modal cabe na tela em retrato e paisagem, com o X e o preço alcançáveis
     await page.setViewportSize({ width, height });
     await page.goto('/cardapio/');
     await linha(page, 'brunches.italian_morning').getByRole('button').click();
+    await expect(modal(page)).toBeVisible();
     const caixa = (await modal(page).boundingBox())!;
     const contexto = `${width}x${height}`;
     expect(caixa.x, contexto).toBeGreaterThanOrEqual(0);

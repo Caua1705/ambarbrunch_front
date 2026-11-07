@@ -57,8 +57,7 @@ const imediata = (categoria: CategoriaVista, n: number) => categoria === cardapi
                 <p class="prato__preco">{p.preco}</p>
                 {p.foto && imagem(p.foto.ampliada) && (
                   <template>
-                    <div class="produto-modal__quadro" data-carregando style={`--natural:${imagem(p.foto.ampliada)!.width}px;--proporcao:${imagem(p.foto.ampliada)!.width}/${imagem(p.foto.ampliada)!.height}`}>
-                      <span class="produto-modal__previa" aria-hidden="true"></span>
+                    <div class="produto-modal__quadro" style={`--natural:${imagem(p.foto.ampliada)!.width}px;--proporcao:${imagem(p.foto.ampliada)!.width}/${imagem(p.foto.ampliada)!.height}`}>
                       <Foto src={p.foto.ampliada} alt={p.foto.alt} sizes="(min-width: 480px) 440px, calc(100vw - 32px)" widths={[480, 720, 960]} qualidade={62} eager semPrevia />
                     </div>
                   </template>

@@ -88,7 +88,7 @@ A seção “Direto da fornada” segue com a foto do roll de Nutella (`roll.fot
 ## Modal do produto
 
 Cada linha de `/cardapio/` abre um `<dialog>` com a imagem ampliada, o nome, a descrição e o preço (`scripts/cardapio-modal.js`). O texto vem da própria linha, ou seja, do catálogo
-oficial, e a imagem grande fica num `<template>`: só baixa ao abrir. Com o modal aberto a página não rola, e fechar devolve o foco à linha, no mesmo ponto da lista.
+oficial, e a imagem grande fica num `<template>`. **O modal só abre com a imagem definitiva baixada e decodificada: nunca mostra prévia borrada nem carregamento.** Depois da carga da página, as imagens perto da tela são adiantadas aos poucos; se o toque vier antes, a espera aparece na própria linha. Sem imagem depois de 12 s, ou com erro de rede, abre só o texto. Com o modal aberto a página não rola, e fechar devolve o foco à linha, no mesmo ponto da lista.
 
 ## Previews
 
