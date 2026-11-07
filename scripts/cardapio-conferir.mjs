@@ -62,4 +62,6 @@ if (erros.length) {
   console.error(erros.map((e) => `ERRO ${e}`).join('\n'));
   process.exit(1);
 }
-console.log(`Catálogo ${catalogo.versao}: ${esperados.size} itens iguais na API, em ${site}/cardapio/ e no PDF; a home não mostra preços.`);
+// PDF do dono: confere o arquivo, não o conteúdo, e os Cinnamon Rolls ficam fora dele de propósito (docs/technical/CARDAPIO.md)
+const noPdf = manifesto.pdf_sha256 ? 'o PDF no ar é o arquivo assinado (conferido pelo sha256)' : 'o PDF traz os mesmos itens';
+console.log(`Catálogo ${catalogo.versao}: ${esperados.size} itens iguais na API e em ${site}/cardapio/; ${noPdf}; a home não mostra preços.`);

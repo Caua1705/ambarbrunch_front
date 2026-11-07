@@ -7,7 +7,7 @@ Um só cadastro: o catálogo do backend (`GET https://api.ambarbrunch.com/cardap
 | Atendimento no WhatsApp | direto do banco do backend; o cliente recebe o link `/cardapio`, nunca o PDF |
 | `/cardapio/` | no build do site (`src/lib/cardapio/catalogo.ts`): HTML estático com os dados do momento do deploy |
 | home | só nomes de categoria na faixa e as duplas do Café + Roll, no build. Nenhum preço |
-| PDF `/cardapio/cardapio-ambar.pdf` | **hoje, o PDF entregue pelo dono** (6/11/2026), byte a byte, preso ao catálogo por `npm run cardapio:assinar`; o endereço não muda |
+| PDF `/cardapio/cardapio-ambar.pdf` | **hoje, a arte do dono** (6/11/2026), com 53 produtos e os 13 adicionais, presa ao catálogo por `npm run cardapio:assinar`; o endereço não muda. **Os 4 Cinnamon Rolls ficam fora dele de propósito** |
 
 O front **não guarda** produto, descrição nem preço. `src/data/cardapio.ts` guarda só apresentação: categoria → cor, âncora e ícone; id do
 produto → foto. As duplas do Café + Roll (`src/data/cafe-roll.ts`) apontam para ids do catálogo.
@@ -41,8 +41,14 @@ Requisitos da máquina: Node 24 (o gerador importa os `.ts` direto) e `uv` (lê 
 
 ## PDF do dono (vigente desde 6/11/2026)
 
-O PDF público é a arte corrigida entregue pelo dono: 3 páginas, só imagem, sem texto. Por isso `cardapio:pdf` recusa gerar por cima dele, e
-`cardapio:conferir` compara o arquivo pelo sha256, sem ler o conteúdo: **o conteúdo precisa ser conferido a olho, item a item, contra a API**.
+O PDF público é a arte entregue pelo dono, com nomes, preços e adicionais alinhados à API: 2 páginas A4 em paisagem, com texto. Por isso `cardapio:pdf` recusa gerar por cima dele, e
+`cardapio:conferir` compara o arquivo pelo sha256, sem ler o conteúdo: **o conteúdo precisa ser conferido item a item contra a API, por seção, antes de assinar**. Comparar só o texto engana: Matcha Latte existe nos
+Cafés e nos Cafés gelados.
+
+**Diferença intencional, não é erro de sincronização:** o PDF tem 53 dos 57 produtos. Decisão do responsável em 6/11/2026: Tradicional, Mood Cheesecake, Kinder Bueno e Biscoff seguem ativos no catálogo, no site e no atendimento
+do WhatsApp, mas ficam fora deste PDF porque terão um cardápio próprio. Não acrescentá-los ao PDF nem removê-los do catálogo por causa dessa diferença.
+
+O catálogo oficial é a fonte da verdade: se a arte divergir, corrige-se a arte. Os títulos “Drinks” (Cafés gelados) e “Cheesecake” e as descrições dos cheesecakes, que a API não tem, são da arte e foram mantidos.
 A cada mudança de catálogo o build trava até haver PDF novo. Com a arte nova do dono:
 
 ```bash
