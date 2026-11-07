@@ -47,7 +47,7 @@ const imediata = (categoria: CategoriaVista, n: number) => categoria === cardapi
               <li class="prato" data-item={p.id} data-preco={p.precoCentavos} data-sem-foto={p.foto ? undefined : ''}>
                 <div class="prato__foto">
                   {p.foto && imagem(p.foto.src)
-                    ? <Foto src={p.foto.src} alt={p.foto.alt} sizes="(min-width: 720px) 88px, 64px" widths={[88, 176, 264]} qualidade={50} eager={imediata(c, n)} soCor />
+                    ? <Foto src={p.foto.src} alt={p.foto.alt} sizes="(min-width: 720px) 88px, 64px" widths={[64, 128, 176, 192]} qualidade={50} eager={imediata(c, n)} soCor />
                     : <IconeCardapio icone={c.icone} />}
                 </div>
                 <div class="prato__texto">
