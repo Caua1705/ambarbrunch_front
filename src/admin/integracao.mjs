@@ -14,6 +14,9 @@ const ROTAS = [
   ['/admin/clube', 'clube.astro'],
   ['/admin/financeiro', 'financeiro.astro'],
   ['/admin/estoque', 'estoque.astro'],
+  ['/admin/equipe', 'equipe.astro'],
+  // Única página do painel com câmera liberada (middleware.ts).
+  ['/admin/equipe/cadastro-facial', 'cadastro-facial.astro'],
   ['/admin/configuracoes', 'configuracoes.astro'],
   // Modo Operação: tela do tablet fixo do café (Reservas do dia, chegada com um toque)
   ['/admin/operacao', 'operacao.astro'],

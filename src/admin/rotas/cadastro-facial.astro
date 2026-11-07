@@ -1,0 +1,25 @@
+---
+// Cadastro facial supervisionado: a conta do Proprietário fica aberta no aparelho, na frente do funcionário. Única página do
+// painel com câmera (Permissions-Policy em middleware.ts). A URL da API é pública; nenhum token entra nesta página.
+import Painel from '../layout/Painel.astro';
+import SemAcesso from '../layout/SemAcesso.astro';
+import CadastroFacial from '../modulos/equipe/CadastroFacial';
+import { pode as podeAcao } from '../lib/permissoes';
+import { apiBase } from '../servidor/config';
+
+export const prerender = false;
+const contexto = Astro.locals.painel;
+if (!contexto) return Astro.redirect('/admin/login?volta=%2Fadmin%2Fequipe', 303);
+const liberado = contexto.modulos.includes('equipe');
+const pode = liberado && podeAcao(contexto.usuario.papel, 'ponto.biometria');
+---
+
+<Painel titulo="Cadastro facial" modulo="equipe" contexto={contexto}>
+  {pode ? (
+    <CadastroFacial client:only="preact" apiUrl={apiBase()}>
+      <div slot="fallback" class="carregando-modulo" aria-busy="true" aria-label="Carregando"><span class="esqueleto" style="height:320px"></span></div>
+    </CadastroFacial>
+  ) : (
+    <SemAcesso naoLiberado={!liberado} />
+  )}
+</Painel>

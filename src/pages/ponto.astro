@@ -1,0 +1,27 @@
+---
+// /ponto — tablet compartilhado do café. Página própria, sem o layout do site: fora do menu, do sitemap e dos buscadores.
+// Sem login de funcionário: quem fala com a API é o aparelho, autorizado pelo gestor (cookie HttpOnly, API.md seção 1).
+import '@fontsource-variable/bricolage-grotesque/standard.css';
+import '../styles/ponto.css';
+import logo from '../assets/media/brand/logo-ambar.png?url';
+import Ponto from '../islands/Ponto';
+---
+
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="theme-color" content="#670D27" />
+    <title>Ponto · Âmbar</title>
+    <link rel="icon" href="/favicon-48.png" type="image/png" sizes="48x48" />
+  </head>
+  <body style={`--logo:url(${logo})`}>
+    <Ponto client:only="preact">
+      <div slot="fallback" class="ponto" data-tela="carregando"></div>
+    </Ponto>
+    <noscript>O ponto precisa de JavaScript ligado. Procure o gestor.</noscript>
+  </body>
+</html>

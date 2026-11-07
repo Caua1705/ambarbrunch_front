@@ -90,7 +90,7 @@ export async function pedir<T>(caminho: string, p: Pedido = {}): Promise<T> {
   throw await converterErro(res);
 }
 
-async function converterErro(res: Response): Promise<ErroApi> {
+export async function converterErro(res: Response): Promise<ErroApi> {
   const corpo = (await res.json().catch(() => ({}))) as { detail?: unknown; codigo?: string; dados?: Record<string, unknown> };
   const codigo = corpo.codigo ?? null;
   const campos: Record<string, string> = {};

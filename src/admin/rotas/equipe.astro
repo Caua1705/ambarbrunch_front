@@ -1,0 +1,23 @@
+---
+// Equipe e Ponto — sessão conferida no middleware; o backend confere cada permissão de novo.
+import Painel from '../layout/Painel.astro';
+import SemAcesso from '../layout/SemAcesso.astro';
+import Equipe from '../modulos/equipe';
+import { podeVer } from '../lib/permissoes';
+
+export const prerender = false;
+const contexto = Astro.locals.painel;
+if (!contexto) return Astro.redirect('/admin/login?volta=%2Fadmin%2Fequipe', 303);
+const liberado = contexto.modulos.includes('equipe');
+const pode = liberado && podeVer(contexto.usuario.papel, 'equipe');
+---
+
+<Painel titulo="Equipe" modulo="equipe" contexto={contexto}>
+  {pode ? (
+    <Equipe client:only="preact" contexto={contexto}>
+      <div slot="fallback" class="carregando-modulo" aria-busy="true" aria-label="Carregando"><span class="esqueleto" style="height:28px;width:40%"></span><span class="esqueleto" style="height:110px"></span><span class="esqueleto" style="height:320px"></span></div>
+    </Equipe>
+  ) : (
+    <SemAcesso naoLiberado={!liberado} />
+  )}
+</Painel>

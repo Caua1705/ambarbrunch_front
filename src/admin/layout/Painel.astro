@@ -6,7 +6,7 @@
 import '@fontsource-variable/inter/wght.css';
 import '../estilos/painel.css';
 import logo from '../../assets/media/brand/logo-ambar.png?url';
-import { LayoutDashboard, CalendarCheck, MessagesSquare, Wallet, Package, Settings, Menu, Sun, Moon, PanelLeftClose, LogOut, ChevronDown, Bell, Tablet, Building2 } from 'lucide-preact';
+import { LayoutDashboard, CalendarCheck, MessagesSquare, Wallet, Package, Settings, Menu, Sun, Moon, PanelLeftClose, LogOut, ChevronDown, Bell, Tablet, Building2, UsersRound } from 'lucide-preact';
 import { podeVer, type Area, type Modulo } from '../lib/permissoes';
 import { NOME_PAPEL, ehUnidadeTeste, unidadePadrao, type ContextoPainel } from '../lib/sessao';
 import TemaInicial from './TemaInicial.astro';
@@ -30,6 +30,7 @@ const MODULOS: { id: Exclude<Area, 'configuracoes' | 'clube'>; liberacao: Modulo
   { id: 'atendimento', liberacao: 'atendimento', rotulo: 'Atendimento', href: '/admin/atendimento', icone: MessagesSquare },
   { id: 'financeiro', liberacao: 'financeiro', rotulo: 'Financeiro', href: '/admin/financeiro', icone: Wallet },
   { id: 'estoque', liberacao: 'estoque', rotulo: 'Estoque', href: '/admin/estoque', icone: Package },
+  { id: 'equipe', liberacao: 'equipe', rotulo: 'Equipe', href: '/admin/equipe', icone: UsersRound },
 ];
 const liberado = (m: Modulo) => contexto.modulos.includes(m);
 const visiveis = MODULOS.filter((m) => podeVer(usuario.papel, m.id) && liberado(m.liberacao));

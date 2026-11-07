@@ -40,7 +40,7 @@ const CATEGORIAS: Record<string, ApresentacaoCategoria> = {
 };
 
 /**
- * Imagem por produto (id estável do backend). `real`: fotos da Roll autorizadas em 2026-10-17. `ilustrativa`: não é foto do produto servido.
+ * Imagem por produto (id estável do backend). `real`: fotos da Roll autorizadas em 2026-10-17 e foto do Sanduíche Ragù tirada no Âmbar (2026-11-07). `ilustrativa`: não é foto do produto servido.
  * Origem de cada imagem e o que falta: docs/technical/CARDAPIO-FOTOS-PENDENTES.md.
  */
 export const FOTOS_PRODUTO: Record<string, FotoCardapio> = {
@@ -54,7 +54,7 @@ export const FOTOS_PRODUTO: Record<string, FotoCardapio> = {
   'brunches.green_morning': ilustrativa('brunches/green-morning', 'Ovos mexidos, avocado, espinafre, cottage, pão de fermentação natural e melaço de cana'),
   'brunches.blueberry_morning': ilustrativa('brunches/blueberry-morning', 'Ovos mexidos, pão de fermentação natural tostado, ricota e geleia de mirtilo'),
   'sanduiches.steak_herbs': ilustrativa('sanduiches/steak-herbs', 'Sanduíche com tiras de carne, molho de ervas, provolone derretido e crosta de parmesão'),
-  'sanduiches.ragu': ilustrativa('sanduiches/ragu', 'Sanduíche de ragu de carne com cebola caramelizada, creme de gouda e parmesão maçaricado'),
+  'sanduiches.ragu': real('sanduiches/ragu', 'Sanduíche Ragù cortado ao meio, com ragu de carne e parmesão maçaricado sobre o pão, servido no Âmbar'),
   'sanduiches.tuna': ilustrativa('sanduiches/tuna', 'Sanduíche de atum fresco com pepino, cebola roxa, cebolinha e gergelim'),
   'sanduiches.brie_blueberry': ilustrativa('sanduiches/brie-blueberry', 'Sanduíche de brie derretido com geleia de mirtilo e lascas de parmesão'),
   'bowls.ragu': ilustrativa('bowls/ragu', 'Bowl de quinoa com ragu, tomate confitado, rúcula, milho crocante e cebola roxa'),

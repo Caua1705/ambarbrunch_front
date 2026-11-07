@@ -35,7 +35,7 @@ export const clubeConvites = () => PAINEL_CLUBE_CONVITES === true;
 /** Chave do servidor do painel junto ao backend (AMBAR_PAINEL_CHAVE). Sem ela, o login segue sem o IP de quem entra. */
 export const chavePainel = (): string | null => PAINEL_API_CHAVE?.trim() || null;
 
-const TODOS_OS_MODULOS: Modulo[] = ['visao-geral', 'reservas', 'atendimento', 'clube', 'financeiro', 'estoque'];
+const TODOS_OS_MODULOS: Modulo[] = ['visao-geral', 'reservas', 'atendimento', 'clube', 'financeiro', 'estoque', 'equipe'];
 
 /**
  * Liberação controlada: PAINEL_MODULOS=visao-geral,reservas mostra e libera só esses módulos — no menu, nas páginas e
@@ -59,6 +59,7 @@ export function moduloDaRota(caminho: string): Modulo | 'arquivos' | null {
   if (raiz === 'clube') return 'clube';
   if (raiz === 'financeiro') return 'financeiro';
   if (raiz === 'estoque') return 'estoque';
+  if (raiz === 'ponto') return 'equipe';
   if (raiz === 'visao-geral') return 'visao-geral';
   if (raiz === 'julia') return 'financeiro';
   // documentos (notas e comprovantes) servem o Financeiro e o Estoque

@@ -1,0 +1,232 @@
+/* Equipe e Ponto: só o que os componentes do painel não cobrem. Cores e medidas vêm de tokens.css. */
+.equipe-indicadores {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 720px) {
+  .equipe-indicadores {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.equipe-colunas {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--e-4);
+}
+
+@media (max-width: 900px) {
+  .equipe-colunas {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.equipe-filtros {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--borda);
+}
+
+.equipe-data {
+  width: auto;
+}
+
+.equipe-rodape {
+  padding: 12px 20px;
+  margin: 0;
+}
+
+.equipe-marcacao {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--e-2);
+}
+
+.equipe-marcacao[data-apagado] {
+  opacity: 0.65;
+}
+
+.equipe-escala {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--e-3);
+}
+
+.equipe-semana th[scope='row'] {
+  white-space: nowrap;
+  text-align: start;
+  font-weight: 600;
+}
+
+.equipe-semana td {
+  padding: 4px;
+}
+
+.equipe-dia {
+  width: 100%;
+  min-height: 44px;
+  min-width: 88px;
+  padding: 4px 8px;
+  border: 1px solid var(--borda);
+  border-radius: 8px;
+  background: var(--superficie);
+  color: var(--texto);
+  font: inherit;
+  font-size: var(--t-xs);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.equipe-dia:disabled {
+  cursor: default;
+}
+
+.equipe-dia[data-tipo='folga'],
+.equipe-dia[data-tipo='sem_escala'] {
+  background: var(--afundado);
+  color: var(--texto-3);
+}
+
+.equipe-dia[data-tipo='plantao'] {
+  background: var(--marca-suave);
+  color: var(--marca-texto);
+}
+
+.equipe-dia[data-excecao] {
+  border-color: var(--caramelo);
+  border-width: 2px;
+}
+
+.equipe-semana-form {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--e-2);
+}
+
+.equipe-semana-form__topo,
+.equipe-semana-form__dia {
+  display: grid;
+  grid-template-columns: minmax(104px, 1.2fr) repeat(4, minmax(0, 1fr));
+  gap: var(--e-2);
+  align-items: center;
+}
+
+.equipe-semana-form__topo {
+  font-size: var(--t-xs);
+  color: var(--texto-3);
+}
+
+.equipe-semana-form__folga {
+  grid-column: 2 / -1;
+}
+
+@media (max-width: 640px) {
+  .equipe-semana-form__topo {
+    display: none;
+  }
+
+  .equipe-semana-form__dia {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding-block: var(--e-2);
+    border-bottom: 1px solid var(--borda);
+  }
+
+  .equipe-semana-form__dia > .marcar {
+    grid-column: 1 / -1;
+  }
+
+  .equipe-semana-form__folga {
+    grid-column: 1 / -1;
+  }
+}
+
+.equipe-token {
+  display: flex;
+  gap: var(--e-2);
+  align-items: center;
+}
+
+.equipe-token code {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--afundado);
+  overflow-wrap: anywhere;
+  font-size: var(--t-xs);
+}
+
+.equipe-voltar {
+  align-self: flex-start;
+}
+
+.equipe-passos {
+  list-style: none;
+  display: flex;
+  gap: var(--e-2);
+  flex-wrap: wrap;
+  margin: 0 0 var(--e-4);
+  padding: 0;
+}
+
+.equipe-passos li {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--afundado);
+  color: var(--texto-2);
+  font-size: var(--t-xs);
+}
+
+.equipe-passos li[aria-current='step'] {
+  background: var(--marca);
+  color: var(--marca-contraste);
+  font-weight: 600;
+}
+
+.equipe-passos li[data-feito] {
+  background: var(--ok-suave);
+  color: var(--ok);
+}
+
+.equipe-camera {
+  display: grid;
+  justify-items: center;
+  gap: var(--e-3);
+}
+
+.equipe-camera__moldura {
+  position: relative;
+  width: min(100%, 420px);
+  aspect-ratio: 3 / 4;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #1d1815;
+}
+
+/* Espelho só na tela: o quadro enviado sai cru. */
+.equipe-camera__moldura video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+}
+
+.equipe-camera__oval {
+  position: absolute;
+  inset: 12% 16% 16%;
+  border: 3px dashed rgba(255, 255, 255, 0.85);
+  border-radius: 50%;
+}
+
+.equipe-camera__guia {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--marca-texto);
+  text-align: center;
+}

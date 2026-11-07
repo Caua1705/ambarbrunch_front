@@ -1,0 +1,418 @@
+/* Tablet do ponto (/ponto): fundo creme, vinho da marca, poucos controles e botões grandes. Folha própria: esta página não
+   carrega o CSS do site nem o do painel. Unidades relativas à tela para caber em retrato e paisagem. */
+:root {
+  --ponto-vinho: #670d27;
+  --ponto-vinho-escuro: #540a1f;
+  --ponto-creme: #f6efe6;
+  --ponto-superficie: #fffaf4;
+  --ponto-texto: #2a1a16;
+  --ponto-texto-2: #5b4a44;
+  --ponto-caramelo: #c98a45;
+  --ponto-ok: #2e6b3c;
+  --ponto-perigo: #b42318;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--ponto-creme);
+  color: var(--ponto-texto);
+  font-family: 'Bricolage Grotesque Variable', system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+.ponto__oculto {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.ponto {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding: max(16px, env(safe-area-inset-top)) clamp(16px, 4vw, 48px) max(16px, env(safe-area-inset-bottom));
+  gap: clamp(8px, 2vh, 20px);
+}
+
+.ponto__topo {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 44px;
+}
+
+.ponto__marca {
+  width: 112px;
+  height: 44px;
+  background: var(--logo) left center / contain no-repeat;
+}
+
+.ponto__aparelho {
+  color: var(--ponto-texto-2);
+  font-size: 15px;
+}
+
+.ponto__offline {
+  margin-inline-start: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #fdecea;
+  color: var(--ponto-perigo);
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.ponto__offline svg {
+  width: 18px;
+  height: 18px;
+}
+
+.ponto__palco {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(16px, 3vh, 32px);
+  text-align: center;
+}
+
+.ponto__relogio {
+  display: grid;
+  gap: 4px;
+}
+
+.ponto__horas {
+  font-size: clamp(72px, 16vmin, 152px);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ponto-vinho);
+}
+
+.ponto__dia {
+  margin: 0;
+  font-size: clamp(20px, 3.4vmin, 30px);
+  color: var(--ponto-texto-2);
+}
+
+.ponto__dia::first-letter {
+  text-transform: uppercase;
+}
+
+.ponto__btn {
+  font: inherit;
+  font-weight: 700;
+  border: 0;
+  border-radius: 20px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.ponto__btn:focus-visible {
+  outline: 3px solid var(--ponto-caramelo);
+  outline-offset: 3px;
+}
+
+.ponto__btn--principal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  width: min(100%, 560px);
+  min-height: clamp(80px, 13vh, 112px);
+  padding: 16px 32px;
+  background: var(--ponto-vinho);
+  color: #fff;
+  font-size: clamp(24px, 4vmin, 34px);
+}
+
+.ponto__btn--principal:active {
+  background: var(--ponto-vinho-escuro);
+}
+
+.ponto__btn--principal:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ponto__btn--principal svg {
+  width: 1.3em;
+  height: 1.3em;
+}
+
+.ponto__btn--leve {
+  min-height: 56px;
+  padding: 8px 28px;
+  background: transparent;
+  color: var(--ponto-vinho);
+  font-size: 20px;
+  border: 2px solid currentColor;
+}
+
+.ponto__ajuda {
+  margin: 0;
+  font-size: clamp(18px, 2.8vmin, 24px);
+  color: var(--ponto-texto-2);
+  max-width: 34em;
+}
+
+.ponto__nota {
+  margin: 0;
+  font-size: 15px;
+  color: var(--ponto-texto-2);
+  max-width: 40em;
+}
+
+.ponto__titulo {
+  margin: 0;
+  font-size: clamp(28px, 4.6vmin, 42px);
+}
+
+.ponto__opcoes {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+}
+
+.ponto__opcoes .ponto__btn--principal {
+  flex: 1 1 280px;
+}
+
+.ponto__cartao {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: min(100%, 640px);
+  padding: clamp(24px, 5vh, 48px) clamp(20px, 4vw, 48px);
+  background: var(--ponto-superficie);
+  border-radius: 28px;
+  box-shadow: 0 8px 28px rgba(36, 21, 15, 0.1);
+}
+
+.ponto__cartao > svg {
+  width: 64px;
+  height: 64px;
+  color: var(--ponto-vinho);
+}
+
+.ponto__cartao h1 {
+  margin: 0;
+  font-size: clamp(28px, 4.4vmin, 40px);
+}
+
+.ponto__cartao p {
+  margin: 0;
+  font-size: clamp(19px, 2.9vmin, 25px);
+  line-height: 1.35;
+}
+
+.ponto__campo {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  font-size: 18px;
+  text-align: start;
+}
+
+.ponto__campo input {
+  font: inherit;
+  min-height: 56px;
+  padding: 8px 16px;
+  border: 2px solid #8f857c;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.ponto__erro {
+  color: var(--ponto-perigo);
+  font-weight: 600;
+}
+
+.ponto__espera {
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+  font-size: clamp(24px, 4vmin, 34px);
+  color: var(--ponto-texto-2);
+}
+
+.ponto__espera p {
+  margin: 0;
+}
+
+.ponto__girando {
+  width: 72px;
+  height: 72px;
+  color: var(--ponto-vinho);
+  animation: ponto-gira 1s linear infinite;
+}
+
+@keyframes ponto-gira {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ponto__girando {
+    animation-duration: 3s;
+  }
+}
+
+.ponto__camera {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(8px, 2vh, 20px);
+  min-height: 0;
+}
+
+.ponto__moldura {
+  position: relative;
+  height: min(62dvh, 110vw);
+  aspect-ratio: 3 / 4;
+  max-width: 100%;
+  border-radius: 28px;
+  overflow: hidden;
+  background: #1d1815;
+}
+
+/* Espelho só na tela, para a pessoa se ver como no espelho. O quadro enviado sai do vídeo cru. */
+.ponto__moldura video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+}
+
+.ponto__oval {
+  position: absolute;
+  inset: 12% 16% 16%;
+  border: 4px dashed rgba(255, 255, 255, 0.85);
+  border-radius: 50%;
+  box-shadow: 0 0 0 100vmax rgba(29, 24, 21, 0.28);
+}
+
+.ponto__guia {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  text-align: center;
+  min-height: 72px;
+}
+
+.ponto__guia strong {
+  font-size: clamp(26px, 4.4vmin, 40px);
+  color: var(--ponto-vinho);
+}
+
+.ponto__dica {
+  font-size: 18px;
+  color: var(--ponto-perigo);
+}
+
+.ponto__passos {
+  display: inline-flex;
+  gap: 10px;
+}
+
+.ponto__passos i {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #d8cfc4;
+}
+
+.ponto__passos i[data-feito] {
+  background: var(--ponto-vinho);
+}
+
+.ponto__recibo {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+}
+
+.ponto__recibo > svg {
+  width: 96px;
+  height: 96px;
+  color: var(--ponto-ok);
+}
+
+.ponto__recibo h1 {
+  margin: 0;
+  font-size: clamp(36px, 6.4vmin, 60px);
+}
+
+.ponto__tipo {
+  margin: 0;
+  font-size: clamp(26px, 4.4vmin, 40px);
+  color: var(--ponto-vinho);
+  font-weight: 700;
+}
+
+.ponto__hora {
+  margin: 0;
+  font-size: clamp(60px, 12vmin, 112px);
+  font-weight: 700;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+
+.ponto__data {
+  margin: 0;
+  font-size: clamp(20px, 3.2vmin, 28px);
+  color: var(--ponto-texto-2);
+}
+
+/* Tablet deitado: câmera ao lado da instrução. */
+@media (orientation: landscape) and (min-width: 800px) {
+  .ponto__camera {
+    display: grid;
+    grid-template-columns: auto minmax(280px, 1fr);
+    grid-template-rows: 1fr auto;
+    align-items: center;
+    column-gap: 40px;
+    justify-items: center;
+  }
+
+  .ponto__moldura {
+    height: 78dvh;
+    grid-row: 1 / span 2;
+  }
+
+  .ponto__guia {
+    align-self: end;
+  }
+
+  .ponto__camera .ponto__btn--leve {
+    align-self: start;
+  }
+}

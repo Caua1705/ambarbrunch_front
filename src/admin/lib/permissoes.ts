@@ -3,7 +3,7 @@
 // Três perfis: Proprietário (admin), Gerente (gerente), Atendente (operador). Docs: PERFIS-E-PERMISSOES.md no backend.
 import type { Papel } from './sessao';
 
-export type Modulo = 'visao-geral' | 'reservas' | 'atendimento' | 'clube' | 'financeiro' | 'estoque';
+export type Modulo = 'visao-geral' | 'reservas' | 'atendimento' | 'clube' | 'financeiro' | 'estoque' | 'equipe';
 // Não há mais área Clientes (02/11/2026): quem é o contato aparece na ficha da conversa, no Atendimento. As permissões
 // clientes.visualizar e clientes.editar continuam no backend (e-mail completo na ficha, cadastros duplicados).
 export type Area = Modulo | 'configuracoes';
@@ -20,6 +20,7 @@ const MODULOS: Record<Area, Papel[]> = {
   clube: GERENCIA,
   financeiro: GERENCIA,
   estoque: GERENCIA,
+  equipe: GERENCIA,
   configuracoes: GERENCIA,
 };
 
@@ -59,6 +60,12 @@ const ACOES = {
   'estoque.cancelar_compra': GERENCIA,
   'estoque.estornar_producao': GERENCIA,
   'julia.monitoramento': GERENCIA,
+  // Equipe e ponto: gerência cuida do dia a dia; rosto, tablets e auditoria só com o Proprietário.
+  'equipe.gerenciar': GERENCIA,
+  'ponto.ajustar': GERENCIA,
+  'ponto.biometria': ADMIN,
+  'ponto.dispositivos': ADMIN,
+  'auditoria.visualizar': ADMIN,
 } satisfies Record<string, Papel[]>;
 
 export type Acao = keyof typeof ACOES;

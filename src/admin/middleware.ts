@@ -2,12 +2,15 @@
 // papel, unidades e `ativo` do usuário em toda requisição: desativar alguém vale na hora).
 import { defineMiddleware } from 'astro:middleware';
 import { createHash } from 'node:crypto';
-import { modoPainel, clubeConvites, modulosLiberados, DEMO_PERMITIDO } from './servidor/config';
+import { apiBase, modoPainel, clubeConvites, modulosLiberados, DEMO_PERMITIDO } from './servidor/config';
 import { lerSessao, apagarSessao, gravarUnidade, COOKIE_UNIDADE, ehHttps } from './servidor/sessao';
 import { chamarBackend, lerJson, BackendForaDoAr } from './servidor/backend';
 import { unidadePadrao, type ContextoPainel, type Unidade, type Usuario } from './lib/sessao';
 
 const PUBLICAS = new Set(['/admin/login', '/admin/api/sessao']);
+// Cadastro facial supervisionado: a única página do painel com câmera, e a única que fala direto com a API (os quadros não
+// passam pelo servidor do painel).
+const CADASTRO_FACIAL = '/admin/equipe/cadastro-facial';
 
 export const onRequest = defineMiddleware(async (ctx, next) => {
   const caminho = ctx.url.pathname.replace(/\/+$/, '') || '/';
@@ -17,6 +20,7 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
   const modo = modoPainel();
   ctx.locals.painelModo = modo;
   const https = ehHttps(ctx.request, ctx.url);
+  const seguro = (res: Response) => cabecalhos(res, modo, https, caminho === CADASTRO_FACIAL);
 
   if (!PUBLICAS.has(caminho)) {
     const sessao = lerSessao(ctx.cookies);
@@ -27,20 +31,20 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
       return ctx.redirect(`/admin/login${volta}`, 303);
     };
     // Sessão de demonstração só vale no modo demo (e vice-versa).
-    if (!sessao || modo === 'indisponivel' || (modo === 'demo') !== (sessao.demoPapel !== null)) return seguro(negar(), modo, https);
+    if (!sessao || modo === 'indisponivel' || (modo === 'demo') !== (sessao.demoPapel !== null)) return seguro(negar());
 
     // As rotas de API não conferem /me: o backend valida o token em cada chamada repassada.
     if (!api) {
       const cookieUnidade = ctx.cookies.get(COOKIE_UNIDADE)?.value;
       const carregado = await carregarContexto(sessao.token, sessao.demoPapel, cookieUnidade);
-      if (carregado === 'sessao') return seguro(negar(), modo, https);
-      if (carregado === 'backend') return seguro(paginaForaDoAr(), modo, https);
+      if (carregado === 'sessao') return seguro(negar());
+      if (carregado === 'backend') return seguro(paginaForaDoAr());
       // A ponte da API manda a unidade do cookie: ele precisa dizer a mesma unidade que esta página mostra no topo.
       if (carregado.unidade && carregado.unidade.codigo !== cookieUnidade) gravarUnidade(ctx.cookies, https, carregado.unidade.codigo);
       ctx.locals.painel = { ...carregado, modo };
     }
   }
-  return seguro(await next(), modo, https);
+  return seguro(await next());
 });
 
 type Carregado = Omit<ContextoPainel, 'modo'>;
@@ -88,7 +92,7 @@ function paginaForaDoAr() {
  * Cabeçalhos de segurança do painel. A CSP libera só os scripts inline que estão NESTA resposta (hash sha256 de cada um:
  * o tema antes da pintura e o carregador das ilhas do Astro) — nada de 'unsafe-inline' para scripts.
  */
-async function seguro(res: Response, modo: string, https = false): Promise<Response> {
+async function cabecalhos(res: Response, modo: string, https: boolean, cadastroFacial: boolean): Promise<Response> {
   const headers = new Headers(res.headers);
   // https: o navegador não volta a tentar http neste host (sem includeSubDomains: não mexe em outros subdomínios)
   if (https) headers.set('Strict-Transport-Security', 'max-age=31536000');
@@ -99,7 +103,7 @@ async function seguro(res: Response, modo: string, https = false): Promise<Respo
   headers.set('X-Frame-Options', 'DENY');
   headers.set('X-Content-Type-Options', 'nosniff');
   headers.set('Referrer-Policy', 'same-origin');
-  headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  headers.set('Permissions-Policy', `camera=${cadastroFacial ? '(self)' : '()'}, microphone=(), geolocation=()`);
   if (modo === 'demo') headers.set('X-Painel-Modo', 'demonstracao');
   const tipo = headers.get('Content-Type') ?? '';
   if (!tipo.includes('text/html') || res.status === 304) return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
@@ -110,6 +114,7 @@ async function seguro(res: Response, modo: string, https = false): Promise<Respo
   }
   // `astro dev` (Vite) precisa de eval e do websocket de recarga; o build não.
   const dev = import.meta.env.DEV ? ' ws: http://localhost:* http://127.0.0.1:*' : '';
+  const api = cadastroFacial && apiBase() ? ` ${new URL(apiBase()!).origin}` : '';
   headers.set('Content-Security-Policy', [
     "default-src 'self'",
     `script-src 'self' ${[...hashes].join(' ')}${import.meta.env.DEV ? " 'unsafe-eval'" : ''}`,
@@ -117,7 +122,7 @@ async function seguro(res: Response, modo: string, https = false): Promise<Respo
     // documentos (notas, comprovantes) abrem por URL assinada do armazenamento do backend
     "img-src 'self' data: blob: https:",
     "frame-src 'self' blob: https:",
-    `connect-src 'self'${dev}`,
+    `connect-src 'self'${api}${dev}`,
     "font-src 'self'",
     "object-src 'none'",
     "base-uri 'none'",

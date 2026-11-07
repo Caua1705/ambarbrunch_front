@@ -42,8 +42,8 @@ test('gerência: vê os módulos (sem Clientes) e o financeiro na Visão Geral; 
   await entrarDemo(page, 'gerente');
   await page.goto(`${DEMO}/admin`);
   const nav = page.getByRole('navigation', { name: 'Módulos' });
-  for (const m of ['Visão Geral', 'Reservas', 'Atendimento', 'Financeiro', 'Estoque']) await expect(nav.getByRole('link', { name: m })).toBeVisible();
-  await expect(nav.getByRole('listitem')).toHaveCount(5);
+  for (const m of ['Visão Geral', 'Reservas', 'Atendimento', 'Financeiro', 'Estoque', 'Equipe']) await expect(nav.getByRole('link', { name: m })).toBeVisible();
+  await expect(nav.getByRole('listitem')).toHaveCount(6);
   // a página Clientes saiu (o contato aparece na ficha da conversa do Atendimento)
   await expect(nav.getByRole('link', { name: 'Clientes' })).toHaveCount(0);
   await expect(nav.getByRole('link', { name: /Clube/ })).toHaveCount(0);

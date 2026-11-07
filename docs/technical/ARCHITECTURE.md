@@ -52,6 +52,7 @@ tests/                Site: contrato de tokens, e2e (Chromium/WebKit), fidelidad
 tests-reservas/       Reserva em modo API contra uma API falsa (build dist-reservas-api)
 tests-reservas-real/  Conferência só de leitura contra a API real
 tests-painel/         Painel: segurança, permissões e telas (build dist-painel, demo + backend falso)
+tests-ponto-real/     Equipe e Ponto contra o backend real local, com motor facial e câmera falsa (ver EQUIPE-PONTO.md)
 scripts/              Ferramentas de linha de comando (mídia, painel, servidores de teste, medições)
 experiments/          Protótipos congelados (concept-b-aprovado-v1 é a referência de fidelidade) — fora do build
 docs/                 Marca, design, conteúdo e documentação técnica
@@ -94,7 +95,7 @@ src/admin/
                        só esse módulo compartilha (rótulos, hooks, permissões do módulo)
 ```
 
-Módulos: `visao-geral`, `reservas`, `atendimento`, `clube`, `financeiro`, `estoque`, `configuracoes`,
+Módulos: `visao-geral`, `reservas`, `atendimento`, `clube`, `financeiro`, `estoque`, `equipe`, `configuracoes`,
 `operacao` (Modo Operação) e `login`.
 
 **Por que contratos (`lib/api`, `lib/tipos`) ficam fora dos módulos:** vários módulos usam o mesmo contrato (Estoque usa
