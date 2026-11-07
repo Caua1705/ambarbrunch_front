@@ -123,8 +123,8 @@ test('imagens: só as mapeadas, com texto alternativo; sem imagem, apresentaçã
     await expect(page.locator(`[data-item="${id}"] img`)).toHaveCount(0);
   }
   // imagens responsivas e fora da primeira tela só sob demanda
-  await expect(page.locator('.prato__foto img[loading="eager"]')).toHaveCount(3);
-  await expect(page.locator('.prato__foto img').nth(3)).toHaveAttribute('loading', 'lazy');
+  await expect(page.locator('.prato__foto img[loading="eager"]')).toHaveCount(5);
+  await expect(page.locator('.prato__foto img').nth(5)).toHaveAttribute('loading', 'lazy');
   await expect(page.locator('.prato__foto img').first()).toHaveAttribute('srcset', /avif|webp/);
 });
 

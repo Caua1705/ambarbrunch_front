@@ -16,8 +16,8 @@ const grupos = [
   { id: 'beber', rotulo: 'pra beber', categorias: cardapio.beber },
 ];
 const temAdicionais = cardapio.adicionaisBebidas.length > 0;
-/** só as primeiras miniaturas estão na primeira tela: nelas o carregamento não espera a rolagem */
-const MINIATURAS_IMEDIATAS = 3;
+/** as miniaturas da primeira tela, até o maior celular: nelas o carregamento não espera a rolagem */
+const MINIATURAS_IMEDIATAS = 5;
 const imediata = (categoria: CategoriaVista, n: number) => categoria === cardapio.comer[0] && n < MINIATURAS_IMEDIATAS;
 ---
 <main class="carta">
@@ -47,7 +47,7 @@ const imediata = (categoria: CategoriaVista, n: number) => categoria === cardapi
               <li class="prato" data-item={p.id} data-preco={p.precoCentavos} data-sem-foto={p.foto ? undefined : ''}>
                 <div class="prato__foto">
                   {p.foto && imagem(p.foto.src)
-                    ? <Foto src={p.foto.src} alt={p.foto.alt} sizes="(min-width: 720px) 88px, 64px" widths={[88, 176, 264]} qualidade={50} eager={imediata(c, n)} semPrevia />
+                    ? <Foto src={p.foto.src} alt={p.foto.alt} sizes="(min-width: 720px) 88px, 64px" widths={[88, 176, 264]} qualidade={50} eager={imediata(c, n)} soCor />
                     : <IconeCardapio icone={c.icone} />}
                 </div>
                 <div class="prato__texto">
@@ -57,8 +57,9 @@ const imediata = (categoria: CategoriaVista, n: number) => categoria === cardapi
                 <p class="prato__preco">{p.preco}</p>
                 {p.foto && imagem(p.foto.ampliada) && (
                   <template>
-                    <div class="produto-modal__quadro" style={`--natural:${imagem(p.foto.ampliada)!.width}px`}>
-                      <Foto src={p.foto.ampliada} alt={p.foto.alt} sizes="(min-width: 480px) 440px, calc(100vw - 32px)" widths={[480, 720, 960, 1200]} qualidade={72} eager semPrevia />
+                    <div class="produto-modal__quadro" data-carregando style={`--natural:${imagem(p.foto.ampliada)!.width}px;--proporcao:${imagem(p.foto.ampliada)!.width}/${imagem(p.foto.ampliada)!.height}`}>
+                      <span class="produto-modal__previa" aria-hidden="true"></span>
+                      <Foto src={p.foto.ampliada} alt={p.foto.alt} sizes="(min-width: 480px) 440px, calc(100vw - 32px)" widths={[480, 720, 960]} qualidade={62} eager semPrevia />
                     </div>
                   </template>
                 )}

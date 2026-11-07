@@ -42,6 +42,13 @@ test('cada um dos 57 produtos abre pelo clique na linha, com os dados oficiais, 
           return { natural: arquivo.naturalWidth, tela: e.getBoundingClientRect().width, escala: Math.min(devicePixelRatio, 2) };
         });
         if (!ORIGINAL_MENOR.has(i.id)) expect(natural, i.id).toBeGreaterThanOrEqual(Math.floor(tela * escala * 0.98));
+        // sem corte nem distorção: a moldura tem a proporção do arquivo e a imagem aparece inteira
+        const encaixe = await img.evaluate(async (e: HTMLImageElement) => {
+          const q = e.closest('.produto-modal__quadro')!.getBoundingClientRect();
+          return { ajuste: getComputedStyle(e).objectFit, moldura: q.width / q.height, arquivo: e.naturalWidth / e.naturalHeight };
+        });
+        expect(encaixe.ajuste, i.id).toBe('contain');
+        expect(Math.abs(encaixe.moldura - encaixe.arquivo), i.id).toBeLessThan(0.02);
       } else {
         await expect(img, i.id).toHaveCount(0);
       }
@@ -100,6 +107,8 @@ test('clicar no fundo fecha; clicar dentro da caixa não fecha', async ({ page }
   await expect(modal(page)).toBeVisible();
   await modal(page).locator('img').click();
   await expect(modal(page)).toBeVisible();
+  // logo depois de abrir o fundo ignora o toque, para o segundo toque de um toque duplo não fechar o popup
+  await page.waitForTimeout(400);
   const caixa = (await modal(page).boundingBox())!;
   await page.mouse.click(caixa.x + caixa.width / 2, Math.max(4, caixa.y - 8));
   await expect(modal(page)).toBeHidden();
@@ -186,13 +195,111 @@ test('sem imagem: mostra nome e preço, sem inventar foto', async ({ page }) => 
   expect(nome.x + nome.width).toBeLessThanOrEqual(x.x);
 });
 
-test('a imagem grande só baixa ao abrir', async ({ page }) => {
-  const grandes: string[] = [];
-  page.on('request', (r) => { if (r.resourceType() === 'image' && /_(660|880)w?/.test(r.url())) grandes.push(r.url()); });
+test('a imagem grande só baixa ao abrir, uma vez, e reabrir não baixa de novo', async ({ page }) => {
+  const pedidas: string[] = [];
+  page.on('request', (r) => { if (r.resourceType() === 'image') pedidas.push(r.url()); });
   await page.goto('/cardapio/');
   await page.waitForTimeout(500);
-  await expect(page.locator('template img')).toHaveCount(0);
-  expect(grandes).toEqual([]);
+  const grandes = await page.evaluate(() => [...document.querySelectorAll('template')].flatMap((t) => [...t.content.querySelectorAll('source, img')].flatMap((e) => ((e as HTMLImageElement).srcset ?? '').split(',').map((s) => s.trim().split(' ')[0]))).filter(Boolean));
+  expect(grandes.length).toBeGreaterThan(100);
+  const baixadas = () => pedidas.filter((u) => grandes.some((g) => u.endsWith(g)));
+  expect(baixadas()).toEqual([]);
+  const b = linha(page, 'sucos.green').getByRole('button');
+  await b.click();
+  await expect(modal(page).locator('[data-pronta]')).toHaveCount(1);
+  expect(baixadas()).toHaveLength(1);
+  await page.keyboard.press('Escape');
+  await b.click();
+  // reaproveita a imagem: já abre pronta, sem prévia nem indicador
+  await expect(modal(page).locator('.produto-modal__quadro')).toHaveAttribute('data-pronta', '');
+  await expect(modal(page).locator('[data-carregando]')).toHaveCount(0);
+  expect(baixadas()).toHaveLength(1);
+});
+
+test('em rede lenta: a moldura não muda de tamanho, a prévia não dá zoom e a imagem certa entra sem pular', async ({ page }) => {
+  await page.goto('/cardapio/');
+  await page.addStyleTag({ content: '.sticky-cta{display:none!important}' });
+  const l = linha(page, 'bowls.camarao_fresh');
+  await l.scrollIntoViewIfNeeded();
+  await expect.poll(() => l.locator('.prato__foto img').evaluate((e: HTMLImageElement) => e.complete && e.naturalWidth > 0)).toBe(true);
+  let soltar = () => {};
+  const espera = new Promise<void>((r) => { soltar = r; });
+  await page.route(/camarao-fresh\.[^/]*\.(avif|webp)/, async (rota) => {
+    if (rota.request().url().endsWith('.avif') || rota.request().url().endsWith('.webp')) await espera;
+    await rota.continue();
+  });
+  await l.getByRole('button').click();
+  const quadro = modal(page).locator('.produto-modal__quadro');
+  await expect(quadro).toHaveAttribute('data-carregando', '');
+  const antes = (await modal(page).boundingBox())!;
+  const previa = await quadro.evaluate((e) => ({ mini: getComputedStyle(e).getPropertyValue('--miniatura'), ajuste: getComputedStyle(e.querySelector('.produto-modal__previa')!, '::after').backgroundSize, imagem: getComputedStyle(e.querySelector('img')!).opacity }));
+  expect(previa.mini).toContain('camarao-fresh');
+  expect(previa.ajuste).toBe('contain');
+  expect(previa.imagem).toBe('0');
+  soltar();
+  await expect(quadro).toHaveAttribute('data-pronta', '');
+  await expect(quadro).not.toHaveAttribute('data-carregando', '');
+  expect(await modal(page).boundingBox()).toEqual(antes);
+  await page.unroute(/camarao-fresh/);
+});
+
+test('se a imagem grande falhar, o popup segue útil e a próxima abertura tenta de novo', async ({ page }) => {
+  await page.goto('/cardapio/');
+  const imagens = /atum\.[^/]*\.(avif|webp)$/;
+  await page.route(imagens, (rota) => rota.abort());
+  const b = linha(page, 'bowls.atum').getByRole('button');
+  await b.click();
+  await expect(modal(page).locator('[data-carregando]')).toHaveCount(0);
+  await expect(modal(page).getByRole('heading')).toHaveText('Atum');
+  await page.keyboard.press('Escape');
+  await page.unroute(imagens);
+  await b.click();
+  await expect(modal(page).locator('[data-pronta]')).toHaveCount(1);
+});
+
+test('gestos acidentais: toque duplo não fecha, arrastar do texto para o fundo não fecha', async ({ page }) => {
+  await page.goto('/cardapio/');
+  await page.addStyleTag({ content: '.sticky-cta{display:none!important}' });
+  // a linha fica fora da caixa do modal: o segundo clique cai no fundo escurecido
+  const l = linha(page, 'brunches.green_morning');
+  await l.scrollIntoViewIfNeeded();
+  await l.evaluate((e) => { const y = e.getBoundingClientRect().top + scrollY - 70; scrollTo({ top: y, behavior: 'instant' }); });
+  await page.waitForTimeout(150);
+  const c = (await l.boundingBox())!;
+  await page.mouse.dblclick(c.x + 40, c.y + 12);
+  await page.waitForTimeout(450);
+  await expect(modal(page)).toBeVisible();
+  const caixa = (await modal(page).boundingBox())!;
+  expect(c.y + 12).toBeLessThan(caixa.y);
+  const nome = (await modal(page).getByRole('heading').boundingBox())!;
+  await page.mouse.move(nome.x + 10, nome.y + 8);
+  await page.mouse.down();
+  await page.mouse.move(6, 6, { steps: 4 });
+  await page.mouse.up();
+  await page.waitForTimeout(120);
+  await expect(modal(page)).toBeVisible();
+  // depois da espera, o clique no fundo fecha normalmente
+  await page.mouse.click(6, 6);
+  await expect(modal(page)).toBeHidden();
+});
+
+test('fechar e abrir outro produto em sequência nunca mostra a imagem errada', async ({ page }) => {
+  await page.goto('/cardapio/');
+  const ids = ['croissants.caprese', 'bowls.atum', 'cafes.macchiato', 'sucos.green', 'cheesecakes.morango', 'cafes_gelados.iced_latte'];
+  for (let volta = 0; volta < 3; volta++) {
+    for (const id of ids) {
+      const alt = FOTOS_PRODUTO[id].alt;
+      // fecha e abre o próximo na mesma tarefa: o evento close chega depois
+      const r = await page.evaluate(([i]) => {
+        const m = document.querySelector<HTMLDialogElement>('[data-produto-modal]')!;
+        if (m.open) m.close();
+        document.querySelector<HTMLElement>(`.prato[data-item="${i}"] [data-abrir-produto]`)!.click();
+        return new Promise<string | null>((ok) => setTimeout(() => ok(m.querySelector('img')?.alt ?? null), 20));
+      }, [id]);
+      expect(r, id).toBe(alt);
+      await expect(modal(page).locator('img'), id).toHaveCount(1);
+    }
+  }
 });
 
 test('modal cabe na tela em retrato e paisagem, com o X e o preço alcançáveis', async ({ page }) => {

@@ -17,12 +17,13 @@ interface Props {
   eager?: boolean;           // outras peças da 1ª tela: eager, sem disputar prioridade com o LCP
   qualidade?: number;
   semPrevia?: boolean;       // sem a prévia desfocada no HTML: quem usa traz a própria (imagem grande do modal do cardápio)
+  soCor?: boolean;           // só a cor dominante, sem a prévia desfocada: miniaturas em série, em que a prévia pesaria mais no HTML do que ajuda
 }
-const { src, alt, sizes, widths = [240, 360, 540, 720, 1080], class: cls, prioridade = false, eager = false, qualidade = 64, semPrevia = false } = Astro.props;
+const { src, alt, sizes, widths = [240, 360, 540, 720, 1080], class: cls, prioridade = false, eager = false, qualidade = 64, semPrevia = false, soCor = false } = Astro.props;
 const meta = imagem(src);
 const larguras = meta ? [...new Set(widths.map((w) => Math.min(w, meta.width)))] : [];
 const cor = meta && !semPrevia ? await corDominante(src) : undefined;
-const borrada = cor ? await previa(src) : undefined;
+const borrada = cor && !soCor ? await previa(src) : undefined;
 const fundo = cor && (borrada ? `background:${borrada} center/cover no-repeat ${cor}` : `background-color:${cor}`);
 ---
 {meta && (
