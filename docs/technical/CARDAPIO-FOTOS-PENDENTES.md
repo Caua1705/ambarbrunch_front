@@ -1,6 +1,6 @@
 # Cardápio: imagens que faltam
 
-Catálogo 2026-11-06.1: 57 produtos, 53 com imagem e 4 sem. Sem imagem, a linha mantém o ícone da categoria e o modal mostra só nome, descrição e preço.
+Catálogo 2026-11-08.1: 57 produtos, 53 com imagem e 4 sem. Sem imagem, a linha mantém o ícone da categoria e o modal mostra só nome, descrição e preço.
 
 | Categoria | Produtos | Com imagem | Faltam |
 |---|---|---:|---:|
@@ -46,7 +46,8 @@ Depois, acrescentar o id em `FOTOS_PRODUTO` (`src/data/cardapio.ts`), com `real`
 | Fotos da Roll autorizadas | 3 | `cinnamon-rolls/` |
 | Arte da Roll, autorizada em 6/11/2026 | 1 | `cinnamon-rolls/tradicional.webp` |
 | `Ambar_Fotos_Finais_Home_e_11_Pendentes_2026-11-06.zip` (IA), revisado item a item | 7 | brunchs, sanduíches, Expresso duplo e Retinol |
-| Recriada por IA em 6/11/2026, a partir da descrição oficial, revisada item a item | 42 | demais produtos |
+| Recriada por IA em 6/11/2026, a partir da descrição oficial, revisada item a item | 41 | demais produtos |
+| Recriada por IA em 8/11/2026, quando o Antioxidant virou Vitalidade (beterraba, cenoura e laranja) | 1 | `sucos/vitalidade.webp` (id `sucos.antioxidant`) |
 
 Imagem gerada por IA fica sempre como `ilustrativa`: não é foto do produto servido. Mood Cheesecake e Biscoff têm um recorte mínimo que tira as pontas das setas da arte da Roll; as fotos originais seguem em `roll/`.
 
@@ -55,8 +56,8 @@ que tem cerca de 200 px por copo.
 
 ## A confirmar com a casa
 
-- **Cheesecakes:** seis deles aparecem em fatia, como o ícone da categoria no PDF oficial. O catálogo só diz “(fatia)” na Maçã com Crumble: se os outros forem vendidos de outro jeito, as imagens precisam mudar.
-- **Maçã com Crumble (fatia):** a imagem mostra uma fatia de maçã com crumble, sem camada de cheesecake.
+- **Cheesecakes:** seis deles aparecem em fatia, como o ícone da categoria no PDF oficial. Desde o catálogo 2026-11-08.1 nenhum nome diz “(fatia)”: se algum for vendido de outro jeito, a imagem precisa mudar.
+- **Maçã com Crumble:** a imagem mostra uma fatia de maçã com crumble, sem camada de cheesecake (a descrição oficial é “Geleia de maçã caramelizada e crumble crocante.”).
 - **Água e Água com gás:** garrafas genéricas, sem rótulo: não mostram a marca vendida.
 - **Copos de Cafés gelados:** a marca impressa foi reproduzida pelo gerador de imagem. Comparar com o logo oficial.
 - **Cinnamon Rolls:** originais preservados, sem ampliação. A arte do Tradicional tem 488 px; as fotos de Biscoff e Mood Cheesecake têm 696 e 741 px depois do recorte. Em celulares grandes de alta densidade, elas ficam

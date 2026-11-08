@@ -45,6 +45,10 @@ O PDF público é a arte entregue pelo dono, com nomes, preços e adicionais ali
 `cardapio:conferir` compara o arquivo pelo sha256, sem ler o conteúdo: **o conteúdo precisa ser conferido item a item contra a API, por seção, antes de assinar**. Comparar só o texto engana: Matcha Latte existe nos
 Cafés e nos Cafés gelados.
 
+**8/11/2026 (catálogo 2026-11-08.1):** a mesma arte, com três textos trocados por pymupdf na fonte embutida dela: “Antioxidant / Frutas vermelhas, limão e melancia.” virou
+“Vitalidade / Beterraba, cenoura e laranja.” e saiu o “(fatia)” da Maçã com Crumble. Nenhum preço mudou. O PDF novo do dono (`MENU ÂMBAR .pdf`, 8/11) **não** foi usado: tem
+preços diferentes dos do site, e o site é a referência.
+
 **Diferença intencional, não é erro de sincronização:** o PDF tem 53 dos 57 produtos. Decisão do responsável em 6/11/2026: Tradicional, Mood Cheesecake, Kinder Bueno e Biscoff seguem ativos no catálogo, no site e no atendimento
 do WhatsApp, mas ficam fora deste PDF porque terão um cardápio próprio. Não acrescentá-los ao PDF nem removê-los do catálogo por causa dessa diferença.
 

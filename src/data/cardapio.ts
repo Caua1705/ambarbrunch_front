@@ -88,7 +88,7 @@ export const FOTOS_PRODUTO: Record<string, FotoCardapio> = {
   'sucos.laranja_e_morango': ilustrativa('sucos/laranja-e-morango', 'Copo de suco de laranja e morango'),
   'sucos.retinol': ilustrativa('sucos/retinol', 'Copo de suco Retinol, de cenoura, limão e cúrcuma'),
   'sucos.green': ilustrativa('sucos/green', 'Copo de suco verde com couve, laranja, kiwi, hortelã e abacaxi'),
-  'sucos.antioxidant': ilustrativa('sucos/antioxidant', 'Copo de suco de frutas vermelhas, limão e melancia'),
+  'sucos.antioxidant': ilustrativa('sucos/vitalidade', 'Copo de suco de beterraba, cenoura e laranja'),
   'cafes_gelados.matcha_latte': ilustrativa('cafes-gelados/copo-matcha-latte', 'Copo de Matcha Latte com gelo, com o verde do matcha sobre o leite'),
   'cafes_gelados.matcha_geleia_de_morango': ilustrativa('cafes-gelados/copo-matcha-geleia-de-morango', 'Copo de Matcha Geleia de Morango com gelo, com camadas de matcha, leite e geleia'),
   'cafes_gelados.honey_latte': ilustrativa('cafes-gelados/copo-honey-latte', 'Copo de Honey Latte com gelo'),

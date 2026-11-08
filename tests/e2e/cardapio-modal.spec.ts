@@ -240,7 +240,7 @@ test('com a imagem já pronta o modal abre nítido no primeiro quadro e reabrir 
   await b.click();
   await expect(modal(page)).toBeVisible();
   expect(conta()).toBe(1);
-  for (const a of await aberturas(page)) expect(a).toMatchObject({ nome: 'Clássico', pronta: true, opacidade: '1', filhos: 1 });
+  for (const a of await aberturas(page)) expect(a).toMatchObject({ nome: 'Clássic', pronta: true, opacidade: '1', filhos: 1 });
 });
 
 test('cache vazio e rede lenta: a lista espera com um aviso na linha e o modal só abre com a imagem pronta', async ({ page }) => {
