@@ -88,6 +88,7 @@ body:has(.carta) { overflow-x: clip; }
 
 .adicional { margin-top: var(--s-18); padding: var(--s-14) var(--s-16) var(--s-8); border: 1.5px solid color-mix(in srgb, var(--wine) 40%, transparent); border-radius: var(--radius-control); }
 .adicional h3 { font: var(--t-pill); letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--wine); }
+.adicional__nota { margin-top: var(--s-6); font: var(--t-caption); color: var(--text-muted); line-height: 1.25; }
 .adicional .precos { padding-top: var(--s-6); }
 .adicional .precos li { min-height: 36px; padding-block: var(--s-6); }
 .adicionais { display: grid; gap: 0; }

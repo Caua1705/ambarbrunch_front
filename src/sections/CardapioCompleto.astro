@@ -68,6 +68,7 @@ const imediata = (categoria: CategoriaVista, n: number) => categoria === cardapi
           {c.adicionais.map((a: GrupoVista) => (
             <aside class="adicional" aria-label={a.nome}>
               <h3>{a.nome}</h3>
+              {a.nota && <p class="adicional__nota">{a.nota}</p>}
               <ul class="precos">
                 {a.itens.map((i) => <li data-item={i.id} data-preco={i.precoCentavos}><span class="precos__nome">{i.nome}</span><i aria-hidden="true"></i><span class="precos__valor">{i.preco}</span></li>)}
               </ul>
@@ -82,6 +83,7 @@ const imediata = (categoria: CategoriaVista, n: number) => categoria === cardapi
             {cardapio.adicionaisBebidas.map((a: GrupoVista) => (
               <aside class="adicional" aria-label={a.nome}>
                 <h3>{a.nome}</h3>
+                {a.nota && <p class="adicional__nota">{a.nota}</p>}
                 <ul class="precos">
                   {a.itens.map((i) => <li data-item={i.id} data-preco={i.precoCentavos}><span class="precos__nome">{i.nome}</span><i aria-hidden="true"></i><span class="precos__valor">{i.preco}</span></li>)}
                 </ul>

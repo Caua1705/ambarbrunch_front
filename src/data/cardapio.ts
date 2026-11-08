@@ -107,10 +107,11 @@ export interface CategoriaVista extends ApresentacaoCategoria {
   produtos: ProdutoVista[];
   adicionais: GrupoVista[];
 }
-export interface GrupoVista { id: string; nome: string; itens: { id: string; nome: string; preco: string; precoCentavos: number }[] }
+export interface GrupoVista { id: string; nome: string; nota: string | null; itens: { id: string; nome: string; preco: string; precoCentavos: number }[] }
 
+/** A observação só aparece em grupo de várias categorias (diz a quais vale); nos outros ela é nota interna do catálogo. */
 const grupoVista = (g: GrupoAdicionais): GrupoVista => ({
-  id: g.id, nome: g.nome,
+  id: g.id, nome: g.nome, nota: g.aplicavel_a.length > 1 ? g.observacao : null,
   itens: g.itens.map((i) => ({ id: i.id, nome: i.nome, preco: `+ ${formatarPreco(i.preco_centavos)}`, precoCentavos: i.preco_centavos })),
 });
 
@@ -123,7 +124,8 @@ function categoriaVista(c: CategoriaCatalogo, catalogo: Catalogo): CategoriaVist
   }));
   return {
     ...a, id: c.id, nome: c.nome, observacao: c.observacao, produtos,
-    adicionais: catalogo.adicionais.filter((g) => g.aplicavel_a.includes(c.id)).map(grupoVista),
+    // grupo de várias categorias aparece uma vez só, depois da última delas na ordem do cardápio
+    adicionais: catalogo.adicionais.filter((g) => catalogo.categorias.filter((k) => g.aplicavel_a.includes(k.id)).at(-1)?.id === c.id).map(grupoVista),
   };
 }
 

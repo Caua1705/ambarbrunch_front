@@ -49,6 +49,10 @@ Cafés e nos Cafés gelados.
 “Vitalidade / Beterraba, cenoura e laranja.” e saiu o “(fatia)” da Maçã com Crumble. Nenhum preço mudou. O PDF novo do dono (`MENU ÂMBAR .pdf`, 8/11) **não** foi usado: tem
 preços diferentes dos do site, e o site é a referência.
 
+**8/11/2026 (catálogo 2026-11-08.2):** grupo novo “Adicionais de pratos” (Bacon, Queijo brie, Geleia, Ovo), com `aplicavel_a` de quatro categorias. No site, um grupo de
+várias categorias aparece **uma vez só**, depois da última delas (Bowls), com a observação do catálogo como nota. O PDF continua o mesmo arquivo (mesmo sha256), só
+reassinado: ele **não** tem esse grupo, por ordem do dono (“não mexer no PDF agora”).
+
 **Diferença intencional, não é erro de sincronização:** o PDF tem 53 dos 57 produtos. Decisão do responsável em 6/11/2026: Tradicional, Mood Cheesecake, Kinder Bueno e Biscoff seguem ativos no catálogo, no site e no atendimento
 do WhatsApp, mas ficam fora deste PDF porque terão um cardápio próprio. Não acrescentá-los ao PDF nem removê-los do catálogo por causa dessa diferença.
 
