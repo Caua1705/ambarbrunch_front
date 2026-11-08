@@ -1,18 +1,20 @@
 // Registros de ponto: uma linha por pessoa e dia, do jeito que o backend calculou. Abrir a linha mostra as marcações, as
-// correções feitas e permite corrigir: nada é apagado ou substituído em silêncio.
+// correções feitas e permite corrigir: nada é apagado ou substituído em silêncio. Na mesma aba, o que precisa de revisão e o
+// histórico de correções (antes, a aba Correções): ?vista=revisar | correcoes.
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { Download, Plus } from 'lucide-preact';
 import { ErroApi } from '../../lib/api/cliente';
 import { baixarRelatorio, equipe, novaChave } from '../../lib/api/equipe';
 import { invalidar, useConsulta } from '../../lib/consulta';
 import { dataCurta, dataHora, hojeISO, horaDe, inicioMes, somarDias } from '../../lib/formato';
-import { lerParam } from '../../lib/rotas';
+import { gravarParams, lerParam } from '../../lib/rotas';
 import { ROTULO_BATIDA, type TipoBatida } from '../../../lib/ponto/contrato';
 import type { JornadaDetalhe, LinhaEspelho, Marcacao, PrevisaoEntrada, StatusDia } from '../../lib/tipos/equipe';
-import { Aviso, Botao, Campo, Cartao, Etiqueta, Situacao } from '../../ui/base';
+import { Aviso, Botao, Campo, Cartao, Etiqueta, Segmentado, Situacao } from '../../ui/base';
 import { avisar, avisarErro, Dialogo, Gaveta } from '../../ui/camadas';
 import { Dados, EsqueletoTabela, Vazio } from '../../ui/estados';
 import { Tabela, type Coluna } from '../../ui/tabela';
+import { CorrecoesFeitas, ParaRevisar, useFilasRevisao } from './Correcoes';
 import { JUSTIFICATIVA_MAX, JUSTIFICATIVA_MIN, minutos, ROTULO_AJUSTE, ROTULO_ORIGEM, ROTULO_SINAL, ROTULO_STATUS, TOM_STATUS, useFuncionariosAtivos, type PermissoesEquipe } from './comum';
 
 const TIPOS: TipoBatida[] = ['ENTRADA', 'INICIO_INTERVALO', 'FIM_INTERVALO', 'SAIDA'];
@@ -21,7 +23,34 @@ const PERIODOS = [{ v: 'hoje', r: 'Hoje' }, { v: 'semana', r: 'Últimos 7 dias' 
 /** Instante digitado é hora de Fortaleza, seja qual for o relógio do aparelho. */
 const paraInstante = (local: string) => `${local}:00-03:00`;
 
+export type VistaRegistros = 'registros' | 'revisar' | 'correcoes';
+const VISTAS: VistaRegistros[] = ['registros', 'revisar', 'correcoes'];
+export const lerVistaRegistros = (v: string | null): VistaRegistros => (VISTAS.includes(v as VistaRegistros) ? (v as VistaRegistros) : 'registros');
+
 export function Registros({ perm }: { perm: PermissoesEquipe }) {
+  const [vista, setVista] = useState<VistaRegistros>(() => lerVistaRegistros(lerParam('vista')));
+  useEffect(() => gravarParams({ vista: vista === 'registros' ? null : vista }), [vista]);
+  const { total } = useFilasRevisao();
+  return (
+    <div class="pilha">
+      <Segmentado
+        rotulo="Vista dos registros"
+        valor={vista}
+        aoMudar={setVista}
+        opcoes={[
+          { valor: 'registros', rotulo: 'Batidas' },
+          { valor: 'revisar', rotulo: <>Para revisar{total ? <span class="contador contador--atencao">{total}</span> : null}</> },
+          { valor: 'correcoes', rotulo: 'Correções feitas' },
+        ]}
+      />
+      {vista === 'registros' && <ListaRegistros perm={perm} />}
+      {vista === 'revisar' && <ParaRevisar perm={perm} />}
+      {vista === 'correcoes' && <CorrecoesFeitas />}
+    </div>
+  );
+}
+
+function ListaRegistros({ perm }: { perm: PermissoesEquipe }) {
   const hoje = hojeISO();
   const [periodo, setPeriodo] = useState<(typeof PERIODOS)[number]['v']>('semana');
   const [de, setDe] = useState(somarDias(hoje, -6));

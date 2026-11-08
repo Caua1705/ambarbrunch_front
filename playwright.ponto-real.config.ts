@@ -62,7 +62,7 @@ export default defineConfig({
     },
     {
       name: 'painel',
-      testMatch: /07-.*\.spec\.ts/,
+      testMatch: /(07|11)-.*\.spec\.ts/,
       dependencies: ['pessoa-cadastrada'],
       use: { browserName: 'chromium', viewport: { width: 1366, height: 860 } },
     },

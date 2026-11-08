@@ -34,6 +34,7 @@ Módulos e abas (paridade com o painel antigo):
 | Clube Âmbar | (ainda não lançado ao público; selo "em breve") |
 | Financeiro | Três abas (07/11/2026, ver 4f): Movimentações (despesas, outras receitas, contas a pagar, pagamentos), Pendências (Revisão da Júlia e Conciliação: Banco, Stone e recebíveis, Divergências) e Relatórios (Resultado, Despesas por categoria, Evolução; Fechamento e Vendas). Categorias e Fornecedores em Configurações → Financeiro |
 | Estoque | Estoque atual (saldos, situação, gaveta do insumo com histórico), Recebimentos (Júlia, nota, sem nota — uma conferência), Contagem (3 passos), Fichas e custos (fichas técnicas; CMV e custos); "Registrar movimento" (entrada, saída, ajuste); vendas canceladas depois da baixa numa gaveta |
+| Equipe | Três abas (08/11/2026, ver 4g): Hoje, Funcionários (dias e horários na ficha; Semana e escalas numa vista secundária) e Registros (batidas, Para revisar, Correções feitas). Tablets e Auditoria em Configurações → Ponto |
 
 **Unidade de negócio.** Toda consulta vai com `?unidade=<codigo>` da unidade do topo — o servidor do painel grava o
 cookie `ambar_painel_unidade` já no primeiro acesso, porque sem `unidade` o backend usa a unidade padrão DELE (na
@@ -168,7 +169,7 @@ backend; a tela mostra primeiro o essencial e o resto sob pedido (filtros recolh
 | Atendimento | Central única de conversas (02/11/2026): "Nova conversa", "Cardápio" e "Campanhas" no topo da coluna, avisos discretos só quando o assistente ou o envio estão desligados no servidor, busca, Todas · Esperando · Assistente · Equipe · Encerradas (contador em Esperando), falhas de envio só quando existem. Conversa: cabeçalho com Contato (ficha em gaveta) e "…" (enviar template, follow-up), barra com o interruptor do assistente, Assumir e Encerrar. Sem indicadores e sem página Clientes. |
 | Financeiro | Três abas desde 07/11/2026 (ver 4f): Movimentações · Pendências · Relatórios. Sem o Resumo (o executivo é a Visão Geral). Endereços antigos redirecionados em `modulos/financeiro/index.tsx`. |
 | Estoque | Quatro áreas (02/11/2026, ver 4c): Estoque atual (tela inicial) · Recebimentos (Pendentes · Histórico) · Contagem (3 passos) · Fichas e custos (Fichas técnicas · CMV e custos). Uma ação principal em todas: "Registrar movimento". Baixa automática mostrada como está no backend (hoje desligada). |
-| Configurações | Grupos ao lado: Conta e aparência · Agenda e ambientes · Equipe e acessos · Atendimento · Financeiro (Categorias e Fornecedores; atalhos para contas fixas, taxas e contas bancárias). |
+| Configurações | Grupos ao lado: Conta e aparência · Agenda e ambientes · Equipe e acessos · Atendimento · Financeiro (Categorias e Fornecedores; atalhos para contas fixas, taxas e contas bancárias) · Ponto: tablets e auditoria (só quem tem `ponto.dispositivos` ou `auditoria.visualizar`, hoje o Proprietário). |
 
 Decisões registradas:
 
@@ -421,6 +422,44 @@ Endereços antigos (`abaDaUrl` em `modulos/financeiro/index.tsx`; a URL é reesc
 
 Testes: `tests-painel/financeiro.spec.ts` (abas, endereços antigos, filtros, criar despesa e receita, pagar sem duplicar,
 contadores, Relatórios, Configurações), `financeiro-revisao`, `financeiro-categorias`, `estoque-compras` e `responsivo`.
+
+## 4g. Equipe em três abas (08/11/2026)
+
+Pedido do dono: de 7 abas (Hoje, Funcionários, Escalas, Registros, Correções, Tablets, Auditoria) para 3, sem mexer no
+backend do ponto, no reconhecimento facial nem na Z-API. Nenhuma rota, tabela ou histórico foi removido.
+
+| Aba | O que tem |
+|---|---|
+| Hoje | Presentes agora (de N ativos), Em intervalo, Atrasados, Ausentes; botão Registro assistido; aviso "N registros de ponto precisam de revisão" quando há; listas Presentes · Atrasados e ausentes · Ainda não chegaram. |
+| Funcionários | Lista com "Dias e horários". Novo funcionário: Nome completo, Função e Dias de trabalho (dias como botões, entrada e saída; "Mesmo horário em todos os dias" desmarcável para horário por dia; "Tem intervalo previsto" opcional, nunca presumido). "Dados adicionais" (fechado): Nome no tablet (gerado do nome: primeiro nome, ou + inicial do sobrenome se repetir), Data de admissão (padrão hoje), Telefone, E-mail, Matrícula (opcional), registro com o gestor. Ficha: Editar · Dias e horários · Cadastro facial (só `ponto.biometria`) · Histórico; registro assistido, registros de ponto, inativar. "Semana e escalas" (`?vista=escalas`): a semana com folga ou troca de um dia e as escalas compartilhadas (criar, mudar horário, atribuir, desfazer atribuição futura), as mesmas telas de antes. |
+| Registros | `?vista=` Batidas (o espelho, Exportar CSV) · Para revisar (Precisam de revisão e Tipo a conferir, últimos 30 dias; contador também na aba) · Correções feitas (histórico com responsável e justificativa, Exportar CSV). Corrigir, incluir, anular e corrigir previsão continuam no dia aberto, com justificativa e auditoria. |
+
+**Dias e horários sobre as escalas que já existem** (`modulos/equipe/horario.ts` e `DiasHorarios.tsx`). No backend a
+escala é um plano compartilhado e a pessoa entra por atribuição, de hoje em diante. Ao salvar na ficha:
+
+- escala só da pessoa (ninguém mais nela, fixa e ativa) → nova versão da mesma escala a partir da data (`POST /escalas/{id}/versoes`);
+- sem escala ou em escala compartilhada → escala própria "Horário de <nome completo>" (`POST /escalas`) e atribuição
+  (`POST /escalas/{id}/atribuicoes`). Se já existe uma com esse nome e sem ninguém (tentativa anterior), ela é
+  reaproveitada: nunca duplica. Os outros da escala compartilhada não mudam, e a tela avisa antes;
+- quem entrou na escala atual HOJE só troca de escala a partir de amanhã (o backend recusa sobreposição); a tela já propõe amanhã;
+- mudança de escala já marcada para o futuro bloqueia o salvar até ser desfeita (botão "Desfazer mudança marcada" na própria gaveta);
+- "Opções avançadas" (fechado): Vale a partir de, Tolerância de atraso (padrão 10 min, a mesma do formulário antigo) e
+  "Usar um horário compartilhado" (atribui a uma escala existente, sem criar outra).
+
+| Endereço antigo | Agora |
+|---|---|
+| `/admin/equipe?aba=escalas` | `?aba=funcionarios&vista=escalas` |
+| `?aba=correcoes` | `?aba=registros&vista=revisar` |
+| `?aba=tablets` | `/admin/configuracoes?secao=ponto` |
+| `?aba=auditoria` | `/admin/configuracoes?secao=ponto&item=auditoria` |
+
+Tablet do café (o gestor cadastra ali): com a Equipe aberta, `<html data-equipe>` (`modulos/equipe/tablet.ts`) faz a
+gaveta e os diálogos ocuparem só a área visível quando o teclado do Android abre e rola o campo tocado para o meio; em tela
+de toque, campos de 48 px e texto de 16 px. Nada disso vale fora da Equipe e de Configurações → Ponto.
+
+Testes: `tests-ponto-real/` contra o backend real local (`playwright.ponto-real.config.ts`); `11-equipe-simples.spec.ts`
+cobre as três abas, cadastro com dias e horários, horário por dia e intervalo sem duplicar escala, horário compartilhado,
+opções avançadas, editar, histórico, Registros, endereços antigos e o formulário no tablet em pé.
 
 ## 6. Rodar, testar
 

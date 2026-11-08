@@ -34,7 +34,7 @@ test.describe.serial('Gestão', () => {
     expect(inclusao.ok(), await inclusao.text()).toBeTruthy();
 
     await entrar(page, 'gerente');
-    await page.goto('/admin/equipe?aba=correcoes');
+    await page.goto('/admin/equipe?aba=registros&vista=revisar');
     const fila = page.getByRole('list', { name: 'Precisam de revisão' });
     await expect(fila).toContainText('Caio');
     await fila.getByRole('button', { name: 'Abrir' }).first().click();
@@ -63,7 +63,7 @@ test.describe.serial('Gestão', () => {
 
   test('17. auditoria mostra quem fez, só para o Proprietário', async ({ page }) => {
     await entrar(page, 'dono');
-    await page.goto('/admin/equipe?aba=auditoria');
+    await page.goto('/admin/configuracoes?secao=ponto&item=auditoria');
     const tabela = page.getByRole('table', { name: 'Auditoria' });
     await expect(tabela).toContainText('Gerente');
     await page.getByLabel('Área').selectOption('equipe_dispositivo');
@@ -94,8 +94,8 @@ test.describe.serial('Gestão', () => {
     }
 
     await entrar(page, 'gerente');
-    await page.goto('/admin/equipe?aba=escalas');
-    await page.getByText('Escalas cadastradas', { exact: true }).first().click();
+    await page.goto('/admin/equipe?aba=funcionarios&vista=escalas');
+    await page.getByRole('button', { name: 'Escalas cadastradas' }).click();
     const item = page.getByRole('listitem').filter({ hasText: tarde });
     await expect(item).toContainText('Fábio entra a partir de');
     await item.getByRole('button', { name: 'Desfazer' }).click();
@@ -155,7 +155,13 @@ test.describe.serial('Gestão', () => {
     await expect(page.getByRole('tab', { name: 'Tablets' })).toHaveCount(0);
     await expect(page.getByRole('tab', { name: 'Auditoria' })).toHaveCount(0);
     await page.getByRole('cell', { name: 'Ana Homolog' }).click();
-    await expect(page.getByRole('link', { name: /rosto|Recadastrar/i })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: /Cadastro facial|rosto|Recadastrar/i })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Dias e horários' })).toBeVisible();
+    await page.goto('/admin/configuracoes');
+    await expect(page.getByRole('button', { name: /Ponto/ })).toHaveCount(0);
+    await page.goto('/admin/configuracoes?secao=ponto');
+    await expect(page.getByRole('heading', { name: 'Conta e aparência' })).toBeVisible();
+    await expect(page.getByText('Tablets autorizados')).toHaveCount(0);
     await page.goto('/admin/equipe/cadastro-facial?funcionario=x');
     await expect(page.getByRole('heading', { name: 'Sem acesso' }).or(page.getByText('não tem acesso'))).toBeVisible();
     const token = await tokenPainel(request, 'gerente');
@@ -229,11 +235,17 @@ test.describe.serial('Gestão', () => {
     await page.getByRole('button', { name: 'Abrir menu' }).click();
     await page.getByRole('link', { name: 'Equipe' }).click();
     await expect(page.getByRole('tab', { name: 'Hoje' })).toBeVisible();
-    for (const aba of ['hoje', 'funcionarios', 'escalas', 'registros', 'correcoes', 'tablets', 'auditoria']) {
+    for (const aba of ['hoje', 'funcionarios', 'funcionarios&vista=escalas', 'registros', 'registros&vista=revisar', 'registros&vista=correcoes']) {
       await page.goto(`/admin/equipe?aba=${aba}`);
       await expect(page.getByRole('tabpanel')).toBeVisible();
       await page.waitForTimeout(400);
       expect(await semRolagemHorizontal(page), aba).toBe(true);
+    }
+    for (const item of ['tablets', 'auditoria']) {
+      await page.goto(`/admin/configuracoes?secao=ponto&item=${item}`);
+      await expect(page.getByRole('heading', { name: 'Ponto: tablets e auditoria' })).toBeVisible();
+      await page.waitForTimeout(400);
+      expect(await semRolagemHorizontal(page), item).toBe(true);
     }
   });
 
@@ -242,8 +254,11 @@ test.describe.serial('Gestão', () => {
     const painel = await (await request.get(`${API}/admin/ponto/painel`, { headers: cab(token) })).json();
     await entrar(page, 'dono');
     await page.goto('/admin/equipe');
-    const cartao = page.locator('.indicador', { hasText: 'Funcionários ativos' });
-    await expect(cartao).toContainText(String(painel.indicadores.funcionarios_ativos));
+    const cartao = page.locator('.indicador', { hasText: 'Presentes agora' });
+    await expect(cartao).toContainText(String(painel.indicadores.presentes));
+    await expect(cartao).toContainText(`de ${painel.indicadores.funcionarios_ativos}`);
+    for (const rotulo of ['Em intervalo', 'Atrasados', 'Ausentes']) await expect(page.locator('.indicador', { hasText: rotulo })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Registro assistido' })).toBeVisible();
     expect(painel.data).toBe(hojeFortaleza());
   });
 });

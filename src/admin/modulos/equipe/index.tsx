@@ -1,6 +1,7 @@
-// Equipe: visão de hoje, funcionários, escalas, registros de ponto, correções, tablets e auditoria. A aba vive na URL. O
-// painel só esconde o que daria 403: quem decide é o backend. Com o módulo desligado no backend, todas as áreas mostram isso
-// de forma honesta, sem dados de exemplo.
+// Equipe em três abas: Hoje, Funcionários (com dias e horários na ficha; escalas compartilhadas e semana em ?vista=escalas)
+// e Registros (batidas, o que precisa de revisão e as correções feitas). Tablets e Auditoria moram em Configurações →
+// Ponto. Endereços antigos continuam valendo (abaDaUrl). O painel só esconde o que daria 403: quem decide é o backend. Com o
+// módulo desligado no backend, a área mostra isso de forma honesta, sem dados de exemplo.
 import '../../estilos/equipe.css';
 import { useEffect, useState } from 'preact/hooks';
 import { ClockAlert } from 'lucide-preact';
@@ -14,36 +15,59 @@ import { Esqueleto, Vazio } from '../../ui/estados';
 import { permissoesEquipe } from './comum';
 import { Hoje } from './Hoje';
 import { Funcionarios } from './Funcionarios';
-import { Escalas } from './Escalas';
 import { Registros } from './Registros';
-import { Correcoes } from './Correcoes';
-import { Tablets } from './Tablets';
-import { Auditoria } from './Auditoria';
+import { useFilasRevisao } from './Correcoes';
+import { useTecladoNaTela } from './tablet';
 
-type Aba = 'hoje' | 'funcionarios' | 'escalas' | 'registros' | 'correcoes' | 'tablets' | 'auditoria';
+type Aba = 'hoje' | 'funcionarios' | 'registros';
+
+export const hrefPonto = (item?: 'auditoria') => `/admin/configuracoes?secao=ponto${item ? `&item=${item}` : ''}`;
+
+/** Aba e vista a partir da URL, inclusive dos endereços de antes das três abas. `redirecionar`: a área mudou de lugar. */
+function abaDaUrl(): { aba: Aba; vista?: string; redirecionar?: string } {
+  const aba = lerParam('aba');
+  if (aba === 'funcionarios' || aba === 'registros') return { aba };
+  if (aba === 'escalas') return { aba: 'funcionarios', vista: 'escalas' };
+  if (aba === 'correcoes') return { aba: 'registros', vista: 'revisar' };
+  if (aba === 'tablets') return { aba: 'hoje', redirecionar: hrefPonto() };
+  if (aba === 'auditoria') return { aba: 'hoje', redirecionar: hrefPonto('auditoria') };
+  return { aba: 'hoje' };
+}
 
 export default function Equipe({ contexto }: { contexto: ContextoPainel }) {
   const perm = permissoesEquipe(contexto.usuario.papel);
-  const abas: { id: Aba; rotulo: string }[] = [
+  const painel = useConsulta('equipe:painel', () => equipe.painel());
+  const desligado = painel.erro?.codigo === 'ponto_desativado';
+  const filas = useFilasRevisao(!desligado);
+  const abas: { id: Aba; rotulo: string; contagem?: number | null }[] = [
     { id: 'hoje', rotulo: 'Hoje' },
     { id: 'funcionarios', rotulo: 'Funcionários' },
-    { id: 'escalas', rotulo: 'Escalas' },
-    { id: 'registros', rotulo: 'Registros' },
-    { id: 'correcoes', rotulo: 'Correções' },
-    ...(perm.dispositivos ? [{ id: 'tablets' as const, rotulo: 'Tablets' }] : []),
-    ...(perm.auditoria ? [{ id: 'auditoria' as const, rotulo: 'Auditoria' }] : []),
+    { id: 'registros', rotulo: 'Registros', contagem: filas.total },
   ];
   const [aba, setAba] = useState<Aba | null>(null);
+  // Tocar na aba (mesmo a atual) volta à vista principal dela: o painel remonta.
+  const [volta, setVolta] = useState(0);
+  useTecladoNaTela();
   useEffect(() => {
-    const lida = lerParam('aba');
-    setAba(abas.some((a) => a.id === lida) ? (lida as Aba) : 'hoje');
+    const lida = abaDaUrl();
+    if (lida.redirecionar) {
+      location.replace(lida.redirecionar);
+      return;
+    }
+    if (lida.vista) gravarParams({ vista: lida.vista });
+    setAba(lida.aba);
   }, []);
   useEffect(() => {
     if (aba) gravarParams({ aba: aba === 'hoje' ? null : aba });
   }, [aba]);
-  const painel = useConsulta('equipe:painel', () => equipe.painel());
+  /** Trocar de aba limpa o que era da anterior (vista, pessoa aberta ou filtrada) antes de a nova ler a URL. */
+  const mudarAba = (nova: Aba, vista?: string) => {
+    gravarParams({ vista: vista ?? null, funcionario: null });
+    setAba(nova);
+    setVolta((v) => v + 1);
+  };
 
-  if (painel.erro?.codigo === 'ponto_desativado') {
+  if (desligado) {
     return (
       <Raiz>
         <Cartao>
@@ -58,16 +82,12 @@ export default function Equipe({ contexto }: { contexto: ContextoPainel }) {
   return (
     <Raiz>
       <div class="pilha">
-        {aba ? <Abas abas={abas} atual={aba} aoMudar={setAba} /> : <Esqueleto linhas={1} altura={36} />}
+        {aba ? <Abas abas={abas} atual={aba} aoMudar={(a) => mudarAba(a)} /> : <Esqueleto linhas={1} altura={36} />}
         {aba && (
-          <div role="tabpanel" id={`painel-${aba}`} aria-labelledby={`aba-${aba}`}>
-            {aba === 'hoje' && <Hoje consulta={painel} perm={perm} aoCadastrar={() => setAba('funcionarios')} />}
+          <div key={volta} role="tabpanel" id={`painel-${aba}`} aria-labelledby={`aba-${aba}`}>
+            {aba === 'hoje' && <Hoje consulta={painel} perm={perm} aoCadastrar={() => mudarAba('funcionarios')} aoRevisar={() => mudarAba('registros', 'revisar')} aRevisar={filas.total} />}
             {aba === 'funcionarios' && <Funcionarios perm={perm} />}
-            {aba === 'escalas' && <Escalas perm={perm} />}
             {aba === 'registros' && <Registros perm={perm} />}
-            {aba === 'correcoes' && <Correcoes perm={perm} />}
-            {aba === 'tablets' && <Tablets />}
-            {aba === 'auditoria' && <Auditoria />}
           </div>
         )}
       </div>

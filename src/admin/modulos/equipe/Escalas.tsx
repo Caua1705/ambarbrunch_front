@@ -1,5 +1,7 @@
-// Escalas: criar, novo horário a partir de uma data, atribuir pessoas, folgas e consulta da semana. Mudança de escala vale de
-// hoje em diante (regra do backend): dia passado só muda por exceção daquele dia, com motivo.
+// Semana e escalas (vista secundária de Funcionários, ?vista=escalas): a semana de todos, com folga ou troca de um dia, e as
+// escalas compartilhadas (criar, novo horário a partir de uma data, atribuir, desfazer atribuição futura). O dia a dia usa
+// "Dias e horários" na ficha de cada pessoa, sobre estas mesmas escalas. Mudança de escala vale de hoje em diante (regra do
+// backend): dia passado só muda por exceção daquele dia, com motivo.
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { CalendarDays, ChevronLeft, ChevronRight, Plus } from 'lucide-preact';
 import { ErroApi } from '../../lib/api/cliente';
@@ -57,7 +59,7 @@ function Semana({ perm }: { perm: PermissoesEquipe }) {
       <Dados consulta={consulta} esqueleto={<EsqueletoTabela />}>
         {(linhas) => {
           const pessoas = [...new Map(linhas.map((l) => [l.funcionario_id, l.nome_exibicao])).entries()];
-          if (!pessoas.length) return <Vazio titulo="Ninguém na semana">Cadastre funcionários e atribua uma escala.</Vazio>;
+          if (!pessoas.length) return <Vazio titulo="Ninguém na semana">Cadastre funcionários e defina os dias e horários na ficha de cada um.</Vazio>;
           return (
             <div class="tabela-rolagem">
               <table class="tabela equipe-semana" aria-label="Escala da semana">

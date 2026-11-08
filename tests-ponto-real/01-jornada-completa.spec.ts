@@ -24,11 +24,15 @@ test.describe.serial('Jornada completa', () => {
     await page.getByRole('button', { name: 'Cadastrar funcionário' }).click();
     await page.getByRole('button', { name: 'Novo funcionário' }).click();
     await page.getByLabel('Nome completo').fill('Ana Homolog');
-    await page.getByLabel('Nome no tablet').fill('Ana');
     await page.getByLabel('Função').fill('Barista');
+    // Nome no tablet sai do nome; fica em Dados adicionais, sem precisar abrir.
+    await expect(page.getByLabel('Nome no tablet')).toBeHidden();
     await page.getByRole('button', { name: 'Salvar' }).click();
-    await expect(page.getByRole('dialog', { name: 'Ana Homolog' })).toBeVisible();
-    await expect(page.getByRole('dialog', { name: 'Ana Homolog' }).getByText('Sem cadastro')).toBeVisible();
+    const ficha = page.getByRole('dialog', { name: 'Ana Homolog' });
+    await expect(ficha).toBeVisible();
+    await expect(ficha.getByText('Sem cadastro')).toBeVisible();
+    await expect(ficha.locator('dd', { hasText: /^Ana$/ })).toBeVisible();
+    await expect(ficha.getByText('Sem horário definido')).toBeVisible();
   });
 
   test('2. edita o cadastro', async () => {
@@ -39,8 +43,8 @@ test.describe.serial('Jornada completa', () => {
     await page.getByRole('dialog', { name: 'Ana Homolog' }).getByRole('button', { name: 'Fechar' }).click();
   });
 
-  test('4. cria escala e atribui', async () => {
-    await page.getByRole('tab', { name: 'Escalas' }).click();
+  test('4. cria escala compartilhada e atribui (Funcionários → Semana e escalas)', async () => {
+    await page.getByRole('button', { name: 'Semana e escalas' }).click();
     await page.getByRole('button', { name: 'Escalas cadastradas' }).click();
     await page.getByRole('button', { name: 'Criar escala' }).click();
     await page.getByLabel('Nome da escala').fill('Comercial');
@@ -68,7 +72,7 @@ test.describe.serial('Jornada completa', () => {
   test('5. cadastro facial supervisionado, com teste e confirmação do Proprietário', async () => {
     await page.getByRole('tab', { name: 'Funcionários' }).click();
     await page.getByRole('cell', { name: 'Ana Homolog' }).click();
-    await page.getByRole('link', { name: 'Cadastrar rosto' }).click();
+    await page.getByRole('link', { name: 'Cadastro facial' }).click();
     await expect(page).toHaveURL(/cadastro-facial/);
 
     const camera = page.getByRole('button', { name: 'Abrir câmera e capturar' });
@@ -85,7 +89,7 @@ test.describe.serial('Jornada completa', () => {
   });
 
   test('18a. cadastra tablet e autoriza este aparelho sem token no armazenamento', async () => {
-    await page.goto('/admin/equipe?aba=tablets');
+    await page.goto('/admin/configuracoes?secao=ponto');
     await page.getByRole('button', { name: 'Cadastrar tablet' }).first().click();
     await page.getByLabel('Nome do tablet').fill('Tablet do balcão');
     await page.getByRole('button', { name: 'Cadastrar', exact: true }).click();

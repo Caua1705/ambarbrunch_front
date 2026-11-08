@@ -1,10 +1,11 @@
 // Configurações (Proprietário e Gerente), em grupos numa lista ao lado: Conta e aparência; Agenda e ambientes (política
 // e ambientes das reservas, só Proprietário); Equipe e acessos (a equipe só para o Proprietário; os perfis para todos);
 // Atendimento (base de conhecimento da IA e cadastros duplicados, cada um na própria gaveta); Financeiro (os cadastros
-// Categorias e Fornecedores, mais atalhos para contas fixas, taxas e contas bancárias: CadastrosFinanceiro.tsx). Só o que tem
+// Categorias e Fornecedores, mais atalhos para contas fixas, taxas e contas bancárias: CadastrosFinanceiro.tsx); Ponto (tablets
+// autorizados e auditoria do ponto, só para quem tem ponto.dispositivos ou auditoria.visualizar: Ponto.tsx). Só o que tem
 // contrato no backend: contas novas e senhas só pela CLI, integrações sem rota de configuração — sem formulário de mentira.
 import { useEffect, useState } from 'preact/hooks';
-import { Sun, Moon, Monitor, LogOut, ShieldCheck, Pencil, CalendarCog, UserRound, Users, Wallet, ChevronRight, MessagesSquare, BookOpen, UsersRound } from 'lucide-preact';
+import { Sun, Moon, Monitor, LogOut, ShieldCheck, Pencil, CalendarCog, UserRound, Users, Wallet, ChevronRight, MessagesSquare, BookOpen, UsersRound, Tablet } from 'lucide-preact';
 import type { ContextoPainel, Papel } from '../../lib/sessao';
 import { NOME_PAPEL } from '../../lib/sessao';
 import { pode, podeVer } from '../../lib/permissoes';
@@ -18,13 +19,14 @@ import { Botao, Cartao, Segmentado, Campo, Aviso, Situacao } from '../../ui/base
 import { Dados, EsqueletoTabela } from '../../ui/estados';
 import { Equipe } from './Equipe';
 import { CadastrosFinanceiro } from './CadastrosFinanceiro';
+import { ConfiguracoesPonto, vePonto } from './Ponto';
 import { Conhecimento } from '../atendimento/Conhecimento';
 import { Duplicidades } from '../atendimento/Duplicidades';
 import { Tabela } from '../../ui/tabela';
 import type { AmbienteConfig, PoliticaReserva } from '../../lib/tipos/reservas';
 
 type Tema = 'claro' | 'escuro' | 'sistema';
-type Secao = 'conta' | 'agenda' | 'equipe' | 'atendimento' | 'financeiro';
+type Secao = 'conta' | 'agenda' | 'equipe' | 'atendimento' | 'financeiro' | 'ponto';
 
 export default function Configuracoes({ contexto }: { contexto: ContextoPainel }) {
   const { usuario, unidade, unidades } = contexto;
@@ -32,6 +34,7 @@ export default function Configuracoes({ contexto }: { contexto: ContextoPainel }
   const veFinanceiro = podeVer(usuario.papel, 'financeiro') && contexto.modulos.includes('financeiro');
   const veAtendimento = podeVer(usuario.papel, 'atendimento') && contexto.modulos.includes('atendimento');
   const veDuplicidades = pode(usuario.papel, 'clientes.visualizar');
+  const vePontoAqui = podeVer(usuario.papel, 'equipe') && contexto.modulos.includes('equipe') && vePonto(usuario.papel);
   const [gaveta, setGaveta] = useState<'conhecimento' | 'duplicidades' | null>(null);
   const { confirmar, elemento: dialogo } = useConfirmacao();
   const secoes: { id: Secao; rotulo: string; icone: typeof UserRound }[] = [
@@ -40,6 +43,7 @@ export default function Configuracoes({ contexto }: { contexto: ContextoPainel }
     { id: 'equipe', rotulo: 'Equipe e acessos', icone: Users },
     ...(veAtendimento ? [{ id: 'atendimento' as const, rotulo: 'Atendimento', icone: MessagesSquare }] : []),
     ...(veFinanceiro ? [{ id: 'financeiro' as const, rotulo: 'Financeiro', icone: Wallet }] : []),
+    ...(vePontoAqui ? [{ id: 'ponto' as const, rotulo: 'Ponto: tablets e auditoria', icone: Tablet }] : []),
   ];
   const [secao, setSecao] = useState<Secao>(() => {
     const s = lerParam('secao');
@@ -168,6 +172,8 @@ export default function Configuracoes({ contexto }: { contexto: ContextoPainel }
       )}
 
       {secao === 'financeiro' && veFinanceiro && <CadastrosFinanceiro contexto={contexto} />}
+
+      {secao === 'ponto' && vePontoAqui && <ConfiguracoesPonto papel={usuario.papel} />}
       </section>
       </div>
       {dialogo}

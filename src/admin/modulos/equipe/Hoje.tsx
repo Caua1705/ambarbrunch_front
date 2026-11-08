@@ -1,10 +1,11 @@
-// Visão de hoje: números e nomes reais do backend (GET /painel). Sem gráficos: quem está, quem falta, o que revisar.
+// Visão de hoje: números e nomes reais do backend (GET /painel). Só o essencial da operação: presença, intervalo, atrasos e
+// ausências, o atalho para o registro assistido e, se houver, o aviso do que espera revisão em Registros.
 import { useState } from 'preact/hooks';
-import { AlertTriangle, Clock, Coffee, UserCheck, UserPlus, UserX, Users, ClipboardCheck } from 'lucide-preact';
+import { Clock, Coffee, UserCheck, UserPlus, UserX, ClipboardCheck } from 'lucide-preact';
 import type { Consulta } from '../../lib/consulta';
 import type { LinhaEspelho, PainelEquipe } from '../../lib/tipos/equipe';
 import { horaDe } from '../../lib/formato';
-import { Botao, Cartao, Indicador, Situacao } from '../../ui/base';
+import { Aviso, Botao, Cartao, Indicador, Situacao } from '../../ui/base';
 import { Dados, Vazio } from '../../ui/estados';
 import { ROTULO_STATUS, TOM_STATUS, type PermissoesEquipe } from './comum';
 import { RegistroAssistido } from './Assistido';
@@ -37,7 +38,7 @@ function Pessoas({ titulo, linhas, vazio, hora }: { titulo: string; linhas: Linh
   );
 }
 
-export function Hoje({ consulta, perm, aoCadastrar }: { consulta: Consulta<PainelEquipe>; perm: PermissoesEquipe; aoCadastrar: () => void }) {
+export function Hoje({ consulta, perm, aoCadastrar, aoRevisar, aRevisar }: { consulta: Consulta<PainelEquipe>; perm: PermissoesEquipe; aoCadastrar: () => void; aoRevisar: () => void; aRevisar: number | null }) {
   const [assistido, setAssistido] = useState(false);
   return (
     <Dados consulta={consulta} recurso="O módulo Equipe">
@@ -59,23 +60,28 @@ export function Hoje({ consulta, perm, aoCadastrar }: { consulta: Consulta<Paine
         return (
           <div class="pilha">
             <div class="indicadores equipe-indicadores">
-              <Indicador rotulo="Funcionários ativos" icone={<Users aria-hidden="true" />} valor={i.funcionarios_ativos} />
-              <Indicador rotulo="Presentes agora" icone={<UserCheck aria-hidden="true" />} valor={i.presentes} />
+              <Indicador rotulo="Presentes agora" icone={<UserCheck aria-hidden="true" />} valor={i.presentes} rodape={`de ${i.funcionarios_ativos} ${i.funcionarios_ativos === 1 ? 'funcionário ativo' : 'funcionários ativos'}`} />
               <Indicador rotulo="Em intervalo" icone={<Coffee aria-hidden="true" />} valor={i.em_intervalo} />
               <Indicador rotulo="Atrasados" icone={<Clock aria-hidden="true" />} valor={i.atrasados} />
-              <Indicador rotulo="Ausentes" icone={<UserX aria-hidden="true" />} valor={i.ausentes} rodape="Conforme a escala" />
-              <Indicador rotulo="Precisam de revisão" icone={<AlertTriangle aria-hidden="true" />} valor={i.pendencias + i.a_conferir} rodape={i.a_conferir ? `${i.a_conferir} a conferir` : undefined} />
+              <Indicador rotulo="Ausentes" icone={<UserX aria-hidden="true" />} valor={i.ausentes} rodape="Conforme os dias e horários" />
             </div>
             {perm.ajustar && (
               <div class="linha">
-                <Botao icone={<ClipboardCheck aria-hidden="true" />} onClick={() => setAssistido(true)}>Registro assistido</Botao>
+                <Botao variante="primario" icone={<ClipboardCheck aria-hidden="true" />} onClick={() => setAssistido(true)}>Registro assistido</Botao>
               </div>
             )}
-            <div class="equipe-colunas">
+            {!!aRevisar && (
+              <Aviso tom="atencao">
+                <span class="linha linha--entre" style={{ width: '100%' }}>
+                  <span>{aRevisar === 1 ? '1 registro de ponto precisa de revisão.' : `${aRevisar} registros de ponto precisam de revisão.`}</span>
+                  <Botao tamanho="p" onClick={aoRevisar}>Revisar em Registros</Botao>
+                </span>
+              </Aviso>
+            )}
+            <div class="equipe-colunas equipe-colunas--tres">
               <Pessoas titulo="Presentes" linhas={[...p.presentes, ...p.em_intervalo]} vazio="Ninguém presente agora" hora={(l) => `desde ${horaDe(l.entrada)}`} />
               <Pessoas titulo="Atrasados e ausentes" linhas={[...p.atrasados, ...p.ausentes]} vazio="Nenhum atraso ou ausência" hora={(l) => (l.previsto.entrada ? `previsto ${horaDe(l.previsto.entrada)}` : '')} />
               <Pessoas titulo="Ainda não chegaram" linhas={p.ainda_nao_chegaram} vazio="Ninguém por chegar" hora={(l) => (l.previsto.entrada ? `previsto ${horaDe(l.previsto.entrada)}` : '')} />
-              <Pessoas titulo="Encerraram o dia" linhas={p.jornada_encerrada} vazio="Nenhuma jornada encerrada" hora={(l) => (l.saida ? `saiu ${horaDe(l.saida)}` : '')} />
             </div>
             <RegistroAssistido aberto={assistido} aoFechar={() => setAssistido(false)} />
           </div>
