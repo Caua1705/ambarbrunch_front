@@ -1,4 +1,5 @@
-// Conciliação: a ferramenta de conferência — não um dashboard. Três partes:
+// Conciliação: a ferramenta de conferência — não um dashboard. Fica em Pendências, que escolhe a parte (?vista=banco,
+// stone ou divergencias) no mesmo seletor da Revisão: aqui não há um segundo nível de navegação. Três partes:
 //  - Banco: extrato importado (OFX ou CSV; o backend recusa PDF e imagem) contra o Financeiro, uma decisão humana por
 //    movimentação. Data e valor iguais nunca bastam: o vínculo é sempre confirmado por alguém (Banco/Movimento).
 //  - Stone e recebíveis: vendido por meio (Eyemobile) × o que caiu no banco e foi vinculado (GET /conciliacao/repasses),
@@ -6,6 +7,8 @@
 //    cancelamento e estorno não são presumidos — e o painel não calcula "líquido esperado" (contrato ainda inexistente).
 //  - Divergências: o que precisa de alguém — possíveis duplicidades, mais de uma opção, sem registro, a classificar — e
 //    os meios com diferença de repasse.
+// Sem conta bancária cadastrada, cada parte mostra o caminho para cadastrar (o mesmo "Importar extrato", que cadastra a
+// conta antes do arquivo) em vez de uma tela vazia ou de um "recebido" que pareça zero.
 import { useEffect, useState } from 'preact/hooks';
 import { AlertTriangle, CircleCheck, Landmark, Info } from 'lucide-preact';
 import type { ContextoPainel } from '../../lib/sessao';
@@ -14,7 +17,7 @@ import { financeiro } from '../../lib/api/financeiro';
 import { moeda, dataCurta, hojeISO, fimMes, num, pct, mesAno } from '../../lib/formato';
 import { lerParam, gravarParams } from '../../lib/rotas';
 import { useConfirmacao } from '../../ui/camadas';
-import { Botao, Cartao, Segmentado, Situacao, Aviso } from '../../ui/base';
+import { Botao, Cartao, Situacao, Aviso } from '../../ui/base';
 import { Dados, EsqueletoTabela, Esqueleto, Vazio } from '../../ui/estados';
 import { Tabela, type Coluna } from '../../ui/tabela';
 import type { MovimentoBancario, NivelConciliacao, TaxaPagamento } from '../../lib/tipos/financeiro';
@@ -24,8 +27,7 @@ import { ImportarExtrato } from './ImportarExtrato';
 import { Movimento } from './Movimento';
 import { Taxas } from './ContasFixas';
 
-type Vista = 'banco' | 'stone' | 'divergencias';
-const lerVista = (v: string | null): Vista => (v === 'stone' || v === 'divergencias' ? v : 'banco');
+export type VistaConciliacao = 'banco' | 'stone' | 'divergencias';
 
 /** Meio do relatório de repasses (cartão junta crédito e débito) → meios das taxas cadastradas. */
 const MEIO_REPASSE: Record<string, { rotulo: string; taxas: string[] }> = {
@@ -43,41 +45,31 @@ function intervaloDoMes(mes: string) {
   return { de, ate };
 }
 
-export function Conciliacao({ contexto }: { contexto: ContextoPainel }) {
-  const [vista, setVista] = useState<Vista>(() => lerVista(lerParam('vista')));
+export function Conciliacao({ contexto, vista, aoMudarVista }: { contexto: ContextoPainel; vista: VistaConciliacao; aoMudarVista: (v: VistaConciliacao) => void }) {
   const [mes, setMes] = useState(() => (/^\d{4}-\d{2}$/.test(lerParam('mes') ?? '') ? lerParam('mes')! : hojeISO().slice(0, 7)));
   const [importar, setImportar] = useState(false);
   const [importacao, setImportacao] = useState<string | null>(null);
   const { confirmar, elemento: dialogo } = useConfirmacao();
   const lancar = temPermissao(contexto.usuario, 'financeiro.lancar');
-  useEffect(() => gravarParams({ vista: vista === 'banco' ? null : vista, mes: mes === hojeISO().slice(0, 7) ? null : mes }), [vista, mes]);
+  useEffect(() => gravarParams({ mes: mes === hojeISO().slice(0, 7) ? null : mes }), [mes]);
+  const aoImportar = () => setImportar(true);
 
   return (
     <>
-      <div class="barra-ferramentas">
-        <Segmentado<Vista>
-          rotulo="Conciliação"
-          valor={vista}
-          aoMudar={setVista}
-          opcoes={[
-            { valor: 'banco', rotulo: 'Banco' },
-            { valor: 'stone', rotulo: 'Stone e recebíveis' },
-            { valor: 'divergencias', rotulo: 'Divergências' },
-          ]}
-        />
-        {vista !== 'banco' && (
-          <>
-            <label class="sr" for="mes-conciliacao">Mês</label>
+      {vista !== 'banco' && (
+        <div class="barra-ferramentas">
+          <label class="campo-inline" for="mes-conciliacao">
+            Mês
             <input id="mes-conciliacao" type="month" class="entrada entrada--data" value={mes} max={hojeISO().slice(0, 7)} onChange={(e) => e.currentTarget.value && setMes(e.currentTarget.value)} />
-          </>
-        )}
-      </div>
+          </label>
+        </div>
+      )}
 
-      {vista === 'banco' && <Banco importacao={importacao} aoLimparImportacao={() => setImportacao(null)} aoImportar={() => setImportar(true)} confirmar={confirmar} />}
-      {vista === 'stone' && <Stone mes={mes} lancar={lancar} />}
-      {vista === 'divergencias' && <Divergencias mes={mes} confirmar={confirmar} aoVerStone={() => setVista('stone')} />}
+      {vista === 'banco' && <Banco importacao={importacao} aoLimparImportacao={() => setImportacao(null)} aoImportar={aoImportar} confirmar={confirmar} />}
+      {vista === 'stone' && <Stone mes={mes} lancar={lancar} aoImportar={aoImportar} />}
+      {vista === 'divergencias' && <Divergencias mes={mes} confirmar={confirmar} aoVerStone={() => aoMudarVista('stone')} aoImportar={aoImportar} />}
 
-      <ImportarExtrato aberta={importar} aoFechar={() => setImportar(false)} aoVerDiferencas={(id) => { setImportar(false); setImportacao(id); setVista('banco'); }} />
+      <ImportarExtrato aberta={importar} aoFechar={() => setImportar(false)} aoVerDiferencas={(id) => { setImportar(false); setImportacao(id); aoMudarVista('banco'); }} />
       {dialogo}
     </>
   );
@@ -88,13 +80,34 @@ function taxaEmVigor(taxas: TaxaPagamento[], meio: string, em: string) {
   return taxas.filter((t) => t.meio === meio && t.vigente_de <= em).sort((a, b) => b.vigente_de.localeCompare(a.vigente_de))[0] ?? null;
 }
 
-function Stone({ mes, lancar }: { mes: string; lancar: boolean }) {
+/** A unidade ainda não tem conta bancária (mesmo estado que a parte Banco lê, da mesma consulta em cache). */
+function useSemConta(mes: string) {
+  const estado = useConsulta(`financeiro/conciliacao-mes:${mes}`, () => financeiro.conciliacaoMes(mes));
+  return estado.dados?.estado === 'sem_contas';
+}
+
+/** Chamada para cadastrar a conta: o assistente de importação cadastra a conta antes do arquivo. */
+function CadastrarConta({ aoImportar, children }: { aoImportar: () => void; children: string }) {
+  return (
+    <Vazio compacto icone={<Landmark aria-hidden="true" />} titulo="Nenhuma conta bancária cadastrada" acao={<Botao tamanho="p" variante="primario" onClick={aoImportar}>Cadastrar conta bancária</Botao>}>
+      {children}
+    </Vazio>
+  );
+}
+
+function Stone({ mes, lancar, aoImportar }: { mes: string; lancar: boolean; aoImportar: () => void }) {
   const { de, ate } = intervaloDoMes(mes);
   const repasses = useConsulta(`financeiro/repasses:${de}:${ate}`, () => financeiro.repasses(de, ate));
   const taxas = useConsulta('financeiro/taxas', () => financeiro.taxas());
   const [verTaxas, setVerTaxas] = useState(false);
+  const semConta = useSemConta(mes);
   return (
     <>
+      {semConta && (
+        <Cartao>
+          <CadastrarConta aoImportar={aoImportar}>Sem a conta e o extrato, o “recebido no banco” fica vazio e a diferença não quer dizer nada. Cadastre a conta (banco, apelido e os últimos dígitos) e importe o OFX ou CSV do mês.</CadastrarConta>
+        </Cartao>
+      )}
       <Cartao
         titulo={`Vendido × recebido · ${mesAno(de)}`}
         descricao="Vendido no PDV (Eyemobile) por meio × créditos do banco já vinculados a essas vendas"
@@ -184,13 +197,23 @@ async function divergentes(de: string, ate: string): Promise<MovimentoBancario[]
   return [...vistos.values()].sort((a, b) => NIVEL[a.nivel].ordem - NIVEL[b.nivel].ordem || b.data.localeCompare(a.data));
 }
 
-function Divergencias({ mes, confirmar, aoVerStone }: { mes: string; confirmar: ReturnType<typeof useConfirmacao>['confirmar']; aoVerStone: () => void }) {
+function Divergencias({ mes, confirmar, aoVerStone, aoImportar }: { mes: string; confirmar: ReturnType<typeof useConfirmacao>['confirmar']; aoVerStone: () => void; aoImportar: () => void }) {
   const { de, ate } = intervaloDoMes(mes);
   // O backend limita a conciliação a ~100 dias por consulta: um mês sempre cabe.
   const movs = useConsulta(`financeiro/movimentos?divergencias:${de}:${ate}`, () => divergentes(de, ate));
   const repasses = useConsulta(`financeiro/repasses:${de}:${ate}`, () => financeiro.repasses(de, ate));
   const [aberto, setAberto] = useState<string | null>(null);
-  const comDiferenca = (repasses.dados?.meios ?? []).filter((m) => Math.abs(num(m.diferenca_a_conferir) ?? 0) >= 0.01 && (num(m.vendido) ?? 0) > 0);
+  const semConta = useSemConta(mes);
+  // Sem conta, todo o vendido "falta receber": não é divergência, é falta de extrato.
+  const comDiferenca = semConta ? [] : (repasses.dados?.meios ?? []).filter((m) => Math.abs(num(m.diferenca_a_conferir) ?? 0) >= 0.01 && (num(m.vendido) ?? 0) > 0);
+
+  if (semConta) {
+    return (
+      <Cartao>
+        <CadastrarConta aoImportar={aoImportar}>As divergências vêm do extrato bancário. Cadastre a conta (banco, apelido e os últimos dígitos) e importe o OFX ou CSV do mês.</CadastrarConta>
+      </Cartao>
+    );
+  }
 
   const colunas: Coluna<MovimentoBancario>[] = [
     { id: 'data', titulo: 'Data', prioridade: 'media', largura: '86px', ordenar: (m) => m.data, celula: (m) => <span class="num">{dataCurta(m.data)}</span> },
@@ -221,7 +244,7 @@ function Divergencias({ mes, confirmar, aoVerStone }: { mes: string; confirmar: 
               destaque={(m) => m.nivel === 'conflito'}
               vazio={
                 <Vazio compacto icone={lista.length ? <Landmark aria-hidden="true" /> : <CircleCheck aria-hidden="true" />} titulo="Nenhuma divergência no extrato deste mês">
-                  Sem extrato importado, nada aparece aqui: importe o OFX ou CSV na parte Banco.
+                  Sem extrato importado, nada aparece aqui: importe o OFX ou CSV em Banco.
                 </Vazio>
               }
             />

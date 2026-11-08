@@ -17,7 +17,7 @@ test('B4: com a aba B na Noite, a aba A (Café) consulta e lança no Café', asy
   const erros: string[] = [];
   a.on('pageerror', (e) => erros.push(e.message));
   await entrar(a, 'tecnica');
-  await a.goto(`${PAINEL}/admin/financeiro?aba=lancamentos`);
+  await a.goto(`${PAINEL}/admin/financeiro?aba=movimentacoes`);
   const topoA = a.locator('[data-unidade]');
   if ((await topoA.inputValue()) !== 'ambar_cafe') {
     await a.locator('#perfil button.perfil').click(); // a unidade mora no menu do perfil
@@ -28,7 +28,7 @@ test('B4: com a aba B na Noite, a aba A (Café) consulta e lança no Café', asy
   const antes = { cafe: await quantas('ambar_cafe'), noite: await quantas('ambar_noite') };
 
   const b = await context.newPage();
-  await b.goto(`${PAINEL}/admin/financeiro?aba=lancamentos`);
+  await b.goto(`${PAINEL}/admin/financeiro?aba=movimentacoes`);
   await b.locator('#perfil button.perfil').click();
   await b.locator('[data-unidade]').selectOption('ambar_noite');
   await b.waitForLoadState('load');

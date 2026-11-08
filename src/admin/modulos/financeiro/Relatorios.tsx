@@ -1,34 +1,31 @@
-// Relatórios e cadastros: o acesso secundário do Financeiro, num nível só (lista ao lado, sem sub-abas dentro de abas).
-// Relatórios: Resultado do mês (DRE gerencial, participação da Roll para o Proprietário), Despesas por categoria,
-// Evolução, Fechamento do mês e Vendas (Eyemobile). Cadastros: Categorias e Fornecedores. Taxas da adquirente: em
-// Conciliação → Stone e recebíveis, onde são usadas.
+// Relatórios: os relatórios gerenciais do Financeiro, numa lista ao lado (sem sub-abas dentro de abas). Primeiro os três
+// de uso diário — Resultado do mês (DRE gerencial, participação da Roll para o Proprietário), Despesas por categoria e
+// Evolução —; depois, num grupo discreto, Fechamento do mês e Vendas (Eyemobile). Os cadastros (Categorias,
+// Fornecedores) moram em Configurações → Financeiro; contas fixas em Movimentações → A pagar; taxas da adquirente em
+// Pendências → Stone e recebíveis, onde são usadas. ?relatorio= antigo de cadastro é levado a Configurações (index.tsx).
 import { useEffect, useState } from 'preact/hooks';
-import { FileBarChart, PieChart, TrendingUp, CalendarCheck2, ShoppingBag, Tags, Truck } from 'lucide-preact';
+import { FileBarChart, PieChart, TrendingUp, CalendarCheck2, ShoppingBag } from 'lucide-preact';
 import type { ContextoPainel } from '../../lib/sessao';
 import { lerParam, gravarParams } from '../../lib/rotas';
 import { Resultado, type VistaResultado } from './Resultado';
 import { Vendas } from './Vendas';
-import { Categorias } from './Categorias';
-import { Fornecedores } from './Fornecedores';
-import { temPermissao } from './comum';
 
-type Item = VistaResultado | 'vendas' | 'categorias' | 'fornecedores';
-const GRUPOS: { titulo: string; itens: { id: Item; rotulo: string; icone: typeof FileBarChart }[] }[] = [
+type Item = VistaResultado | 'vendas';
+const GRUPOS: { titulo: string; discreto?: boolean; itens: { id: Item; rotulo: string; icone: typeof FileBarChart }[] }[] = [
   {
-    titulo: 'Relatórios',
+    titulo: 'Principais',
     itens: [
       { id: 'resultado', rotulo: 'Resultado do mês', icone: FileBarChart },
       { id: 'por-categoria', rotulo: 'Despesas por categoria', icone: PieChart },
-      { id: 'evolucao', rotulo: 'Evolução', icone: TrendingUp },
-      { id: 'fechamento', rotulo: 'Fechamento do mês', icone: CalendarCheck2 },
-      { id: 'vendas', rotulo: 'Vendas (Eyemobile)', icone: ShoppingBag },
+      { id: 'evolucao', rotulo: 'Evolução financeira', icone: TrendingUp },
     ],
   },
   {
-    titulo: 'Cadastros',
+    titulo: 'Mais relatórios',
+    discreto: true,
     itens: [
-      { id: 'categorias', rotulo: 'Categorias', icone: Tags },
-      { id: 'fornecedores', rotulo: 'Fornecedores', icone: Truck },
+      { id: 'fechamento', rotulo: 'Fechamento do mês', icone: CalendarCheck2 },
+      { id: 'vendas', rotulo: 'Vendas (Eyemobile)', icone: ShoppingBag },
     ],
   },
 ];
@@ -38,16 +35,15 @@ const lerItem = (v: string | null): Item => (v && (TODOS as string[]).includes(v
 export function Relatorios({ contexto }: { contexto: ContextoPainel }) {
   const [item, setItem] = useState<Item>(() => lerItem(lerParam('relatorio')));
   useEffect(() => gravarParams({ relatorio: item === 'resultado' ? null : item }), [item]);
-  const lancar = temPermissao(contexto.usuario, 'financeiro.lancar');
   const atual = GRUPOS.flatMap((g) => g.itens).find((i) => i.id === item)!;
 
   return (
     <div class="sub-navegacao">
-      <nav class="sub-navegacao__menu" aria-label="Relatórios e cadastros">
-        {GRUPOS.map((g) => (
-          <div key={g.titulo} class="sub-navegacao__grupo">
-            <span class="sub-navegacao__titulo" id={`grupo-${g.titulo}`}>{g.titulo}</span>
-            <ul aria-labelledby={`grupo-${g.titulo}`}>
+      <nav class="sub-navegacao__menu" aria-label="Relatórios">
+        {GRUPOS.map((g, n) => (
+          <div key={g.titulo} class={`sub-navegacao__grupo${g.discreto ? ' sub-navegacao__grupo--discreto' : ''}`}>
+            <span class="sub-navegacao__titulo" id={`relatorios-grupo-${n}`}>{g.titulo}</span>
+            <ul aria-labelledby={`relatorios-grupo-${n}`}>
               {g.itens.map((i) => (
                 <li key={i.id}>
                   <button type="button" aria-current={i.id === item ? 'page' : undefined} onClick={() => { gravarParams({ mes: null, agrupar: null }); setItem(i.id); }}>
@@ -62,10 +58,7 @@ export function Relatorios({ contexto }: { contexto: ContextoPainel }) {
       </nav>
       <section class="sub-navegacao__conteudo pilha" aria-labelledby="relatorio-titulo">
         <h2 class="sub-navegacao__h2" id="relatorio-titulo">{atual.rotulo}</h2>
-        {(item === 'resultado' || item === 'por-categoria' || item === 'evolucao' || item === 'fechamento') && <Resultado contexto={contexto} vista={item} />}
-        {item === 'vendas' && <Vendas contexto={contexto} />}
-        {item === 'categorias' && <Categorias contexto={contexto} />}
-        {item === 'fornecedores' && <Fornecedores lancar={lancar} />}
+        {item === 'vendas' ? <Vendas contexto={contexto} /> : <Resultado contexto={contexto} vista={item} />}
       </section>
     </div>
   );

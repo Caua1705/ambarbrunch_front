@@ -70,18 +70,18 @@ async function consultar(fontes: string[]): Promise<Resultado> {
         const docs = f.documentos?.total ?? 0;
         const sem = f.despesas?.sem_categoria_total;
         const emRevisao = f.despesas?.total ?? 0;
-        if (docs > 0) avisos.push({ id: 'documentos', modulo: 'Financeiro', titulo: plural(docs, 'documento aguardando decisão', 'documentos aguardando decisão'), detalhe: 'Comprovantes e notas que a Júlia não resolveu', href: '/admin/financeiro?aba=revisao&filtro=documentos', prioridade: 1, quantidade: docs });
-        if (typeof sem === 'number' && sem > 0) avisos.push({ id: 'sem-categoria', modulo: 'Financeiro', titulo: plural(sem, 'despesa sem categoria', 'despesas sem categoria'), detalhe: 'Pagamento registrado; falta classificar', href: '/admin/financeiro?aba=revisao&filtro=sem', prioridade: 1, quantidade: sem });
+        if (docs > 0) avisos.push({ id: 'documentos', modulo: 'Financeiro', titulo: plural(docs, 'documento aguardando decisão', 'documentos aguardando decisão'), detalhe: 'Comprovantes e notas que a Júlia não resolveu', href: '/admin/financeiro?aba=pendencias&filtro=documentos', prioridade: 1, quantidade: docs });
+        if (typeof sem === 'number' && sem > 0) avisos.push({ id: 'sem-categoria', modulo: 'Financeiro', titulo: plural(sem, 'despesa sem categoria', 'despesas sem categoria'), detalhe: 'Pagamento registrado; falta classificar', href: '/admin/financeiro?aba=pendencias&filtro=sem', prioridade: 1, quantidade: sem });
         // `sem_categoria_total` é parte das despesas em revisão (mesma situação no backend): o resto é conferência.
         const outras = typeof sem === 'number' ? emRevisao - sem : emRevisao;
-        if (outras > 0) avisos.push({ id: 'despesas-revisao', modulo: 'Financeiro', titulo: plural(outras, 'despesa para conferir', 'despesas para conferir'), detalhe: 'Valor, data ou fornecedor a confirmar', href: '/admin/financeiro?aba=revisao&filtro=despesas', prioridade: 1, quantidade: outras });
+        if (outras > 0) avisos.push({ id: 'despesas-revisao', modulo: 'Financeiro', titulo: plural(outras, 'despesa para conferir', 'despesas para conferir'), detalhe: 'Valor, data ou fornecedor a confirmar', href: '/admin/financeiro?aba=pendencias&filtro=despesas', prioridade: 1, quantidade: outras });
       }),
       pedir<{ contas?: Record<'vencidas' | 'hoje', { qtd: number; valor: string }>; conciliacao_mes_anterior?: { texto: string } | null }>('financeiro/resumo').then((r) => {
         const v = r.contas?.vencidas;
-        if (v && v.qtd > 0) avisos.push({ id: 'vencidas', modulo: 'Financeiro', titulo: plural(v.qtd, 'conta vencida', 'contas vencidas'), detalhe: `${moeda(v.valor)} em aberto`, href: '/admin/financeiro?aba=contas&situacao=vencidas', prioridade: 0, quantidade: v.qtd });
+        if (v && v.qtd > 0) avisos.push({ id: 'vencidas', modulo: 'Financeiro', titulo: plural(v.qtd, 'conta vencida', 'contas vencidas'), detalhe: `${moeda(v.valor)} em aberto`, href: '/admin/financeiro?tipo=a-pagar&situacao=vencidas', prioridade: 0, quantidade: v.qtd });
         const h = r.contas?.hoje;
-        if (h && h.qtd > 0) avisos.push({ id: 'vence-hoje', modulo: 'Financeiro', titulo: plural(h.qtd, 'conta vence hoje', 'contas vencem hoje'), detalhe: moeda(h.valor), href: '/admin/financeiro?aba=contas&situacao=hoje', prioridade: 1, quantidade: h.qtd });
-        if (r.conciliacao_mes_anterior) avisos.push({ id: 'conciliacao', modulo: 'Financeiro', titulo: 'Conciliação bancária do mês anterior incompleta', detalhe: r.conciliacao_mes_anterior.texto, href: '/admin/financeiro?aba=conciliacao', prioridade: 3, quantidade: 1 });
+        if (h && h.qtd > 0) avisos.push({ id: 'vence-hoje', modulo: 'Financeiro', titulo: plural(h.qtd, 'conta vence hoje', 'contas vencem hoje'), detalhe: moeda(h.valor), href: '/admin/financeiro?tipo=a-pagar&situacao=hoje', prioridade: 1, quantidade: h.qtd });
+        if (r.conciliacao_mes_anterior) avisos.push({ id: 'conciliacao', modulo: 'Financeiro', titulo: 'Conciliação bancária do mês anterior incompleta', detalhe: r.conciliacao_mes_anterior.texto, href: '/admin/financeiro?aba=pendencias&vista=banco', prioridade: 3, quantidade: 1 });
       }),
     );
   }

@@ -401,7 +401,8 @@ function calcularMes(mes: string): ResultadoMes {
   const hoje = hojeFortaleza();
   const de = `${mes}-01`;
   const ate = ultimoDia(mes) > hoje ? hoje : ultimoDia(mes);
-  const mesAnteriorInfo = mes === mesMais(mesDe(hoje), -7) ? null : evolucaoMes(mesMais(mes, -1));
+  // Para no 7º mês para trás (ou antes dele): a Evolução pede 12 meses, e com `===` os mais antigos desciam sem fim.
+  const mesAnteriorInfo = mes <= mesMais(mesDe(hoje), -7) ? null : evolucaoMes(mesMais(mes, -1));
   const anterior = { mes: `${mesMais(mes, -1)}-01`, receita_liquida: mesAnteriorInfo?.receita_liquida ?? null, resultado_gerencial: mesAnteriorInfo?.resultado_gerencial ?? null, qualidade: mesAnteriorInfo?.qualidade ?? 'indisponivel' };
   if (!temVendas(de, ate)) return { mes: de, unidade_negocio_id: 1, disponivel: false, qualidade: { nivel: 'indisponivel', motivos: [{ nivel: 'indisponivel', codigo: 'vendas_nao_sincronizadas', texto: 'Não há vendas do PDV sincronizadas neste mês.' }] }, mes_anterior: anterior };
   const vendas = E.vendas.filter((v) => v.dia >= de && v.dia <= ate);

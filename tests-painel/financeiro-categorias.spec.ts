@@ -17,7 +17,7 @@ const escrever = { 'X-Painel': '1', 'Content-Type': 'application/json', Origin: 
 const SETE = ['Insumos', 'Embalagens', 'Folha', 'Fixo', 'Operacional', 'Obras e equipamentos', 'Tributos'];
 
 async function opcoesDaNovaDespesa(page: Page) {
-  await page.goto(`${DEMO}/admin/financeiro?aba=lancamentos`);
+  await page.goto(`${DEMO}/admin/financeiro`);
   await page.getByRole('button', { name: 'Nova despesa' }).click();
   const gaveta = page.getByRole('dialog', { name: 'Nova despesa' });
   const select = gaveta.getByLabel('Categoria');
@@ -34,7 +34,7 @@ test.beforeEach(async ({ page }) => {
 test.afterEach(() => expect(erros).toEqual([]));
 
 test('as 7 categorias do Âmbar vêm da API, com grupo, apelidos e uso; os seletores só oferecem elas', async ({ page }) => {
-  await page.goto(`${DEMO}/admin/financeiro?aba=categorias`);
+  await page.goto(`${DEMO}/admin/configuracoes?secao=financeiro&cadastro=categorias`);
   const ativas = page.getByRole('list', { name: 'Categorias ativas' });
   for (const nome of SETE) await expect(ativas.locator('li', { hasText: nome }).first()).toBeVisible();
   await expect(ativas.locator('[data-categoria]')).toHaveCount(7);
@@ -53,7 +53,7 @@ test('as 7 categorias do Âmbar vêm da API, com grupo, apelidos e uso; os selet
 });
 
 test('categoria nova: criada no banco, aparece nos seletores e vale para a Júlia na hora', async ({ page }) => {
-  await page.goto(`${DEMO}/admin/financeiro?aba=categorias`);
+  await page.goto(`${DEMO}/admin/configuracoes?secao=financeiro&cadastro=categorias`);
   await page.getByRole('button', { name: 'Nova categoria' }).click();
   const gaveta = page.getByRole('dialog', { name: 'Nova categoria' });
   await gaveta.getByLabel('Nome').fill('Eventos e Decoração');
@@ -93,13 +93,13 @@ test('categoria nova: criada no banco, aparece nos seletores e vale para a Júli
 
   expect(await opcoesDaNovaDespesa(page)).toContain('Eventos');
   // E na Revisão (o seletor que a gerência usa para documentos da Júlia).
-  await page.goto(`${DEMO}/admin/financeiro?aba=revisao`);
+  await page.goto(`${DEMO}/admin/financeiro?aba=pendencias`);
   await page.getByRole('button', { name: /ENEL/ }).click();
   await expect(page.getByRole('dialog').getByRole('region', { name: 'Registrar como despesa' }).getByLabel('Categoria').locator('option', { hasText: 'Eventos' })).toHaveCount(1);
 });
 
 test('categoria desativada na unidade: some dos seletores, lançamento novo é recusado, os antigos ficam', async ({ page }) => {
-  await page.goto(`${DEMO}/admin/financeiro?aba=categorias`);
+  await page.goto(`${DEMO}/admin/configuracoes?secao=financeiro&cadastro=categorias`);
   const ativas = page.getByRole('list', { name: 'Categorias ativas' });
   await ativas.locator('[data-categoria="embalagens"]').getByRole('button', { name: 'Desativar aqui' }).click();
   await page.getByRole('alertdialog', { name: /Desativar “Embalagens”/ }).getByRole('button', { name: 'Desativar' }).click();
@@ -117,7 +117,7 @@ test('categoria desativada na unidade: some dos seletores, lançamento novo é r
   expect(teste.map((c: { codigo: string }) => c.codigo)).toContain('embalagens');
 
   // Reativa (deixa a demonstração como estava).
-  await page.goto(`${DEMO}/admin/financeiro?aba=categorias`);
+  await page.goto(`${DEMO}/admin/configuracoes?secao=financeiro&cadastro=categorias`);
   await (await inativas(page)).locator('[data-categoria="embalagens"]').getByRole('button', { name: 'Ativar aqui' }).click();
   await page.getByRole('dialog', { name: /Ativar “Embalagens”/ }).getByRole('button', { name: 'Ativar' }).click();
   await expect(page.getByRole('list', { name: 'Categorias ativas' }).locator('[data-categoria="embalagens"]')).toContainText('Ativa aqui');

@@ -191,7 +191,7 @@ export function NovaDespesa({ aberta, aoFechar, aoCriar }: { aberta: boolean; ao
           </div>
         )}
         {situacao === 'a_pagar' && (
-          <Campo rotulo="Vencimento" ajuda="Vira uma conta em Contas a pagar.">
+          <Campo rotulo="Vencimento" ajuda="Vira uma conta em Movimentações → A pagar.">
             {(id, d) => <input id={id} type="date" class="entrada" aria-describedby={d} value={vencimento} onChange={(e) => setVencimento(e.currentTarget.value)} />}
           </Campo>
         )}

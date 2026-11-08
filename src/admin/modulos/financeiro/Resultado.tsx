@@ -19,7 +19,7 @@ import { FechamentoMes } from './FechamentoMes';
 import { Participacao } from './Participacao';
 import { SeloQualidade, MotivosQualidade, QUALIDADE, GRUPO, temPermissao } from './comum';
 
-/** Os relatórios do mês que moram em Relatórios e cadastros (a navegação lateral escolhe qual). */
+/** Os relatórios do mês que moram na aba Relatórios (a navegação lateral escolhe qual). */
 export type VistaResultado = 'resultado' | 'por-categoria' | 'evolucao' | 'fechamento';
 
 /** Mês anterior ao atual: o padrão (o mês corrente ainda está em andamento). */
@@ -86,7 +86,7 @@ function ResultadoDoMes({ mes }: { mes: string }) {
             <Cartao titulo={`Resultado gerencial · ${mesAno(x.mes)}`} descricao="Gerencial: não substitui a contabilidade" acoes={<SeloQualidade q={x.qualidade.nivel} />}>
               <div class="fin-dre">
                 <Linha rotulo="Faturamento bruto" valor={x.receita.faturamento_bruto} nota={plural(x.receita.vendas, 'venda', 'vendas')} />
-                <Linha rotulo="Descontos e devoluções" valor={String((num(x.receita.descontos) ?? 0) + (num(x.receita.devolucoes) ?? 0))} recuo negativo />
+                <Linha rotulo="Descontos e devoluções" valor={num(x.receita.descontos) === null && num(x.receita.devolucoes) === null ? null : String((num(x.receita.descontos) ?? 0) + (num(x.receita.devolucoes) ?? 0))} recuo negativo />
                 <Linha rotulo="Outras receitas" valor={x.receita.outras_receitas} recuo />
                 <Linha rotulo="Receita líquida" valor={x.receita.receita_liquida} forte />
                 <Linha rotulo="Custo das mercadorias (CMV)" valor={x.cmv.valor} negativo nota={x.cmv.fonte === 'por_inventario' ? 'por inventário' : x.cmv.fonte === 'teorico' ? 'teórico, pelas fichas' : 'indisponível'} />
@@ -204,7 +204,10 @@ function Evolucao() {
   return (
     <Cartao titulo="Evolução mensal" descricao="Últimos 12 meses">
       <Dados consulta={r} recurso="A evolução" esqueleto={<Esqueleto linhas={8} altura={24} />}>
-        {(ms: MesEvolucao[]) => (
+        {(ms: MesEvolucao[]) => !ms.some((m) => num(m.receita_liquida) !== null || num(m.despesas_operacionais ?? null) !== null || num(m.resultado_gerencial ?? null) !== null) ? (
+          // Nenhum mês com número: sem gráfico vazio e sem tratar a falta de dado como zero.
+          <Vazio compacto titulo="Ainda não há meses com dados suficientes">A evolução aparece quando houver vendas da Eyemobile ou despesas confirmadas em algum mês.</Vazio>
+        ) : (
           <div class="pilha">
             <GraficoLinhas
               rotulo="Receita líquida, despesas operacionais e resultado gerencial por mês"

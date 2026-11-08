@@ -172,7 +172,7 @@ function Executiva({ produtos }: { produtos: boolean }) {
             : categorias.dados ? <><Variacao inverter atual={num(categorias.dados.total)} anterior={categoriasAnt.dados ? num(categoriasAnt.dados.total) : null} /> <span>Confirmadas por competência</span></>
             : null
           }
-          href={categorias.erro ? undefined : '/admin/financeiro?aba=lancamentos'}
+          href={categorias.erro ? undefined : '/admin/financeiro?tipo=despesas'}
         />
         <Indicador
           rotulo="Resultado gerencial"
@@ -236,7 +236,7 @@ function Executiva({ produtos }: { produtos: boolean }) {
           </Cartao>
         )}
 
-        <Cartao titulo="Despesas por categoria" descricao={`Confirmadas, ${naPeriodo}`} acoes={<a class="btn btn--p btn--fantasma" href="/admin/financeiro?aba=lancamentos">Lançamentos</a>}>
+        <Cartao titulo="Despesas por categoria" descricao={`Confirmadas, ${naPeriodo}`} acoes={<a class="btn btn--p btn--fantasma" href="/admin/financeiro?tipo=despesas">Movimentações</a>}>
           <Dados consulta={categorias} recurso="O relatório de despesas" esqueleto={<Esqueleto linhas={5} />} compacto>
             {(c) =>
               c.itens.length ? (

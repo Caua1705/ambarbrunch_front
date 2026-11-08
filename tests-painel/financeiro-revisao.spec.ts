@@ -10,7 +10,7 @@ const API = `${DEMO}/admin/api/financeiro`;
 const escrever = { 'X-Painel': '1', 'Content-Type': 'application/json', Origin: DEMO };
 
 async function abrirRevisao(page: Page) {
-  await page.goto(`${DEMO}/admin/financeiro?aba=revisao`);
+  await page.goto(`${DEMO}/admin/financeiro?aba=pendencias`);
   await expect(page.getByRole('heading', { name: /Documentos do grupo/ })).toBeVisible();
 }
 /** Abre o documento da fila pelo texto do item e devolve a gaveta. */
@@ -54,8 +54,8 @@ test('xerox: a Júlia classificou como Operacional pela legenda e a despesa sai 
   await expect(page.getByText('Despesa paga registrada a partir do documento.')).toBeVisible();
   await expect(page.getByRole('button', { name: /COPIADORA CENTRAL/ })).toHaveCount(0);
 
-  await page.goto(`${DEMO}/admin/financeiro?aba=lancamentos`);
-  await page.getByLabel('Buscar lançamento').fill('xerox');
+  await page.goto(`${DEMO}/admin/financeiro?aba=movimentacoes`);
+  await page.getByLabel('Buscar movimentação').fill('xerox');
   const linha = page.getByRole('row', { name: /xerox dos cardápios/ }).first();
   await expect(linha).toBeVisible();
   await expect(linha).toContainText('Operacional');
@@ -115,7 +115,7 @@ test('boleto: vinculado à conta já lançada, que continua a pagar e passa a mo
   const lista = await (await page.request.get(`${API}/contas-a-pagar?situacao=abertas`)).json();
   const conta = lista.itens.find((c: { descricao: string }) => c.descricao === 'Honorários contábeis');
   expect(conta.situacao).toBe('aberta');
-  await page.goto(`${DEMO}/admin/financeiro?aba=lancamentos&despesa=${conta.despesa_id}`);
+  await page.goto(`${DEMO}/admin/financeiro?aba=movimentacoes&despesa=${conta.despesa_id}`);
   await expect(page.getByRole('dialog', { name: 'Honorários contábeis' }).getByText('Boleto enviado à Júlia')).toBeVisible();
 });
 
@@ -131,7 +131,7 @@ test('comprovante de um pagamento lançado à mão: vira a prova dele, sem pagar
   const id = await idDaDespesa(page, 'Gás de cozinha — botijões');
   const despesa = await (await page.request.get(`${API}/despesas/${id}`)).json();
   expect(despesa.parcelas[0].pagamentos.filter((p: { estornado_em: string | null }) => !p.estornado_em)).toHaveLength(1);
-  await page.goto(`${DEMO}/admin/financeiro?aba=lancamentos&despesa=${id}`);
+  await page.goto(`${DEMO}/admin/financeiro?aba=movimentacoes&despesa=${id}`);
   const detalhe = page.getByRole('dialog', { name: 'Gás de cozinha — botijões' });
   await expect(detalhe.getByText('Comprovante do pagamento')).toBeVisible();
   await expect(detalhe.getByText('Comprovante enviado à Júlia')).toBeVisible();
@@ -177,7 +177,7 @@ test('unidade errada: o documento e a despesa de teste vão para a unidade de te
 
   // Despesa lançada na unidade errada: Mudar unidade (com motivo); despesa de compra é recusada (409).
   const id = await idDaDespesa(page, 'Teste lançado sem #teste');
-  await page.goto(`${DEMO}/admin/financeiro?aba=lancamentos&despesa=${id}`);
+  await page.goto(`${DEMO}/admin/financeiro?aba=movimentacoes&despesa=${id}`);
   const detalhe = page.getByRole('dialog', { name: 'Teste lançado sem #teste' });
   await detalhe.getByRole('button', { name: 'Mudar unidade' }).click();
   await detalhe.getByLabel('Motivo').fill('lançamento de teste sem #teste');
@@ -201,9 +201,9 @@ test('unidade errada: o documento e a despesa de teste vão para a unidade de te
 test('API falhando ou incompleta: a tela avisa e não quebra', async ({ page }) => {
   // 1) Fila fora do ar: mensagem de falha, abas continuam.
   await page.route('**/admin/api/financeiro/revisao?*', (r) => r.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ detail: 'O sistema do Âmbar está em manutenção.', codigo: 'indisponivel' }) }));
-  await page.goto(`${DEMO}/admin/financeiro?aba=revisao`);
+  await page.goto(`${DEMO}/admin/financeiro?aba=pendencias`);
   await expect(page.getByText('O sistema do Âmbar está em manutenção.')).toBeVisible();
-  await expect(page.getByRole('tab', { name: /^Revisão/ })).toBeVisible();
+  await expect(page.getByRole('tab', { name: /^Pendências/ })).toBeVisible();
   await page.unroute('**/admin/api/financeiro/revisao?*');
 
   // 2) Resposta incompleta (backend antigo: sem as listas novas, `extraido` nulo, despesa misturada em `candidatas`).

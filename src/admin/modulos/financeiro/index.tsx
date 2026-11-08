@@ -1,8 +1,9 @@
-// Financeiro: cinco áreas, cada uma com uma função — Lançamentos (consultar e registrar), Contas a pagar (obrigações e
-// recorrentes), Revisão (o que a Júlia não resolveu e o que falta classificar), Conciliação (banco, Stone/recebíveis e
-// divergências) e Relatórios e cadastros (resultado, vendas, categorias, fornecedores). O painel executivo é a Visão
-// Geral: aqui não há um segundo dashboard. Gerente e Proprietário; o que é só do Proprietário (participação, fechar e
-// reabrir) segue as permissões que o backend manda.
+// Financeiro: três abas, cada uma com uma função — Movimentações (despesas, outras receitas, contas a pagar e
+// pagamentos: consultar e registrar), Pendências (Revisão da Júlia e Conciliação: banco, Stone/recebíveis,
+// divergências e importação de extrato) e Relatórios (resultado, despesas por categoria, evolução; fechamento e vendas
+// num grupo discreto). Cadastros (categorias, fornecedores) ficam em Configurações → Financeiro. O painel executivo é a
+// Visão Geral: aqui não há um segundo dashboard. Gerente e Proprietário; o que é só do Proprietário (participação,
+// fechar e reabrir) segue as permissões que o backend manda.
 import { useEffect, useState } from 'preact/hooks';
 import type { ContextoPainel } from '../../lib/sessao';
 import { useConsulta } from '../../lib/consulta';
@@ -11,32 +12,68 @@ import { lerParam, gravarParams } from '../../lib/rotas';
 import { Raiz } from '../../ui/camadas';
 import { Abas } from '../../ui/base';
 import { Esqueleto } from '../../ui/estados';
-import { Lancamentos } from './Lancamentos';
-import { Contas } from './Contas';
-import { Revisao } from './Revisao';
-import { Conciliacao } from './Conciliacao';
+import { Movimentacoes } from './Movimentacoes';
+import { Pendencias } from './Pendencias';
 import { Relatorios } from './Relatorios';
-import { UsuarioFinanceiro, UnidadesFinanceiro, temPermissao } from './comum';
+import { UsuarioFinanceiro, UnidadesFinanceiro } from './comum';
 import '../../estilos/financeiro.css';
 
-export type Aba = 'lancamentos' | 'contas' | 'revisao' | 'conciliacao' | 'relatorios';
-const ABAS: Aba[] = ['lancamentos', 'contas', 'revisao', 'conciliacao', 'relatorios'];
+export type Aba = 'movimentacoes' | 'pendencias' | 'relatorios';
+const ABAS: Aba[] = ['movimentacoes', 'pendencias', 'relatorios'];
+
+/** Cadastro que saiu do Financeiro: o endereço antigo leva à seção de Configurações que o mostra agora. */
+const CADASTROS = ['categorias', 'fornecedores'];
+export const hrefCadastro = (c: string) => `/admin/configuracoes?secao=financeiro&cadastro=${c}`;
 
 /**
- * Aba da URL, aceitando os endereços antigos (links salvos, sino, Estoque e o backend ainda mandam alguns). Cada endereço
- * antigo cai na tela nova que faz a mesma coisa, com o parâmetro que escolhe a sub-tela.
+ * Aba da URL, aceitando os endereços antigos (links salvos, sino, Estoque, a Visão Geral e o backend ainda mandam
+ * alguns). Cada endereço antigo cai na aba nova que faz a mesma coisa, com o parâmetro que escolhe a parte; o que não
+ * existe mais (um parâmetro de outra tela) é limpo para não confundir a tela nova.
  */
 function abaDaUrl(): Aba {
   const a = lerParam('aba');
   const mudar = (extras: Record<string, string | null>) => gravarParams(extras);
-  if (a === 'resumo' || a === null) return 'lancamentos';
-  if (a === 'lancamentos' && lerParam('revisar') === '1') {
-    mudar({ revisar: null });
-    return 'revisao';
+  const vista = lerParam('vista');
+  const relatorio = lerParam('relatorio');
+
+  // Cadastros (antes em Relatórios e cadastros): vão para Configurações.
+  const cadastro = a === 'categorias' ? 'categorias' : a === 'relatorios' && relatorio && CADASTROS.includes(relatorio) ? relatorio : null;
+  if (cadastro) {
+    location.replace(hrefCadastro(cadastro));
+    return 'relatorios';
   }
-  if (a === 'lancamentos' && lerParam('vista') === 'banco') {
-    mudar({ vista: 'banco' });
-    return 'conciliacao';
+
+  if (a === null || a === 'resumo') return 'movimentacoes';
+  if (a === 'lancamentos') {
+    // ?aba=lancamentos&revisar=1 era a Revisão; &vista=banco, o extrato.
+    if (lerParam('revisar') === '1') {
+      mudar({ revisar: null, vista: null });
+      return 'pendencias';
+    }
+    if (vista === 'banco') return 'pendencias';
+    mudar({ vista: null });
+    return 'movimentacoes';
+  }
+  if (a === 'contas') {
+    mudar({ tipo: 'a-pagar', vista: vista === 'recorrentes' ? 'recorrentes' : null });
+    return 'movimentacoes';
+  }
+  if (a === 'contas-fixas' || a === 'configuracoes' || a === 'fixas') {
+    mudar({ tipo: 'a-pagar', vista: 'recorrentes' });
+    return 'movimentacoes';
+  }
+  if (a === 'revisao') {
+    mudar({ vista: null });
+    return 'pendencias';
+  }
+  if (a === 'conciliacao') {
+    // Sem parte escolhida, a antiga aba Conciliação abria no Banco.
+    mudar({ vista: vista === 'stone' || vista === 'divergencias' ? vista : 'banco' });
+    return 'pendencias';
+  }
+  if (a === 'taxas') {
+    mudar({ vista: 'stone' });
+    return 'pendencias';
   }
   if (a === 'vendas') {
     mudar({ relatorio: 'vendas' });
@@ -44,28 +81,15 @@ function abaDaUrl(): Aba {
   }
   if (a === 'resultado') {
     // A antiga aba Resultado tinha sub-vistas (resultado, categorias, evolução, fechamento): viram itens de Relatórios.
-    const vista = lerParam('vista');
-    mudar({ relatorio: vista && ['categorias', 'evolucao', 'fechamento'].includes(vista) ? (vista === 'categorias' ? 'por-categoria' : vista) : lerParam('relatorio') ?? 'resultado', vista: null });
+    mudar({ relatorio: vista && ['categorias', 'evolucao', 'fechamento'].includes(vista) ? (vista === 'categorias' ? 'por-categoria' : vista) : relatorio ?? 'resultado', vista: null });
     return 'relatorios';
   }
-  if (a === 'categorias') {
-    mudar({ relatorio: 'categorias' });
-    return 'relatorios';
-  }
-  if (a === 'contas-fixas' || a === 'configuracoes' || a === 'fixas') {
-    mudar({ vista: 'recorrentes' });
-    return 'contas';
-  }
-  if (a === 'taxas') {
-    mudar({ vista: 'stone' });
-    return 'conciliacao';
-  }
-  return (ABAS as string[]).includes(a) ? (a as Aba) : 'lancamentos';
+  return (ABAS as string[]).includes(a) ? (a as Aba) : 'movimentacoes';
 }
 
 export default function Financeiro({ contexto }: { contexto: ContextoPainel }) {
   // A aba e os filtros vêm da URL, que o servidor não repassa à ilha: o conteúdo só é desenhado no navegador, depois da
-  // hidratação (senão o HTML do servidor divergiria do da página aberta em ?aba=contas).
+  // hidratação (senão o HTML do servidor divergiria do da página aberta em ?aba=pendencias).
   const [pronto, setPronto] = useState(false);
   useEffect(() => setPronto(true), []);
   return pronto ? <Conteudo contexto={contexto} /> : <Raiz><Esqueleto linhas={6} altura={32} /></Raiz>;
@@ -73,38 +97,34 @@ export default function Financeiro({ contexto }: { contexto: ContextoPainel }) {
 
 function Conteudo({ contexto }: { contexto: ContextoPainel }) {
   const [aba, setAba] = useState<Aba>(abaDaUrl);
-  useEffect(() => gravarParams({ aba: aba === 'lancamentos' ? null : aba }), [aba]);
-  const conciliar = temPermissao(contexto.usuario, 'financeiro.conciliar');
+  useEffect(() => gravarParams({ aba: aba === 'movimentacoes' ? null : aba }), [aba]);
 
-  // Contagens nas abas, só do que precisa de alguém (as mesmas do sino, do mesmo backend).
+  // Contagens nas abas, só do que está em aberto (as mesmas do sino, do mesmo backend): contas vencidas em
+  // Movimentações; despesas em revisão + comprovantes pendentes em Pendências.
   const resumo = useConsulta('financeiro/resumo', () => financeiro.resumo());
   const revisar = resumo.dados ? resumo.dados.revisao.despesas + resumo.dados.revisao.documentos : null;
   const vencidas = resumo.dados ? resumo.dados.contas.vencidas.qtd : null;
 
-  const ir = (a: Aba, extras: Record<string, string | null> = {}) => {
-    gravarParams(extras);
+  const ir = (a: Aba) => {
+    gravarParams({ tipo: null, situacao: null, revisar: null, vista: null, despesa: null, mes: null, relatorio: null, filtro: null, agrupar: null });
     setAba(a);
     window.scrollTo({ top: 0 });
   };
 
   const abas: { id: Aba; rotulo: string; contagem?: number | null }[] = [
-    { id: 'lancamentos', rotulo: 'Lançamentos' },
-    { id: 'contas', rotulo: 'Contas a pagar', contagem: vencidas },
-    { id: 'revisao', rotulo: 'Revisão', contagem: revisar },
-    ...(conciliar ? [{ id: 'conciliacao' as const, rotulo: 'Conciliação' }] : []),
-    { id: 'relatorios', rotulo: 'Relatórios e cadastros' },
+    { id: 'movimentacoes', rotulo: 'Movimentações', contagem: vencidas },
+    { id: 'pendencias', rotulo: 'Pendências', contagem: revisar },
+    { id: 'relatorios', rotulo: 'Relatórios' },
   ];
 
   return (
     <UsuarioFinanceiro.Provider value={contexto.usuario}>
       <UnidadesFinanceiro.Provider value={{ unidade: contexto.unidade, unidades: contexto.unidades }}>
         <Raiz>
-          <Abas<Aba> atual={aba} aoMudar={(a) => ir(a, { situacao: null, revisar: null, vista: null, despesa: null, mes: null, relatorio: null, filtro: null })} abas={abas} />
+          <Abas<Aba> atual={aba} aoMudar={ir} abas={abas} />
           <div role="tabpanel" id={`painel-${aba}`} aria-labelledby={`aba-${aba}`} class="pilha" style={{ gap: '20px' }}>
-            {aba === 'lancamentos' && <Lancamentos contexto={contexto} ir={ir} />}
-            {aba === 'contas' && <Contas contexto={contexto} />}
-            {aba === 'revisao' && <Revisao contexto={contexto} />}
-            {aba === 'conciliacao' && conciliar && <Conciliacao contexto={contexto} />}
+            {aba === 'movimentacoes' && <Movimentacoes contexto={contexto} />}
+            {aba === 'pendencias' && <Pendencias contexto={contexto} revisar={revisar} />}
             {aba === 'relatorios' && <Relatorios contexto={contexto} />}
           </div>
         </Raiz>
@@ -112,5 +132,3 @@ function Conteudo({ contexto }: { contexto: ContextoPainel }) {
     </UsuarioFinanceiro.Provider>
   );
 }
-
-export type IrPara = (a: Aba, extras?: Record<string, string | null>) => void;

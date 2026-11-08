@@ -17,8 +17,8 @@ import { SeloQualidade, ESTADO_CONCILIACAO, atualizarFinanceiro, avisar, avisarF
 /** Pendência do fechamento → a tela que resolve (dentro do Financeiro, abre direto a fila ou o Banco). */
 function destinoPendencia(rota: string | null) {
   if (!rota) return null;
-  if (rota.startsWith('/admin/financeiro/revisao')) return '/admin/financeiro?aba=revisao';
-  if (rota.startsWith('/admin/financeiro/conciliacao') || rota.startsWith('/admin/financeiro/extratos') || rota.startsWith('/admin/financeiro/contas-bancarias')) return '/admin/financeiro?aba=conciliacao';
+  if (rota.startsWith('/admin/financeiro/revisao')) return '/admin/financeiro?aba=pendencias';
+  if (rota.startsWith('/admin/financeiro/conciliacao') || rota.startsWith('/admin/financeiro/extratos') || rota.startsWith('/admin/financeiro/contas-bancarias')) return '/admin/financeiro?aba=pendencias&vista=banco';
   return rotaPainel(rota);
 }
 
@@ -122,7 +122,7 @@ export function FechamentoMes({ mes, contexto }: { mes: string; contexto: Contex
                     ))}
                   </ul>
                 ) : (
-                  <Vazio compacto titulo="Nenhuma conta bancária">Cadastre a conta ao importar o primeiro extrato (Lançamentos → Banco → Importar extrato).</Vazio>
+                  <Vazio compacto titulo="Nenhuma conta bancária">Cadastre a conta ao importar o primeiro extrato (Pendências → Banco → Importar extrato).</Vazio>
                 )}
               </Cartao>
 

@@ -1,6 +1,6 @@
 // Banco: movimentações do extrato com a proposta do sistema (nível, candidatos e evidências). Uma decisão humana por
 // movimentação; nada é conciliado sozinho só por valor e data. Rotas /admin/financeiro/conciliacao/* e /contas-bancarias.
-// Fica na aba Conciliação (parte Banco); os repasses por meio estão na parte Stone e recebíveis.
+// Fica em Pendências → Banco; os repasses por meio estão em Pendências → Stone e recebíveis.
 import { useState } from 'preact/hooks';
 import { Upload, CircleCheck, Landmark } from 'lucide-preact';
 import { useConsulta } from '../../lib/consulta';

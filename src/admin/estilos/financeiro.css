@@ -284,3 +284,33 @@
 .fin-apagada td {
   color: var(--texto-3);
 }
+
+/* Movimentações: totais do período no topo da lista (mesma linha de antes, agora acima da tabela) */
+.totais-linha--topo {
+  border-top: 0;
+  border-bottom: 1px solid var(--borda);
+}
+
+/* Relatórios: o grupo "Mais relatórios" fica discreto, abaixo dos três principais */
+.sub-navegacao__grupo--discreto {
+  padding-top: var(--e-3);
+  border-top: 1px solid var(--borda);
+}
+.sub-navegacao__menu .sub-navegacao__grupo--discreto button {
+  min-height: 32px;
+  font-size: var(--t-s);
+}
+@media (max-width: 900px) {
+  .sub-navegacao__grupo--discreto {
+    padding: 0 0 0 var(--e-3);
+    border-top: 0;
+    border-left: 1px solid var(--borda);
+  }
+}
+
+/* Configurações → Financeiro: os cadastros embutidos */
+.config-cadastros {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e-4);
+}

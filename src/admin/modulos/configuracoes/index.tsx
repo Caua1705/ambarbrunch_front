@@ -1,7 +1,7 @@
 // Configurações (Proprietário e Gerente), em grupos numa lista ao lado: Conta e aparência; Agenda e ambientes (política
 // e ambientes das reservas, só Proprietário); Equipe e acessos (a equipe só para o Proprietário; os perfis para todos);
-// Atendimento (base de conhecimento da IA e cadastros duplicados, cada um na própria gaveta); Financeiro (atalhos para os
-// cadastros que já existem: categorias, fornecedores, contas fixas, taxas). Só o que tem
+// Atendimento (base de conhecimento da IA e cadastros duplicados, cada um na própria gaveta); Financeiro (os cadastros
+// Categorias e Fornecedores, mais atalhos para contas fixas, taxas e contas bancárias: CadastrosFinanceiro.tsx). Só o que tem
 // contrato no backend: contas novas e senhas só pela CLI, integrações sem rota de configuração — sem formulário de mentira.
 import { useEffect, useState } from 'preact/hooks';
 import { Sun, Moon, Monitor, LogOut, ShieldCheck, Pencil, CalendarCog, UserRound, Users, Wallet, ChevronRight, MessagesSquare, BookOpen, UsersRound } from 'lucide-preact';
@@ -17,6 +17,7 @@ import { sair } from '../../layout/sair';
 import { Botao, Cartao, Segmentado, Campo, Aviso, Situacao } from '../../ui/base';
 import { Dados, EsqueletoTabela } from '../../ui/estados';
 import { Equipe } from './Equipe';
+import { CadastrosFinanceiro } from './CadastrosFinanceiro';
 import { Conhecimento } from '../atendimento/Conhecimento';
 import { Duplicidades } from '../atendimento/Duplicidades';
 import { Tabela } from '../../ui/tabela';
@@ -166,25 +167,7 @@ export default function Configuracoes({ contexto }: { contexto: ContextoPainel }
         </Cartao>
       )}
 
-      {secao === 'financeiro' && veFinanceiro && (
-        <Cartao titulo="Cadastros do Financeiro" descricao="Ficam no Financeiro, onde são usados — aqui estão os atalhos" justo>
-          <ul class="lista">
-            {[
-              { href: '/admin/financeiro?aba=relatorios&relatorio=categorias', titulo: 'Categorias de despesa', detalhe: 'As que a Júlia e os formulários oferecem nesta unidade' },
-              { href: '/admin/financeiro?aba=relatorios&relatorio=fornecedores', titulo: 'Fornecedores', detalhe: 'Busca, cadastro, correção e desativação' },
-              { href: '/admin/financeiro?aba=contas&vista=recorrentes', titulo: 'Contas fixas (recorrentes)', detalhe: 'Aluguel, internet, folha: a conta de cada mês aparece em Contas a pagar' },
-              { href: '/admin/financeiro?aba=conciliacao&vista=stone', titulo: 'Taxas contratadas da adquirente', detalhe: 'Crédito, débito e Pix, com vigência' },
-            ].map((l) => (
-              <li key={l.href}>
-                <a class="lista__item" href={l.href}>
-                  <span class="lista__texto"><strong>{l.titulo}</strong><span>{l.detalhe}</span></span>
-                  <span class="lista__fim"><ChevronRight aria-hidden="true" /></span>
-                </a>
-              </li>
-            ))}
-          </ul>
-        </Cartao>
-      )}
+      {secao === 'financeiro' && veFinanceiro && <CadastrosFinanceiro contexto={contexto} />}
       </section>
       </div>
       {dialogo}

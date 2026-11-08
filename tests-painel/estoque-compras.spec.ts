@@ -17,7 +17,7 @@ test.beforeEach(async ({ page }) => {
 test.afterEach(() => expect(erros).toEqual([]));
 
 test('revisão: filtro "Sem categoria" e classificação da mesma despesa, com descrição opcional', async ({ page }) => {
-  await page.goto(`${DEMO}/admin/financeiro?aba=revisao`);
+  await page.goto(`${DEMO}/admin/financeiro?aba=pendencias`);
   const filtro = page.getByRole('group', { name: 'Filtrar a revisão' });
   await filtro.getByRole('button', { name: /Sem categoria \(\d+\)/ }).click();
   const item = page.locator('.fin-revisao-item', { hasText: 'Pix — Distribuidora Bom Preço' });

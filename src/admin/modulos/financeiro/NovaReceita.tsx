@@ -70,7 +70,7 @@ export function NovaReceita({ aberta, aoFechar }: { aberta: boolean; aoFechar: (
       }
     >
       <form id="form-nova-receita" class="pilha" onSubmit={enviar} noValidate>
-        <Aviso tom="info" icone={<Info aria-hidden="true" />}>Só o que não passa pela Eyemobile (ex.: evento faturado à parte). Venda do PDV entra sozinha: não lance aqui.</Aviso>
+        <Aviso tom="info" icone={<Info aria-hidden="true" />}>Só o que não passa pela Eyemobile (ex.: evento faturado à parte). Venda do PDV entra sozinha: não lance aqui. Aporte de sócio, empréstimo e transferência entre contas não são receita: classifique-os no extrato, em Pendências → Banco.</Aviso>
         {erro && <Aviso tom="perigo" icone={<Info aria-hidden="true" />}>{erro.message}</Aviso>}
         <Campo rotulo="Descrição" erro={erros.descricao}>
           {(id, d) => <input id={id} class="entrada" maxLength={300} aria-describedby={d} aria-invalid={!!erros.descricao || undefined} value={descricao} onInput={(e) => setDescricao(e.currentTarget.value)} data-autofoco />}

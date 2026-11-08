@@ -30,7 +30,7 @@ export function Recorrencias({ lancar }: { lancar: boolean }) {
     <>
       <Cartao
         titulo={<span class="linha"><Repeat size={16} aria-hidden="true" /> Contas fixas</span>}
-        descricao="Cadastradas uma vez; a conta de cada mês aparece sozinha em Contas a pagar"
+        descricao="Cadastradas uma vez; a conta de cada mês aparece sozinha em Movimentações → A pagar"
         justo
         acoes={
           <>
@@ -69,12 +69,12 @@ export function Recorrencias({ lancar }: { lancar: boolean }) {
                 ))}
               </ul>
             ) : (
-              <Vazio compacto icone={<Repeat aria-hidden="true" />} titulo={ver === 'ativas' ? 'Nenhuma conta fixa ativa' : 'Nenhuma conta fixa'}>Aluguel, internet, folha: cadastre uma vez e a conta de cada mês aparece em Contas a pagar.</Vazio>
+              <Vazio compacto icone={<Repeat aria-hidden="true" />} titulo={ver === 'ativas' ? 'Nenhuma conta fixa ativa' : 'Nenhuma conta fixa'}>Aluguel, internet, folha: cadastre uma vez e a conta de cada mês aparece em Movimentações → A pagar.</Vazio>
             )
           }
         </Dados>
         <div class="cartao__rodape">
-          Valor da conta do mês diferente do previsto (energia, vale-transporte)? Em Contas a pagar, pague pelo botão <strong>Pagar</strong> informando o valor real — a conta fixa não muda.
+          Valor da conta do mês diferente do previsto (energia, vale-transporte)? Em Movimentações → A pagar, pague pelo botão <strong>Pagar</strong> informando o valor real — a conta fixa não muda.
         </div>
       </Cartao>
       <EditarRecorrencia alvo={editar} aoFechar={() => setEditar(null)} />
@@ -206,7 +206,7 @@ function EncerrarRecorrencia({ alvo, aoFechar }: { alvo: Recorrencia | null; aoF
     <Gaveta aberta={!!alvo} aoFechar={aoFechar} titulo="Encerrar conta fixa" subtitulo={alvo?.descricao}
       rodape={<><Botao onClick={aoFechar} disabled={ocupado}>Voltar</Botao><Botao variante="perigo" type="submit" form="form-encerrar-recorrencia" carregando={ocupado} icone={<CalendarX aria-hidden="true" />}>Encerrar</Botao></>}>
       <form id="form-encerrar-recorrencia" class="pilha" onSubmit={salvar} noValidate>
-        <p>Depois desta data, nenhuma conta nova é gerada. As já geradas continuam em Contas a pagar.</p>
+        <p>Depois desta data, nenhuma conta nova é gerada. As já geradas continuam em Movimentações → A pagar.</p>
         {erro && <Aviso tom="perigo" icone={<Info aria-hidden="true" />}>{erro}</Aviso>}
         <Campo rotulo="Encerrar em">{(id) => <input id={id} type="date" class="entrada" value={quando} onChange={(e) => setQuando(e.currentTarget.value)} data-autofoco />}</Campo>
       </form>

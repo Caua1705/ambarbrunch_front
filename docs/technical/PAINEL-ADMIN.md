@@ -32,7 +32,7 @@ Módulos e abas (paridade com o painel antigo):
 | Reservas | Período (Dia, Semana, Mês) e visualização (Calendário, Por ambiente); detalhe com chegada, ausência, corrigir/desfazer, aviso comunicado, alterar contato/observações; Modo Operação (tablet) |
 | Atendimento | caixa (Todas · Esperando · Assistente · Equipe · Encerradas), conversa com linha do tempo única (mídia, campanhas, templates de reserva/Clube, respostas automáticas), assistente ligado/desligado por conversa, assumir/transferir, responder, encerrar, follow-up; ficha do contato (gaveta); nova conversa com template; Cardápio e capacidades e Campanhas (gerência), cada um numa gaveta; o Atendente lê a Base de conhecimento por um botão próprio. Base de conhecimento e Cadastros duplicados ficam em Configurações, seção Atendimento (§4e). **Não há mais página Clientes** (02/11/2026): `/admin/clientes` redireciona para cá |
 | Clube Âmbar | (ainda não lançado ao público; selo "em breve") |
-| Financeiro | Resumo, Vendas (Eyemobile), Lançamentos (+ Banco/conciliação), Contas a pagar, Revisão (despesas e documentos da Júlia: corrigir leitura, pago × a pagar, vincular a conta/pagamento/despesa já lançados), Resultado (+ fechamento e participação — Proprietário), Contas fixas e taxas, Categorias (por unidade, do banco) |
+| Financeiro | Três abas (07/11/2026, ver 4f): Movimentações (despesas, outras receitas, contas a pagar, pagamentos), Pendências (Revisão da Júlia e Conciliação: Banco, Stone e recebíveis, Divergências) e Relatórios (Resultado, Despesas por categoria, Evolução; Fechamento e Vendas). Categorias e Fornecedores em Configurações → Financeiro |
 | Estoque | Estoque atual (saldos, situação, gaveta do insumo com histórico), Recebimentos (Júlia, nota, sem nota — uma conferência), Contagem (3 passos), Fichas e custos (fichas técnicas; CMV e custos); "Registrar movimento" (entrada, saída, ajuste); vendas canceladas depois da baixa numa gaveta |
 
 **Unidade de negócio.** Toda consulta vai com `?unidade=<codigo>` da unidade do topo — o servidor do painel grava o
@@ -166,9 +166,9 @@ backend; a tela mostra primeiro o essencial e o resto sob pedido (filtros recolh
 | Visão Geral | Saudação + um filtro de período (Hoje, 7 dias, 30 dias, Este mês, Personalizado ≤ 400 dias) para 4 indicadores (Receita, Despesas, Resultado gerencial, Ticket médio), Receitas × despesas e dois rankings (top 5 produtos — ou vendas por meio — e despesas por categoria). |
 | Reservas | Barra única (‹ Hoje ›, intervalo, período Dia · Semana · Mês, visualização Calendário · Por ambiente, Nova reserva); resumo do dia em uma linha; aprovações pendentes numa pílula → gaveta. |
 | Atendimento | Central única de conversas (02/11/2026): "Nova conversa", "Cardápio" e "Campanhas" no topo da coluna, avisos discretos só quando o assistente ou o envio estão desligados no servidor, busca, Todas · Esperando · Assistente · Equipe · Encerradas (contador em Esperando), falhas de envio só quando existem. Conversa: cabeçalho com Contato (ficha em gaveta) e "…" (enviar template, follow-up), barra com o interruptor do assistente, Assumir e Encerrar. Sem indicadores e sem página Clientes. |
-| Financeiro | Lançamentos · Contas a pagar (Contas · Recorrentes) · Revisão · Conciliação (Banco · Stone e recebíveis · Divergências) · Relatórios e cadastros (Resultado do mês, Despesas por categoria, Evolução, Fechamento, Vendas; Categorias, Fornecedores). Sem o Resumo (o executivo é a Visão Geral). Endereços antigos redirecionados em `modulos/financeiro/index.tsx`. |
+| Financeiro | Três abas desde 07/11/2026 (ver 4f): Movimentações · Pendências · Relatórios. Sem o Resumo (o executivo é a Visão Geral). Endereços antigos redirecionados em `modulos/financeiro/index.tsx`. |
 | Estoque | Quatro áreas (02/11/2026, ver 4c): Estoque atual (tela inicial) · Recebimentos (Pendentes · Histórico) · Contagem (3 passos) · Fichas e custos (Fichas técnicas · CMV e custos). Uma ação principal em todas: "Registrar movimento". Baixa automática mostrada como está no backend (hoje desligada). |
-| Configurações | Grupos ao lado: Conta e aparência · Agenda e ambientes · Equipe e acessos · Financeiro (atalhos para os cadastros). |
+| Configurações | Grupos ao lado: Conta e aparência · Agenda e ambientes · Equipe e acessos · Atendimento · Financeiro (Categorias e Fornecedores; atalhos para contas fixas, taxas e contas bancárias). |
 
 Decisões registradas:
 
@@ -383,6 +383,44 @@ Configurações, continua lendo a base por um botão no Atendimento, sem editar.
 Testes: `tests-painel/visao-geral.spec.ts`, `reservas-navegacao.spec.ts`, `reservas-nova.spec.ts`, `reservas-busca.spec.ts` e
 `atendimento.spec.ts` (demonstração e respostas simuladas); `tests-painel-real/reservas-e-visao.spec.ts` (backend real local em base
 isolada, JSON em `PAINEL_REAL_RESERVAS`); no backend, `tests/test_reserva_administrativa.py`. Nenhum deles fala com a Eyemobile.
+
+## 4f. Financeiro em três abas (07/11/2026)
+
+Pedido do dono: menos navegação, nenhuma função a menos. Só front; nenhuma rota, regra ou tabela do backend mudou.
+
+| Aba | O que tem | Onde estava |
+|---|---|---|
+| **Movimentações** (`/admin/financeiro`) | Barra: busca, período, Filtros (Mostrar, categoria, origem, situação), **Outra receita** e **Nova despesa**. Filtros simples `?tipo=`: Todas · Despesas (`despesas`) · Outras receitas (`receitas`) · A pagar (`a-pagar`). Linha de totais no topo (Vendas do PDV/Eyemobile — "indisponível" sem a integração —, outras receitas, despesas confirmadas, em revisão, pagamentos realizados, a pagar em aberto). Contas vencidas ou que vencem hoje em destaque, com atalho para A pagar. A pagar = contas a pagar (situações, Pagar, botão **Contas fixas** → `?vista=recorrentes`); a busca da barra vale para elas. | Lançamentos + Contas a pagar |
+| **Pendências** (`?aba=pendencias`) | Um seletor `?vista=`: Revisão da Júlia (padrão; filtros `?filtro=`) · Banco · Stone e recebíveis · Divergências (as três só com `financeiro.conciliar`). Banco = extrato, Importar extrato e conferência; sem conta bancária, Stone e Divergências mostram "Cadastrar conta bancária" em vez de números vazios. | Revisão + Conciliação |
+| **Relatórios** (`?aba=relatorios`) | Principais: Resultado do mês · Despesas por categoria · Evolução financeira. Grupo discreto "Mais relatórios": Fechamento do mês · Vendas (Eyemobile). `?relatorio=`. | Relatórios e cadastros (sem os cadastros) |
+
+Cadastros: Categorias e Fornecedores em **Configurações → Financeiro** (`?secao=financeiro&cadastro=categorias|fornecedores`,
+os mesmos componentes e permissões), com atalhos para contas fixas, taxas da adquirente e contas bancárias, que ficam onde
+são usadas.
+
+Contadores: Movimentações = contas vencidas; Pendências = despesas em revisão + comprovantes pendentes (`/resumo`, os mesmos
+do sino; o backend conta só `em_revisao` e `pendente`). No seletor, Banco = movimentações do extrato do mês ainda abertas
+(pendentes + parciais + conflitos, a mesma soma do fechamento no backend).
+
+Sem duplicar: em Todas, a despesa paga aparece uma vez (o pagamento só em Filtros → Mostrar → "Só pagamentos feitos" ou
+"Tudo"); A pagar mostra a obrigação, nunca o pagamento. Outra receita lembra que aporte, empréstimo e transferência entre
+contas não são receita (classificam-se no extrato).
+
+Endereços antigos (`abaDaUrl` em `modulos/financeiro/index.tsx`; a URL é reescrita para a nova):
+
+| Antes | Agora |
+|---|---|
+| `?aba=lancamentos`, `?aba=resumo`, sem `aba` | Movimentações (`&despesa=` continua abrindo o detalhe) |
+| `?aba=contas[&situacao=…]` | `?tipo=a-pagar[&situacao=…]` |
+| `?aba=contas&vista=recorrentes`, `?aba=contas-fixas`, `fixas`, `configuracoes` | `?tipo=a-pagar&vista=recorrentes` |
+| `?aba=revisao[&filtro=…]`, `?aba=lancamentos&revisar=1` | `?aba=pendencias[&filtro=…]` |
+| `?aba=conciliacao`, `?aba=lancamentos&vista=banco` | `?aba=pendencias&vista=banco` |
+| `?aba=conciliacao&vista=stone` (ou `divergencias`), `?aba=taxas` | `?aba=pendencias&vista=stone` (ou `divergencias`) |
+| `?aba=resultado[&vista=…]`, `?aba=vendas` | `?aba=relatorios&relatorio=…` |
+| `?aba=categorias`, `?aba=relatorios&relatorio=categorias` (ou `fornecedores`) | `/admin/configuracoes?secao=financeiro&cadastro=…` |
+
+Testes: `tests-painel/financeiro.spec.ts` (abas, endereços antigos, filtros, criar despesa e receita, pagar sem duplicar,
+contadores, Relatórios, Configurações), `financeiro-revisao`, `financeiro-categorias`, `estoque-compras` e `responsivo`.
 
 ## 6. Rodar, testar
 
