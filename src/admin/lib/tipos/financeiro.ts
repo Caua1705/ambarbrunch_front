@@ -69,7 +69,7 @@ export interface Lancamento {
   /**
    * Varia com o tipo (consultas.py): venda_dia {vendas, taxa_servico, total_vendido, descontos, recebido_pdv};
    * despesa {motivos_revisao, valor_a_confirmar, versao}; pagamento {forma, parcela_id, parcela, conciliacao};
-   * outra_receita {recebido_em}.
+   * outra_receita {recebido_em, forma_recebimento, origem, observacao, versao, operacional}.
    */
   detalhes: Record<string, unknown> & {
     vendas?: number;
@@ -79,13 +79,20 @@ export interface Lancamento {
     parcela?: number;
     conciliacao?: string;
     recebido_em?: Data | null;
+    forma_recebimento?: string | null;
+    origem?: string | null;
+    observacao?: string | null;
+    versao?: number;
+    /** Outra receita: false = empréstimo, aporte, transferência… (fora do faturamento). */
+    operacional?: boolean;
   };
 }
 
 export interface ListaLancamentos {
   total: number;
   itens: Lancamento[];
-  totais: { receita_pdv: Dec; outras_receitas: Dec; despesas_confirmadas: Dec; despesas_em_revisao: Dec; pagamentos: Dec };
+  /** `outras_receitas`: só as operacionais. `entradas_fora_da_receita` (empréstimo, aporte…) e `receitas_a_receber` vêm à parte. */
+  totais: { receita_pdv: Dec; outras_receitas: Dec; despesas_confirmadas: Dec; despesas_em_revisao: Dec; pagamentos: Dec; entradas_fora_da_receita?: Dec; receitas_a_receber?: Dec };
 }
 
 export type SituacaoConta = 'paga' | 'vencida' | 'vence_hoje' | 'parcial' | 'a_vencer';
@@ -464,6 +471,8 @@ export type ResultadoMes =
         outras_receitas: Dec;
         receita_liquida: Dec | null;
         taxa_servico_fora_da_receita: Dec | null;
+        /** Empréstimo, aporte, transferência, reembolso, rendimento: registrados, fora da receita. */
+        entradas_fora_da_receita?: Dec;
       };
       cmv: CmvBloco;
       margem_bruta: Dec | null;
@@ -532,12 +541,31 @@ export type RelatorioVendas =
 
 // Outras receitas, taxas e contas fixas (entradas) ----------------------------------------------------------------------
 
+/** Só as categorias com `operacional` entram na receita; empréstimo, aporte e transferência ficam fora do faturamento. */
+export interface OpcoesReceita {
+  categorias: { codigo: string; nome: string; operacional: boolean }[];
+  formas: { codigo: string; nome: string }[];
+}
+
 export interface OutraReceitaEntrada {
   descricao: string;
   valor: Dec;
   competencia: Data;
+  /** Vazio = a receber. */
   recebido_em?: Data | null;
   arquivo_id?: Uuid | null;
+  categoria?: string;
+  forma_recebimento?: string | null;
+  origem?: string | null;
+  observacao?: string | null;
+  /** A pessoa viu o aviso de possível venda do PDV ou receita repetida e confirma que é outro dinheiro. */
+  ciente_duplicidade?: boolean;
+}
+
+export interface OutraReceitaAlteracao extends Partial<Omit<OutraReceitaEntrada, 'arquivo_id'>> {
+  versao: number;
+  motivo: string;
+  marcar_pendente?: boolean;
 }
 
 export interface OutraReceitaSaida {
@@ -546,7 +574,17 @@ export interface OutraReceitaSaida {
   valor: Dec;
   competencia: Data;
   recebido_em: Data | null;
+  situacao_recebimento?: 'recebida' | 'pendente';
+  categoria?: string;
+  operacional?: boolean;
+  forma_recebimento?: string | null;
+  origem?: string | null;
+  observacao?: string | null;
   status: 'confirmada' | 'cancelada';
+  versao?: number;
+  criado_por?: string | null;
+  atualizado_por?: string | null;
+  atualizado_em?: Instante | null;
 }
 
 export interface TaxaPagamento {

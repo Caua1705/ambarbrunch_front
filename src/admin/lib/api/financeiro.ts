@@ -6,7 +6,7 @@ import type {
   Categoria, ContaBancaria, ConciliacaoMes, DespesaEntrada, DespesaSaida, DespesasPorCategoria, Fechamento, FilaRevisao,
   Importacao, ListaContas, ListaLancamentos, MapeamentoCsv, MesEvolucao, MovimentoBancario, PagamentoEntrada, ParcelaSaida,
   Recorrencia, ResultadoMes, ResumoFinanceiro, NivelConciliacao, Repasses, Apuracao, MovimentoDetalhe, AgrupamentoVendas,
-  RelatorioVendas, OutraReceitaEntrada, OutraReceitaSaida, TaxaPagamento, TaxaEntrada, RecorrenciaEntrada, Participacao,
+  RelatorioVendas, OutraReceitaEntrada, OutraReceitaSaida, OutraReceitaAlteracao, OpcoesReceita, TaxaPagamento, TaxaEntrada, RecorrenciaEntrada, Participacao,
   SimulacaoParticipacao, EstadoContaMes, DocumentoRevisao, CorrecaoDocumento, ResolucaoDocumento, AnexoDespesa,
   CategoriaEntrada, CategoriaAlteracao, CandidataRevisao, DespesaCandidata, FornecedorCadastro, FornecedorDetalhe,
 } from '../tipos/financeiro';
@@ -59,7 +59,7 @@ export const financeiro = {
   resumo: () => pedir<ResumoFinanceiro>('financeiro/resumo'),
   revisao: async (semCategoria = false) =>
     normalizarFila(await pedir<Partial<FilaRevisao>>('financeiro/revisao', { query: { limite: 100, sem_categoria: semCategoria || undefined } })),
-  lancamentos: (q: { de: string; ate: string; tipo?: string; categoria?: string; origem?: string; status?: string; busca?: string; limite?: number; deslocamento?: number }) =>
+  lancamentos: (q: { de: string; ate: string; tipo?: string; categoria?: string; origem?: string; status?: string; busca?: string; recebimento?: 'recebida' | 'pendente'; limite?: number; deslocamento?: number }) =>
     pedir<ListaLancamentos>('financeiro/lancamentos', { query: { limite: 100, ...q } }),
   /** Só as categorias VÁLIDAS na unidade do topo (a ponte manda ?unidade=): o que os seletores oferecem. */
   categorias: async () => lista<Categoria>(await pedir<Categoria[]>('financeiro/categorias')),
@@ -99,6 +99,10 @@ export const financeiro = {
   pagar: (parcelaId: string, p: PagamentoEntrada) => pedir<ParcelaSaida>(`financeiro/parcelas/${parcelaId}/pagamentos`, { metodo: 'POST', corpo: p }),
   estornarPagamento: (id: string, motivo: string) => pedir<ParcelaSaida>(`financeiro/pagamentos/${id}/estornar`, { metodo: 'POST', corpo: { motivo } }),
   // Outras receitas (fora do PDV): POST 201 com Idempotency-Key; cancelar exige motivo (409 receita_conciliada).
+  opcoesReceita: () => pedir<OpcoesReceita>('financeiro/outras-receitas/opcoes'),
+  outraReceita: (id: string) => pedir<OutraReceitaSaida>(`financeiro/outras-receitas/${id}`),
+  // Correção com versão e motivo (409 versao_desatualizada, receita_conciliada, possivel_venda_pdv, receita_parecida).
+  alterarOutraReceita: (id: string, r: OutraReceitaAlteracao) => pedir<OutraReceitaSaida>(`financeiro/outras-receitas/${id}`, { metodo: 'PATCH', corpo: r }),
   criarOutraReceita: (r: OutraReceitaEntrada, chave = novaChave()) => pedir<OutraReceitaSaida>('financeiro/outras-receitas', { metodo: 'POST', corpo: r, idempotencia: chave }),
   cancelarOutraReceita: (id: string, motivo: string) => pedir<{ id: string; status: OutraReceitaSaida['status'] }>(`financeiro/outras-receitas/${id}/cancelar`, { metodo: 'POST', corpo: { motivo } }),
   // Contas fixas (recorrências) e taxas do cartão/PIX: financeiro.lancar no backend (gerente e proprietário).

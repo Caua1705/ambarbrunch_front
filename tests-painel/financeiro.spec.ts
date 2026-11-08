@@ -198,7 +198,7 @@ test('Outras receitas: lançada aparece no filtro e pode ser cancelada com motiv
   await page.goto(`${DEMO}/admin/financeiro?tipo=receitas`);
   await page.getByRole('button', { name: 'Outra receita' }).click();
   const gaveta = page.getByRole('dialog', { name: 'Outra receita' });
-  await expect(gaveta.getByText(/Aporte de sócio, empréstimo e transferência entre contas não são receita/)).toBeVisible();
+  await expect(gaveta.getByText(/Venda do PDV entra sozinha/)).toBeVisible();
   await gaveta.getByLabel('Descrição').fill('Evento teste da demonstração');
   await gaveta.getByLabel('Valor').fill('1250,00');
   await gaveta.getByRole('button', { name: 'Lançar receita' }).click();
@@ -210,6 +210,72 @@ test('Outras receitas: lançada aparece no filtro e pode ser cancelada com motiv
   await page.getByRole('alertdialog').getByRole('textbox').fill('Lançada por engano no teste');
   await page.getByRole('alertdialog').getByRole('button', { name: 'Cancelar receita' }).click();
   await expect(linha.getByText('Cancelada')).toBeVisible();
+});
+
+test('Outras receitas: a receber, depois recebida pela correção; aporte fica fora do faturamento', async ({ page }) => {
+  await page.goto(`${DEMO}/admin/financeiro?tipo=receitas`);
+  const totais = page.getByLabel('Totais do período');
+  const antes = (await totais.locator('span', { hasText: 'Outras receitas' }).locator('strong').textContent())!.trim();
+
+  await page.getByRole('button', { name: 'Outra receita' }).click();
+  let gaveta = page.getByRole('dialog', { name: 'Outra receita' });
+  await gaveta.getByLabel('Descrição').fill('Locação do salão — teste');
+  await gaveta.getByLabel('Valor').fill('900,00');
+  await gaveta.getByLabel('Categoria').selectOption('locacao_espaco');
+  await gaveta.getByRole('group', { name: 'Situação do recebimento' }).getByRole('button', { name: 'A receber' }).click();
+  await gaveta.getByLabel('Forma de recebimento').selectOption('pix');
+  await gaveta.getByLabel('Origem').fill('Empresa do evento');
+  await gaveta.getByRole('button', { name: 'Lançar receita' }).click();
+  await expect(page.getByText('Receita lançada como a receber.')).toBeVisible();
+  const linha = page.getByRole('row', { name: /Locação do salão — teste/ });
+  await expect(linha).toContainText('a receber');
+  await expect(linha).toContainText('Locação do espaço');
+  await expect(totais).toContainText('A receber');
+
+  // Corrigir: marcar como recebida, com motivo (vai para o histórico).
+  await linha.getByRole('button', { name: /Ações para/ }).click();
+  await page.getByRole('menuitem', { name: 'Corrigir ou marcar recebida' }).click();
+  gaveta = page.getByRole('dialog', { name: 'Corrigir receita' });
+  await gaveta.getByRole('group', { name: 'Situação do recebimento' }).getByRole('button', { name: 'Recebida' }).click();
+  const salvar = gaveta.getByRole('button', { name: 'Salvar correção' });
+  await salvar.click();
+  await expect(gaveta.getByText('Diga por que está corrigindo.')).toBeVisible();
+  await gaveta.getByLabel('Motivo da correção').fill('PIX caiu hoje');
+  await salvar.click();
+  await expect(page.getByText('Receita corrigida.')).toBeVisible();
+  await expect(linha).toContainText('recebida em');
+
+  // Aporte de sócio: registrado, mas fora do faturamento (o total de Outras receitas não muda por ele).
+  const comLocacao = (await totais.locator('span', { hasText: 'Outras receitas' }).locator('strong').textContent())!.trim();
+  expect(comLocacao).not.toBe(antes);
+  await page.getByRole('button', { name: 'Outra receita' }).click();
+  gaveta = page.getByRole('dialog', { name: 'Outra receita' });
+  await gaveta.getByLabel('Descrição').fill('Aporte do sócio — teste');
+  await gaveta.getByLabel('Valor').fill('5000,00');
+  await gaveta.getByLabel('Categoria').selectOption('aporte_socio');
+  await expect(gaveta.getByText('Fica registrada, mas não entra no faturamento nem no resultado.')).toBeVisible();
+  await gaveta.getByRole('button', { name: 'Lançar receita' }).click();
+  await expect(page.getByRole('row', { name: /Aporte do sócio — teste/ })).toContainText('fora do faturamento');
+  await expect(totais.locator('span', { hasText: 'Outras receitas' }).locator('strong')).toHaveText(comLocacao);
+  await expect(totais).toContainText('Fora do faturamento');
+});
+
+test('Outras receitas: valor igual a uma venda do PDV no mesmo dia só entra se a pessoa confirmar', async ({ page }) => {
+  const hoje = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Fortaleza' }).format(new Date());
+  const lista = await (await page.request.get(`${API}/lancamentos?de=${hoje.slice(0, 8)}01&ate=${hoje}&tipo=venda_dia`)).json();
+  const venda = lista.itens[0] as { data: string; valor: string };
+  await page.goto(`${DEMO}/admin/financeiro?tipo=receitas`);
+  await page.getByRole('button', { name: 'Outra receita' }).click();
+  const gaveta = page.getByRole('dialog', { name: 'Outra receita' });
+  await gaveta.getByLabel('Descrição').fill('Caixa do dia lançado à mão');
+  await gaveta.getByLabel('Valor').fill(venda.valor.replace('.', ','));
+  await gaveta.getByLabel('Data').fill(venda.data);
+  await gaveta.getByRole('button', { name: 'Lançar receita' }).click();
+  await expect(gaveta.getByText(/Há venda do PDV com este valor no mesmo dia/)).toBeVisible();
+  await gaveta.getByRole('button', { name: 'Lançar receita' }).click();
+  await expect(gaveta.getByText('Confirme que é outro dinheiro, ou cancele.')).toBeVisible();
+  await gaveta.getByRole('button', { name: 'Cancelar' }).click();
+  await expect(page.getByRole('row', { name: /Caixa do dia lançado à mão/ })).toHaveCount(0);
 });
 
 test('Pendências: Revisão e Conciliação num seletor só; a contagem é a do que está em aberto', async ({ page }) => {

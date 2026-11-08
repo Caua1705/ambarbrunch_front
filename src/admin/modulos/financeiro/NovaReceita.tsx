@@ -1,20 +1,36 @@
-// Outra receita (fora do PDV): evento faturado à parte, por exemplo. Venda de balcão entra sozinha pela Eyemobile.
-// POST /admin/financeiro/outras-receitas com Idempotency-Key (reenviar o mesmo formulário não lança em dobro).
+// Outra receita (fora do PDV): locação do espaço, evento faturado à parte, serviço. Venda de balcão entra sozinha pela
+// Eyemobile. Também abre uma receita lançada para CORRIGIR (com motivo e versão) ou marcar como recebida.
+// POST /admin/financeiro/outras-receitas com Idempotency-Key (reenviar o mesmo formulário não lança em dobro);
+// PATCH /admin/financeiro/outras-receitas/{id}. Valor igual a uma venda do PDV no mesmo dia, ou a uma receita já
+// lançada, volta 409 (possivel_venda_pdv / receita_parecida): a tela mostra o aviso e só grava se a pessoa confirmar
+// que é outro dinheiro. Empréstimo, aporte e transferência ficam registrados, mas fora do faturamento.
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { Check, Info } from 'lucide-preact';
+import { Check, Info, AlertTriangle } from 'lucide-preact';
 import { financeiro } from '../../lib/api/financeiro';
 import { ErroApi, novaChave } from '../../lib/api/cliente';
-import { hojeISO, paraDecimal } from '../../lib/formato';
+import { useConsulta } from '../../lib/consulta';
+import { hojeISO, paraDecimal, moeda } from '../../lib/formato';
+import type { OutraReceitaSaida } from '../../lib/tipos/financeiro';
 import { Gaveta } from '../../ui/camadas';
-import { Botao, Campo, Aviso } from '../../ui/base';
+import { Botao, Campo, Aviso, Segmentado } from '../../ui/base';
 import { EntradaMoeda } from '../../ui/entradas';
 import { atualizarFinanceiro, avisar } from './comum';
 
-export function NovaReceita({ aberta, aoFechar }: { aberta: boolean; aoFechar: () => void }) {
+const DUPLICIDADE = ['possivel_venda_pdv', 'receita_parecida'];
+
+export function NovaReceita({ aberta, aoFechar, editar }: { aberta: boolean; aoFechar: () => void; editar?: OutraReceitaSaida | null }) {
+  const opcoes = useConsulta(aberta ? 'financeiro/outras-receitas/opcoes' : null, () => financeiro.opcoesReceita());
   const [descricao, setDescricao] = useState('');
   const [valor, setValor] = useState('');
   const [competencia, setCompetencia] = useState(hojeISO());
-  const [recebidoEm, setRecebidoEm] = useState('');
+  const [categoria, setCategoria] = useState('outra_operacional');
+  const [recebida, setRecebida] = useState<'sim' | 'nao'>('sim');
+  const [recebidoEm, setRecebidoEm] = useState(hojeISO());
+  const [forma, setForma] = useState('');
+  const [origem, setOrigem] = useState('');
+  const [observacao, setObservacao] = useState('');
+  const [motivo, setMotivo] = useState('');
+  const [ciente, setCiente] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<ErroApi | null>(null);
   const [erros, setErros] = useState<Record<string, string>>({});
@@ -22,35 +38,64 @@ export function NovaReceita({ aberta, aoFechar }: { aberta: boolean; aoFechar: (
 
   useEffect(() => {
     if (!aberta) return;
-    setDescricao('');
-    setValor('');
-    setCompetencia(hojeISO());
-    setRecebidoEm('');
+    const r = editar;
+    setDescricao(r?.descricao ?? '');
+    setValor(r ? r.valor : '');
+    setCompetencia(r?.competencia ?? hojeISO());
+    setCategoria(r?.categoria ?? 'outra_operacional');
+    setRecebida(r && !r.recebido_em ? 'nao' : 'sim');
+    setRecebidoEm(r?.recebido_em ?? r?.competencia ?? hojeISO());
+    setForma(r?.forma_recebimento ?? '');
+    setOrigem(r?.origem ?? '');
+    setObservacao(r?.observacao ?? '');
+    setMotivo('');
+    setCiente(false);
     setErro(null);
     setErros({});
     chave.current = novaChave();
-  }, [aberta]);
+  }, [aberta, editar]);
+
+  const cat = opcoes.dados?.categorias.find((c) => c.codigo === categoria);
+  const duplicidade = !!erro?.codigo && DUPLICIDADE.includes(erro.codigo);
 
   async function enviar(e: Event) {
     e.preventDefault();
     const v = paraDecimal(valor);
     const es: Record<string, string> = {};
-    if (!descricao.trim()) es.descricao = 'Descreva a receita (ex.: Evento corporativo de 12/11).';
+    if (!descricao.trim()) es.descricao = 'Descreva a receita (ex.: Locação do salão em 12/11).';
     if (!v || Number(v) <= 0) es.valor = 'Informe o valor.';
     if (!competencia) es.competencia = 'Informe a data.';
+    if (recebida === 'sim' && !recebidoEm) es.recebido_em = 'Informe quando foi recebida.';
+    if (editar && motivo.trim().length < 3) es.motivo = 'Diga por que está corrigindo.';
+    if (duplicidade && !ciente) es.ciente = 'Confirme que é outro dinheiro, ou cancele.';
     setErros(es);
     if (Object.keys(es).length) return;
     setEnviando(true);
-    setErro(null);
     try {
-      await financeiro.criarOutraReceita({ descricao: descricao.trim(), valor: v!, competencia, recebido_em: recebidoEm || null }, chave.current);
+      const campos = {
+        descricao: descricao.trim(), valor: v!, competencia, categoria,
+        recebido_em: recebida === 'sim' ? recebidoEm : null,
+        forma_recebimento: forma || null, origem: origem.trim() || null, observacao: observacao.trim() || null,
+        ciente_duplicidade: duplicidade && ciente,
+      };
+      if (editar) {
+        const { recebido_em, ...resto } = campos;
+        await financeiro.alterarOutraReceita(editar.id, {
+          ...resto, versao: editar.versao ?? 1, motivo: motivo.trim(),
+          ...(recebido_em ? { recebido_em } : { marcar_pendente: true }),
+        });
+        avisar('Receita corrigida.', 'ok');
+      } else {
+        await financeiro.criarOutraReceita(campos, chave.current);
+        avisar(recebida === 'sim' ? 'Receita lançada.' : 'Receita lançada como a receber.', 'ok');
+      }
       atualizarFinanceiro();
-      avisar('Receita lançada.', 'ok');
       aoFechar();
     } catch (err) {
-      const x = err instanceof ErroApi ? err : new ErroApi('servidor', 'Não foi possível lançar.');
+      const x = err instanceof ErroApi ? err : new ErroApi('servidor', 'Não foi possível salvar.');
       setErros(x.campos);
       setErro(x);
+      setCiente(false);
     } finally {
       setEnviando(false);
     }
@@ -60,18 +105,29 @@ export function NovaReceita({ aberta, aoFechar }: { aberta: boolean; aoFechar: (
     <Gaveta
       aberta={aberta}
       aoFechar={aoFechar}
-      titulo="Outra receita"
-      subtitulo="Fora do PDV"
+      titulo={editar ? 'Corrigir receita' : 'Outra receita'}
+      subtitulo={editar ? `${moeda(editar.valor)} · lançada por ${editar.criado_por ?? '—'}` : 'Fora do PDV'}
       rodape={
         <>
           <Botao onClick={aoFechar} disabled={enviando}>Cancelar</Botao>
-          <Botao variante="primario" type="submit" form="form-nova-receita" carregando={enviando} icone={<Check aria-hidden="true" />}>Lançar receita</Botao>
+          <Botao variante="primario" type="submit" form="form-nova-receita" carregando={enviando} icone={<Check aria-hidden="true" />}>{editar ? 'Salvar correção' : 'Lançar receita'}</Botao>
         </>
       }
     >
       <form id="form-nova-receita" class="pilha" onSubmit={enviar} noValidate>
-        <Aviso tom="info" icone={<Info aria-hidden="true" />}>Só o que não passa pela Eyemobile (ex.: evento faturado à parte). Venda do PDV entra sozinha: não lance aqui. Aporte de sócio, empréstimo e transferência entre contas não são receita: classifique-os no extrato, em Pendências → Banco.</Aviso>
-        {erro && <Aviso tom="perigo" icone={<Info aria-hidden="true" />}>{erro.message}</Aviso>}
+        {!editar && <Aviso tom="info" icone={<Info aria-hidden="true" />}>Só o que não passa pela Eyemobile (ex.: locação do espaço, evento faturado à parte). Venda do PDV entra sozinha: não lance aqui.</Aviso>}
+        {erro && (
+          <Aviso tom={duplicidade ? 'atencao' : 'perigo'} icone={<AlertTriangle aria-hidden="true" />}>
+            {erro.message}
+            {duplicidade && (
+              <label style={{ display: 'flex', gap: '8px', marginTop: '8px', alignItems: 'center' }}>
+                <input type="checkbox" checked={ciente} onChange={(e) => setCiente(e.currentTarget.checked)} />
+                <span>É outro dinheiro: registrar mesmo assim</span>
+              </label>
+            )}
+          </Aviso>
+        )}
+        {erros.ciente && <p class="campo__erro" role="alert">{erros.ciente}</p>}
         <Campo rotulo="Descrição" erro={erros.descricao}>
           {(id, d) => <input id={id} class="entrada" maxLength={300} aria-describedby={d} aria-invalid={!!erros.descricao || undefined} value={descricao} onInput={(e) => setDescricao(e.currentTarget.value)} data-autofoco />}
         </Campo>
@@ -79,12 +135,54 @@ export function NovaReceita({ aberta, aoFechar }: { aberta: boolean; aoFechar: (
           <Campo rotulo="Valor" erro={erros.valor}>
             {(id, d) => <EntradaMoeda id={id} descr={d} valor={valor} aoMudar={setValor} invalido={!!erros.valor} />}
           </Campo>
-          <Campo rotulo="Competência" erro={erros.competencia} ajuda="Dia a que a receita pertence.">
+          <Campo rotulo="Data" erro={erros.competencia} ajuda="Dia a que a receita pertence (competência).">
             {(id, d) => <input id={id} type="date" class="entrada" aria-describedby={d} value={competencia} onChange={(e) => setCompetencia(e.currentTarget.value)} />}
           </Campo>
-          <Campo rotulo="Recebida em" opcional class="inteiro" erro={erros.recebido_em}>
-            {(id, d) => <input id={id} type="date" class="entrada" aria-describedby={d} value={recebidoEm} onChange={(e) => setRecebidoEm(e.currentTarget.value)} />}
+          <Campo rotulo="Categoria" class="inteiro" erro={erros.categoria} ajuda={cat && !cat.operacional ? 'Fica registrada, mas não entra no faturamento nem no resultado.' : 'Entra na receita do mês.'}>
+            {(id, d) => (
+              <select id={id} class="selecao" aria-describedby={d} value={categoria} onChange={(e) => setCategoria(e.currentTarget.value)}>
+                {!opcoes.dados && <option value={categoria}>Carregando…</option>}
+                <optgroup label="Receita (entra no faturamento)">
+                  {(opcoes.dados?.categorias ?? []).filter((c) => c.operacional).map((c) => <option key={c.codigo} value={c.codigo}>{c.nome}</option>)}
+                </optgroup>
+                <optgroup label="Fora do faturamento">
+                  {(opcoes.dados?.categorias ?? []).filter((c) => !c.operacional).map((c) => <option key={c.codigo} value={c.codigo}>{c.nome}</option>)}
+                </optgroup>
+              </select>
+            )}
           </Campo>
+        </div>
+        <Segmentado<'sim' | 'nao'>
+          rotulo="Situação do recebimento"
+          valor={recebida}
+          aoMudar={setRecebida}
+          opcoes={[{ valor: 'sim', rotulo: 'Recebida' }, { valor: 'nao', rotulo: 'A receber' }]}
+        />
+        <div class="grade-campos">
+          {recebida === 'sim' && (
+            <Campo rotulo="Recebida em" erro={erros.recebido_em}>
+              {(id, d) => <input id={id} type="date" class="entrada" aria-describedby={d} value={recebidoEm} onChange={(e) => setRecebidoEm(e.currentTarget.value)} />}
+            </Campo>
+          )}
+          <Campo rotulo="Forma de recebimento" opcional erro={erros.forma_recebimento}>
+            {(id, d) => (
+              <select id={id} class="selecao" aria-describedby={d} value={forma} onChange={(e) => setForma(e.currentTarget.value)}>
+                <option value="">—</option>
+                {(opcoes.dados?.formas ?? []).map((f) => <option key={f.codigo} value={f.codigo}>{f.nome}</option>)}
+              </select>
+            )}
+          </Campo>
+          <Campo rotulo="Origem" opcional class="inteiro" ajuda="De quem ou de onde veio (ex.: empresa do evento)." erro={erros.origem}>
+            {(id, d) => <input id={id} class="entrada" maxLength={120} aria-describedby={d} value={origem} onInput={(e) => setOrigem(e.currentTarget.value)} />}
+          </Campo>
+          <Campo rotulo="Observação" opcional class="inteiro" erro={erros.observacao}>
+            {(id, d) => <textarea id={id} class="entrada" rows={2} maxLength={500} aria-describedby={d} value={observacao} onInput={(e) => setObservacao(e.currentTarget.value)} />}
+          </Campo>
+          {editar && (
+            <Campo rotulo="Motivo da correção" class="inteiro" erro={erros.motivo} ajuda="Fica no histórico, com quem corrigiu.">
+              {(id, d) => <input id={id} class="entrada" maxLength={300} aria-describedby={d} aria-invalid={!!erros.motivo || undefined} value={motivo} onInput={(e) => setMotivo(e.currentTarget.value)} />}
+            </Campo>
+          )}
         </div>
       </form>
     </Gaveta>

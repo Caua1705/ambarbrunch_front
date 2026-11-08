@@ -88,6 +88,7 @@ function ResultadoDoMes({ mes }: { mes: string }) {
                 <Linha rotulo="Faturamento bruto" valor={x.receita.faturamento_bruto} nota={plural(x.receita.vendas, 'venda', 'vendas')} />
                 <Linha rotulo="Descontos e devoluções" valor={num(x.receita.descontos) === null && num(x.receita.devolucoes) === null ? null : String((num(x.receita.descontos) ?? 0) + (num(x.receita.devolucoes) ?? 0))} recuo negativo />
                 <Linha rotulo="Outras receitas" valor={x.receita.outras_receitas} recuo />
+                {Number(x.receita.entradas_fora_da_receita ?? 0) > 0 && <Linha rotulo="Entradas fora da receita" valor={x.receita.entradas_fora_da_receita!} recuo nota="empréstimo, aporte, transferência: não somam" />}
                 <Linha rotulo="Receita líquida" valor={x.receita.receita_liquida} forte />
                 <Linha rotulo="Custo das mercadorias (CMV)" valor={x.cmv.valor} negativo nota={x.cmv.fonte === 'por_inventario' ? 'por inventário' : x.cmv.fonte === 'teorico' ? 'teórico, pelas fichas' : 'indisponível'} />
                 <Linha rotulo="Margem bruta" valor={x.margem_bruta} sub={pctR(x.margem_bruta_pct)} forte />

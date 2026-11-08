@@ -80,7 +80,7 @@ const E: {
   fornecedores: Fornecedor[];
   despesas: Despesa[];
   vendas: Venda[];
-  receitas: { id: string; descricao: string; valor: string; competencia: string; recebido_em: string | null; status: 'confirmada' | 'cancelada'; chave?: string | null }[];
+  receitas: ReceitaDemo[];
   taxas: TaxaPagamento[];
   recorrencias: Recorrencia[];
   documentos: DocDemo[];
@@ -92,6 +92,33 @@ const E: {
   apuracoes: Map<string, { status: 'rascunho' | 'conferida' | 'fechada'; excecao: { motivo: string; por: string } | null }>;
   mesesConciliados: Set<string>;
 } = { pronto: false, seq: 0, fornecedores: [], despesas: [], vendas: [], receitas: [], taxas: [], recorrencias: [], documentos: [], contas: [], importacoes: [], movimentos: [], vinculos: [], arquivos: new Map(), apuracoes: new Map(), mesesConciliados: new Set() };
+
+// Outras receitas (como o backend, 0027): só as categorias operacionais entram na receita.
+interface ReceitaDemo {
+  id: string; descricao: string; valor: string; competencia: string; recebido_em: string | null; status: 'confirmada' | 'cancelada';
+  chave?: string | null; categoria: string; forma_recebimento: string | null; origem: string | null; observacao: string | null; versao: number;
+}
+const CATEGORIAS_RECEITA: [string, string, boolean][] = [
+  ['locacao_espaco', 'Locação do espaço', true], ['evento', 'Evento faturado', true], ['servico', 'Serviço prestado', true],
+  ['outra_operacional', 'Outra receita operacional', true], ['reembolso', 'Reembolso', false], ['rendimento', 'Rendimento financeiro', false],
+  ['emprestimo', 'Empréstimo recebido', false], ['aporte_socio', 'Aporte de sócio', false],
+  ['transferencia_entre_contas', 'Transferência entre contas', false], ['outra_nao_operacional', 'Outra entrada fora do faturamento', false],
+];
+const FORMAS_RECEBIMENTO: [string, string][] = [['pix', 'PIX'], ['dinheiro', 'Dinheiro'], ['cartao_credito', 'Cartão de crédito'], ['cartao_debito', 'Cartão de débito'], ['transferencia', 'Transferência'], ['boleto', 'Boleto'], ['outro', 'Outro']];
+const receitaOperacional = (c: string) => CATEGORIAS_RECEITA.some(([k, , op]) => k === c && op);
+const saidaReceita = (r: ReceitaDemo) => ({
+  id: r.id, unidade_negocio_id: 1, descricao: r.descricao, valor: r.valor, competencia: r.competencia, recebido_em: r.recebido_em,
+  situacao_recebimento: r.recebido_em ? 'recebida' : 'pendente', categoria: r.categoria, operacional: receitaOperacional(r.categoria),
+  forma_recebimento: r.forma_recebimento, origem: r.origem, observacao: r.observacao, arquivo_id: null, status: r.status, versao: r.versao,
+  criado_por: 'Demonstração', criado_em: agora(), atualizado_por: null, atualizado_em: null, cancelado_em: null, cancelado_motivo: null,
+});
+interface ReceitaCorpo { descricao?: string; valor?: string; competencia?: string; recebido_em?: string | null; categoria?: string; forma_recebimento?: string | null; origem?: string | null; observacao?: string | null; ciente_duplicidade?: boolean; versao?: number; motivo?: string; marcar_pendente?: boolean }
+function duplicidadeReceita(valor: string, competencia: string, exceto?: string) {
+  const venda = E.vendas.find((v) => v.dia === competencia && d2(v.total) === valor);
+  if (venda) throw new ErroDemo(409, 'possivel_venda_pdv', 'Há venda do PDV com este valor no mesmo dia. Venda de balcão já entra pela Eyemobile: confirme só se for outro dinheiro.');
+  const igual = E.receitas.find((r) => r.id !== exceto && r.status === 'confirmada' && r.valor === valor && r.competencia === competencia);
+  if (igual) throw new ErroDemo(409, 'receita_parecida', 'Já existe uma receita com este valor nesta data. Confirme só se for outra.');
+}
 
 const id = () => `f${String(++E.seq).padStart(7, '0')}-0000-4000-8000-00000000demo`;
 const d2 = (n: number) => n.toFixed(2);
@@ -208,7 +235,7 @@ function montar() {
   void freezer;
   novaDespesa({ descricao: 'Pix — Distribuidora Bom Preço', valor: 236.4, competencia: dia(-2, hoje), categoria: 'a_classificar', origem: 'julia', status: 'em_revisao', motivos: ['categoria_a_classificar'], parcelas: [{ vencimento: dia(-2, hoje), valor: 236.4, paga_em: dia(-2, hoje) }], arquivo_id: arquivoFalso('Comprovante Pix', ['Pix enviado', 'R$ 236,40', 'Distribuidora Bom Preço', `${dia(-2, hoje)} 10:42`]) });
   novaDespesa({ descricao: 'Reforma do toldo do jardim', valor: 7900, competencia: dia(-1, hoje), categoria: 'manutencao', origem: 'julia', status: 'em_revisao', motivos: ['acima_do_limite'], fornecedor: fornecedor('Toldos Ceará', '77888999000100'), parcelas: [{ vencimento: dia(9, hoje), valor: 7900 }], arquivo_id: arquivoFalso('Orçamento aprovado', ['Toldos Ceará', 'Reforma toldo', 'R$ 7.900,00']) });
-  E.receitas.push({ id: id(), descricao: 'Evento corporativo — café da manhã (faturado)', valor: '4800.00', competencia: dia(-9, hoje), recebido_em: dia(-2, hoje), status: 'confirmada' });
+  E.receitas.push({ id: id(), descricao: 'Evento corporativo — café da manhã (faturado)', valor: '4800.00', competencia: dia(-9, hoje), recebido_em: dia(-2, hoje), status: 'confirmada', categoria: 'evento', forma_recebimento: 'transferencia', origem: null, observacao: null, versao: 1 });
   // Taxas do contrato da adquirente: uma vigência antiga do crédito e as atuais.
   const taxa = (meio: MeioPdv, t: string, prazo: number, desde: string) => E.taxas.push({ id: E.taxas.length + 1, meio, taxa_percentual: t, prazo_dias: prazo, vigente_de: desde });
   taxa('credito', '3.490', 30, `${mesMais(mesAtual, -6)}-01`);
@@ -835,15 +862,16 @@ export const ROTAS_FINANCEIRO: Rota[] = [
     const un = idUnidade(query);
     for (const d of E.despesas.filter((x) => x.competencia >= de && x.competencia <= ate && x.unidade_negocio_id === un)) itens.push({ tipo: 'despesa', id: d.id, data: d.competencia, descricao: d.descricao, valor: d.valor, sinal: -1, categoria: d.categoria_codigo, origem: d.origem, fornecedor_id: d.fornecedor?.id ?? null, fornecedor: d.fornecedor?.nome ?? null, status: d.status, tem_comprovante: !!d.arquivo_id, compra_id: d.compra_id, despesa_id: d.id, detalhes: { motivos_revisao: d.motivos_revisao, valor_a_confirmar: d.valor_a_confirmar, versao: d.versao } });
     for (const d of E.despesas.filter((x) => x.unidade_negocio_id === un)) for (const p of d.parcelas) for (const pg of p.pagamentos.filter((x) => x.pago_em >= de && x.pago_em <= ate)) itens.push({ tipo: 'pagamento', id: pg.id, data: pg.pago_em, descricao: d.descricao, valor: pg.valor, sinal: -1, categoria: d.categoria_codigo, origem: pg.origem, fornecedor_id: d.fornecedor?.id ?? null, fornecedor: d.fornecedor?.nome ?? null, status: pg.estornado_em ? 'estornado' : 'confirmado', tem_comprovante: !!pg.arquivo_id, compra_id: d.compra_id, despesa_id: d.id, detalhes: { forma: pg.forma, parcela_id: p.id, parcela: p.numero, conciliacao: pg.conciliacao } });
-    for (const r of E.receitas.filter((x) => x.competencia >= de && x.competencia <= ate)) itens.push({ tipo: 'outra_receita', id: r.id, data: r.competencia, descricao: r.descricao, valor: r.valor, sinal: 1, categoria: null, origem: 'painel', fornecedor_id: null, fornecedor: null, status: r.status, tem_comprovante: false, compra_id: null, despesa_id: null, detalhes: { recebido_em: r.recebido_em } });
+    for (const r of E.receitas.filter((x) => x.competencia >= de && x.competencia <= ate)) itens.push({ tipo: 'outra_receita', id: r.id, data: r.competencia, descricao: r.descricao, valor: r.valor, sinal: 1, categoria: r.categoria, origem: 'painel', fornecedor_id: null, fornecedor: null, status: r.status, tem_comprovante: false, compra_id: null, despesa_id: null, detalhes: { recebido_em: r.recebido_em, forma_recebimento: r.forma_recebimento, origem: r.origem, observacao: r.observacao, versao: r.versao, operacional: receitaOperacional(r.categoria) } });
     const tipo = query.get('tipo');
     const cat = query.get('categoria');
     const org = query.get('origem');
     const st = query.get('status');
     const b = query.get('busca')?.toLowerCase();
-    const f = itens.filter((l) => (!tipo || l.tipo === tipo) && (!cat || l.categoria === cat) && (!org || l.origem === org) && (!st || l.status === st) && (veSocietario(papel) || !ehRetirada(l.categoria)) && (!b || `${l.descricao} ${l.fornecedor ?? ''}`.toLowerCase().includes(b))).sort((a, b2) => b2.data.localeCompare(a.data));
+    const rec = query.get('recebimento');
+    const f = itens.filter((l) => (!rec || (l.tipo === 'outra_receita' && (rec === 'recebida') === !!l.detalhes.recebido_em)) && (!tipo || l.tipo === tipo) && (!cat || l.categoria === cat) && (!org || l.origem === org) && (!st || l.status === st) && (veSocietario(papel) || !ehRetirada(l.categoria)) && (!b || `${l.descricao} ${l.fornecedor ?? ''}`.toLowerCase().includes(b))).sort((a, b2) => b2.data.localeCompare(a.data));
     const soma = (fn: (l: Lancamento) => boolean) => d2(f.filter(fn).reduce((s, l) => s + Number(l.valor), 0));
-    return { ...paginar(f, query), totais: { receita_pdv: soma((l) => l.tipo === 'venda_dia'), outras_receitas: soma((l) => l.tipo === 'outra_receita' && l.status === 'confirmada'), despesas_confirmadas: soma((l) => l.tipo === 'despesa' && l.status === 'confirmada'), despesas_em_revisao: soma((l) => l.tipo === 'despesa' && l.status === 'em_revisao'), pagamentos: soma((l) => l.tipo === 'pagamento' && l.status === 'confirmado') } };
+    return { ...paginar(f, query), totais: { receita_pdv: soma((l) => l.tipo === 'venda_dia'), outras_receitas: soma((l) => l.tipo === 'outra_receita' && l.status === 'confirmada' && !!l.detalhes.operacional), entradas_fora_da_receita: soma((l) => l.tipo === 'outra_receita' && l.status === 'confirmada' && !l.detalhes.operacional), receitas_a_receber: soma((l) => l.tipo === 'outra_receita' && l.status === 'confirmada' && !l.detalhes.recebido_em), despesas_confirmadas: soma((l) => l.tipo === 'despesa' && l.status === 'confirmada'), despesas_em_revisao: soma((l) => l.tipo === 'despesa' && l.status === 'em_revisao'), pagamentos: soma((l) => l.tipo === 'pagamento' && l.status === 'confirmado') } };
   }],
   ['POST', R('financeiro/despesas'), GERENCIA, async ({ corpo, query }) => {
     montar();
@@ -1080,15 +1108,52 @@ export const ROTAS_FINANCEIRO: Rota[] = [
     }
     throw new ErroDemo(404, 'nao_encontrado', 'Pagamento não encontrado.');
   }],
+  ['GET', R('financeiro/outras-receitas/opcoes'), GERENCIA, () => ({
+    categorias: CATEGORIAS_RECEITA.map(([codigo, nome, operacional]) => ({ codigo, nome, operacional })),
+    formas: FORMAS_RECEBIMENTO.map(([codigo, nome]) => ({ codigo, nome })),
+  })],
   ['POST', R('financeiro/outras-receitas'), GERENCIA, async ({ corpo, request }) => {
     montar();
-    const e = await corpo<{ descricao?: string; valor?: string; competencia?: string; recebido_em?: string | null }>();
+    const e = await corpo<ReceitaCorpo>();
     if (!e.descricao?.trim() || !e.valor || Number(e.valor) <= 0 || !e.competencia) throw new ErroDemo(422, 'regra_violada', 'Preencha descrição, valor e competência.');
     const chave = request.headers.get('Idempotency-Key');
     const ja = chave ? E.receitas.find((x) => x.chave === chave) : undefined;
-    const item = ja ?? { id: id(), descricao: e.descricao.trim(), valor: d2(Number(e.valor)), competencia: e.competencia, recebido_em: e.recebido_em ?? null, status: 'confirmada' as const, chave };
-    if (!ja) E.receitas.push(item);
-    return resposta(201, { id: item.id, descricao: item.descricao, valor: item.valor, competencia: item.competencia, recebido_em: item.recebido_em, status: item.status });
+    if (ja) return resposta(201, saidaReceita(ja));
+    const valor = d2(Number(e.valor));
+    if (!e.ciente_duplicidade) duplicidadeReceita(valor, e.competencia);
+    const item: ReceitaDemo = {
+      id: id(), descricao: e.descricao.trim(), valor, competencia: e.competencia, recebido_em: e.recebido_em ?? null, status: 'confirmada', chave,
+      categoria: e.categoria ?? 'outra_operacional', forma_recebimento: e.forma_recebimento ?? null, origem: e.origem?.trim() || null, observacao: e.observacao?.trim() || null, versao: 1,
+    };
+    E.receitas.push(item);
+    return resposta(201, saidaReceita(item));
+  }],
+  ['GET', R(`financeiro/outras-receitas/${UUID}`), GERENCIA, ({ params }) => {
+    montar();
+    const item = E.receitas.find((x) => x.id === params[0]);
+    if (!item) throw new ErroDemo(404, 'nao_encontrado', 'Receita não encontrada.');
+    return saidaReceita(item);
+  }],
+  ['PATCH', R(`financeiro/outras-receitas/${UUID}`), GERENCIA, async ({ params, corpo }) => {
+    montar();
+    const e = await corpo<ReceitaCorpo>();
+    const item = E.receitas.find((x) => x.id === params[0]);
+    if (!item) throw new ErroDemo(404, 'nao_encontrado', 'Receita não encontrada.');
+    exigirMotivo(e.motivo ?? '');
+    if (item.status === 'cancelada') throw new ErroDemo(409, 'receita_cancelada', 'Receita cancelada não se altera.');
+    if (e.versao !== item.versao) throw new ErroDemo(409, 'versao_desatualizada', 'Esta receita foi alterada por outra pessoa. Abra de novo.');
+    const valor = e.valor !== undefined ? d2(Number(e.valor)) : item.valor;
+    const competencia = e.competencia ?? item.competencia;
+    if ((valor !== item.valor || competencia !== item.competencia) && !e.ciente_duplicidade) duplicidadeReceita(valor, competencia, item.id);
+    Object.assign(item, {
+      descricao: e.descricao?.trim() ?? item.descricao, valor, competencia, categoria: e.categoria ?? item.categoria,
+      recebido_em: e.marcar_pendente ? null : e.recebido_em !== undefined ? e.recebido_em : item.recebido_em,
+      forma_recebimento: e.forma_recebimento !== undefined ? e.forma_recebimento : item.forma_recebimento,
+      origem: e.origem !== undefined ? e.origem?.trim() || null : item.origem,
+      observacao: e.observacao !== undefined ? e.observacao?.trim() || null : item.observacao,
+      versao: item.versao + 1,
+    });
+    return saidaReceita(item);
   }],
   ['POST', R(`financeiro/outras-receitas/${UUID}/cancelar`), GERENCIA, async ({ params, corpo }) => {
     montar();
@@ -1097,6 +1162,7 @@ export const ROTAS_FINANCEIRO: Rota[] = [
     const item = E.receitas.find((x) => x.id === params[0]);
     if (!item) throw new ErroDemo(404, 'nao_encontrado', 'Receita não encontrada.');
     item.status = 'cancelada';
+    item.versao += 1;
     return { id: item.id, status: item.status };
   }],
   ['GET', R('financeiro/taxas-pagamento'), GERENCIA, () => { montar(); return [...E.taxas].sort((a, b) => a.meio.localeCompare(b.meio) || a.vigente_de.localeCompare(b.vigente_de)); }],
@@ -1310,7 +1376,7 @@ export const ROTAS_FINANCEIRO: Rota[] = [
       v.descricao = `Despesa nova: ${a.descricao}`;
     } else if (a.acao === 'registrar_receita') {
       if (!a.descricao) throw new ErroDemo(422, 'motivo_obrigatorio', 'Descreva a receita.');
-      E.receitas.push({ id: id(), descricao: a.descricao, valor: m.valor, competencia: a.competencia ?? m.data, recebido_em: m.data, status: 'confirmada' });
+      E.receitas.push({ id: id(), descricao: a.descricao, valor: m.valor, competencia: a.competencia ?? m.data, recebido_em: m.data, status: 'confirmada', categoria: 'outra_operacional', forma_recebimento: 'transferencia', origem: null, observacao: null, versao: 1 });
       v.descricao = `Receita nova: ${a.descricao}`;
     } else if (a.acao === 'liquidar_vendas') {
       if (m.direcao !== 'credito') throw new ErroDemo(422, 'direcao_incompativel', 'Só entradas liquidam vendas.');

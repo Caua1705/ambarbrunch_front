@@ -18,8 +18,8 @@ import { useConfirmacao, Suspenso, type PedidoConfirmacao } from '../../ui/camad
 import { Botao, Cartao, Segmentado, Aviso } from '../../ui/base';
 import { Dados, EsqueletoTabela, Vazio } from '../../ui/estados';
 import { Tabela, type Coluna } from '../../ui/tabela';
-import type { Lancamento, ListaLancamentos, ResumoFinanceiro, TipoLancamento } from '../../lib/tipos/financeiro';
-import { ORIGEM, TIPO_LANCAMENTO, SituacaoLancamento, useCadastroCategorias, nomeCategoria, temPermissao, atualizarFinanceiro } from './comum';
+import type { Lancamento, ListaLancamentos, OutraReceitaSaida, ResumoFinanceiro, TipoLancamento } from '../../lib/tipos/financeiro';
+import { ORIGEM, TIPO_LANCAMENTO, SituacaoLancamento, useCadastroCategorias, nomeCategoria, temPermissao, atualizarFinanceiro, avisar } from './comum';
 import { NovaDespesa } from './NovaDespesa';
 import { NovaReceita } from './NovaReceita';
 import { DetalheDespesa } from './DetalheDespesa';
@@ -78,6 +78,15 @@ export function Movimentacoes({ contexto }: { contexto: ContextoPainel }) {
   const [receita, setReceita] = useState(false);
   const [maisFiltros, setMaisFiltros] = useState(false);
   const [despesa, setDespesa] = useState<string | null>(lerParam('despesa'));
+  const [receitaEditar, setReceitaEditar] = useState<OutraReceitaSaida | null>(null);
+  // Receita lançada: abre a mesma gaveta para corrigir (com motivo) ou marcar como recebida.
+  const abrirReceita = async (id: string) => {
+    try {
+      setReceitaEditar(await financeiro.outraReceita(id));
+    } catch {
+      avisar('Não foi possível abrir a receita. Tente de novo.', 'erro');
+    }
+  };
   const { confirmar, elemento: dialogo } = useConfirmacao();
   const resumo = useConsulta('financeiro/resumo', () => financeiro.resumo());
 
@@ -169,13 +178,13 @@ export function Movimentacoes({ contexto }: { contexto: ContextoPainel }) {
       ) : (
         <ListaMovimentacoes
           filtro={filtro} mostrar={mostrar} periodo={periodo} de={de} ate={ate} categoria={categoria} origem={origem} situacao={situacao}
-          busca={buscaAtiva} lancar={lancar} resumo={resumo.dados ?? null} abrirDespesa={setDespesa} confirmar={confirmar}
+          busca={buscaAtiva} lancar={lancar} resumo={resumo.dados ?? null} abrirDespesa={setDespesa} abrirReceita={abrirReceita} confirmar={confirmar}
           irPara={(d, a) => { setDe(d); setAte(a); setPeriodo('personalizado'); }}
         />
       )}
 
       <NovaDespesa aberta={nova} aoFechar={() => setNova(false)} aoCriar={(id) => setDespesa(id)} />
-      <NovaReceita aberta={receita} aoFechar={() => setReceita(false)} />
+      <NovaReceita aberta={receita || !!receitaEditar} editar={receitaEditar} aoFechar={() => { setReceita(false); setReceitaEditar(null); }} />
       <DetalheDespesa id={despesa} aoFechar={() => setDespesa(null)} confirmar={confirmar} />
       {dialogo}
     </>
@@ -198,6 +207,7 @@ function Filtros(p: {
 }) {
   // Cadastro inteiro: lançamento antigo continua com categoria que não vale mais (aluguel, energia…) e precisa de nome e filtro.
   const cats = useCadastroCategorias();
+  const opReceita = useConsulta(p.filtro === 'receitas' ? 'financeiro/outras-receitas/opcoes' : null, () => financeiro.opcoesReceita());
   return (
     <div class="filtros filtros--recolhiveis" id="mov-filtros">
       {p.filtro === 'todas' && (
@@ -214,6 +224,12 @@ function Filtros(p: {
           {[...(cats.dados ?? [])].sort((a, b) => Number(b.ativa_na_unidade !== false) - Number(a.ativa_na_unidade !== false) || (a.ordem ?? 100) - (b.ordem ?? 100)).map((c) => <option key={c.codigo} value={c.codigo}>{c.nome}{c.ativa_na_unidade === false ? ' (fora de uso)' : ''}</option>)}
         </select>
       )}
+      {p.filtro === 'receitas' && (
+        <select class="selecao" aria-label="Categoria" value={p.categoria} onChange={(e) => p.setCategoria(e.currentTarget.value)}>
+          <option value="">Todas as categorias</option>
+          {(opReceita.dados?.categorias ?? []).map((c) => <option key={c.codigo} value={c.codigo}>{c.nome}{c.operacional ? '' : ' (fora do faturamento)'}</option>)}
+        </select>
+      )}
       <select class="selecao" aria-label="Origem" value={p.origem} onChange={(e) => p.setOrigem(e.currentTarget.value)}>
         <option value="">Todas as origens</option>
         {Object.entries(ORIGEM).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
@@ -223,6 +239,8 @@ function Filtros(p: {
         {p.filtro !== 'receitas' && <option value="em_revisao">Para revisar</option>}
         <option value="confirmada">Confirmadas</option>
         <option value="cancelada">Canceladas</option>
+        {p.filtro === 'receitas' && <option value="rec:recebida">Recebidas</option>}
+        {p.filtro === 'receitas' && <option value="rec:pendente">A receber</option>}
         {p.filtro === 'todas' && <option value="confirmado">Pagamentos feitos</option>}
         {p.filtro === 'todas' && <option value="estornado">Pagamentos estornados</option>}
       </select>
@@ -233,14 +251,16 @@ function Filtros(p: {
 
 function ListaMovimentacoes(p: {
   filtro: Exclude<FiltroMovimentacoes, 'a-pagar'>; mostrar: Mostrar; periodo: Periodo; de: string; ate: string; categoria: string; origem: string; situacao: string;
-  busca: string; lancar: boolean; resumo: ResumoFinanceiro | null; abrirDespesa: (id: string) => void; confirmar: (p: PedidoConfirmacao) => void;
+  busca: string; lancar: boolean; resumo: ResumoFinanceiro | null; abrirDespesa: (id: string) => void; abrirReceita: (id: string) => void; confirmar: (p: PedidoConfirmacao) => void;
   irPara: (de: string, ate: string) => void;
 }) {
-  const { filtro, mostrar, lancar, resumo, abrirDespesa, confirmar } = p;
+  const { filtro, mostrar, lancar, resumo, abrirDespesa, abrirReceita, confirmar } = p;
   const cats = useCadastroCategorias();
+  const opReceita = useConsulta('financeiro/outras-receitas/opcoes', () => financeiro.opcoesReceita());
   const [d1, d2] = intervalo(p.periodo, p.de, p.ate);
   const tipo: TipoLancamento | undefined = filtro === 'despesas' ? 'despesa' : filtro === 'receitas' ? 'outra_receita' : mostrar === 'venda_dia' || mostrar === 'pagamento' ? mostrar : undefined;
-  const q = { de: d1, ate: d2, tipo, categoria: p.categoria || undefined, origem: p.origem || undefined, status: p.situacao || undefined, busca: p.busca || undefined };
+  const recebimento = p.situacao === 'rec:recebida' ? 'recebida' as const : p.situacao === 'rec:pendente' ? 'pendente' as const : undefined;
+  const q = { de: d1, ate: d2, tipo, categoria: p.categoria || undefined, origem: p.origem || undefined, status: recebimento ? undefined : p.situacao || undefined, recebimento, busca: p.busca || undefined };
   const lista = useConsulta(`financeiro/lancamentos?${JSON.stringify(q)}`, () => financeiro.lancamentos({ ...q, limite: 200 }));
   // Período vazio: o lançamento mais recente ANTES dele (mesmos filtros, até um ano), para o vazio dizer onde estão os
   // registros em vez de só R$ 0,00. As despesas da Júlia ficam na data do comprovante, que pode ser de outro mês.
@@ -265,7 +285,7 @@ function ListaMovimentacoes(p: {
       celula: (l) => {
         const extra = l.tipo === 'venda_dia' && l.detalhes.vendas !== undefined
           ? `${plural(l.detalhes.vendas, 'venda', 'vendas')} · taxa de serviço ${moeda(l.detalhes.taxa_servico ?? null)} (fora da receita)`
-          : l.tipo === 'outra_receita' && l.detalhes.recebido_em ? `recebida em ${dataCurta(l.detalhes.recebido_em)}` : null;
+          : l.tipo === 'outra_receita' ? [l.detalhes.recebido_em ? `recebida em ${dataCurta(l.detalhes.recebido_em)}` : 'a receber', l.detalhes.operacional === false ? 'fora do faturamento' : null, l.detalhes.origem].filter(Boolean).join(' · ') : null;
         return (
           <>
             <span class="principal-celula">{l.descricao}</span>
@@ -274,7 +294,7 @@ function ListaMovimentacoes(p: {
         );
       },
     },
-    { id: 'categoria', titulo: 'Categoria', prioridade: 'media', ordenar: (l) => l.categoria ?? '', celula: (l) => (l.categoria ? nomeCategoria(cats.dados, l.categoria) : <span class="fraco">—</span>) },
+    { id: 'categoria', titulo: 'Categoria', prioridade: 'media', ordenar: (l) => l.categoria ?? '', celula: (l) => (!l.categoria ? <span class="fraco">—</span> : l.tipo === 'outra_receita' ? (opReceita.dados?.categorias.find((c) => c.codigo === l.categoria)?.nome ?? l.categoria) : nomeCategoria(cats.dados, l.categoria)) },
     { id: 'origem', titulo: 'Origem', prioridade: 'baixa', celula: (l) => <span class="fraco">{ORIGEM[l.origem] ?? l.origem}</span> },
     {
       id: 'valor', titulo: 'Valor', numero: true, ordenar: (l) => Number(l.valor) * l.sinal,
@@ -285,14 +305,16 @@ function ListaMovimentacoes(p: {
       id: 'acoes', titulo: '', prioridade: 'media',
       celula: (l) => {
         const alvo = l.tipo === 'despesa' ? l.id : l.despesa_id;
+        const receita = l.tipo === 'outra_receita' && l.status === 'confirmada' && lancar;
         if (l.status === 'em_revisao' && alvo) return <Botao tamanho="p" variante="primario" onClick={() => abrirDespesa(alvo)}>Revisar</Botao>;
         const correcao = lancar ? pedidoCorrecao(l) : null;
-        if (!alvo && !correcao) return null;
+        if (!alvo && !correcao && !receita) return null;
         return (
           <Suspenso rotulo={`Ações para ${l.descricao}`} gatilho={(g) => <Botao tamanho="p" variante="fantasma" so_icone {...g} icone={<MoreHorizontal aria-hidden="true" />} />}>
             {(fechar) => (
               <>
                 {alvo && <button class="suspenso__item" role="menuitem" onClick={() => { fechar(); abrirDespesa(alvo); }}>{l.tipo === 'pagamento' ? 'Ver a despesa paga' : 'Ver detalhes'}</button>}
+                {receita && <button class="suspenso__item" role="menuitem" onClick={() => { fechar(); void abrirReceita(l.id); }}>Corrigir ou marcar recebida</button>}
                 {correcao && <button class="suspenso__item" role="menuitem" style={{ color: 'var(--perigo)' }} onClick={() => { fechar(); confirmar(correcao); }}>{ROTULO_CORRECAO[l.tipo]}</button>}
               </>
             )}
@@ -300,7 +322,7 @@ function ListaMovimentacoes(p: {
         );
       },
     },
-  ], [cats.dados, lancar]);
+  ], [cats.dados, opReceita.dados, lancar]);
 
   return (
     <Cartao justo>
@@ -316,6 +338,8 @@ function ListaMovimentacoes(p: {
                   <span>Vendas do PDV (Eyemobile) {pdvIndisponivel ? <strong class="fraco">indisponível</strong> : <strong class="num">{moeda(r.totais.receita_pdv)}</strong>}</span>
                 )}
                 {(verReceitas || filtro === 'receitas') && <span>Outras receitas <strong class="num">{moeda(r.totais.outras_receitas)}</strong></span>}
+                {(verReceitas || filtro === 'receitas') && Number(r.totais.receitas_a_receber ?? 0) > 0 && <span>A receber <strong class="num">{moeda(r.totais.receitas_a_receber!)}</strong></span>}
+                {(verReceitas || filtro === 'receitas') && Number(r.totais.entradas_fora_da_receita ?? 0) > 0 && <span>Fora do faturamento <strong class="num">{moeda(r.totais.entradas_fora_da_receita!)}</strong></span>}
                 {verDespesas && <span>Despesas confirmadas <strong class="num">{moeda(r.totais.despesas_confirmadas)}</strong></span>}
                 {verDespesas && Number(r.totais.despesas_em_revisao) > 0 && <span>Em revisão <strong class="num">{moeda(r.totais.despesas_em_revisao)}</strong></span>}
                 {(verReceitas || mostrar === 'pagamento') && filtro === 'todas' && <span>Pagamentos realizados <strong class="num">{moeda(r.totais.pagamentos)}</strong></span>}
@@ -326,7 +350,7 @@ function ListaMovimentacoes(p: {
                 colunas={colunas}
                 linhas={soPrincipal ? r.itens.filter((l) => l.tipo !== 'pagamento') : r.itens}
                 chave={(l) => `${l.tipo}:${l.id}`}
-                aoAbrir={(l) => { const alvo = l.tipo === 'despesa' ? l.id : l.despesa_id; if (alvo) abrirDespesa(alvo); }}
+                aoAbrir={(l) => { if (l.tipo === 'outra_receita') { if (lancar && l.status === 'confirmada') void abrirReceita(l.id); return; } const alvo = l.tipo === 'despesa' ? l.id : l.despesa_id; if (alvo) abrirDespesa(alvo); }}
                 destaque={(l) => l.status === 'em_revisao'}
                 apagada={(l) => l.status === 'cancelada' || l.status === 'estornado'}
                 ordemInicial={{ coluna: 'data', desc: true }}
