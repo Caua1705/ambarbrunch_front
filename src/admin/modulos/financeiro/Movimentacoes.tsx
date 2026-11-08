@@ -33,6 +33,8 @@ type Mostrar = 'principal' | 'venda_dia' | 'pagamento' | 'tudo';
 
 const lerFiltro = (v: string | null): FiltroMovimentacoes => (v === 'despesas' || v === 'receitas' || v === 'a-pagar' ? v : 'todas');
 
+const diasEntre = (de: string, ate: string) => (Date.parse(`${ate}T12:00:00Z`) - Date.parse(`${de}T12:00:00Z`)) / 86_400_000;
+
 function intervalo(p: Periodo, de: string, ate: string): [string, string] {
   const hoje = hojeISO();
   if (p === 'mes') return [inicioMes(hoje), hoje];
@@ -168,6 +170,7 @@ export function Movimentacoes({ contexto }: { contexto: ContextoPainel }) {
         <ListaMovimentacoes
           filtro={filtro} mostrar={mostrar} periodo={periodo} de={de} ate={ate} categoria={categoria} origem={origem} situacao={situacao}
           busca={buscaAtiva} lancar={lancar} resumo={resumo.dados ?? null} abrirDespesa={setDespesa} confirmar={confirmar}
+          irPara={(d, a) => { setDe(d); setAte(a); setPeriodo('personalizado'); }}
         />
       )}
 
@@ -231,6 +234,7 @@ function Filtros(p: {
 function ListaMovimentacoes(p: {
   filtro: Exclude<FiltroMovimentacoes, 'a-pagar'>; mostrar: Mostrar; periodo: Periodo; de: string; ate: string; categoria: string; origem: string; situacao: string;
   busca: string; lancar: boolean; resumo: ResumoFinanceiro | null; abrirDespesa: (id: string) => void; confirmar: (p: PedidoConfirmacao) => void;
+  irPara: (de: string, ate: string) => void;
 }) {
   const { filtro, mostrar, lancar, resumo, abrirDespesa, confirmar } = p;
   const cats = useCadastroCategorias();
@@ -238,6 +242,14 @@ function ListaMovimentacoes(p: {
   const tipo: TipoLancamento | undefined = filtro === 'despesas' ? 'despesa' : filtro === 'receitas' ? 'outra_receita' : mostrar === 'venda_dia' || mostrar === 'pagamento' ? mostrar : undefined;
   const q = { de: d1, ate: d2, tipo, categoria: p.categoria || undefined, origem: p.origem || undefined, status: p.situacao || undefined, busca: p.busca || undefined };
   const lista = useConsulta(`financeiro/lancamentos?${JSON.stringify(q)}`, () => financeiro.lancamentos({ ...q, limite: 200 }));
+  // Período vazio: o lançamento mais recente ANTES dele (mesmos filtros, até um ano), para o vazio dizer onde estão os
+  // registros em vez de só R$ 0,00. As despesas da Júlia ficam na data do comprovante, que pode ser de outro mês.
+  const qAntes = { ...q, de: somarDias(d1, -366), ate: somarDias(d1, -1) };
+  const anterior = useConsulta(lista.dados?.total === 0 ? `financeiro/lancamentos:anterior?${JSON.stringify(qAntes)}` : null,
+    () => financeiro.lancamentos({ ...qAntes, limite: 1 }));
+  const ultimo = lista.dados?.total === 0 ? anterior.dados?.itens[0]?.data ?? null : null;
+  // Desde o 1º dia daquele mês até o fim do período atual, dentro do limite de 366 dias da API.
+  const desde = ultimo && diasEntre(inicioMes(ultimo), d2) <= 366 ? inicioMes(ultimo) : ultimo;
   // "A pagar em aberto" = o "Falta pagar" da vista A pagar → Em aberto: a MESMA consulta (mesma chave de cache de
   // Contas.tsx), para os dois números nunca divergirem.
   const verAPagar = filtro === 'despesas' || (filtro === 'todas' && (mostrar === 'principal' || mostrar === 'tudo'));
@@ -318,7 +330,13 @@ function ListaMovimentacoes(p: {
                 destaque={(l) => l.status === 'em_revisao'}
                 apagada={(l) => l.status === 'cancelada' || l.status === 'estornado'}
                 ordemInicial={{ coluna: 'data', desc: true }}
-                vazio={<Vazio titulo="Nenhuma movimentação no período">{filtro === 'receitas' ? 'Receitas fora do PDV entram pelo botão “Outra receita”.' : 'Mude o período ou os filtros. Despesas novas entram pelo botão “Nova despesa” ou pela Júlia.'}</Vazio>}
+                vazio={ultimo && desde ? (
+                  <Vazio titulo="Nenhuma movimentação no período" acao={<Botao onClick={() => p.irPara(desde, d2)}>Ver desde {dataCurta(desde, { ano: true })}</Botao>}>
+                    {`A mais recente antes deste período é de ${dataCurta(ultimo, { ano: true })}.`}{filtro !== 'receitas' && ' Comprovantes da Júlia entram na data do pagamento, não na do envio.'}
+                  </Vazio>
+                ) : (
+                  <Vazio titulo="Nenhuma movimentação no período">{filtro === 'receitas' ? 'Receitas fora do PDV entram pelo botão “Outra receita”.' : 'Mude o período ou os filtros. Despesas novas entram pelo botão “Nova despesa” ou pela Júlia.'}</Vazio>
+                )}
               />
               {r.total > r.itens.length && <p class="fraco" style={{ padding: '10px 20px' }}>Mostrando {r.itens.length} de {r.total}: use a busca ou os filtros.</p>}
             </>

@@ -108,6 +108,37 @@ test('Movimentações: os filtros simples pedem só o tipo escolhido e mostram s
   await expect(contas.getByRole('row', { name: new RegExp(primeira.slice(0, 6)) }).first()).toBeVisible();
 });
 
+// Produção em 08/11/2026: as despesas da Júlia têm data de set/out (a do comprovante) e "Este mês" ficava vazio e
+// zerado, sem dizer que havia registros antes. O vazio aponta o mais recente e leva até ele.
+test('Movimentações: período vazio aponta o lançamento mais recente antes dele e leva até lá', async ({ page }) => {
+  const iso = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Fortaleza' }).format(d);
+  const hoje = iso(new Date());
+  const ultimo = iso(new Date(Date.now() - 40 * 86_400_000)); // sempre antes do dia 1º do mês atual
+  const inicio = `${ultimo.slice(0, 7)}-01`;
+  const item = {
+    tipo: 'despesa', id: 'd-antiga', data: ultimo, descricao: 'Comprovante antigo da Júlia', valor: '289.00', sinal: -1,
+    categoria: 'a_classificar', origem: 'julia', fornecedor_id: null, fornecedor: null, status: 'em_revisao', tem_comprovante: true,
+    compra_id: null, despesa_id: 'd-antiga', detalhes: { motivos_revisao: ['categoria_a_classificar'], valor_a_confirmar: false, versao: 1 },
+  };
+  const pedidos: string[] = [];
+  await page.route('**/admin/api/financeiro/lancamentos?**', (rota) => {
+    const u = new URL(rota.request().url());
+    const de = u.searchParams.get('de')!;
+    const ate = u.searchParams.get('ate')!;
+    pedidos.push(`${de}..${ate}`);
+    const tem = de <= ultimo && ultimo <= ate;
+    return rota.fulfill({ json: { total: tem ? 1 : 0, itens: tem ? [item] : [], totais: { receita_pdv: '0', outras_receitas: '0', despesas_confirmadas: '0', despesas_em_revisao: tem ? '289.00' : '0', pagamentos: '0' } } });
+  });
+
+  await page.goto(`${DEMO}/admin/financeiro`);
+  await expect(page.getByText('Nenhuma movimentação no período')).toBeVisible();
+  await expect(page.getByText(/A mais recente antes deste período é de/)).toBeVisible();
+  await page.getByRole('button', { name: /^Ver desde/ }).click();
+  await expect(page.getByRole('table', { name: 'Movimentações do período' })).toContainText('Comprovante antigo da Júlia');
+  await expect(page.getByLabel('Totais do período')).toContainText('Em revisão');
+  expect(pedidos).toContain(`${inicio}..${hoje}`);
+});
+
 test('Nova despesa já paga aparece uma vez em Todas (o pagamento só com "Tudo") e não vira conta em aberto', async ({ page }) => {
   const nome = `Despesa paga ${Date.now()}`;
   await page.goto(`${DEMO}/admin/financeiro`);
