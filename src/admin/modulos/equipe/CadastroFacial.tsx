@@ -16,7 +16,11 @@ import { Raiz } from '../../ui/camadas';
 import { Dados, Vazio } from '../../ui/estados';
 
 type Etapa = 'cadastro' | 'teste' | 'confirmar' | 'concluido';
-const INSTRUCAO: Record<string, string> = { frente: 'Olhe para a câmera', esquerda: 'Vire o rosto para a sua esquerda', direita: 'Vire o rosto para a sua direita' };
+// A imagem na tela é espelhada: virar para a própria esquerda aparece andando para a esquerda da tela.
+const INSTRUCAO: Record<string, string> = { frente: 'Olhe RETO para a câmera', esquerda: '← Vire o rosto para a ESQUERDA', direita: 'Vire o rosto para a DIREITA →' };
+/** No cadastro, a pessoa ouve a instrução de quem supervisiona: tempo de sobra para chegar em cada pose e parar. */
+const PREPARO_POSE_MS = 2200;
+const PREPARO_INICIAL_MS = 3000;
 const PASSOS: { id: Etapa; rotulo: string }[] = [{ id: 'cadastro', rotulo: 'Captura' }, { id: 'teste', rotulo: 'Teste' }, { id: 'confirmar', rotulo: 'Confirmação' }];
 
 export default function CadastroFacial({ apiUrl }: { apiUrl: string | null }) {
@@ -93,12 +97,14 @@ function Fluxo({ id, nome, pendente, recadastro, apiUrl, voltar }: { id: string;
     let quadros: Blob[];
     try {
       fluxoRef.current = await abrirCamera(videoRef.current!);
-      await new Promise((ok) => setTimeout(ok, 1200));
+      setInstrucao('Prepare-se: olhe RETO para a câmera');
+      await new Promise((ok) => setTimeout(ok, PREPARO_INICIAL_MS));
       quadros = await capturarQuadros(videoRef.current!, {
         desafio: sessao.desafio,
         quadrosMax: sessao.quadros_max,
+        preparoMs: PREPARO_POSE_MS,
         sinal: abortoRef.current.signal,
-        aoPose: (pose) => setInstrucao(INSTRUCAO[pose] ?? pose),
+        aoPose: (pose, i, total) => setInstrucao(`${i + 1} de ${total}: ${INSTRUCAO[pose] ?? pose}`),
       });
     } catch (e) {
       desligar();
@@ -155,6 +161,7 @@ function Fluxo({ id, nome, pendente, recadastro, apiUrl, voltar }: { id: string;
           <span class="equipe-camera__oval" aria-hidden="true"></span>
         </div>
         <p class="equipe-camera__guia" role="status" aria-live="assertive">{instrucao ?? 'Encaixe o rosto no oval'}</p>
+        <p class="fraco">Faça cada movimento devagar e fique parado até a próxima instrução.</p>
         {luz !== 'ok' && <p class="fraco">{luz === 'escuro' ? 'Pouca luz. Procure um lugar mais claro.' : 'Luz forte demais atrás da pessoa.'}</p>}
       </div>
 

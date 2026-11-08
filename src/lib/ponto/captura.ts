@@ -75,6 +75,8 @@ export interface OpcoesCaptura {
   quadrosMax?: number;
   /** Teto por quadro, em KB (`quadro_max_kb`). */
   maxKb?: number;
+  /** Tempo para a pessoa chegar em cada pose antes dos quadros (padrão do tablet: PREPARO_MS). */
+  preparoMs?: number;
   /** Avisa a pose pedida agora, para a tela orientar. */
   aoPose?: (pose: string, indice: number, total: number) => void;
   sinal?: AbortSignal;
@@ -82,7 +84,7 @@ export interface OpcoesCaptura {
 
 /** Captura enquanto orienta pose a pose. O backend confere a ordem das poses, então cada pose recebe a sua parte dos quadros. */
 export async function capturarQuadros(video: HTMLVideoElement, opcoes: OpcoesCaptura): Promise<Blob[]> {
-  const { desafio, quadrosMax = QUADROS_PADRAO, maxKb = 400, aoPose, sinal } = opcoes;
+  const { desafio, quadrosMax = QUADROS_PADRAO, maxKb = 400, preparoMs = PREPARO_MS, aoPose, sinal } = opcoes;
   const canvas = document.createElement('canvas');
   canvas.width = LARGURA;
   canvas.height = ALTURA;
@@ -93,7 +95,7 @@ export async function capturarQuadros(video: HTMLVideoElement, opcoes: OpcoesCap
   const quadros: Blob[] = [];
   for (let p = 0; p < desafio.length; p++) {
     aoPose?.(desafio[p], p, desafio.length);
-    await esperar(PREPARO_MS, sinal);
+    await esperar(preparoMs, sinal);
     for (let q = 0; q < porPose; q++) {
       enquadrar(video, contexto);
       let jpeg = await paraJpeg(canvas, QUALIDADE);
