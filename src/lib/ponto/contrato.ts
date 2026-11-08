@@ -16,6 +16,8 @@ export interface ConfiguracaoQuiosque {
   horario_servidor: string;
   fuso: string;
   biometria_disponivel: boolean;
+  /** Trava própria da marcação pelo rosto. Desligada, o ponto é registrado pelo gestor no painel. */
+  identificacao_automatica?: boolean;
   quadros_min: number;
   quadros_max: number;
   quadro_max_kb: number;
@@ -65,6 +67,13 @@ export interface Recibo {
   repetida: boolean;
   sinalizacoes: string[];
   natureza: 'comprovante_operacional';
+}
+
+/** Orientação extra para a recusa da prova de vida: a mensagem do backend diz o quê; esta diz como acertar. */
+export function orientacaoDoMotivo(motivo: string | null | undefined): string | null {
+  if (motivo === 'movimento_insuficiente') return 'Vire a cabeça inteira para o lado pedido, não só os olhos ou o rosto.';
+  if (motivo === 'desafio_nao_cumprido') return 'Siga as setas na ordem, devagar, voltando ao centro entre uma e outra.';
+  return null;
 }
 
 /** Erro de uma chamada ao quiosque. `rede`: sem resposta do servidor, e nada foi confirmado. */

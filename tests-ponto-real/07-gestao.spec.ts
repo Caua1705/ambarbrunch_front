@@ -70,6 +70,69 @@ test.describe.serial('Gestão', () => {
     await expect(tabela).toContainText('Dono');
   });
 
+  test('atribuição futura se desfaz pela tela e a pessoa volta à escala anterior', async ({ page, request }) => {
+    const id = await criarPessoa(request, 'Fábio Escala');
+    const token = await tokenPainel(request, 'gerente');
+    const hoje = hojeFortaleza();
+    const daqui = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Fortaleza' }).format(new Date(Date.now() + 5 * 86_400_000));
+    const versao = (entrada: string, saida: string) => ({
+      vigente_de: hoje,
+      dias: Object.fromEntries([0, 1, 2, 3, 4, 5, 6].map((d) => [String(d), { entrada, saida, intervalos: [] }])),
+      tolerancia_entrada_min: 10, tolerancia_saida_min: 10, tolerancia_intervalo_min: 0, intervalos_adicionais: false,
+    });
+    const escala = async (nome: string, entrada: string, saida: string) => {
+      const r = await request.post(`${API}/admin/ponto/escalas`, { headers: cab(token), data: { nome, tipo: 'fixa', valida_de: hoje, versao: versao(entrada, saida) } });
+      expect(r.ok(), await r.text()).toBeTruthy();
+      return (await r.json()).id as string;
+    };
+    const manha = await escala(`Manhã ${Date.now()}`, '08:00', '16:00');
+    const tarde = `Tarde ${Date.now()}`;
+    const tardeId = await escala(tarde, '14:00', '22:00');
+    for (const [e, de] of [[manha, hoje], [tardeId, daqui]]) {
+      const r = await request.post(`${API}/admin/ponto/escalas/${e}/atribuicoes`, { headers: cab(token), data: { funcionario_id: id, vigente_de: de } });
+      expect(r.ok(), await r.text()).toBeTruthy();
+    }
+
+    await entrar(page, 'gerente');
+    await page.goto('/admin/equipe?aba=escalas');
+    await page.getByText('Escalas cadastradas', { exact: true }).first().click();
+    const item = page.getByRole('listitem').filter({ hasText: tarde });
+    await expect(item).toContainText('Fábio entra a partir de');
+    await item.getByRole('button', { name: 'Desfazer' }).click();
+    const dialogo = page.getByRole('dialog', { name: 'Desfazer a atribuição de Fábio' });
+    await dialogo.getByRole('button', { name: 'Desfazer' }).click();
+    await expect(page.getByText('Atribuição desfeita.')).toBeVisible();
+    await expect(item).not.toContainText('Fábio');
+    const [turno] = await (await request.get(`${API}/admin/ponto/programacao`, { headers: cab(token), params: { de: daqui, ate: daqui, funcionario_id: id } })).json();
+    expect(String(turno.entrada)).toContain('T08:00');
+  });
+
+  test('previsão errada de um dia trabalhado se corrige pela tela, com motivo', async ({ page, request }) => {
+    const id = await criarPessoa(request, 'Eva Previsao');
+    const token = await tokenPainel(request, 'gerente');
+    const dia = diasAtras(2);
+    for (const [tipo, hora] of [['ENTRADA', '09:00'], ['SAIDA', '17:00']]) {
+      const r = await request.post(`${API}/admin/ponto/ajustes`, {
+        headers: { ...cab(token), 'Idempotency-Key': `prev-${tipo}-${Date.now()}` },
+        data: { tipo: 'inclusao', funcionario_id: id, tipo_batida: tipo, instante: `${dia}T${hora}:00-03:00`, justificativa: 'Preparando um dia trabalhado.' },
+      });
+      expect(r.ok(), await r.text()).toBeTruthy();
+    }
+    await entrar(page, 'gerente');
+    await page.goto(`/admin/equipe?aba=registros&funcionario=${id}`);
+    await page.getByRole('cell', { name: 'Eva' }).first().click();
+    await page.getByRole('button', { name: 'Corrigir previsão' }).click();
+    const dialogo = page.getByRole('dialog', { name: 'Corrigir previsão do dia' });
+    await dialogo.getByLabel('Entrada').fill('09:00');
+    await dialogo.getByLabel('Saída').fill('17:00');
+    const confirmar = dialogo.getByRole('button', { name: 'Confirmar correção' });
+    await expect(confirmar).toBeDisabled();
+    await dialogo.getByLabel('Motivo').fill('Plantão combinado e não lançado na escala.');
+    await confirmar.click();
+    await expect(page.getByText('Previsão corrigida.')).toBeVisible();
+    await expect(page.getByText('Previsto nesta jornada: 09:00 às 17:00')).toBeVisible();
+  });
+
   test('3. inativar exige motivo e tira a pessoa da lista de ativos', async ({ page, request }) => {
     await criarPessoa(request, 'Davi Inativar');
     await entrar(page, 'gerente');
@@ -77,6 +140,7 @@ test.describe.serial('Gestão', () => {
     await page.getByRole('cell', { name: 'Davi Inativar' }).click();
     await page.getByRole('button', { name: 'Inativar' }).click();
     const dialogo = page.getByRole('alertdialog');
+    await expect(dialogo.getByLabel('Data do desligamento')).toHaveValue(hojeFortaleza());
     await dialogo.getByLabel('Motivo').fill('Fim do contrato');
     await dialogo.getByRole('button', { name: 'Inativar' }).click();
     await expect(page.getByText('Funcionário inativado.')).toBeVisible();

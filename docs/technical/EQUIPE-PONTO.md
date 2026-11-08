@@ -36,7 +36,10 @@ Frontend do módulo: tablet (`/ponto`) e área **Equipe** do painel (`/admin/equ
 - Sucesso só com o recibo. Sem resposta, a tela repete com a mesma `Idempotency-Key` e, se não der, diz que o registro não foi confirmado.
 - Horário do recibo, nunca do aparelho. O relógio da tela usa a diferença para `horario_servidor`.
 - Escala muda de hoje em diante. Dia passado, só por exceção com motivo. Dia com jornada não aceita exceção.
-- A previsão de uma jornada feita não se corrige, e atribuição não se apaga.
+- A previsão de um dia trabalhado se corrige só com motivo (Registros › dia › Corrigir previsão); as batidas não mudam.
+- Atribuição que ainda não começou se desfaz (Escalas cadastradas › Desfazer): volta à anterior ou troca pela certa. A que já começou, não.
+- Escala desativada antes de hoje não religa: crie outra.
+- Recusa por `movimento_insuficiente`: a tela pede para virar a cabeça inteira. Com `identificacao_automatica: false`, o tablet manda procurar o gestor.
 - Marcação original nunca some: a correção cria outra, e a tela mostra as duas, com quem fez e quando.
 - Registro assistido fica só no painel, nunca no tablet.
 
@@ -49,11 +52,11 @@ Frontend do módulo: tablet (`/ponto`) e área **Equipe** do painel (`/admin/equ
 
 Passo a passo no topo de `playwright.ponto-real.config.ts`. O ambiente local sobe com `ops/biometria/homologacao_local.py`, no backend. Nunca aponte para a produção: os testes gravam.
 
-Os vídeos saem de fotos públicas, deformadas para simular a virada do rosto. Isso prova a integração. **Não prova prova de vida:** o motor aprovar esse vídeo é, ao contrário, um dado contra ela.
+Os vídeos saem de fotos públicas, deformadas para simular a virada do rosto e deslocadas para o lado (`video_sintetico.py --deslocar=0.6`, no backend). Sem o deslocamento, o mesmo vídeo é o ataque da foto deformada, e o teste 10 confirma que a API recusa. Isso prova a integração. **Não prova prova de vida:** o motor aprovar esse vídeo é, ao contrário, um dado contra ela.
 
 ## Antes de ativar
 
-1. Publicar o backend com o cookie do tablet e a captura direta.
+1. ~~Publicar o backend com o cookie do tablet e a captura direta.~~ Feito em 07/11 (`52876d3`). Falta ligar `AMBAR_PONTO_ATIVO=true` (decisão do dono), com o motor desligado: painel e registro assistido funcionam; o tablet mostra "Reconhecimento indisponível".
 2. Homologar a biometria no tablet real: `HOMOLOGACAO.md`, seção 3.
 3. Revisar com o jurídico o aviso da tela inicial de `/ponto` e o texto de autorização do cadastro facial.
 4. Conferir `AMBAR_CORS_ORIGENS` com `https://ambarbrunch.com`.

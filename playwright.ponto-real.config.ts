@@ -10,8 +10,10 @@ import path from 'node:path';
 //   aqui:          PAINEL_ADMIN=1 PUBLIC_PONTO_API_URL=http://127.0.0.1:8765 npm run painel:build
 //                  PONTO_REAL_CENARIOS=<cenarios.json> PONTO_REAL_VIDEOS=<pasta> npx playwright test -c playwright.ponto-real.config.ts
 //
-// Os vídeos saem de fotos públicas (ops/biometria/video_sintetico.py), nunca de funcionários. Passar aqui prova a integração,
-// não prova de vida: o rosto "vira" por manipulação digital de uma foto parada.
+// Os vídeos saem de fotos públicas (ops/biometria/video_sintetico.py), nunca de funcionários: pessoa_a e pessoa_b com
+// --deslocar=0.6 (a cabeça anda para o lado, como numa virada real); foto_deformada é o vídeo de pessoa_a SEM --deslocar (o
+// ataque que a regra de movimento recusa). Passar aqui prova a integração, não prova de vida: o rosto "vira" por manipulação
+// digital de uma foto parada.
 const API = process.env.PONTO_REAL_API ?? 'http://127.0.0.1:8765';
 if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?\/?$/.test(API)) throw new Error('PONTO_REAL_API precisa ser um backend LOCAL.');
 const VIDEOS = process.env.PONTO_REAL_VIDEOS ?? '';
@@ -49,6 +51,7 @@ export default defineConfig({
     projeto('pessoa-cadastrada', 'pessoa_a.y4m', /01-.*\.spec\.ts/),
     projeto('rosto-desconhecido', 'pessoa_b.y4m', /02-.*\.spec\.ts/, ['pessoa-cadastrada']),
     projeto('foto-parada', 'foto_parada.y4m', /03-.*\.spec\.ts/, ['pessoa-cadastrada']),
+    projeto('foto-deformada', 'foto_deformada.y4m', /10-.*\.spec\.ts/, ['pessoa-cadastrada']),
     projeto('sem-rosto', 'sem_rosto.y4m', /04-.*\.spec\.ts/, ['pessoa-cadastrada']),
     projeto('dois-rostos', 'dois_rostos.y4m', /05-.*\.spec\.ts/, ['pessoa-cadastrada']),
     {

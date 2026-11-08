@@ -6,7 +6,7 @@ import { ErroApi } from '../../lib/api/cliente';
 import { equipe } from '../../lib/api/equipe';
 import { invalidar, useConsulta } from '../../lib/consulta';
 import { dataCurta, hojeISO, horaDe, somarDias } from '../../lib/formato';
-import type { DiaPlano, Escala, Funcionario, LinhaProgramacao, VersaoEntrada } from '../../lib/tipos/equipe';
+import type { AtribuicaoAberta, DiaPlano, Escala, Funcionario, LinhaProgramacao, VersaoEntrada } from '../../lib/tipos/equipe';
 import { Aviso, Botao, Campo, Cartao, Segmentado, Situacao } from '../../ui/base';
 import { avisar, avisarErro, Dialogo, Gaveta, useConfirmacao } from '../../ui/camadas';
 import { Dados, EsqueletoTabela, Vazio } from '../../ui/estados';
@@ -21,6 +21,8 @@ const segundaDe = (iso: string) => {
 function explicar(e: unknown): string {
   if (!(e instanceof ErroApi)) return 'Não foi possível salvar.';
   if (e.codigo === 'vigencia_retroativa') return 'A escala só muda de hoje em diante. Para corrigir um dia que passou, use uma exceção na semana.';
+  if (e.codigo === 'atribuicao_iniciada') return 'Esta atribuição já começou e não se desfaz. Atribua a escala certa a partir de amanhã.';
+  if (e.codigo === 'sem_escala_anterior') return 'A pessoa não estava em outra escala antes. Escolha a escala certa para a mesma data.';
   return e.message;
 }
 
@@ -178,7 +180,9 @@ function Cadastro({ perm }: { perm: PermissoesEquipe }) {
   const [horario, setHorario] = useState<Escala | null>(null);
   const [atribuir, setAtribuir] = useState<Escala | null>(null);
   const [editar, setEditar] = useState<Escala | null>(null);
+  const [desfazer, setDesfazer] = useState<{ escala: Escala; atribuicao: AtribuicaoAberta } | null>(null);
   const { confirmar, elemento } = useConfirmacao();
+  const hoje = hojeISO();
   const desligar = (e: Escala) => confirmar({
     titulo: `Desativar ${e.nome}?`,
     texto: 'Vale de hoje em diante: os dias anteriores continuam nesta escala. Depois de virar o dia, ela não pode ser religada.',
@@ -207,20 +211,30 @@ function Cadastro({ perm }: { perm: PermissoesEquipe }) {
           <ul class="lista" aria-label="Escalas">
             {lista.map((e) => {
               const v = e.versoes[0];
+              const futuras = (e.atribuicoes ?? []).filter((a) => a.vigente_de > hoje);
+              const atuais = e.funcionarios_ids.filter((id) => !futuras.some((a) => a.funcionario_id === id));
+              const naoReliga = !e.ativa && !!e.inativa_desde && e.inativa_desde < hoje;
               return (
                 <li key={e.id}>
                   <div class="lista__item equipe-escala">
                     <div class="pilha pilha--p">
-                      <span class="linha"><strong>{e.nome}</strong>{!e.ativa && <Situacao tom="apagado">Desativada</Situacao>}{e.tipo === 'variavel' && <Situacao tom="info">Variável</Situacao>}</span>
+                      <span class="linha"><strong>{e.nome}</strong>{!e.ativa && <Situacao tom="apagado">{e.inativa_desde ? `Desativada desde ${dataCurta(e.inativa_desde)}` : 'Desativada'}</Situacao>}{e.tipo === 'variavel' && <Situacao tom="info">Variável</Situacao>}</span>
                       <span class="fraco">{v ? resumirSemana(v.dias) : 'Sem horário'}{v ? ` · vigente desde ${dataCurta(v.vigente_de)}` : ''}</span>
-                      <span class="fraco">{e.funcionarios_ids.length ? e.funcionarios_ids.map((id) => nomes.get(id) ?? 'Pessoa inativa').join(', ') : 'Ninguém nesta escala'}</span>
+                      <span class="fraco">{atuais.length ? atuais.map((id) => nomes.get(id) ?? 'Pessoa inativa').join(', ') : futuras.length ? 'Ninguém nesta escala hoje' : 'Ninguém nesta escala'}</span>
+                      {futuras.map((a) => (
+                        <span class="linha" key={a.id}>
+                          <span class="fraco">{nomes.get(a.funcionario_id) ?? 'Pessoa inativa'} entra a partir de {dataCurta(a.vigente_de)}</span>
+                          {perm.gerenciar && <Botao tamanho="p" variante="fantasma" onClick={() => setDesfazer({ escala: e, atribuicao: a })}>Desfazer</Botao>}
+                        </span>
+                      ))}
+                      {naoReliga && <span class="fraco">Desativada antes de hoje: não religa. Para usar este horário de novo, crie outra escala.</span>}
                     </div>
                     {perm.gerenciar && (
                       <div class="linha">
                         {e.ativa && <Botao tamanho="p" onClick={() => setAtribuir(e)}>Atribuir</Botao>}
                         {e.ativa && e.tipo === 'fixa' && <Botao tamanho="p" onClick={() => setHorario(e)}>Mudar horário</Botao>}
                         <Botao tamanho="p" onClick={() => setEditar(e)}>Editar</Botao>
-                        {e.ativa ? <Botao tamanho="p" variante="fantasma" onClick={() => desligar(e)}>Desativar</Botao> : <Botao tamanho="p" variante="fantasma" onClick={() => religar(e)}>Religar</Botao>}
+                        {e.ativa ? <Botao tamanho="p" variante="fantasma" onClick={() => desligar(e)}>Desativar</Botao> : !naoReliga && <Botao tamanho="p" variante="fantasma" onClick={() => religar(e)}>Religar</Botao>}
                       </div>
                     )}
                   </div>
@@ -238,8 +252,60 @@ function Cadastro({ perm }: { perm: PermissoesEquipe }) {
       <FormEscala aberto={!!horario} escala={horario} aoFechar={() => setHorario(null)} />
       <AtribuirEscala aberto={!!atribuir} aoFechar={() => setAtribuir(null)} escala={atribuir} />
       <EditarEscala escala={editar} aoFechar={() => setEditar(null)} />
+      <DesfazerAtribuicao alvo={desfazer} escalas={consulta.dados ?? []} nome={desfazer ? nomes.get(desfazer.atribuicao.funcionario_id) ?? 'Pessoa' : ''} aoFechar={() => setDesfazer(null)} />
       {elemento}
     </Cartao>
+  );
+}
+
+/** Atribuição que ainda não começou: volta para a escala anterior ou troca pela certa, na mesma data. Fica na auditoria. */
+function DesfazerAtribuicao({ alvo, escalas, nome, aoFechar }: { alvo: { escala: Escala; atribuicao: AtribuicaoAberta } | null; escalas: Escala[]; nome: string; aoFechar: () => void }) {
+  const [destino, setDestino] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  useEffect(() => {
+    setDestino('');
+    setErro(null);
+  }, [alvo?.atribuicao.id]);
+  if (!alvo) return null;
+  const outras = escalas.filter((e) => e.ativa && e.id !== alvo.escala.id);
+  const enviar = async () => {
+    setEnviando(true);
+    setErro(null);
+    try {
+      await equipe.cancelarAtribuicao(alvo.escala.id, alvo.atribuicao.id, destino || undefined);
+      avisar('Atribuição desfeita.', 'ok');
+      invalidar('equipe');
+      aoFechar();
+    } catch (e) {
+      setErro(explicar(e));
+    } finally {
+      setEnviando(false);
+    }
+  };
+  return (
+    <Dialogo
+      aberto
+      aoFechar={() => !enviando && aoFechar()}
+      titulo={`Desfazer a atribuição de ${nome}`}
+      acoes={
+        <>
+          <Botao onClick={aoFechar} disabled={enviando}>Voltar</Botao>
+          <Botao variante="primario" onClick={enviar} carregando={enviando}>Desfazer</Botao>
+        </>
+      }
+    >
+      <p>{nome} entraria em {alvo.escala.nome} a partir de {dataCurta(alvo.atribuicao.vigente_de)}. Como ainda não começou, dá para desfazer. Fica registrado na auditoria.</p>
+      <Campo rotulo="A partir dessa data, fica em">
+        {(id) => (
+          <select id={id} class="selecao" value={destino} onChange={(e) => setDestino(e.currentTarget.value)} data-autofoco>
+            <option value="">Na escala em que estava antes</option>
+            {outras.map((e) => <option key={e.id} value={e.id}>{e.nome}</option>)}
+          </select>
+        )}
+      </Campo>
+      {erro && <Aviso tom="perigo">{erro}</Aviso>}
+    </Dialogo>
   );
 }
 
@@ -467,7 +533,7 @@ export function AtribuirEscala({ aberto, aoFechar, escala, funcionario }: { aber
         </>
       }
     >
-      <p>A atribuição não pode ser apagada depois. Se estiver errada, troque por outra a partir do dia seguinte.</p>
+      <p>Até a data começar, dá para desfazer em Escalas cadastradas. Depois, só trocando por outra a partir do dia seguinte.</p>
       {funcionario ? (
         <Campo rotulo="Escala">
           {(id) => (

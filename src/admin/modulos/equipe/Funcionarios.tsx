@@ -8,7 +8,7 @@ import { invalidar, useConsulta } from '../../lib/consulta';
 import { dataCurta, dataHora, hojeISO, inteiro } from '../../lib/formato';
 import { lerParam } from '../../lib/rotas';
 import { Aviso, Botao, Campo, Cartao, Situacao } from '../../ui/base';
-import { avisar, Gaveta, useConfirmacao } from '../../ui/camadas';
+import { avisar, Dialogo, Gaveta, useConfirmacao } from '../../ui/camadas';
 import { Dados, EsqueletoTabela, Vazio } from '../../ui/estados';
 import { Tabela, type Coluna } from '../../ui/tabela';
 import { ROTULO_BIOMETRIA, TOM_BIOMETRIA, type PermissoesEquipe } from './comum';
@@ -219,19 +219,12 @@ function Ficha({ id, perm, aoFechar }: { id: string | null; perm: PermissoesEqui
   const [editar, setEditar] = useState(false);
   const [escala, setEscala] = useState(false);
   const [assistido, setAssistido] = useState(false);
+  const [inativando, setInativando] = useState<Funcionario | null>(null);
   const { confirmar, elemento } = useConfirmacao();
   const f = consulta.dados?.id === id ? consulta.dados : undefined;
   const atualizar = () => invalidar('equipe');
 
-  const inativar = (alvo: Funcionario) => confirmar({
-    titulo: `Inativar ${alvo.nome_exibicao}?`,
-    texto: 'O histórico fica guardado. O cadastro facial é apagado, e reativar exige novo cadastro.',
-    confirmar: 'Inativar',
-    perigo: true,
-    motivo: { rotulo: 'Motivo', minimo: 3 },
-    sucesso: 'Funcionário inativado.',
-    acao: async (motivo) => { await equipe.inativar(alvo.id, motivo); atualizar(); },
-  });
+  const inativar = (alvo: Funcionario) => setInativando(alvo);
   const reativar = (alvo: Funcionario) => confirmar({
     titulo: `Reativar ${alvo.nome_exibicao}?`,
     texto: 'O reconhecimento facial precisa de novo cadastro.',
@@ -323,7 +316,49 @@ function Ficha({ id, perm, aoFechar }: { id: string | null; perm: PermissoesEqui
       <Formulario aberto={editar} atual={f} aoFechar={() => setEditar(false)} aoSalvar={() => setEditar(false)} />
       {f && <AtribuirEscala aberto={escala} aoFechar={() => setEscala(false)} funcionario={f} />}
       {f && <RegistroAssistido aberto={assistido} aoFechar={() => setAssistido(false)} funcionarioId={f.id} />}
+      {inativando && <Inativar funcionario={inativando} aoFechar={() => setInativando(null)} aoConcluir={atualizar} />}
       {elemento}
     </Gaveta>
+  );
+}
+
+/** Inativar com a data do desligamento (padrão: hoje). O histórico fica; o cadastro facial é apagado. */
+function Inativar({ funcionario, aoFechar, aoConcluir }: { funcionario: Funcionario; aoFechar: () => void; aoConcluir: () => void }) {
+  const [data, setData] = useState(hojeISO());
+  const [motivo, setMotivo] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const enviar = async () => {
+    setEnviando(true);
+    setErro(null);
+    try {
+      await equipe.inativar(funcionario.id, motivo.trim(), data || undefined);
+      avisar('Funcionário inativado.', 'ok');
+      aoConcluir();
+      aoFechar();
+    } catch (e) {
+      setErro(e instanceof ErroApi ? e.message : 'Não foi possível inativar.');
+    } finally {
+      setEnviando(false);
+    }
+  };
+  return (
+    <Dialogo
+      aberto
+      alerta
+      aoFechar={() => !enviando && aoFechar()}
+      titulo={`Inativar ${funcionario.nome_exibicao}?`}
+      acoes={
+        <>
+          <Botao onClick={aoFechar} disabled={enviando}>Voltar</Botao>
+          <Botao variante="perigo" onClick={enviar} carregando={enviando} disabled={motivo.trim().length < 3 || !data}>Inativar</Botao>
+        </>
+      }
+    >
+      <p>O histórico fica guardado. O cadastro facial é apagado, e reativar exige novo cadastro.</p>
+      <Campo rotulo="Data do desligamento">{(id) => <input id={id} class="entrada" type="date" required min={funcionario.data_admissao} value={data} onInput={(e) => setData(e.currentTarget.value)} />}</Campo>
+      <Campo rotulo="Motivo">{(id) => <input id={id} class="entrada" maxLength={300} value={motivo} onInput={(e) => setMotivo(e.currentTarget.value)} data-autofoco />}</Campo>
+      {erro && <Aviso tom="perigo">{erro}</Aviso>}
+    </Dialogo>
   );
 }

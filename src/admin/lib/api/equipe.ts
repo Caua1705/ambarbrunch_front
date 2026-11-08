@@ -17,6 +17,7 @@ import type {
   Marcacao,
   Pagina,
   PainelEquipe,
+  PrevisaoEntrada,
   RegistroAuditoria,
   ResultadoFacial,
   SessaoFacial,
@@ -35,7 +36,7 @@ export const equipe = {
   funcionario: (id: string) => pedir<Funcionario>(`${P}/funcionarios/${id}`),
   criarFuncionario: (corpo: FuncionarioEntrada) => pedir<Funcionario>(`${P}/funcionarios`, { metodo: 'POST', corpo }),
   alterarFuncionario: (id: string, corpo: FuncionarioEntrada) => pedir<Funcionario>(`${P}/funcionarios/${id}`, { metodo: 'PATCH', corpo }),
-  inativar: (id: string, motivo: string) => pedir<Funcionario>(`${P}/funcionarios/${id}/inativar`, { metodo: 'POST', corpo: { motivo } }),
+  inativar: (id: string, motivo: string, data_desligamento?: string) => pedir<Funcionario>(`${P}/funcionarios/${id}/inativar`, { metodo: 'POST', corpo: { motivo, ...(data_desligamento ? { data_desligamento } : {}) } }),
   ativar: (id: string) => pedir<Funcionario>(`${P}/funcionarios/${id}/ativar`, { metodo: 'POST' }),
   historico: (id: string) => pedir<Pagina<RegistroAuditoria>>(`${P}/funcionarios/${id}/historico`),
 
@@ -44,6 +45,8 @@ export const equipe = {
   alterarEscala: (id: string, corpo: Partial<Pick<Escala, 'nome' | 'descricao' | 'valida_ate' | 'ativa'>>) => pedir<Escala>(`${P}/escalas/${id}`, { metodo: 'PATCH', corpo }),
   novaVersao: (id: string, corpo: VersaoEntrada) => pedir<Escala>(`${P}/escalas/${id}/versoes`, { metodo: 'POST', corpo }),
   atribuir: (escalaId: string, funcionario_id: string, vigente_de: string) => pedir(`${P}/escalas/${escalaId}/atribuicoes`, { metodo: 'POST', corpo: { funcionario_id, vigente_de } }),
+  /** Desfaz atribuição que ainda não começou: sem `escala_id`, volta à anterior; com ela, troca pela certa na mesma data. */
+  cancelarAtribuicao: (escalaId: string, atribuicaoId: string, escala_id?: string) => pedir(`${P}/escalas/${escalaId}/atribuicoes/${atribuicaoId}/cancelar`, { metodo: 'POST', ...(escala_id ? { corpo: { escala_id } } : {}) }),
   criarExcecao: (funcionarioId: string, corpo: ExcecaoEntrada) => pedir(`${P}/funcionarios/${funcionarioId}/excecoes`, { metodo: 'POST', corpo }),
   cancelarExcecao: (funcionarioId: string, excecaoId: string) => pedir<void>(`${P}/funcionarios/${funcionarioId}/excecoes/${excecaoId}/cancelar`, { metodo: 'POST' }),
   programacao: (de: string, ate: string) => pedir<LinhaProgramacao[]>(`${P}/programacao`, { query: { de, ate } }),
@@ -62,6 +65,7 @@ export const equipe = {
   marcacoes: (q: { de: string; ate: string; funcionario_id?: string; limite?: number }) => pedir<Pagina<Marcacao>>(`${P}/marcacoes`, { query: q }),
   jornadas: (q: { de: string; ate: string; funcionario_id?: string }) => pedir<Pagina<Jornada>>(`${P}/jornadas`, { query: q }),
   jornada: (id: string) => pedir<JornadaDetalhe>(`${P}/jornadas/${id}`),
+  corrigirPrevisao: (id: string, corpo: PrevisaoEntrada) => pedir<Jornada>(`${P}/jornadas/${id}/previsao`, { metodo: 'POST', corpo }),
   espelho: (q: { de: string; ate: string; funcionario_id?: string; status?: StatusDia; somente_a_conferir?: boolean; somente_atrasos?: boolean; limite?: number; deslocamento?: number }) => pedir<Pagina<LinhaEspelho>>(`${P}/relatorios/espelho`, { query: q }),
   ajustes: (q: { de: string; ate: string; funcionario_id?: string; limite?: number }) => pedir<Pagina<Ajuste>>(`${P}/ajustes`, { query: q }),
   auditoria: (q: { entidade?: string; funcionario_id?: string; limite?: number; deslocamento?: number }) => pedir<Pagina<RegistroAuditoria>>(`${P}/auditoria`, { query: q }),

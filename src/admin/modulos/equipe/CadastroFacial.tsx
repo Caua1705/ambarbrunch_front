@@ -8,6 +8,7 @@ import { ErroApi } from '../../lib/api/cliente';
 import { enviarCapturaFacial, equipe } from '../../lib/api/equipe';
 import { invalidar, useConsulta } from '../../lib/consulta';
 import { abrirCamera, capturarQuadros, ErroCamera, INSTRUCOES_CAMERA, medirLuz, montarFormulario, pararCamera } from '../../../lib/ponto/captura';
+import { orientacaoDoMotivo } from '../../../lib/ponto/contrato';
 import { lerParam } from '../../lib/rotas';
 import type { SessaoFacial } from '../../lib/tipos/equipe';
 import { Aviso, Botao, Cartao } from '../../ui/base';
@@ -110,7 +111,7 @@ function Fluxo({ id, nome, pendente, recadastro, apiUrl, voltar }: { id: string;
     setEnviando(true);
     try {
       const r = await enviarCapturaFacial(sessao, montarFormulario(sessao.nonce, quadros), apiUrl);
-      if (r.resultado !== 'aprovado') return setErro(r.mensagem);
+      if (r.resultado !== 'aprovado') return setErro([r.mensagem, orientacaoDoMotivo(r.motivo)].filter(Boolean).join(' '));
       invalidar('equipe');
       setEtapa(r.proximo_passo === 'confirmar' ? 'confirmar' : 'teste');
     } catch (e) {

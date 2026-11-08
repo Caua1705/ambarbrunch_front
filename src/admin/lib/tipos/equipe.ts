@@ -88,8 +88,27 @@ export interface Escala {
   valida_de: string;
   valida_ate: string | null;
   ativa: boolean;
+  /** Dia em que foi desativada. Desativada antes de hoje não religa: para usar o plano de novo, nova escala. */
+  inativa_desde?: string | null;
   funcionarios_ids: string[];
+  /** Atribuições em aberto, com o id que o cancelamento pede (só as que ainda não começaram se desfazem). */
+  atribuicoes?: AtribuicaoAberta[];
   versoes: VersaoEscala[];
+}
+
+export interface AtribuicaoAberta {
+  id: string;
+  funcionario_id: string;
+  vigente_de: string;
+}
+
+/** Corrige a previsão de um dia já trabalhado. As batidas não mudam. */
+export interface PrevisaoEntrada {
+  tipo: 'folga' | 'plantao' | 'turno';
+  entrada?: string;
+  saida?: string;
+  intervalos?: IntervaloHora[];
+  motivo: string;
 }
 
 export interface VersaoEntrada {
@@ -243,6 +262,8 @@ export interface Jornada {
   excedente_min?: number;
   completa?: boolean;
   intervalos?: IntervaloHora[];
+  /** Previsão guardada na jornada (instantes ISO). */
+  previsto?: { tipo: string; entrada: string | null; saida: string | null; intervalos?: [string, string][] } | null;
 }
 
 export interface JornadaDetalhe extends Jornada {

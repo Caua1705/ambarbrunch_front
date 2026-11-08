@@ -8,7 +8,7 @@ import { invalidar, useConsulta } from '../../lib/consulta';
 import { dataCurta, dataHora, hojeISO, horaDe, inicioMes, somarDias } from '../../lib/formato';
 import { lerParam } from '../../lib/rotas';
 import { ROTULO_BATIDA, type TipoBatida } from '../../../lib/ponto/contrato';
-import type { JornadaDetalhe, LinhaEspelho, Marcacao, StatusDia } from '../../lib/tipos/equipe';
+import type { JornadaDetalhe, LinhaEspelho, Marcacao, PrevisaoEntrada, StatusDia } from '../../lib/tipos/equipe';
 import { Aviso, Botao, Campo, Cartao, Etiqueta, Situacao } from '../../ui/base';
 import { avisar, avisarErro, Dialogo, Gaveta } from '../../ui/camadas';
 import { Dados, EsqueletoTabela, Vazio } from '../../ui/estados';
@@ -126,6 +126,7 @@ export function DetalheDia({ linha, perm, aoFechar }: { linha: LinhaEspelho; per
   const ids = linha.jornadas_ids;
   const consulta = useConsulta(`equipe:dia/${linha.funcionario_id}/${linha.data}`, () => Promise.all(ids.map((id) => equipe.jornada(id))));
   const [alvo, setAlvo] = useState<AlvoAjuste | null>(null);
+  const [previsao, setPrevisao] = useState<JornadaDetalhe | null>(null);
   const incluir = () => setAlvo({ modo: 'inclusao', jornada_id: ids.at(-1), instante: `${linha.data}T12:00` });
   return (
     <Gaveta
@@ -148,19 +149,26 @@ export function DetalheDia({ linha, perm, aoFechar }: { linha: LinhaEspelho; per
         {!!linha.sinalizacoes.length && <div class="linha">{linha.sinalizacoes.map((s) => <Etiqueta key={s} tom="atencao">{ROTULO_SINAL[s] ?? s}</Etiqueta>)}</div>}
         {!ids.length ? <Vazio compacto titulo="Sem batidas neste dia">Se a pessoa trabalhou, use Incluir batida.</Vazio> : (
           <Dados consulta={consulta}>
-            {(jornadas) => <>{jornadas.map((j) => <Jornada key={j.id} jornada={j} perm={perm} aoAjustar={setAlvo} />)}</>}
+            {(jornadas) => <>{jornadas.map((j) => <Jornada key={j.id} jornada={j} perm={perm} aoAjustar={setAlvo} aoCorrigirPrevisao={() => setPrevisao(j)} />)}</>}
           </Dados>
         )}
       </div>
       {alvo && <Ajuste alvo={alvo} funcionarioId={linha.funcionario_id} data={linha.data} aoFechar={() => setAlvo(null)} />}
+      {previsao && <CorrigirPrevisao jornada={previsao} aoFechar={() => setPrevisao(null)} />}
     </Gaveta>
   );
 }
 
-function Jornada({ jornada, perm, aoAjustar }: { jornada: JornadaDetalhe; perm: PermissoesEquipe; aoAjustar: (a: AlvoAjuste) => void }) {
+function Jornada({ jornada, perm, aoAjustar, aoCorrigirPrevisao }: { jornada: JornadaDetalhe; perm: PermissoesEquipe; aoAjustar: (a: AlvoAjuste) => void; aoCorrigirPrevisao: () => void }) {
   const marcacoes = useMemo(() => [...jornada.marcacoes].sort((a, b) => a.instante_utc.localeCompare(b.instante_utc)), [jornada]);
   return (
     <>
+      {perm.ajustar && (
+        <div class="linha linha--entre">
+          <span class="fraco">Previsto nesta jornada: {textoPrevisto(jornada.previsto)}</span>
+          <Botao tamanho="p" onClick={aoCorrigirPrevisao}>Corrigir previsão</Botao>
+        </div>
+      )}
       <h3 class="secao-titulo">Marcações</h3>
       <ul class="lista" aria-label="Marcações">
         {marcacoes.map((m) => (
@@ -200,6 +208,80 @@ function Jornada({ jornada, perm, aoAjustar }: { jornada: JornadaDetalhe; perm: 
         </>
       )}
     </>
+  );
+}
+
+function textoPrevisto(p: JornadaDetalhe['previsto']): string {
+  if (!p) return 'sem previsão';
+  if (p.tipo === 'folga') return 'folga';
+  return `${p.tipo === 'plantao' ? 'plantão, ' : ''}${horaDe(p.entrada)} às ${horaDe(p.saida)}`;
+}
+
+/** Previsão errada num dia já trabalhado: troca só a previsão; as batidas ficam. Atraso e saldo são recalculados no backend. */
+function CorrigirPrevisao({ jornada, aoFechar }: { jornada: JornadaDetalhe; aoFechar: () => void }) {
+  const p = jornada.previsto;
+  const hora = (i: string | null | undefined) => (i ? horaDe(i) : '');
+  const [tipo, setTipo] = useState<PrevisaoEntrada['tipo']>(p?.tipo === 'folga' ? 'folga' : p?.tipo === 'plantao' ? 'plantao' : 'turno');
+  const [entrada, setEntrada] = useState(hora(p?.entrada) || '08:00');
+  const [saida, setSaida] = useState(hora(p?.saida) || '17:00');
+  const [pausaInicio, setPausaInicio] = useState(hora(p?.intervalos?.[0]?.[0]));
+  const [pausaFim, setPausaFim] = useState(hora(p?.intervalos?.[0]?.[1]));
+  const [motivo, setMotivo] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const valido = motivo.trim().length >= JUSTIFICATIVA_MIN && (tipo === 'folga' || (!!entrada && !!saida)) && !pausaInicio === !pausaFim;
+  const enviar = async () => {
+    setEnviando(true);
+    setErro(null);
+    const corpo: PrevisaoEntrada = tipo === 'folga'
+      ? { tipo, motivo: motivo.trim() }
+      : { tipo, entrada, saida, intervalos: pausaInicio && pausaFim ? [{ inicio: pausaInicio, fim: pausaFim }] : [], motivo: motivo.trim() };
+    try {
+      await equipe.corrigirPrevisao(jornada.id, corpo);
+      avisar('Previsão corrigida.', 'ok');
+      invalidar('equipe');
+      aoFechar();
+    } catch (e) {
+      setErro(e instanceof ErroApi ? e.message : 'Não foi possível corrigir.');
+    } finally {
+      setEnviando(false);
+    }
+  };
+  return (
+    <Dialogo
+      aberto
+      aoFechar={() => !enviando && aoFechar()}
+      titulo="Corrigir previsão do dia"
+      acoes={
+        <>
+          <Botao onClick={aoFechar} disabled={enviando}>Voltar</Botao>
+          <Botao variante="primario" onClick={enviar} carregando={enviando} disabled={!valido}>Confirmar correção</Botao>
+        </>
+      }
+    >
+      <p>Hoje: {textoPrevisto(p)}. As batidas não mudam; atraso e saldo são recalculados. Antes, depois e o motivo ficam na auditoria.</p>
+      <Campo rotulo="Previsto">
+        {(id) => (
+          <select id={id} class="selecao" value={tipo} onChange={(e) => setTipo(e.currentTarget.value as PrevisaoEntrada['tipo'])} data-autofoco>
+            <option value="turno">Turno</option>
+            <option value="plantao">Plantão</option>
+            <option value="folga">Folga</option>
+          </select>
+        )}
+      </Campo>
+      {tipo !== 'folga' && (
+        <div class="grade-campos">
+          <Campo rotulo="Entrada">{(id) => <input id={id} class="entrada" type="time" required value={entrada} onInput={(e) => setEntrada(e.currentTarget.value)} />}</Campo>
+          <Campo rotulo="Saída">{(id) => <input id={id} class="entrada" type="time" required value={saida} onInput={(e) => setSaida(e.currentTarget.value)} />}</Campo>
+          <Campo rotulo="Início do intervalo" opcional>{(id) => <input id={id} class="entrada" type="time" value={pausaInicio} onInput={(e) => setPausaInicio(e.currentTarget.value)} />}</Campo>
+          <Campo rotulo="Fim do intervalo" opcional>{(id) => <input id={id} class="entrada" type="time" value={pausaFim} onInput={(e) => setPausaFim(e.currentTarget.value)} />}</Campo>
+        </div>
+      )}
+      <Campo rotulo="Motivo" ajuda={`Pelo menos ${JUSTIFICATIVA_MIN} caracteres.`}>
+        {(id, d) => <textarea id={id} class="area" aria-describedby={d} maxLength={JUSTIFICATIVA_MAX} value={motivo} onInput={(e) => setMotivo(e.currentTarget.value)} />}
+      </Campo>
+      {erro && <Aviso tom="perigo">{erro}</Aviso>}
+    </Dialogo>
   );
 }
 

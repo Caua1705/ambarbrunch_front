@@ -3,7 +3,7 @@
 // do toque em REGISTRAR PONTO e desliga antes do envio, inclusive em erro e ao sair da tela.
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { CheckCircle2, CircleAlert, Clock3, LoaderCircle, ScanFace, UserRoundCheck, WifiOff } from 'lucide-preact';
-import { ErroPonto, ROTULO_BATIDA, type ConfiguracaoQuiosque, type Recibo, type SessaoAberta, type TipoBatida } from '../lib/ponto/contrato';
+import { ErroPonto, orientacaoDoMotivo, ROTULO_BATIDA, type ConfiguracaoQuiosque, type Recibo, type SessaoAberta, type TipoBatida } from '../lib/ponto/contrato';
 import { abrirCamera, capturarQuadros, ErroCamera, INSTRUCOES_CAMERA, medirLuz, montarFormulario, pararCamera } from '../lib/ponto/captura';
 import { abrirSessao, apiConfigurada, cancelarSessao, enviarCaptura, lerConfiguracao, parear, registrarBatida } from '../lib/ponto/http';
 
@@ -61,6 +61,7 @@ function avisoDeErro(e: unknown): Aviso | 'desativado' | 'parear' {
     if (e.rede) return { titulo: 'Sem internet', mensagem: 'O ponto não foi registrado. Confira a conexão e tente de novo.', tentar: true, tipo: 'rede' };
     if (e.status === 401) return 'parear';
     if (e.codigo === 'ponto_desativado') return 'desativado';
+    if (e.codigo === 'identificacao_automatica_desligada') return { titulo: 'Registre com o gestor', mensagem: 'O ponto pelo rosto está desligado neste momento. Nada foi registrado.', gestor: true };
     if (e.codigo === 'biometria_indisponivel') return { titulo: 'Reconhecimento indisponível', mensagem: 'O ponto não foi registrado. Procure o gestor.', gestor: true };
     if (e.codigo === 'biometria_ocupada') return { titulo: 'Sistema ocupado', mensagem: 'O ponto não foi registrado. Tente de novo em instantes.', tentar: true };
     if (e.status === 429) return { titulo: 'Muitas tentativas', mensagem: 'Aguarde alguns minutos ou procure o gestor.', gestor: true };
@@ -112,7 +113,7 @@ export default function Ponto() {
       setConfig(c);
       setDeslocamento(new Date(c.horario_servidor).getTime() - Date.now());
       setConectado(true);
-      if (mudarTela) setTela(c.biometria_disponivel ? { t: 'inicio' } : { t: 'sem_biometria' });
+      if (mudarTela) setTela(c.biometria_disponivel && c.identificacao_automatica !== false ? { t: 'inicio' } : { t: 'sem_biometria' });
     } catch (e) {
       if (e instanceof ErroPonto && e.rede) {
         setConectado(false);
@@ -290,7 +291,8 @@ export default function Ponto() {
       if (!resultado) return;
       if (resultado.resultado !== 'aprovado' || !resultado.autorizacao || !resultado.proxima_batida) {
         sessaoRef.current = null;
-        return setTela({ t: 'aviso', titulo: 'Ponto não registrado', mensagem: resultado.mensagem, tentar: resultado.nova_tentativa, gestor: resultado.encaminhar_gestor });
+        const dica = orientacaoDoMotivo(resultado.motivo);
+        return setTela({ t: 'aviso', titulo: 'Ponto não registrado', mensagem: dica ? `${resultado.mensagem} ${dica}` : resultado.mensagem, tentar: resultado.nova_tentativa, gestor: resultado.encaminhar_gestor });
       }
       const nome = resultado.nome_exibicao ?? '';
       const proxima = resultado.proxima_batida;
@@ -403,7 +405,7 @@ export default function Ponto() {
             <>
               <Relogio data={relogio} />
               <Cartao icone={<UserRoundCheck aria-hidden="true" />} titulo="Reconhecimento indisponível">
-                <p>O ponto por reconhecimento facial não está disponível agora. Procure o gestor para registrar.</p>
+                <p>O ponto por reconhecimento facial não está disponível agora. Procure o gestor: ele registra pelo painel.</p>
               </Cartao>
             </>
           )}
