@@ -39,7 +39,7 @@ test.describe.serial('Gestão', () => {
     await expect(fila).toContainText('Caio');
     await fila.getByRole('button', { name: 'Abrir' }).first().click();
 
-    await page.getByRole('button', { name: 'Corrigir' }).click();
+    await page.getByRole('button', { name: 'Corrigir', exact: true }).click();
     const dialogo = page.getByRole('dialog', { name: 'Corrigir marcação' });
     await dialogo.getByLabel('Data e hora').fill(`${ontem}T09:10`);
     const confirmar = dialogo.getByRole('button', { name: 'Confirmar correção' });
@@ -120,7 +120,7 @@ test.describe.serial('Gestão', () => {
     }
     await entrar(page, 'gerente');
     await page.goto(`/admin/equipe?aba=registros&funcionario=${id}`);
-    await page.getByRole('cell', { name: 'Eva' }).first().click();
+    await page.getByRole('row').filter({ hasText: 'Eva' }).filter({ hasText: '17:00' }).click();
     await page.getByRole('button', { name: 'Corrigir previsão' }).click();
     const dialogo = page.getByRole('dialog', { name: 'Corrigir previsão do dia' });
     await dialogo.getByLabel('Entrada').fill('09:00');
