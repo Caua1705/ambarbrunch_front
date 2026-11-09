@@ -3,7 +3,7 @@
 // nas duas, quatro insumos sem movimento e um Pix de insumos lançado pela Júlia com a pendência no Estoque.
 //   PAINEL_REAL_API=http://127.0.0.1:8766 PAINEL_REAL_CHAVE=<painel_chave> PAINEL_REAL_ESTOQUE=<estoque.json> \
 //     npx playwright test -c playwright.painel-real.config.ts tests-painel-real/estoque.spec.ts
-// A ordem importa (1 worker, um arquivo): abertura do estoque → recebimento da Júlia → uso interno → contagem posterior →
+// A ordem importa (1 worker, um arquivo): abertura do estoque → compra da Júlia → uso interno → contagem posterior →
 // ajuste com motivo → Pix com frete e Pix pago em parte (diferença justificada) → isolamento → fichas.
 import { test, expect, type Page } from '@playwright/test';
 import fs from 'node:fs';
@@ -29,7 +29,7 @@ const saldo = async (page: Page, nome: keyof Integracao['ids']) => {
   const l = await (await page.request.get(`${API}/estoque/insumos?limite=200`)).json();
   return l.itens.find((i: { id: string }) => i.id === E.ids[nome]) as { saldo: string; ultima_contagem_em: string | null; motivo_nao_confiavel: string | null };
 };
-const linha = (page: Page, nome: string) => page.getByRole('table', { name: 'Estoque atual' }).getByRole('row', { name: new RegExp(nome) });
+const linha = (page: Page, nome: string) => page.getByRole('table', { name: 'Insumos' }).getByRole('row', { name: new RegExp(nome) });
 
 let erros: string[] = [];
 test.beforeEach(({ page }) => {
@@ -47,13 +47,13 @@ test('lista real: nada conferido ainda, sem zero inventado, baixa automática de
     await expect(linha(page, n)).toContainText('Não conferido');
     await expect(linha(page, n)).toContainText('—');
   }
-  await expect(page.locator('.estoque-numero', { hasText: 'Abaixo do mínimo' })).toContainText('0');
-  await expect(page.getByText('Baixa automática pelas vendas:')).toContainText('desligada');
+  // Baixa desligada: um aviso claro enquanto for verdade (as vendas não descontam).
+  await expect(page.getByText('As vendas ainda não descontam do estoque.')).toBeVisible();
 });
 
 test('contagem inicial: três itens viram saldo de partida, com o nome de quem confirmou', async ({ page }) => {
   await entrar(page, 'gerente');
-  await page.goto(`${PAINEL}/admin/estoque?aba=contagem`);
+  await page.goto(`${PAINEL}/admin/estoque?vista=contagem`);
   await page.getByRole('radio', { name: /Escolher insumos/ }).check();
   for (const n of ['Leite integral', 'Café em grãos', 'Ovos']) await page.getByRole('checkbox', { name: new RegExp(n) }).check();
   await page.getByRole('button', { name: 'Começar contagem (3 itens)' }).click();
@@ -77,17 +77,19 @@ test('contagem inicial: três itens viram saldo de partida, com o nome de quem c
   expect(movs.itens[0]).toMatchObject({ tipo: 'ajuste_inventario', quantidade: '12000.0000' });
   expect(movs.itens[0].inventario_item_id).not.toBeNull();
 
+  // Concluir volta para Insumos; o histórico mora em "Contar estoque".
   await page.getByRole('button', { name: 'Concluir' }).click();
-  await expect(page.getByRole('table', { name: 'Contagens anteriores' })).toContainText('Gabriela Integração');
-  await page.getByRole('tab', { name: 'Estoque atual' }).click();
   await expect(linha(page, 'Leite integral')).toContainText('Normal');
+  await page.getByRole('button', { name: 'Contar estoque' }).click();
+  await expect(page.getByRole('table', { name: 'Contagens anteriores' })).toContainText('Gabriela Integração');
+  await page.getByRole('button', { name: 'Insumos', exact: true }).click();
   await expect(linha(page, 'Cogumelo paris')).toContainText('Não conferido');
 });
 
 test('Pix da Júlia: os produtos conferem o MESMO pagamento, nenhuma despesa nova, e só então entram no estoque', async ({ page }) => {
   await entrar(page, 'gerente');
-  await page.goto(`${PAINEL}/admin/estoque?aba=recebimentos`);
-  const pix = page.getByRole('table', { name: 'Recebimentos pendentes' }).getByRole('row', { name: /VO CHIQUINHA FOOD LTDA/ });
+  await page.goto(`${PAINEL}/admin/estoque?aba=compras`);
+  const pix = page.getByRole('table', { name: 'Compras pendentes' }).getByRole('row', { name: /VO CHIQUINHA FOOD LTDA/ });
   await expect(pix).toContainText('Júlia');
   await expect(pix).toContainText('comprovante de pagamento');
   await expect(pix).toContainText('R$ 172,00');
@@ -128,19 +130,19 @@ test('Pix da Júlia: os produtos conferem o MESMO pagamento, nenhuma despesa nov
   expect((await saldo(page, 'Café em grãos')).saldo).toBe('4000.0000');
 });
 
-test('uso interno pelo Registrar movimento: sai do saldo com motivo próprio e NÃO conta como perda', async ({ page }) => {
+test('uso interno pela gaveta do insumo: sai do saldo com motivo próprio e NÃO conta como perda', async ({ page }) => {
   await entrar(page, 'gerente');
   await page.goto(`${PAINEL}/admin/estoque`);
-  await page.getByRole('button', { name: 'Registrar movimento' }).click();
-  await page.getByRole('dialog', { name: 'Registrar movimento' }).getByRole('button', { name: /Saída/ }).click();
-  const saida = page.getByRole('dialog', { name: 'Saída' });
-  await saida.getByRole('combobox', { name: 'Insumo' }).fill('ovos');
-  await page.getByRole('option', { name: /Ovos/ }).click();
+  await linha(page, 'Ovos').click();
+  await page.getByRole('dialog', { name: 'Ovos' }).getByRole('button', { name: 'Perda ou uso interno' }).click();
+  const saida = page.getByRole('dialog', { name: 'Perda ou uso interno' });
   await saida.getByLabel('Quantidade que saiu').fill('4');
   await saida.getByLabel('Motivo').selectOption('uso_interno');
   await saida.getByLabel('Observação').fill('café da manhã da equipe');
-  await saida.getByRole('button', { name: 'Registrar saída' }).click();
+  await saida.getByRole('button', { name: 'Revisar saída' }).click();
+  await page.getByRole('dialog', { name: 'Registrar a saída?' }).getByRole('button', { name: 'Registrar saída' }).click();
   await expect(page.getByText('Saída registrada: Ovos.')).toBeVisible();
+  await page.keyboard.press('Escape');
   expect((await saldo(page, 'Ovos')).saldo).toBe('36.0000');
   const movs = await (await page.request.get(`${API}/estoque/insumos/${E.ids.Ovos}/movimentos`)).json();
   expect(movs.itens[0]).toMatchObject({ tipo: 'perda', quantidade: '-4.0000', motivo: 'uso_interno: café da manhã da equipe', registrado_por_nome: 'Gabriela Integração' });
@@ -162,7 +164,7 @@ test('uso interno pelo Registrar movimento: sai do saldo com motivo próprio e N
 
 test('contagem posterior: diferença positiva e negativa viram ajustes ligados à contagem', async ({ page }) => {
   await entrar(page, 'gerente');
-  await page.goto(`${PAINEL}/admin/estoque?aba=contagem`);
+  await page.goto(`${PAINEL}/admin/estoque?vista=contagem`);
   await page.getByRole('radio', { name: /Escolher insumos/ }).check();
   for (const n of ['Leite integral', 'Ovos']) await page.getByRole('checkbox', { name: new RegExp(n) }).check();
   await page.getByRole('button', { name: 'Começar contagem (2 itens)' }).click();
@@ -190,13 +192,14 @@ test('ajuste com motivo: saldo anterior e novo, motivo, responsável e data grav
   await entrar(page, 'gerente');
   await page.goto(`${PAINEL}/admin/estoque`);
   await linha(page, 'Café em grãos').click();
-  await page.getByRole('dialog', { name: 'Café em grãos' }).getByRole('button', { name: 'Ajuste' }).click();
-  const ajuste = page.getByRole('dialog', { name: 'Ajuste de saldo' });
-  await ajuste.getByLabel('Quantidade real agora').fill('1,5');
+  await page.getByRole('dialog', { name: 'Café em grãos' }).getByRole('button', { name: 'Corrigir saldo' }).click();
+  const ajuste = page.getByRole('dialog', { name: 'Corrigir saldo' });
+  await ajuste.getByLabel('Saldo correto').fill('1,5');
   await expect(ajuste.locator('.ajuste-previa')).toContainText('-2,5 kg');
   await ajuste.getByLabel('Motivo').selectOption('erro_de_registro');
-  await ajuste.getByLabel('Observação').fill('recebimento digitado em dobro');
-  await ajuste.getByRole('button', { name: 'Registrar ajuste' }).click();
+  await ajuste.getByLabel('Justificativa').fill('recebimento digitado em dobro');
+  await ajuste.getByRole('button', { name: 'Revisar correção' }).click();
+  await page.getByRole('dialog', { name: 'Corrigir o saldo?' }).getByRole('button', { name: 'Corrigir saldo' }).click();
   await expect(ajuste.getByRole('heading', { name: 'Saldo ajustado' })).toBeVisible();
   const registro = ajuste.locator('[data-teste="ajuste-registrado"]');
   await expect(registro).toContainText('4 kg');
@@ -208,14 +211,14 @@ test('ajuste com motivo: saldo anterior e novo, motivo, responsável e data grav
   await ajuste.getByRole('button', { name: 'Concluir' }).click();
   await page.keyboard.press('Escape');
   expect((await saldo(page, 'Café em grãos')).saldo).toBe('1500.0000');
-  await expect(linha(page, 'Café em grãos')).toContainText('Estoque baixo');
+  await expect(linha(page, 'Café em grãos')).toContainText('Baixo');
   const abertas = await (await page.request.get(`${API}/estoque/inventarios?status=aberto`)).json();
   expect(abertas).toHaveLength(0);
 });
 
 /** Pix pendente: um produto do cadastro, sem salvar ainda. */
 async function produtos(page: Page, compra: string, insumo: string, busca: string, qtd: string, unidade: string, unitario: string) {
-  await page.goto(`${PAINEL}/admin/estoque?aba=recebimentos&compra=${compra}`);
+  await page.goto(`${PAINEL}/admin/estoque?aba=compras&compra=${compra}`);
   const gaveta = page.getByRole('dialog');
   await expect(gaveta.getByText('Produtos e quantidades ainda não informados.')).toBeVisible();
   await gaveta.getByRole('combobox', { name: 'Produto 1' }).fill(busca);
@@ -297,9 +300,36 @@ test('isolamento: saldo é por unidade; o gerente do Café não lê a Noite', as
 
 test('fichas e custos sem vendas: nada inventado; CMV indisponível com o motivo', async ({ page }) => {
   await entrar(page, 'gerente');
-  await page.goto(`${PAINEL}/admin/estoque?aba=custos`);
-  await expect(page.getByText('Os produtos aparecem quando chegam vendas da Eyemobile.')).toBeVisible();
-  await page.getByRole('group', { name: 'Fichas e custos' }).getByRole('button', { name: 'CMV e custos' }).click();
+  await page.goto(`${PAINEL}/admin/estoque?aba=fichas`);
+  await expect(page.getByText('Nenhum produto vendido nos últimos 30 dias')).toBeVisible();
+  await page.getByRole('group', { name: 'Fichas técnicas' }).getByRole('button', { name: 'Custos e CMV' }).click();
+  await expect(page.getByText('Cadastre as fichas técnicas dos produtos para começar a calcular os custos.')).toBeVisible();
+  await page.getByText('Relatórios avançados').click();
   await expect(page.getByRole('region', { name: 'CMV teórico' })).toContainText('Indisponível');
   await expect(page.getByText(/Pode faltar|Reposição sugerida/)).toHaveCount(0);
+});
+
+test('cadastro com quantidade inicial: kg vira gramas no backend e a quantidade é a primeira conferência (abertura)', async ({ page }) => {
+  await entrar(page, 'gerente');
+  await page.goto(`${PAINEL}/admin/estoque`);
+  await page.getByRole('button', { name: 'Novo insumo' }).click();
+  const novo = page.getByRole('dialog', { name: 'Novo insumo' });
+  await novo.getByLabel('Nome').fill('Farinha integral');
+  await novo.getByLabel('Categoria').fill('Integração');
+  await novo.getByLabel('Quantidade inicial (kg)').fill('3,25');
+  await novo.getByLabel('Estoque mínimo (kg)').fill('1');
+  // O backend real ainda não guarda o estoque ideal: o campo fica desligado.
+  await expect(novo.getByLabel('Estoque ideal (kg)')).toBeDisabled();
+  await novo.getByRole('button', { name: 'Cadastrar com a quantidade' }).click();
+  const insumo = page.getByRole('dialog', { name: 'Farinha integral' });
+  await expect(insumo.locator('.insumo-saldo')).toContainText('3,25 kg');
+  await expect(insumo.locator('.movimento').first()).toContainText('Contagem inicial');
+  const l = await (await page.request.get(`${API}/estoque/insumos?limite=200`)).json();
+  const criado = l.itens.find((i: { nome: string }) => i.nome === 'Farinha integral');
+  expect(criado).toMatchObject({ unidade_base: 'g', saldo: '3250.0000' });
+  expect(Number(criado.estoque_minimo)).toBe(1000);
+  expect(criado.ultima_contagem_em).not.toBeNull();
+  const movs = await (await page.request.get(`${API}/estoque/insumos/${criado.id}/movimentos`)).json();
+  expect(movs.itens[0]).toMatchObject({ tipo: 'ajuste_inventario', quantidade: '3250.0000', registrado_por_nome: 'Gabriela Integração' });
+  expect(movs.itens[0].motivo).toMatch(/^abertura/);
 });

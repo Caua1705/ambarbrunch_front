@@ -1,4 +1,4 @@
-// Recebimentos pelo painel: um "Novo recebimento" (com nota: foto/PDF/XML; sem nota: digitado) e as linhas de produtos
+// Compras registradas pelo painel: "Registrar compra" (com nota: foto/PDF/XML; sem nota: digitada) e as linhas de produtos
 // (seletor do cadastro de insumos e materiais, quantidade, unidade, valor unitário e subtotal), usadas também quando a
 // compra veio só do comprovante do Pix.
 import { useEffect, useRef, useState } from 'preact/hooks';
@@ -12,10 +12,10 @@ import { EnvioArquivo, EntradaMoeda, Autocompletar, type OpcaoAuto } from '../..
 import type { ItemManual } from '../../lib/tipos/estoque';
 import { atualizarEstoque, UNIDADE_CURTA } from './comum';
 
-/** Novo recebimento: uma porta só para o que chegou com nota (foto/PDF/XML, lida no backend) e sem nota (digitado). Os
- *  dois caem na MESMA conferência de Recebimentos, e nada entra no estoque antes do "Confirmar recebimento". O envio da
+/** Registrar compra: uma porta só para o que chegou com nota (foto/PDF/XML, lida no backend) e sem nota (digitado). Os
+ *  dois caem na MESMA conferência de Compras, e nada entra no estoque antes do "Confirmar recebimento". O envio da
  *  nota manda a unidade no próprio formulário: no multipart o backend lê `unidade` do Form, não da query. */
-export function NovoRecebimento({ aberto, modo: modoInicial, insumo, unidade, aoFechar, aoCriar }: {
+export function NovaCompra({ aberto, modo: modoInicial, insumo, unidade, aoFechar, aoCriar }: {
   aberto: boolean;
   modo: 'nota' | 'manual' | null;
   /** Insumo que já vem na primeira linha (entrada aberta pela gaveta do insumo). */
@@ -29,7 +29,7 @@ export function NovoRecebimento({ aberto, modo: modoInicial, insumo, unidade, ao
     if (aberto) setModo(modoInicial);
   }, [aberto, modoInicial]);
   const [enviando, setEnviando] = useState(false);
-  const titulo = modo === 'nota' ? 'Recebimento com nota' : modo === 'manual' ? 'Recebimento sem nota' : 'Novo recebimento';
+  const titulo = modo === 'nota' ? 'Compra com nota fiscal' : modo === 'manual' ? 'Compra sem nota' : 'Registrar compra';
   return (
     <Gaveta
       aberta={aberto}
@@ -56,7 +56,7 @@ export function NovoRecebimento({ aberto, modo: modoInicial, insumo, unidade, ao
             <span class="escolha-movimento__icone"><PencilLine aria-hidden="true" /></span>
             <span class="escolha-movimento__texto"><strong>Sem nota</strong><span>Feira, mercado sem cupom: informe fornecedor, itens e valores.</span></span>
           </button>
-          <p class="fraco">Pagou e mandou o comprovante para a Júlia? Ele já está nos pendentes: confira por lá, sem criar outro recebimento.</p>
+          <p class="fraco">Mandou o comprovante para a Júlia? A compra já está em Pendentes: confira por lá, sem registrar de novo.</p>
         </div>
       )}
       {modo === 'nota' && <EnvioNota unidade={unidade} aoEnviar={aoCriar} aoVoltar={modoInicial ? null : () => setModo(null)} />}
@@ -75,7 +75,7 @@ function EnvioNota({ unidade, aoEnviar, aoVoltar }: { unidade: string | null; ao
     try {
       const r = await estoque.enviarNota(f, unidade);
       atualizarEstoque();
-      avisar(r.ja_existia ? 'Esta nota já tinha sido enviada: abrindo o mesmo recebimento.' : 'Nota recebida. Lendo o documento…', r.ja_existia ? 'info' : 'ok');
+      avisar(r.ja_existia ? 'Esta nota já tinha sido enviada: abrindo a mesma compra.' : 'Nota recebida. Lendo o documento…', r.ja_existia ? 'info' : 'ok');
       aoEnviar(r.id);
     } catch (e) {
       setErro(e instanceof ErroApi ? e.message : 'Não foi possível enviar.');
@@ -94,7 +94,7 @@ function EnvioNota({ unidade, aoEnviar, aoVoltar }: { unidade: string | null; ao
         aoEscolher={enviar}
       />
       {erro && <Aviso tom="perigo" icone={<Info aria-hidden="true" />}>{erro}</Aviso>}
-      <Aviso icone={<Camera aria-hidden="true" />}>Nada entra no estoque até alguém conferir. Se o pagamento já foi para a Júlia, envie a nota dentro do recebimento pendente dele: ela confere o mesmo pagamento, sem criar outra despesa.</Aviso>
+      <Aviso icone={<Camera aria-hidden="true" />}>Nada entra no estoque até alguém conferir. Se o pagamento já foi para a Júlia, envie a nota dentro da compra pendente dele: ela confere o mesmo pagamento, sem criar outra despesa.</Aviso>
       {aoVoltar && <Botao variante="fantasma" onClick={aoVoltar} style={{ alignSelf: 'flex-start' }}>Voltar</Botao>}
     </div>
   );
@@ -141,7 +141,7 @@ function FormManual({ aberto, insumo, aoEnviando, aoCriar }: { aberto: boolean; 
     try {
       const r = await estoque.compraManual({ fornecedor_nome: fornecedor.trim() || null, fornecedor_documento: doc || null, emitida_em: data, valor_total: t, desconto: d, itens }, chave.current);
       atualizarEstoque();
-      avisar('Recebimento registrado. Confira os itens para dar entrada.', 'ok');
+      avisar('Compra registrada. Confira os itens para dar entrada.', 'ok');
       aoCriar(r.id);
     } catch (x) {
       setErro(x instanceof ErroApi ? x.message : 'Não foi possível registrar.');
@@ -155,7 +155,7 @@ function FormManual({ aberto, insumo, aoEnviando, aoCriar }: { aberto: boolean; 
       <div class="grade-campos">
         <Campo rotulo="Fornecedor" opcional>{(id) => <input id={id} class="entrada" placeholder="Ex.: Feira do Mucuripe" value={fornecedor} onInput={(e) => setFornecedor(e.currentTarget.value)} />}</Campo>
         <Campo rotulo="CNPJ ou CPF" opcional>{(id) => <input id={id} class="entrada num" inputMode="numeric" maxLength={20} value={documento} onInput={(e) => setDocumento(e.currentTarget.value)} />}</Campo>
-        <Campo rotulo="Data do recebimento">{(id) => <input id={id} type="date" class="entrada" max={hojeISO()} value={data} onChange={(e) => setData(e.currentTarget.value)} />}</Campo>
+        <Campo rotulo="Data da compra">{(id) => <input id={id} type="date" class="entrada" max={hojeISO()} value={data} onChange={(e) => setData(e.currentTarget.value)} />}</Campo>
       </div>
       <LinhasItens linhas={linhas} aoMudar={setLinhas} />
       <div class="grade-campos">
@@ -165,7 +165,7 @@ function FormManual({ aberto, insumo, aoEnviando, aoCriar }: { aberto: boolean; 
         <Campo rotulo="Desconto" opcional>{(id) => <EntradaMoeda id={id} valor={desconto} aoMudar={setDesconto} />}</Campo>
       </div>
       {erro && <Aviso tom="perigo" icone={<Info aria-hidden="true" />}>{erro}</Aviso>}
-      <p class="fraco">Sem nota fiscal, o recebimento fica identificado como digitado. Na conferência você escolhe como ele aparece no Financeiro: vincular a uma despesa que já existe, conta a pagar ou já paga.</p>
+      <p class="fraco">Sem nota fiscal, a compra fica identificada como digitada. Na conferência você escolhe como ela aparece no Financeiro: ligada a uma despesa que já existe, conta a pagar ou já paga — nunca duas vezes.</p>
     </form>
   );
 }

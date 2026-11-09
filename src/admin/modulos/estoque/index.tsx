@@ -1,13 +1,15 @@
-// Estoque em quatro áreas: Estoque atual (o que temos, quanto e o que está acabando — a primeira tela), Recebimentos (o
-// que chegou e precisa ser conferido), Contagem (inventário em três passos) e Fichas e custos (fichas técnicas e CMV).
-// Uma ação principal em todas: "Registrar movimento" (entrada, saída ou ajuste, sempre com histórico). Vendas canceladas
-// depois da baixa (só existem com a baixa automática ligada) abrem numa gaveta a partir do Estoque atual.
-// A área vive na URL (?aba=); ?aba=recebimentos&compra=<id> abre direto a conferência. Nomes antigos (compras, insumos,
-// fichas, inventario, mais) continuam funcionando. Quem decide o que cada perfil pode é o backend: o painel só esconde
-// o que daria 403.
+// Estoque em três abas: Insumos (o que temos, quanto e o que está acabando — a primeira tela, com "Contar estoque" e o
+// detalhe de cada insumo), Compras (o que chegou e precisa ser conferido, com "Registrar compra" para o que não passou pela
+// Júlia) e Fichas técnicas (catálogo dos produtos da Eyemobile, com a seção "Custos e CMV"). Sem botão genérico de
+// movimento: entradas nascem em Compras; conferência, correção e perda saem da gaveta do insumo. Vendas canceladas depois
+// da baixa (só existem com a baixa automática ligada) abrem numa gaveta a partir de Insumos.
+// A área vive na URL (?aba=insumos|compras|fichas, &vista=contagem, &secao=custos); ?aba=compras&compra=<id> abre direto a
+// conferência. Endereços antigos (estoque, recebimentos, contagem, custos, analises, mais, cancelamentos…) continuam
+// funcionando — o sino, o Financeiro e o backend ainda apontam para eles. Quem decide o que cada perfil pode é o backend:
+// o painel só esconde o que daria 403.
 import '../../estilos/estoque.css';
 import { useEffect, useState } from 'preact/hooks';
-import { Plus } from 'lucide-preact';
+import { ArrowLeft } from 'lucide-preact';
 import type { ContextoPainel } from '../../lib/sessao';
 import { useConsulta } from '../../lib/consulta';
 import { estoque } from '../../lib/api/estoque';
@@ -17,30 +19,31 @@ import { Abas, Botao, Segmentado } from '../../ui/base';
 import { Esqueleto } from '../../ui/estados';
 import type { Insumo } from '../../lib/tipos/estoque';
 import { permissoesEstoque, useResponsavel } from './comum';
-import { EstoqueAtual } from './EstoqueAtual';
-import { DetalheInsumo, NovoInsumo, type TipoMovimentoManual } from './DetalheInsumo';
-import { RegistrarMovimento, type ModoEntrada } from './Movimento';
-import { Recebimentos } from './Recebimentos';
-import { NovoRecebimento } from './EntradaCompra';
+import { Insumos } from './Insumos';
+import { DetalheInsumo, NovoInsumo } from './DetalheInsumo';
+import { MovimentoInsumo, type TipoMovimentoManual } from './Movimento';
+import { Compras } from './Compras';
+import { NovaCompra } from './EntradaCompra';
 import { Contagem } from './Contagem';
 import { Fichas, GavetaFicha, type AlvoFicha } from './Fichas';
-import { Analises } from './Analises';
+import { CustosCmv } from './Custos';
 import { Cancelamentos } from './Cancelamentos';
 
-export type AreaEstoque = 'estoque' | 'recebimentos' | 'contagem' | 'custos';
-const AREAS: AreaEstoque[] = ['estoque', 'recebimentos', 'contagem', 'custos'];
-type SecaoCustos = 'fichas' | 'cmv';
-// Nomes antigos (links já compartilhados, rotaPainel, painel anterior) caem na área certa.
-const APELIDOS: Record<string, { area: AreaEstoque; secao?: SecaoCustos; cancelamentos?: boolean }> = {
-  insumos: { area: 'estoque' },
-  resumo: { area: 'estoque' },
-  compras: { area: 'recebimentos' },
-  inventario: { area: 'contagem' },
-  inventarios: { area: 'contagem' },
-  fichas: { area: 'custos' },
-  analises: { area: 'custos', secao: 'cmv' },
-  mais: { area: 'custos', secao: 'cmv' },
-  cancelamentos: { area: 'estoque', cancelamentos: true },
+export type AreaEstoque = 'insumos' | 'compras' | 'fichas';
+const AREAS: AreaEstoque[] = ['insumos', 'compras', 'fichas'];
+type SecaoFichas = 'produtos' | 'custos';
+// Nomes antigos (links já compartilhados, rotaPainel, sino, Financeiro) caem na área certa.
+const APELIDOS: Record<string, { area: AreaEstoque; secao?: SecaoFichas; contagem?: boolean; cancelamentos?: boolean }> = {
+  estoque: { area: 'insumos' },
+  resumo: { area: 'insumos' },
+  recebimentos: { area: 'compras' },
+  contagem: { area: 'insumos', contagem: true },
+  inventario: { area: 'insumos', contagem: true },
+  inventarios: { area: 'insumos', contagem: true },
+  custos: { area: 'fichas' },
+  analises: { area: 'fichas', secao: 'custos' },
+  mais: { area: 'fichas', secao: 'custos' },
+  cancelamentos: { area: 'insumos', cancelamentos: true },
 };
 
 export default function Estoque({ contexto }: { contexto: ContextoPainel }) {
@@ -51,21 +54,24 @@ export default function Estoque({ contexto }: { contexto: ContextoPainel }) {
   // A área e a compra vêm da URL, que o servidor não vê: lidas só depois de montar (a primeira pintura bate com o HTML
   // do servidor e não há erro de hidratação). Até lá, um esqueleto.
   const [area, setArea] = useState<AreaEstoque | null>(null);
-  const [secao, setSecao] = useState<SecaoCustos>('fichas');
+  const [secao, setSecao] = useState<SecaoFichas>('produtos');
+  const [contando, setContando] = useState(false);
+  const [filtroFichas, setFiltroFichas] = useState<'sem' | undefined>(undefined);
   const [compra, setCompra] = useState<string | null>(null);
   const [insumo, setInsumo] = useState<string | null>(null);
   const [novoInsumo, setNovoInsumo] = useState(false);
   const [ficha, setFicha] = useState<AlvoFicha | null>(null);
   const [cancelamentos, setCancelamentos] = useState(false);
-  const [movimento, setMovimento] = useState<{ tipo: TipoMovimentoManual | null; insumo: Insumo | null } | null>(null);
-  const [recebimento, setRecebimento] = useState<{ modo: ModoEntrada | null; insumo: Insumo | null } | null>(null);
+  const [movimento, setMovimento] = useState<{ tipo: TipoMovimentoManual; insumo: Insumo } | null>(null);
+  const [novaCompra, setNovaCompra] = useState(false);
 
   useEffect(() => {
     const lida = lerParam('aba') ?? '';
     const apelido = APELIDOS[lida];
-    setArea(apelido?.area ?? ((AREAS as string[]).includes(lida) ? (lida as AreaEstoque) : 'estoque'));
+    setArea(apelido?.area ?? ((AREAS as string[]).includes(lida) ? (lida as AreaEstoque) : 'insumos'));
     const s = apelido?.secao ?? lerParam('secao');
-    if (s === 'fichas' || s === 'cmv') setSecao(s);
+    if (s === 'custos' || s === 'cmv') setSecao('custos');
+    if (apelido?.contagem || lerParam('vista') === 'contagem') setContando(true);
     setCompra(lerParam('compra'));
     setInsumo(lerParam('insumo'));
     if (apelido?.cancelamentos || lerParam('cancelamentos')) setCancelamentos(true);
@@ -73,55 +79,69 @@ export default function Estoque({ contexto }: { contexto: ContextoPainel }) {
   useEffect(() => {
     if (area)
       gravarParams({
-        aba: area === 'estoque' ? null : area,
-        compra: area === 'recebimentos' ? compra : null,
-        insumo: area === 'estoque' ? insumo : null,
-        secao: area === 'custos' && secao !== 'fichas' ? secao : null,
+        aba: area === 'insumos' ? null : area,
+        vista: area === 'insumos' && contando ? 'contagem' : null,
+        compra: area === 'compras' ? compra : null,
+        insumo: area === 'insumos' ? insumo : null,
+        secao: area === 'fichas' && secao !== 'produtos' ? secao : null,
         cancelamentos: null,
       });
-  }, [area, compra, insumo, secao]);
+  }, [area, compra, insumo, secao, contando]);
 
   const resumo = useConsulta('estoque/resumo', () => estoque.resumo());
   const pendentes = useConsulta(perm.conferir ? 'estoque/compras?conferir' : null, () => estoque.compras({ etapa: 'aguardando_conferencia', limite: 20 }));
   const inicio = resumo.dados?.inicio_controle ?? null;
 
-  const irRecebimentos = (id: string | null = null) => {
+  const irCompras = (id: string | null = null) => {
     setCompra(id);
-    setArea('recebimentos');
+    setArea('compras');
   };
-  // Entrada pelo "Registrar movimento" ou pela gaveta do insumo: o mesmo recebimento de Recebimentos.
-  const entrada = (modo: ModoEntrada, i: Insumo | null) => {
+  const contar = () => {
     setMovimento(null);
     setInsumo(null);
-    setRecebimento({ modo, insumo: i });
+    setArea('insumos');
+    setContando(true);
   };
 
   return (
     <Raiz>
-      <div class="estoque-topo">
-        <Abas
-          atual={area ?? 'estoque'}
-          aoMudar={(a) => { setArea(a); if (a !== 'recebimentos') setCompra(null); }}
-          abas={[
-            { id: 'estoque', rotulo: 'Estoque atual' },
-            { id: 'recebimentos', rotulo: 'Recebimentos', contagem: pendentes.dados?.total ?? null },
-            { id: 'contagem', rotulo: 'Contagem' },
-            { id: 'custos', rotulo: 'Fichas e custos' },
-          ]}
-        />
-        <Botao variante="primario" icone={<Plus aria-hidden="true" />} class="estoque-topo__acao" onClick={() => setMovimento({ tipo: null, insumo: null })}>Registrar movimento</Botao>
-      </div>
-      <div role="tabpanel" id={`painel-${area ?? 'estoque'}`} aria-labelledby={`aba-${area ?? 'estoque'}`} class="pilha" style={{ gap: '16px' }}>
+      <Abas
+        atual={area ?? 'insumos'}
+        aoMudar={(a) => { setArea(a); if (a !== 'compras') setCompra(null); if (a !== 'insumos') setContando(false); }}
+        abas={[
+          { id: 'insumos', rotulo: 'Insumos' },
+          { id: 'compras', rotulo: 'Compras', contagem: pendentes.dados?.total ?? null },
+          { id: 'fichas', rotulo: 'Fichas técnicas' },
+        ]}
+      />
+      <div role="tabpanel" id={`painel-${area ?? 'insumos'}`} aria-labelledby={`aba-${area ?? 'insumos'}`} class="pilha" style={{ gap: '16px' }}>
         {!area && <Esqueleto linhas={6} altura={28} />}
-        {area === 'estoque' && (
-          <EstoqueAtual perm={perm} aoAbrir={setInsumo} aoNovo={() => setNovoInsumo(true)} aoIrRecebimentos={() => irRecebimentos()} aoCancelamentos={() => setCancelamentos(true)} />
-        )}
-        {area === 'recebimentos' && <Recebimentos perm={perm} aberta={compra} aoAbrir={setCompra} aoNovo={() => setRecebimento({ modo: null, insumo: null })} />}
-        {area === 'contagem' && <Contagem perm={perm} inicioControle={inicio} responsavel={responsavel} />}
-        {area === 'custos' && (
+        {area === 'insumos' && !contando && <Insumos perm={perm} aoAbrir={setInsumo} aoNovo={() => setNovoInsumo(true)} aoContar={contar} aoCancelamentos={() => setCancelamentos(true)} />}
+        {area === 'insumos' && contando && (
           <>
-            <Segmentado<SecaoCustos> rotulo="Fichas e custos" valor={secao} aoMudar={setSecao} opcoes={[{ valor: 'fichas', rotulo: 'Fichas técnicas' }, { valor: 'cmv', rotulo: 'CMV e custos' }]} />
-            {secao === 'fichas' ? <Fichas pode={perm.editar} cobertura={resumo.dados?.cobertura_fichas_30d ?? null} responsavel={responsavel} /> : <Analises perm={perm} baixa={!!resumo.dados?.baixa_automatica} />}
+            <div class="estoque-voltar">
+              <Botao variante="fantasma" icone={<ArrowLeft aria-hidden="true" />} onClick={() => setContando(false)}>Insumos</Botao>
+              <h2 class="estoque-voltar__titulo">Contar estoque</h2>
+            </div>
+            <Contagem perm={perm} inicioControle={inicio} responsavel={responsavel} aoConcluir={() => setContando(false)} />
+          </>
+        )}
+        {area === 'compras' && <Compras perm={perm} aberta={compra} aoAbrir={setCompra} aoNova={() => setNovaCompra(true)} />}
+        {area === 'fichas' && (
+          <>
+            {perm.editar && <Segmentado<SecaoFichas> rotulo="Fichas técnicas" valor={secao} aoMudar={setSecao} opcoes={[{ valor: 'produtos', rotulo: 'Produtos' }, { valor: 'custos', rotulo: 'Custos e CMV' }]} />}
+            {secao === 'produtos' && perm.editar ? (
+              <Fichas pode={perm.editar} filtroInicial={filtroFichas} responsavel={responsavel} />
+            ) : (
+              <CustosCmv
+                perm={perm}
+                pode={perm.editar}
+                cobertura={resumo.dados?.cobertura_fichas_30d ?? null}
+                baixa={!!resumo.dados?.baixa_automatica}
+                responsavel={responsavel}
+                aoVerSemFicha={() => { setFiltroFichas('sem'); setSecao('produtos'); }}
+              />
+            )}
           </>
         )}
       </div>
@@ -135,10 +155,9 @@ export default function Estoque({ contexto }: { contexto: ContextoPainel }) {
         aoMovimento={(tipo, i) => setMovimento({ tipo, insumo: i })}
         aoFicha={(i) => { setInsumo(null); setFicha({ alvo: 'preparo', id: i.id, nome: i.nome, unidade: i.unidade_base }); }}
       />
-      <NovoInsumo aberto={novoInsumo} aoFechar={() => setNovoInsumo(false)} aoCriar={(id) => { setNovoInsumo(false); setArea('estoque'); setInsumo(id); }} />
+      <NovoInsumo aberto={novoInsumo} aoFechar={() => setNovoInsumo(false)} aoCriar={(id) => { setNovoInsumo(false); setArea('insumos'); setContando(false); setInsumo(id); }} />
       <GavetaFicha alvo={ficha} aoFechar={() => setFicha(null)} responsavel={responsavel} />
-      <RegistrarMovimento
-        aberto={!!movimento}
+      <MovimentoInsumo
         tipo={movimento?.tipo ?? null}
         insumo={movimento?.insumo ?? null}
         perm={perm}
@@ -146,18 +165,16 @@ export default function Estoque({ contexto }: { contexto: ContextoPainel }) {
         inicioControle={inicio}
         responsavel={responsavel}
         aoFechar={() => setMovimento(null)}
-        aoEntrada={entrada}
-        aoIrContagem={() => { setMovimento(null); setInsumo(null); setArea('contagem'); }}
-        aoIrRecebimentos={() => { setMovimento(null); irRecebimentos(); }}
+        aoIrContagem={contar}
       />
       {perm.conferir && (
-        <NovoRecebimento
-          aberto={!!recebimento}
-          modo={recebimento?.modo ?? null}
-          insumo={recebimento?.insumo ? { id: recebimento.insumo.id, nome: recebimento.insumo.nome } : null}
+        <NovaCompra
+          aberto={novaCompra}
+          modo={null}
+          insumo={null}
           unidade={unidade}
-          aoFechar={() => setRecebimento(null)}
-          aoCriar={(id) => { setRecebimento(null); irRecebimentos(id); }}
+          aoFechar={() => setNovaCompra(false)}
+          aoCriar={(id) => { setNovaCompra(false); irCompras(id); }}
         />
       )}
       <Gaveta aberta={cancelamentos} aoFechar={() => setCancelamentos(false)} titulo="Vendas canceladas" subtitulo="Canceladas na Eyemobile depois da baixa: o que aconteceu com o produto?" largura="media">

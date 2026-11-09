@@ -1,4 +1,5 @@
-// Custos e CMV: só o que o backend calcula, com o nome certo. CMV teórico (fichas × vendas) separado do físico (contagem
+// Relatórios avançados de Custos e CMV (em Fichas técnicas → Custos e CMV → Relatórios avançados): só o que o backend
+// calcula, com o nome certo. CMV teórico (fichas × vendas) separado do físico (contagem
 // e diferenças); compras do mês aparecem como indicador próprio, nunca como CMV. Nenhum preço é alterado.
 import { useState } from 'preact/hooks';
 import { Lock, AlertTriangle, TrendingUp, Gauge, LayoutGrid, Scale, Truck, Hourglass, ShoppingCart } from 'lucide-preact';
@@ -14,7 +15,7 @@ import type { PermissoesEstoque } from './comum';
 
 // Todas as análises exigem estoque.visualizar no backend (api_analises.py). Previsão de falta e sugestão de reposição
 // dependem da baixa pelas vendas: com ela desligada não há consumo para prever, então não aparecem.
-export function Analises({ perm, baixa }: { perm: PermissoesEstoque; baixa: boolean }) {
+export function Relatorios({ perm, baixa }: { perm: PermissoesEstoque; baixa: boolean }) {
   if (!perm.visualizar) return <Aviso icone={<Lock aria-hidden="true" />}>Custos e CMV ficam com a gerência.</Aviso>;
   return (
     <>
@@ -40,7 +41,7 @@ const FONTE_CMV = { por_inventario: 'Pela contagem (inventário)', teorico: 'Te�
  *  diferença entre os dois). Compras do mês aparecem à parte e marcadas como não-CMV. Sem dado suficiente, o motivo. */
 /** CMV teórico só é número quando há vendas do mês, cobertura conhecida e nenhuma ficha faltando: "R$ 0,00" sem vendas
  *  não é um custo, é falta de dado. */
-const teoricoConfiavel = (d: CmvAnalise) => d.alternativas.teorico !== null && !d.teorico_incompleto && d.vendas_validas > 0 && d.cobertura_fichas !== null;
+export const teoricoConfiavel = (d: CmvAnalise) => d.alternativas.teorico !== null && !d.teorico_incompleto && d.vendas_validas > 0 && d.cobertura_fichas !== null;
 
 function Cmv() {
   const [mes, setMes] = useState(inicioMes(hojeISO()).slice(0, 7));

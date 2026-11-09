@@ -1,4 +1,4 @@
-// Contagem (inventário) em três passos: 1) selecionar itens → 2) informar quantidades → 3) revisar e confirmar.
+// Contagem (inventário), aberta por "Contar estoque" em Insumos, em três passos: 1) selecionar itens → 2) informar quantidades → 3) revisar e confirmar.
 // Há no máximo uma contagem aberta por unidade e quem diz qual é o backend (GET …/inventarios?status=aberto): ela pode ser
 // retomada em qualquer aparelho, e cada número é salvo ao sair do campo. A revisão mostra a diferença PREVISTA (contado
 // − saldo de agora); o ajuste oficial é o do backend, calculado no instante da confirmação, e cada ajuste vira um
@@ -18,9 +18,9 @@ import { atualizarEstoque, conferido, numeroEm, paraBase, situacaoEstoque, unida
 
 const STATUS: Record<StatusInventario, { rotulo: string; tom: Tom }> = { aberto: { rotulo: 'Em andamento', tom: 'atencao' }, fechado: { rotulo: 'Confirmada', tom: 'ok' }, cancelado: { rotulo: 'Cancelada', tom: 'apagado' } };
 const atualizarContagem = () => invalidar('estoque/inventarios');
-type Escopo = 'prioritarios' | 'todos' | 'escolher';
+type Escopo = 'baixos' | 'todos' | 'escolher';
 
-export function Contagem({ perm, inicioControle, responsavel }: { perm: PermissoesEstoque; inicioControle: string | null; responsavel: (r: string | null | undefined, nome?: string | null) => string | null }) {
+export function Contagem({ perm, inicioControle, responsavel, aoConcluir }: { perm: PermissoesEstoque; inicioControle: string | null; responsavel: (r: string | null | undefined, nome?: string | null) => string | null; aoConcluir?: () => void }) {
   const aberta = useConsulta('estoque/inventarios?aberto', () => estoque.inventarios({ status: 'aberto', limite: 1 }));
   const catalogo = useConsulta('estoque/insumos?catalogo', () => estoque.insumos({ limite: 200 }));
   const [revisar, setRevisar] = useState(false);
@@ -34,7 +34,7 @@ export function Contagem({ perm, inicioControle, responsavel }: { perm: Permisso
     <>
       <Passos atual={passo} />
       {resultado ? (
-        <Resultado r={resultado.r} aberturas={resultado.aberturas} aoConcluir={() => setResultado(null)} />
+        <Resultado r={resultado.r} aberturas={resultado.aberturas} aoConcluir={() => { setResultado(null); aoConcluir?.(); }} />
       ) : (
         <Dados consulta={aberta} recurso="A contagem" esqueleto={<Esqueleto linhas={8} />}>
           {() =>
@@ -70,37 +70,40 @@ function Passos({ atual }: { atual: number }) {
   );
 }
 
-/** Passo 1: o que contar. Prioritários = abaixo do mínimo/sem estoque + o que o backend sugere (negativos, nunca contados,
- *  mais usados). Um botão só para começar. */
+/** Passo 1: o que contar. Todos (o inventário inicial), alguns escolhidos, ou só os baixos e com divergência (abaixo do
+ *  mínimo, esgotados e saldo negativo — este último também pela sugestão do backend). Abrir a contagem não muda saldo
+ *  nenhum: só a confirmação, no passo 3. Um botão só para começar. */
 function Selecionar({ perm, catalogo, inicioControle }: { perm: PermissoesEstoque; catalogo: Insumo[]; inicioControle: string | null }) {
   const sugestao = useConsulta('estoque/inventarios/sugestao', () => estoque.sugestaoInventario());
-  const [escopo, setEscopo] = useState<Escopo>('prioritarios');
+  const [escolhido, setEscopo] = useState<Escopo | null>(null);
   const [marcados, setMarcados] = useState<Set<string>>(new Set());
   const [busca, setBusca] = useState('');
   const [enviando, setEnviando] = useState(false);
   const ativos = catalogo.filter((i) => i.ativo);
-  const prioritarios = useMemo(() => {
+  const baixos = useMemo(() => {
     const ids = new Set<string>();
     for (const i of ativos) {
       const s = situacaoEstoque(i, inicioControle);
-      if (s === 'baixo' || s === 'sem') ids.add(i.id);
+      if (s === 'baixo' || s === 'sem' || i.motivo_nao_confiavel === 'ficou_negativo') ids.add(i.id);
     }
-    for (const s of sugestao.dados ?? []) ids.add(s.insumo_id);
+    for (const s of sugestao.dados ?? []) if (s.motivo === 'negativo') ids.add(s.insumo_id);
     return [...ids];
   }, [catalogo, sugestao.dados, inicioControle]);
   const nomes = new Map(ativos.map((i) => [i.id, i.nome]));
   for (const s of sugestao.dados ?? []) if (!nomes.has(s.insumo_id)) nomes.set(s.insumo_id, s.insumo);
   const naoConferidos = ativos.filter((i) => !conferido(i, inicioControle)).length;
+  // Com insumos nunca conferidos, o natural é o inventário completo; depois, só o que está baixo ou divergente.
+  const escopo: Escopo = escolhido ?? (naoConferidos > 0 || !baixos.length ? 'todos' : 'baixos');
   const t = busca.trim().toLowerCase();
   const visiveis = ativos.filter((i) => !t || i.nome.toLowerCase().includes(t) || (i.categoria ?? '').toLowerCase().includes(t));
-  const quantos = escopo === 'prioritarios' ? prioritarios.length : escopo === 'todos' ? ativos.length : marcados.size;
+  const quantos = escopo === 'baixos' ? baixos.length : escopo === 'todos' ? ativos.length : marcados.size;
 
   async function comecar() {
     if (!quantos) return;
     setEnviando(true);
     try {
       if (escopo === 'todos') await estoque.abrirInventario('total');
-      else await estoque.abrirInventario('lista', escopo === 'prioritarios' ? prioritarios : [...marcados]);
+      else await estoque.abrirInventario('lista', escopo === 'baixos' ? baixos : [...marcados]);
       avisar('Contagem começada. Pode continuar em outro aparelho.', 'ok');
     } catch (e) {
       // Outra pessoa começou uma contagem neste meio-tempo: retoma a mesma.
@@ -124,18 +127,10 @@ function Selecionar({ perm, catalogo, inicioControle }: { perm: PermissoesEstoqu
         <fieldset class="opcoes-contagem">
           <legend class="oculto-visual">O que contar</legend>
           <label class="opcao">
-            <input type="radio" name="escopo" checked={escopo === 'prioritarios'} onChange={() => setEscopo('prioritarios')} />
-            <span class="opcao__texto">
-              <strong>Itens prioritários{sugestao.dados ? ` (${prioritarios.length})` : ''}</strong>
-              <span>Abaixo do mínimo, sem estoque, nunca contados e os mais usados.</span>
-              {escopo === 'prioritarios' && prioritarios.length > 0 && <span class="fraco">{prioritarios.slice(0, 8).map((id) => nomes.get(id) ?? 'Insumo').join(', ')}{prioritarios.length > 8 ? ` e mais ${prioritarios.length - 8}` : ''}.</span>}
-            </span>
-          </label>
-          <label class="opcao">
             <input type="radio" name="escopo" checked={escopo === 'todos'} onChange={() => setEscopo('todos')} />
             <span class="opcao__texto">
               <strong>Todos os insumos ({ativos.length})</strong>
-              <span>Inventário completo. Bom para a contagem inicial.</span>
+              <span>Inventário completo. Ideal para a contagem inicial.</span>
             </span>
           </label>
           <label class="opcao">
@@ -143,6 +138,14 @@ function Selecionar({ perm, catalogo, inicioControle }: { perm: PermissoesEstoqu
             <span class="opcao__texto">
               <strong>Escolher insumos{marcados.size ? ` (${marcados.size})` : ''}</strong>
               <span>Ex.: só a câmara fria ou o que acabou de chegar.</span>
+            </span>
+          </label>
+          <label class="opcao">
+            <input type="radio" name="escopo" checked={escopo === 'baixos'} onChange={() => setEscopo('baixos')} />
+            <span class="opcao__texto">
+              <strong>Só os baixos ou com divergência{sugestao.dados ? ` (${baixos.length})` : ''}</strong>
+              <span>Abaixo do mínimo, esgotados ou com saldo negativo.</span>
+              {escopo === 'baixos' && baixos.length > 0 && <span class="fraco">{baixos.slice(0, 8).map((id) => nomes.get(id) ?? 'Insumo').join(', ')}{baixos.length > 8 ? ` e mais ${baixos.length - 8}` : ''}.</span>}
             </span>
           </label>
         </fieldset>
@@ -169,7 +172,7 @@ function Selecionar({ perm, catalogo, inicioControle }: { perm: PermissoesEstoqu
             )}
           </div>
         )}
-        {naoConferidos > 0 && <p class="fraco">{plural(naoConferidos, 'insumo ainda não foi conferido', 'insumos ainda não foram conferidos')}: a primeira contagem de cada um vira o saldo de partida (abertura do estoque).</p>}
+        {naoConferidos > 0 && <p class="fraco">{plural(naoConferidos, 'insumo ainda não foi conferido', 'insumos ainda não foram conferidos')}: a primeira contagem de cada um vira a quantidade inicial. Abrir a contagem não muda nada; o estoque só muda ao confirmar.</p>}
         {perm.visualizar && (
           <Botao variante="primario" carregando={enviando} disabled={!quantos} onClick={comecar} style={{ alignSelf: 'flex-start' }}>
             Começar contagem{quantos ? ` (${plural(quantos, 'item', 'itens')})` : ''}

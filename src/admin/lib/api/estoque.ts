@@ -18,10 +18,10 @@ export const estoque = {
   // Insumos (catálogo e edição: estoque.editar; leitura e perda: estoque.visualizar)
   insumos: (q: FiltroInsumos = {}) => pedir<Pagina<Insumo>>('estoque/insumos', { query: { limite: 200, ...q } }),
   insumo: (id: string) => pedir<InsumoDetalhe>(`estoque/insumos/${id}`),
-  criarInsumo: (i: { nome: string; unidade_base: UnidadeBase; tipo?: 'comprado' | 'preparo'; controle_preparo?: 'explodir' | 'lote' | null; categoria?: string | null; estoque_minimo?: string | null }) =>
+  criarInsumo: (i: { nome: string; unidade_base: UnidadeBase; tipo?: 'comprado' | 'preparo'; controle_preparo?: 'explodir' | 'lote' | null; categoria?: string | null; estoque_minimo?: string | null; estoque_ideal?: string | null }) =>
     pedir<InsumoCadastro>('estoque/insumos', { metodo: 'POST', corpo: i }),
   /** Campos omitidos (ou null) não mudam: o backend descarta os nulos. */
-  alterarInsumo: (id: string, i: { versao: number; nome?: string; categoria?: string; estoque_minimo?: string; controle_preparo?: 'explodir' | 'lote'; prazo_reposicao_dias?: number; ativo?: boolean }) =>
+  alterarInsumo: (id: string, i: { versao: number; nome?: string; categoria?: string; estoque_minimo?: string; estoque_ideal?: string; controle_preparo?: 'explodir' | 'lote'; prazo_reposicao_dias?: number; ativo?: boolean }) =>
     pedir<InsumoCadastro>(`estoque/insumos/${id}`, { metodo: 'PATCH', corpo: i }),
   movimentos: (id: string, antes_de?: number) => pedir<Cursor<MovimentoEstoque>>(`estoque/insumos/${id}/movimentos`, { query: { antes_de, limite: 30 } }),
   /** O que o sistema sugeriria para uma descrição da nota: UM objeto (insumo_id null = sem sugestão). */

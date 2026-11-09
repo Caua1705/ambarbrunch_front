@@ -269,7 +269,7 @@ novas respondem 404/405 (a tela mostra "ainda não está no ar", não quebra).
 Proprietário, Gerente e Atendente, sobre as mesmas rotas reais de Reservas. Detalhes, perfis, sessão compartilhada,
 testes e o que falta para Atendimento e Ponto: [`MODO-OPERACAO.md`](MODO-OPERACAO.md).
 
-## 4c. Estoque em quatro áreas (02/11/2026)
+## 4c. Estoque em quatro áreas (02/11/2026) — substituída pela §4h
 
 Antes: Compras (tela inicial, 4 filtros, "Compra sem nota" e "Enviar nota" soltos) · Insumos (3 filtros, coluna de
 confiabilidade) · Fichas técnicas · Inventário (4 passos) · Mais (Cancelamentos, Análises e CMV).
@@ -422,6 +422,57 @@ Endereços antigos (`abaDaUrl` em `modulos/financeiro/index.tsx`; a URL é reesc
 
 Testes: `tests-painel/financeiro.spec.ts` (abas, endereços antigos, filtros, criar despesa e receita, pagar sem duplicar,
 contadores, Relatórios, Configurações), `financeiro-revisao`, `financeiro-categorias`, `estoque-compras` e `responsivo`.
+
+## 4h. Estoque em três abas (08/11/2026)
+
+Pedido do dono: o Estoque de um café pequeno, sem estoquista, em três abas — **Insumos · Compras · Fichas técnicas** —
+sem mudar backend, Financeiro, Z-API, Ponto nem o cardápio público. Substitui a organização da §4c; as regras de tela
+de lá (situação, unidade, responsável, Financeiro, Produtos × Pix, sem dado sem número) continuam valendo.
+
+| Aba | O que tem |
+|---|---|
+| Insumos | Busca e duas ações: **Contar estoque** e **Novo insumo**. Tabela: insumo (categoria), quantidade com unidade, mínimo, ideal (só quando o backend guardar), preço médio, situação (Normal · Baixo · Esgotado · Não conferido) e "Conferido em". Sem números no topo, sem filtro de situação, sem "Saldo = …". Com a baixa pelas vendas desligada, um aviso: "As vendas ainda não descontam do estoque" (some quando o backend ligar a baixa). Vendas canceladas a responder: aviso com link para a gaveta. Gaveta do insumo: quantidade estimada, mínimo, preço médio, última compra, última conferência, histórico e as ações **Conferir quantidade · Perda ou uso interno · Corrigir saldo · Editar** (e Ficha do preparo). |
+| Contar estoque (`?vista=contagem`) | Dentro de Insumos, com "← Insumos". Três escolhas: Todos os insumos (padrão enquanto houver insumo nunca conferido — o inventário inicial), Escolher insumos, Só os baixos ou com divergência (abaixo do mínimo, esgotados, saldo negativo). Os três passos e o histórico (responsável e data) são os de antes. Abrir ou abandonar não muda saldo; só "Confirmar contagem". |
+| Compras | Pendentes · Confirmadas · Histórico. Origem na linha do fornecedor (Júlia · comprovante de pagamento / Painel · nota fiscal / sem nota). Botão "Conferir" em cada pendente; **Registrar compra** (com nota: foto/PDF/XML lida e revisada por uma pessoa; sem nota: digitada) para o que não passou pela Júlia. Tudo na MESMA conferência; "Confirmar recebimento" é o único passo que dá entrada; nenhuma segunda despesa (B1–B3). |
+| Fichas técnicas | Produtos: catálogo em cartões, do mais vendido ao menos vendido em 30 dias (posição 1º–10º), com foto (só com vínculo), nome, grupo, preço, vendidos, custo e situação (Completa · Incompleta · Sem ficha); filtro por situação. Ficha: preço de venda, custo dos ingredientes, **margem de contribuição parcial** (preço − ingredientes, "não é lucro líquido"), rendimento, ingredientes, versões. Editor: ingrediente só por busca no estoque (sem texto livre), quantidade com unidade (kg/g, L/ml, un), perda %, opcional, rendimento; mostra o preço médio de cada ingrediente ou "sem preço". **Custos e CMV** (`&secao=custos`): custo dos ingredientes vendidos no mês (só quando o CMV teórico é confiável), cobertura das fichas, produtos sem ficha, sem custo conhecido, tabela preço × ingredientes e "mais vendidos sem ficha"; sem nenhuma ficha, "Cadastre as fichas técnicas dos produtos para começar a calcular os custos." Os relatórios de antes ficam em "Relatórios avançados" (montados só ao abrir). |
+
+Endereços antigos continuam: `?aba=estoque|resumo` → Insumos; `recebimentos` → Compras; `contagem|inventario(s)` →
+Insumos › Contar estoque; `custos` → Fichas técnicas; `analises|mais` e `secao=cmv` → Custos e CMV; `cancelamentos` →
+Insumos + gaveta. O sino (`avisos.ts`), `rotas.ts` e o Financeiro ainda usam os nomes antigos de propósito.
+
+Cadastro de insumo: Nome, Categoria (sugere as existentes), Unidade (g, kg, ml, L, un — kg e L são gravados em g e ml),
+Quantidade inicial, Estoque mínimo, Estoque ideal; Tipo e controle do preparo em "Mais opções". A quantidade inicial é
+gravada logo depois do cadastro como a primeira conferência (`POST /estoque/ajustes`, motivo `contagem_fisica` → o
+backend marca "abertura"); se só o cadastro der certo, o insumo abre e a tela pede "Conferir quantidade". Todas as
+mudanças de saldo pedem confirmação com o resumo (quantidade, de → para, motivo).
+
+### Contratos que faltam no backend (a interface está preparada, nada é simulado)
+
+1. **Estoque ideal** — `estoque_ideal` (Decimal ≥ 0, na unidade-base) em `InsumoEntrada`, `InsumoAlteracao`, na saída
+   do insumo (`_insumo_saida`) e na listagem (`GET /admin/estoque/insumos`). O painel liga campo e coluna quando a
+   resposta trouxer a chave `estoque_ideal` (mesmo `null`); hoje o campo aparece desligado ("Ainda não é guardado pelo
+   sistema") e a coluna não aparece. Sugestão: validar ideal ≥ mínimo.
+2. **Custo unitário conhecido no cadastro** — não existe. Proposta: `custo_unitario` opcional em `POST /estoque/ajustes`
+   aceito só na abertura (vira `saldo_inicial`/abertura com custo), ou em `POST /estoque/insumos` junto com a quantidade
+   inicial. Até lá, o preço médio vem só de compras conferidas (a tela diz isso).
+3. **Vínculo produto da Eyemobile ↔ catálogo oficial** — não existe tabela nem campo (`produtos_pdv` não referencia o
+   catálogo da 0025; nada liga `eye_product_id` a ids como `sucos.antioxidant`). Proposta: coluna
+   `catalogo_item_id text null` (único por unidade) em `produtos_pdv` ou tabela própria; `catalogo_item_id` na lista de
+   `GET /admin/estoque/fichas`; `PUT /admin/estoque/fichas/produto/{eye_product_id}/catalogo` `{catalogo_item_id |
+   null}` (estoque.editar, auditado, recusando id que não está no catálogo vigente e vínculo duplicado). O painel já
+   mostra "Não vinculado" e, com a chave, a foto da miniatura do cardápio pelo id (`modulos/estoque/fotos.ts`); a
+   seleção manual entra quando a rota existir. A ficha técnica já é por `eye_product_id` (persistente) e os insumos pela
+   ficha — essa parte do vínculo existe e foi preservada.
+4. **Produtos sem venda no período** — `GET /admin/estoque/fichas` só lista o que vendeu nos últimos `dias` (padrão 30).
+   Produto novo sem venda não aparece para cadastrar ficha antes de vender; se for preciso, um parâmetro para listar
+   todo o `produtos_pdv` ativo.
+
+**Baixa automática pelas vendas**: continua desligada e não foi tocada. Ligar exige comprovar no backend o desconto de
+itens vendidos, adicionais e cancelamentos (e as fichas completas dos mais vendidos).
+
+Testes: `tests-painel/estoque.spec.ts` (demonstração, 12: três abas, cadastro com quantidade inicial, perda/uso interno,
+corrigir, conferir sem diferença, contar estoque e abandonar, compra sem nota, endereço antigo, fichas, editor em kg,
+custos sem número inventado, vínculo por id com foto) e `tests-painel-real/estoque.spec.ts` (backend real local, 11).
 
 ## 4g. Equipe em três abas (08/11/2026)
 

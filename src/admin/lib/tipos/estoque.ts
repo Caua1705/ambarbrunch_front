@@ -34,6 +34,9 @@ export interface InsumoCadastro {
   prazo_reposicao_dias: number | null;
   ativo: boolean;
   versao: number;
+  /** Quantidade ideal (até onde repor). AINDA NÃO EXISTE no backend (08/11/2026): o painel só liga o campo quando a
+   *  resposta trouxer a chave. Contrato pedido em docs/technical/PAINEL-ADMIN.md §4h. */
+  estoque_ideal?: Dec | null;
 }
 
 /** Linha de GET /admin/estoque/insumos (insumos.listar). */
@@ -299,6 +302,10 @@ export interface FichaLista {
   receita_periodo: Dec;
   quantidade_periodo: Dec;
   ficha: null | { versao: number; custo_porcao_hoje: Dec | null; margem_hoje_pct: Dec | null; custo_incompleto: boolean };
+  /** Produto do catálogo oficial (id estável, ex.: "sucos.antioxidant") ligado a este produto da Eyemobile. AINDA NÃO
+   *  EXISTE no backend (08/11/2026): sem a chave, o produto aparece "Não vinculado" e a seleção manual fica desligada.
+   *  Contrato pedido em docs/technical/PAINEL-ADMIN.md §4h. */
+  catalogo_item_id?: string | null;
 }
 
 export interface ItemFichaDetalhe {

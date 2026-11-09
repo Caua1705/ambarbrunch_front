@@ -165,8 +165,8 @@ export const PENDENCIA: (p: string) => string = (p) => {
 export type CodigoSituacao = 'normal' | 'baixo' | 'sem' | 'nao_conferido';
 export const SITUACAO_ESTOQUE: Record<CodigoSituacao, { rotulo: string; tom: Tom }> = {
   normal: { rotulo: 'Normal', tom: 'ok' },
-  baixo: { rotulo: 'Estoque baixo', tom: 'atencao' },
-  sem: { rotulo: 'Sem estoque', tom: 'perigo' },
+  baixo: { rotulo: 'Baixo', tom: 'atencao' },
+  sem: { rotulo: 'Esgotado', tom: 'perigo' },
   nao_conferido: { rotulo: 'Não conferido', tom: 'neutro' },
 };
 
@@ -200,6 +200,24 @@ export function unidadeExibicao(base: UnidadeBase, ...valores: (string | number 
   const grande = valores.some((v) => v !== null && v !== undefined && v !== '' && Math.abs(Number(v)) >= 1000);
   return grande ? { rotulo: base === 'g' ? 'kg' : 'L', fator: 1000 } : { rotulo: base, fator: 1 };
 }
+
+/** Unidades que a pessoa escolhe no cadastro. O backend guarda só g, ml ou un: kg e L viram g e ml (× 1000) aqui, por
+ *  deslocamento da vírgula (paraBase), e a tela volta a mostrar kg/L quando os números passam de mil. */
+export type UnidadeCadastro = 'g' | 'kg' | 'ml' | 'L' | 'un';
+export const UNIDADES_CADASTRO: { valor: UnidadeCadastro; rotulo: string; base: UnidadeBase; fator: 1 | 1000 }[] = [
+  { valor: 'kg', rotulo: 'Quilos (kg)', base: 'g', fator: 1000 },
+  { valor: 'g', rotulo: 'Gramas (g)', base: 'g', fator: 1 },
+  { valor: 'L', rotulo: 'Litros (L)', base: 'ml', fator: 1000 },
+  { valor: 'ml', rotulo: 'Mililitros (ml)', base: 'ml', fator: 1 },
+  { valor: 'un', rotulo: 'Unidades (un)', base: 'un', fator: 1 },
+];
+export const unidadeCadastro = (u: UnidadeCadastro) => UNIDADES_CADASTRO.find((x) => x.valor === u)!;
+/** Unidades em que uma quantidade desta base pode ser digitada (kg ou g; L ou ml; un). */
+export const unidadesDaBase = (b: UnidadeBase) => UNIDADES_CADASTRO.filter((x) => x.base === b);
+
+/** O backend já grava o estoque ideal? Ele manda a chave `estoque_ideal` (mesmo null) quando sabe guardar; sem a chave,
+ *  o campo fica desligado — mandar um campo que o backend descarta seria fingir que salvou. */
+export const aceitaEstoqueIdeal = (i: object | null | undefined) => !!i && 'estoque_ideal' in i;
 
 /** Número na unidade de exibição, sem a unidade (ela tem coluna própria). */
 export function numeroEm(v: string | number | null | undefined, fator: 1 | 1000): string {

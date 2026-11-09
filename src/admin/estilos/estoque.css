@@ -385,80 +385,7 @@
   white-space: nowrap;
 }
 
-/* Abas + "Registrar movimento" na mesma linha; no celular o botão desce e ocupa a largura toda. */
-.estoque-topo {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--e-3);
-  border-bottom: 1px solid var(--borda);
-  margin-top: calc(var(--e-2) * -1);
-}
-.estoque-topo > .abas {
-  flex: 1 1 auto;
-  min-width: 0;
-  border-bottom: 0;
-  margin-top: 0;
-}
-.estoque-topo__acao {
-  flex: none;
-  margin-bottom: var(--e-2);
-}
-@media (max-width: 640px) {
-  .estoque-topo {
-    flex-direction: column-reverse;
-    align-items: stretch;
-    gap: var(--e-2);
-    border-bottom: 0;
-  }
-  .estoque-topo > .abas {
-    border-bottom: 1px solid var(--borda);
-  }
-  .estoque-topo__acao {
-    margin-bottom: 0;
-    width: 100%;
-    justify-content: center;
-  }
-}
-
-/* Três números discretos: não são cartões grandes, só uma faixa. */
-.estoque-numeros {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--e-2);
-}
-.estoque-numero {
-  display: inline-flex;
-  align-items: baseline;
-  gap: var(--e-2);
-  padding: var(--e-2) var(--e-4);
-  border: 1px solid var(--borda);
-  border-radius: var(--r-pilula);
-  background: var(--superficie);
-  color: inherit;
-  font: inherit;
-  min-height: 40px;
-}
-button.estoque-numero {
-  cursor: pointer;
-}
-button.estoque-numero:hover {
-  border-color: var(--borda-forte);
-  background: var(--sobre-hover);
-}
-.estoque-numero__rotulo {
-  font-size: var(--t-s);
-  color: var(--texto-2);
-}
-.estoque-numero__valor {
-  font-size: var(--t-l);
-  font-weight: 650;
-  font-variant-numeric: tabular-nums;
-}
-.estoque-numero__valor[data-tom='atencao'] {
-  color: var(--atencao);
-}
-
-/* Uma barra só de filtros (busca, situação, categoria) com a ação de cadastro à direita. */
+/* Uma barra só: a busca e, à direita, as ações (Contar estoque, Novo insumo). */
 .estoque-filtros {
   display: flex;
   align-items: center;
@@ -471,8 +398,10 @@ button.estoque-numero:hover {
   flex: 1 1 220px;
   max-width: 340px;
 }
-.estoque-filtros__acao,
-.estoque-filtros__nota {
+.estoque-filtros__acao {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-2);
   margin-left: auto;
 }
 @media (max-width: 640px) {
@@ -488,10 +417,17 @@ button.estoque-numero:hover {
   }
   .estoque-filtros__acao {
     flex-basis: 100%;
+  }
+  .estoque-filtros__acao > .btn {
+    flex: 1 1 0;
     justify-content: center;
   }
 }
 
+.estoque-qtd__un {
+  font-size: var(--t-s);
+  color: var(--texto-2);
+}
 /* Quantidade: o número é o protagonista da tabela. */
 .estoque-qtd {
   font-weight: 600;
@@ -771,31 +707,258 @@ button.estoque-numero:hover {
 .cmv-bloco .definicoes {
   font-size: var(--t-s);
 }
-.estoque-status__link {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
 .tabela-movel__item > .estoque-movel {
   flex: 1 1 auto;
   min-width: 0;
 }
-/* Celular: os três números numa linha só, rótulo em cima. */
-@media (max-width: 640px) {
-  .estoque-numeros {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+
+/* "Contar estoque": volta para Insumos e o título da tarefa. */
+.estoque-voltar {
+  display: flex;
+  align-items: center;
+  gap: var(--e-2);
+  flex-wrap: wrap;
+}
+.estoque-voltar__titulo {
+  margin: 0;
+  font-size: var(--t-l);
+  font-weight: 650;
+}
+
+/* Campos avançados recolhidos (cadastro de insumo) e relatórios avançados (Custos e CMV). */
+.mais-opcoes {
+  border: 1px solid var(--borda);
+  border-radius: var(--r-l);
+  background: var(--superficie);
+}
+.mais-opcoes > summary {
+  display: flex;
+  align-items: center;
+  min-height: var(--alvo-toque);
+  padding: 0 var(--e-4);
+  cursor: pointer;
+  font-weight: 500;
+  color: var(--texto-2);
+}
+.mais-opcoes[open] > summary {
+  border-bottom: 1px solid var(--borda);
+}
+.mais-opcoes > :not(summary) {
+  padding: var(--e-4);
+}
+.mais-opcoes--relatorios {
+  background: transparent;
+}
+
+/* Fichas técnicas: catálogo de produtos em cartões compactos (3–4 por linha no tablet, 2 no celular). */
+.fichas-busca {
+  flex: 1 1 220px;
+  max-width: 320px;
+}
+.produtos-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  gap: var(--e-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.produtos-grade > li {
+  display: flex;
+  min-width: 0;
+}
+.produto-cartao {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--borda);
+  border-radius: var(--r-xl);
+  background: var(--superficie);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--anim), box-shadow var(--anim);
+}
+.produto-cartao:hover {
+  border-color: var(--borda-forte);
+  box-shadow: var(--sombra-1);
+}
+.produto-cartao:focus-visible {
+  outline: 2px solid var(--foco);
+  outline-offset: 2px;
+}
+.produto-cartao[data-situacao='sem'] {
+  border-color: color-mix(in srgb, var(--atencao) 40%, var(--borda));
+}
+.produto-cartao__foto {
+  position: relative;
+  display: block;
+  aspect-ratio: 16 / 10;
+  background: var(--superficie-2);
+}
+.produto-cartao__foto--vazia {
+  aspect-ratio: auto;
+  height: 64px;
+}
+.produto-cartao__foto--vazia .produto-cartao__sem-foto {
+  flex-direction: row;
+  gap: 6px;
+}
+.produto-cartao__foto--vazia .produto-cartao__sem-foto svg {
+  width: 18px;
+  height: 18px;
+}
+.produto-cartao__foto img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.produto-cartao__sem-foto {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 100%;
+  color: var(--texto-3);
+  font-size: var(--t-xs);
+}
+.produto-cartao__sem-foto svg {
+  width: 26px;
+  height: 26px;
+  opacity: 0.6;
+}
+.produto-cartao__posicao {
+  position: absolute;
+  top: var(--e-2);
+  left: var(--e-2);
+  padding: 2px 8px;
+  border-radius: var(--r-pilula);
+  background: var(--superficie);
+  box-shadow: var(--sombra-1);
+  font-size: var(--t-xs);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.produto-cartao__corpo {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: var(--e-3) var(--e-4) var(--e-4);
+  flex: 1 1 auto;
+}
+.produto-cartao__nome {
+  font-weight: 600;
+  line-height: 1.25;
+}
+.produto-cartao__grupo {
+  margin-top: -4px;
+  font-size: var(--t-xs);
+  color: var(--texto-3);
+}
+.produto-cartao__grupo > span:first-child {
+  display: inline-block;
+  text-transform: lowercase;
+}
+.produto-cartao__grupo > span:first-child::first-letter {
+  text-transform: uppercase;
+}
+.produto-cartao__numeros {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--e-2);
+  width: 100%;
+  margin-top: auto;
+  padding-top: 4px;
+}
+.produto-cartao__numeros > span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.produto-cartao__numeros strong {
+  font-weight: 600;
+  font-size: var(--t-s);
+  white-space: nowrap;
+}
+.produto-cartao__rotulo {
+  font-size: 11px;
+  color: var(--texto-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (max-width: 480px) {
+  .produtos-grade {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--e-2);
   }
-  .estoque-numero {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 2px;
-    border-radius: var(--r-l);
-    padding: var(--e-2) var(--e-3);
+  .produto-cartao__corpo {
+    padding: var(--e-2) var(--e-3) var(--e-3);
   }
-  .estoque-numero__rotulo {
-    font-size: var(--t-xs);
-    line-height: 1.25;
-    text-align: left;
-  }
+}
+
+/* Gaveta da ficha: preço, custo, margem parcial e rendimento numa faixa só. */
+.ficha-numeros {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: var(--e-2);
+}
+.ficha-numeros > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--e-3);
+  border: 1px solid var(--borda);
+  border-radius: var(--r-l);
+  background: var(--superficie-2);
+}
+.ficha-numeros__rotulo {
+  font-size: var(--t-xs);
+  color: var(--texto-2);
+}
+.ficha-numeros strong {
+  font-size: var(--t-l);
+  font-weight: 650;
+}
+.ficha-vinculo {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--e-2);
+  margin: 0;
+  font-size: var(--t-s);
+}
+.ficha-foto {
+  width: 100%;
+  max-height: 200px;
+  object-fit: cover;
+  border-radius: var(--r-l);
+}
+
+/* Custos e CMV: o essencial em quatro linhas. */
+.custos-resumo {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--e-4);
+  margin: 0;
+}
+.custos-resumo dt {
+  font-size: var(--t-s);
+  color: var(--texto-2);
+}
+.custos-resumo dd {
+  margin: 4px 0 0;
+}
+.custos-resumo dd strong {
+  font-size: var(--t-l);
+  font-weight: 650;
+}
+.custos-explica {
+  margin: var(--e-4) 0 0;
 }
