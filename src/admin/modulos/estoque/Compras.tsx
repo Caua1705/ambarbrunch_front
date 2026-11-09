@@ -1,6 +1,6 @@
 // Compras: tudo o que chega ao café passa pela MESMA conferência — comprovante enviado à Júlia no grupo Financeiro (faltam
-// os produtos), nota enviada pelo painel (lida no backend, revisada por uma pessoa) e compra sem nota (digitada). Três
-// listas: Pendentes (para conferir, sendo lidas, com problema), Confirmadas e Histórico (tudo, inclusive canceladas). O
+// os produtos), nota enviada pelo painel (lida no backend, revisada por uma pessoa) e compra sem nota (digitada). Duas
+// listas: Pendentes (para conferir, sendo lidas, com problema) e Histórico (conferidas e canceladas). O
 // estoque só muda em "Confirmar recebimento", com os itens que chegaram; pagamento e nota sozinhos não mexem no saldo, e a
 // compra confere o MESMO registro do Financeiro (nenhuma despesa nova). Lista e conferência: estoque.conferir.
 import { useMemo, useState } from 'preact/hooks';
@@ -15,9 +15,9 @@ import type { CompraLista } from '../../lib/tipos/estoque';
 import { SituacaoCompra, LENDO, type PermissoesEstoque } from './comum';
 import { Conferencia } from './Conferencia';
 
-type Lista = 'pendentes' | 'confirmadas' | 'historico';
+type Lista = 'pendentes' | 'historico';
 const pendente = (c: CompraLista) => c.etapa === 'aguardando_conferencia' || c.etapa === 'falhou' || LENDO.includes(c.etapa);
-const ROTULO: Record<Lista, string> = { pendentes: 'Compras pendentes', confirmadas: 'Compras confirmadas', historico: 'Histórico de compras' };
+const ROTULO: Record<Lista, string> = { pendentes: 'Compras pendentes', historico: 'Histórico de compras' };
 
 /** De onde veio, em uma linha: quem mandou e que documento. */
 export function origemCompra(c: Pick<CompraLista, 'origem' | 'fonte_leitura' | 'despesa_origem_id'>): { quem: string; doc: string } {
@@ -35,7 +35,7 @@ export function Compras({ perm, aberta, aoAbrir, aoNova }: { perm: PermissoesEst
   // Enquanto alguma nota está sendo lida, a lista se atualiza sozinha (só nesse caso).
   useConsulta(itens.some((c) => LENDO.includes(c.etapa)) ? 'estoque/compras?todas' : null, () => estoque.compras({ limite: 200 }), { intervalo: 3000 });
   const linhas = useMemo(
-    () => (lista === 'pendentes' ? itens.filter(pendente) : lista === 'confirmadas' ? itens.filter((c) => c.etapa === 'confirmada') : itens.filter((c) => !pendente(c))),
+    () => itens.filter((c) => (lista === 'pendentes') === pendente(c)),
     [itens, lista],
   );
   // O contador é o mesmo da aba e do sino: o que espera conferência (lendo e falhou ficam na lista, sem contar).
@@ -74,7 +74,6 @@ export function Compras({ perm, aberta, aoAbrir, aoNova }: { perm: PermissoesEst
           aoMudar={setLista}
           opcoes={[
             { valor: 'pendentes', rotulo: <>Pendentes{paraConferir ? <span class="contador">{paraConferir}</span> : null}</> },
-            { valor: 'confirmadas', rotulo: 'Confirmadas' },
             { valor: 'historico', rotulo: 'Histórico' },
           ]}
         />
@@ -101,7 +100,7 @@ export function Compras({ perm, aberta, aoAbrir, aoNova }: { perm: PermissoesEst
                       Quando alguém mandar o comprovante para a Júlia no grupo Financeiro, a compra aparece aqui para conferir o que chegou. Comprou sem passar pela Júlia? Use “Registrar compra”.
                     </Vazio>
                   ) : (
-                    <Vazio compacto titulo={lista === 'confirmadas' ? 'Nenhuma compra confirmada ainda' : 'Nenhuma compra no histórico ainda'} />
+                    <Vazio compacto titulo="Nenhuma compra conferida ainda" />
                   )
                 }
               />

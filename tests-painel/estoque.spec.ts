@@ -59,19 +59,36 @@ test('insumos: três abas, situações reais, item nunca contado sem zero e avis
   await expect(page.locator('body')).not.toContainText('usuario:');
 });
 
-test('cadastro: kg vira gramas, a quantidade inicial é a primeira conferência e o ideal fica desligado até o backend guardar', async ({ page }) => {
+test('cadastro: um atrás do outro, sem categoria nem "mais opções"; mínimo obrigatório; kg vira gramas; ideal desligado até o backend guardar', async ({ page }) => {
   await page.goto(`${DEMO}/admin/estoque`);
   await page.getByRole('button', { name: 'Novo insumo' }).click();
   const novo = page.getByRole('dialog', { name: 'Novo insumo' });
+  await expect(novo.getByLabel('Categoria')).toHaveCount(0);
+  await expect(novo.getByText('Mais opções')).toHaveCount(0);
+  await expect(novo.getByLabel('Tipo')).toHaveCount(0);
   await novo.getByLabel('Nome').fill('Açúcar mascavo');
-  await novo.getByLabel('Categoria').fill('Secos');
   await expect(novo.getByLabel('Unidade', { exact: true })).toHaveValue('kg');
   await novo.getByLabel('Quantidade inicial (kg)').fill('2,5');
-  await novo.getByLabel('Estoque mínimo (kg)').fill('1');
+  await expect(novo).toContainText('Quantidade que dispara o alerta');
+  await expect(novo).toContainText('Quantidade que queremos alcançar depois de comprar.');
   await expect(novo.getByLabel('Estoque ideal (kg)')).toBeDisabled();
-  await expect(novo).toContainText('Ainda não é guardado pelo sistema.');
-  await expect(novo.getByText('Mais opções')).toBeVisible();
-  await novo.getByRole('button', { name: 'Cadastrar com a quantidade' }).click();
+  await expect(novo).toContainText('Ainda não é salvo pelo sistema');
+  // Sem o mínimo, não cadastra (é ele que liga o alerta).
+  await novo.getByRole('button', { name: 'Cadastrar' }).click();
+  await expect(novo.locator('.aviso').first()).toContainText('Informe o estoque mínimo');
+  await novo.getByLabel('Estoque mínimo (kg)').fill('1');
+  await novo.getByRole('button', { name: 'Cadastrar' }).click();
+  // Cadastrou: a gaveta continua aberta, limpa, com a mesma unidade e o cursor no nome, pronta para o próximo.
+  const feitos = novo.getByRole('region', { name: 'Cadastrados agora' });
+  await expect(feitos).toContainText('Açúcar mascavo');
+  await expect(novo.getByLabel('Nome')).toHaveValue('');
+  await expect(novo.getByLabel('Nome')).toBeFocused();
+  await expect(novo.getByLabel('Unidade', { exact: true })).toHaveValue('kg');
+  await novo.getByLabel('Nome').fill('Farinha de amêndoas');
+  await novo.getByLabel('Estoque mínimo (kg)').fill('0,5');
+  await novo.getByRole('button', { name: 'Cadastrar' }).click();
+  await expect(novo.getByRole('heading', { name: 'Cadastrados agora (2)' })).toBeVisible();
+  await feitos.getByRole('button', { name: /Açúcar mascavo/ }).click();
 
   const insumo = page.getByRole('dialog', { name: 'Açúcar mascavo' });
   await expect(insumo.locator('.insumo-saldo')).toContainText('2,5 kg');
@@ -241,8 +258,8 @@ test('compra sem nota: Registrar compra → mesma conferência; o saldo só muda
   await expect(conferencia.getByRole('heading', { name: 'Compra confirmada' })).toBeVisible();
   await page.getByRole('button', { name: 'Concluir' }).click();
 
-  await page.getByRole('group', { name: 'Quais compras' }).getByRole('button', { name: 'Confirmadas' }).click();
-  await expect(page.getByRole('table', { name: 'Compras confirmadas' }).getByRole('row', { name: /Padaria do bairro/ })).toContainText('sem nota');
+  await page.getByRole('group', { name: 'Quais compras' }).getByRole('button', { name: 'Histórico' }).click();
+  await expect(page.getByRole('table', { name: 'Histórico de compras' }).getByRole('row', { name: /Padaria do bairro/ })).toContainText('sem nota');
   await page.getByRole('tab', { name: 'Insumos' }).click();
   await expect(linha(page, 'Pão de fermentação natural')).toContainText('24');
 });
@@ -256,10 +273,10 @@ test('compras: comprovante da Júlia aparece pendente com "faltam os produtos"; 
   await expect(pix).toContainText('Faltam os produtos');
   await expect(pix.getByRole('button', { name: 'Conferir' })).toBeVisible();
   await expect(page.getByText(/O mais antigo chegou/)).toHaveCount(0);
-  await expect(page.getByRole('group', { name: 'Quais compras' }).getByRole('button')).toHaveText([/Pendentes/, 'Confirmadas', 'Histórico']);
+  await expect(page.getByRole('group', { name: 'Quais compras' }).getByRole('button')).toHaveText([/Pendentes/, 'Histórico']);
 });
 
-test('fichas técnicas: catálogo dos mais vendidos, situação de cada ficha e a margem parcial que não é lucro', async ({ page }) => {
+test('fichas técnicas: catálogo dos mais vendidos só com a busca, situação de cada ficha e a margem parcial que não é lucro', async ({ page }) => {
   await page.goto(`${DEMO}/admin/estoque?aba=custos`);
   await expect(page.getByRole('tab', { name: 'Fichas técnicas' })).toHaveAttribute('aria-selected', 'true');
   const produtos = page.getByRole('list', { name: 'Produtos da Eyemobile' });
@@ -270,11 +287,18 @@ test('fichas técnicas: catálogo dos mais vendidos, situação de cada ficha e 
   await expect(produtos.getByRole('button', { name: /Cappuccino/ })).toContainText('Completa');
   // Sem vínculo com o catálogo oficial no backend: nenhuma foto inventada.
   await expect(produtos.locator('img')).toHaveCount(0);
-  await expect(produtos.getByRole('button', { name: /Cappuccino/ })).toContainText('Não vinculado');
-
-  await page.getByRole('group', { name: 'Situação da ficha' }).getByRole('button', { name: /Sem ficha/ }).click();
-  await expect(produtos.getByRole('button')).toHaveCount(3);
-  await page.getByRole('group', { name: 'Situação da ficha' }).getByRole('button', { name: 'Todos' }).click();
+  // A falta de vínculo não se repete em cada cartão (fica na gaveta); sem filtros nem o texto de ordenação.
+  await expect(produtos).not.toContainText('Não vinculado');
+  await expect(page.getByRole('group', { name: 'Situação da ficha' })).toHaveCount(0);
+  await expect(page.getByText(/Do mais vendido ao menos vendido/)).toHaveCount(0);
+  const cappuccinoCartao = produtos.getByRole('button', { name: /Cappuccino/ });
+  await expect(cappuccinoCartao).toContainText('vendidos em 30 dias');
+  await expect(cappuccinoCartao).toContainText('Preço de venda');
+  await expect(cappuccinoCartao).toContainText('Custo calculado');
+  await page.getByLabel('Buscar produto').fill('roll de');
+  await expect(produtos.getByRole('button', { name: /Roll de pistache/ })).toBeVisible();
+  await expect(produtos.getByRole('button', { name: /Cappuccino/ })).toHaveCount(0);
+  await page.getByLabel('Buscar produto').fill('');
 
   await produtos.getByRole('button', { name: /Roll de pistache/ }).click();
   const pistache = page.getByRole('dialog', { name: 'Roll de pistache' });
@@ -288,7 +312,7 @@ test('fichas técnicas: catálogo dos mais vendidos, situação de cada ficha e 
   await expect(cappuccino.locator('.ficha-numeros')).toContainText('R$ 14,00');
   await expect(cappuccino.locator('.ficha-numeros')).toContainText('Margem de contribuição parcial');
   await expect(cappuccino.locator('[data-teste="aviso-margem"]')).toContainText('Não é lucro líquido');
-  await expect(cappuccino.getByText('Não vinculado')).toBeVisible();
+  await expect(cappuccino.getByText(/Ainda sem vínculo com o cardápio do site/)).toBeVisible();
 });
 
 test('editor de ficha: ingrediente só do estoque, quantidade em kg vira gramas, e a ficha nova passa a valer', async ({ page }) => {
@@ -304,6 +328,12 @@ test('editor de ficha: ingrediente só do estoque, quantidade em kg vira gramas,
   await expect(gaveta).toContainText('Preço médio R$ 38,50/kg');
   await gaveta.getByLabel('Quantidade').fill('1,2');
   await gaveta.getByLabel('Unid.').selectOption({ label: 'kg' });
+  // Principal: ingrediente, quantidade e unidade. Rendimento, perda e observação ficam nas opções avançadas.
+  await expect(gaveta.getByLabel('Perda %')).toHaveCount(0);
+  await expect(gaveta.getByLabel('Rendimento (porções)')).toBeHidden();
+  await gaveta.getByText(/^Opções avançadas/).click();
+  await expect(gaveta.getByLabel('Rendimento (porções)')).toHaveValue('1');
+  await expect(gaveta.getByLabel('Perda %')).toBeVisible();
   await gaveta.getByLabel('Rendimento (porções)').fill('12');
   await gaveta.getByRole('button', { name: 'Revisar e salvar' }).click();
   await confirmar(page, 'Cadastrar a ficha técnica?', 'Salvar ficha');
@@ -313,7 +343,7 @@ test('editor de ficha: ingrediente só do estoque, quantidade em kg vira gramas,
   expect(Number(ficha.itens[0].quantidade)).toBe(1200);
 });
 
-test('custos e CMV: o essencial sem número inventado; sem nenhuma ficha, diz o próximo passo', async ({ page }) => {
+test('custos e CMV: o essencial sem número inventado; sem nenhuma ficha, uma frase curta', async ({ page }) => {
   await page.goto(`${DEMO}/admin/estoque?aba=fichas&secao=custos`);
   await expect(page.getByText('Como estão os custos')).toBeVisible();
   // CMV do mês indisponível na demonstração: explica, não mostra R$ 0,00.
@@ -332,10 +362,10 @@ test('custos e CMV: o essencial sem número inventado; sem nenhuma ficha, diz o 
     await r.fulfill({ json: lista.map((f: object) => ({ ...f, ficha: null })) });
   });
   await page.reload();
-  await expect(page.getByText('Cadastre as fichas técnicas dos produtos para começar a calcular os custos.')).toBeVisible();
+  await expect(page.getByText('Ainda não há fichas técnicas')).toBeVisible();
   await expect(page.locator('main')).not.toContainText('R$ 0,00');
-  await page.getByRole('button', { name: 'Ver produtos sem ficha' }).click();
-  await expect(page.getByRole('group', { name: 'Situação da ficha' }).getByRole('button', { name: /Sem ficha/ })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'Ver produtos sem ficha' })).toHaveCount(0);
+  await expect(page.getByRole('table', { name: 'Preço de venda e custo dos ingredientes' })).toHaveCount(0);
 });
 
 test('vínculo com o catálogo: só pelo id estável que o backend mandar — aí aparece a foto do cardápio', async ({ page }) => {
@@ -348,7 +378,6 @@ test('vínculo com o catálogo: só pelo id estável que o backend mandar — a�
   const produtos = page.getByRole('list', { name: 'Produtos da Eyemobile' });
   const espresso = produtos.getByRole('button', { name: /Espresso/ });
   await expect(espresso.locator('img')).toHaveCount(1);
-  await expect(espresso).not.toContainText('Não vinculado');
-  await expect(produtos.getByRole('button', { name: /Cappuccino/ })).toContainText('Não vinculado');
+  await expect(produtos).not.toContainText('Não vinculado');
   await expect(produtos.locator('img')).toHaveCount(1);
 });

@@ -146,7 +146,7 @@ test('uso interno pela gaveta do insumo: sai do saldo com motivo próprio e NÃO
   expect((await saldo(page, 'Ovos')).saldo).toBe('36.0000');
   const movs = await (await page.request.get(`${API}/estoque/insumos/${E.ids.Ovos}/movimentos`)).json();
   expect(movs.itens[0]).toMatchObject({ tipo: 'perda', quantidade: '-4.0000', motivo: 'uso_interno: café da manhã da equipe', registrado_por_nome: 'Gabriela Integração' });
-  const hoje = new Date().toISOString().slice(0, 10);
+  const hoje = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Fortaleza' }).format(new Date()); // o dia do café, não o UTC
   const relatorio = await (await page.request.get(`${API}/estoque/analises/divergencias?de=${hoje}&ate=${hoje}`)).json();
   const ovos = relatorio.filter((l: { insumo_id: string }) => l.insumo_id === E.ids.Ovos);
   expect(ovos.map((l: { classe: string }) => l.classe)).toContain('uso_interno');
@@ -303,24 +303,34 @@ test('fichas e custos sem vendas: nada inventado; CMV indisponível com o motivo
   await page.goto(`${PAINEL}/admin/estoque?aba=fichas`);
   await expect(page.getByText('Nenhum produto vendido nos últimos 30 dias')).toBeVisible();
   await page.getByRole('group', { name: 'Fichas técnicas' }).getByRole('button', { name: 'Custos e CMV' }).click();
-  await expect(page.getByText('Cadastre as fichas técnicas dos produtos para começar a calcular os custos.')).toBeVisible();
+  await expect(page.getByText('Ainda não há fichas técnicas')).toBeVisible();
   await page.getByText('Relatórios avançados').click();
   await expect(page.getByRole('region', { name: 'CMV teórico' })).toContainText('Indisponível');
   await expect(page.getByText(/Pode faltar|Reposição sugerida/)).toHaveCount(0);
 });
 
-test('cadastro com quantidade inicial: kg vira gramas no backend e a quantidade é a primeira conferência (abertura)', async ({ page }) => {
+test('cadastro em sequência com quantidade inicial: kg vira gramas no backend, mínimo salvo e a quantidade é a primeira conferência (abertura)', async ({ page }) => {
   await entrar(page, 'gerente');
   await page.goto(`${PAINEL}/admin/estoque`);
   await page.getByRole('button', { name: 'Novo insumo' }).click();
   const novo = page.getByRole('dialog', { name: 'Novo insumo' });
+  await expect(novo.getByLabel('Categoria')).toHaveCount(0);
   await novo.getByLabel('Nome').fill('Farinha integral');
-  await novo.getByLabel('Categoria').fill('Integração');
   await novo.getByLabel('Quantidade inicial (kg)').fill('3,25');
   await novo.getByLabel('Estoque mínimo (kg)').fill('1');
   // O backend real ainda não guarda o estoque ideal: o campo fica desligado.
   await expect(novo.getByLabel('Estoque ideal (kg)')).toBeDisabled();
-  await novo.getByRole('button', { name: 'Cadastrar com a quantidade' }).click();
+  await novo.getByRole('button', { name: 'Cadastrar' }).click();
+  const feitos = novo.getByRole('region', { name: 'Cadastrados agora' });
+  await expect(feitos).toContainText('Farinha integral');
+  // o próximo, sem fechar a gaveta
+  await novo.getByLabel('Nome').fill('Farinha de centeio');
+  await novo.getByLabel('Estoque mínimo (kg)').fill('0,5');
+  await novo.getByRole('button', { name: 'Cadastrar' }).click();
+  await expect(novo.getByRole('heading', { name: 'Cadastrados agora (2)' })).toBeVisible();
+  const lista = await (await page.request.get(`${API}/estoque/insumos?limite=200`)).json();
+  expect(Number(lista.itens.find((i: { nome: string }) => i.nome === 'Farinha de centeio').estoque_minimo)).toBe(500);
+  await feitos.getByRole('button', { name: /Farinha integral/ }).click();
   const insumo = page.getByRole('dialog', { name: 'Farinha integral' });
   await expect(insumo.locator('.insumo-saldo')).toContainText('3,25 kg');
   await expect(insumo.locator('.movimento').first()).toContainText('Contagem inicial');

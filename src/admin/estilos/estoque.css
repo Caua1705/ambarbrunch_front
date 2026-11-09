@@ -245,12 +245,17 @@
   gap: var(--e-2);
   align-items: end;
 }
+/* Ficha: ingrediente, quantidade, unidade e remover; com as opções avançadas, também perda e opcional. */
 .linha-edicao--ficha {
-  grid-template-columns: minmax(0, 2.6fr) minmax(90px, 1fr) minmax(70px, 0.7fr) auto auto;
+  grid-template-columns: minmax(0, 2.6fr) minmax(90px, 1fr) minmax(70px, 0.7fr) auto;
+}
+.linha-edicao--ficha-avancada {
+  grid-template-columns: minmax(0, 2.6fr) minmax(90px, 1fr) minmax(70px, 0.7fr) minmax(70px, 0.7fr) auto auto;
 }
 @media (max-width: 640px) {
   .linha-edicao,
-  .linha-edicao--ficha {
+  .linha-edicao--ficha,
+  .linha-edicao--ficha-avancada {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     padding: var(--e-3);
     border: 1px solid var(--borda);
@@ -757,8 +762,9 @@
 }
 .produtos-grade {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
-  gap: var(--e-3);
+  /* Cartões largos (3 por linha no tablet, 4 no computador): cada um legível sem apertar os números. */
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 232px), 1fr));
+  gap: var(--e-4);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -790,59 +796,17 @@
   outline: 2px solid var(--foco);
   outline-offset: 2px;
 }
-.produto-cartao[data-situacao='sem'] {
-  border-color: color-mix(in srgb, var(--atencao) 40%, var(--borda));
-}
 .produto-cartao__foto {
   position: relative;
   display: block;
   aspect-ratio: 16 / 10;
   background: var(--superficie-2);
 }
-.produto-cartao__foto--vazia {
-  aspect-ratio: auto;
-  height: 64px;
-}
-.produto-cartao__foto--vazia .produto-cartao__sem-foto {
-  flex-direction: row;
-  gap: 6px;
-}
-.produto-cartao__foto--vazia .produto-cartao__sem-foto svg {
-  width: 18px;
-  height: 18px;
-}
 .produto-cartao__foto img {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
-}
-.produto-cartao__sem-foto {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  height: 100%;
-  color: var(--texto-3);
-  font-size: var(--t-xs);
-}
-.produto-cartao__sem-foto svg {
-  width: 26px;
-  height: 26px;
-  opacity: 0.6;
-}
-.produto-cartao__posicao {
-  position: absolute;
-  top: var(--e-2);
-  left: var(--e-2);
-  padding: 2px 8px;
-  border-radius: var(--r-pilula);
-  background: var(--superficie);
-  box-shadow: var(--sombra-1);
-  font-size: var(--t-xs);
-  font-weight: 650;
-  font-variant-numeric: tabular-nums;
 }
 .produto-cartao__corpo {
   display: flex;
@@ -856,17 +820,14 @@
   font-weight: 600;
   line-height: 1.25;
 }
-.produto-cartao__grupo {
-  margin-top: -4px;
-  font-size: var(--t-xs);
-  color: var(--texto-3);
+.produto-cartao__vendidos {
+  margin-top: -2px;
+  font-size: var(--t-s);
+  color: var(--texto-2);
 }
-.produto-cartao__grupo > span:first-child {
-  display: inline-block;
-  text-transform: lowercase;
-}
-.produto-cartao__grupo > span:first-child::first-letter {
-  text-transform: uppercase;
+.produto-cartao__vendidos strong {
+  font-weight: 600;
+  color: var(--texto);
 }
 .produto-cartao__numeros {
   display: grid;
@@ -928,11 +889,14 @@
 }
 .ficha-vinculo {
   display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--e-2);
+  align-items: flex-start;
+  gap: 6px;
   margin: 0;
-  font-size: var(--t-s);
+  font-size: var(--t-xs);
+}
+.ficha-vinculo svg {
+  flex: none;
+  margin-top: 2px;
 }
 .ficha-foto {
   width: 100%;

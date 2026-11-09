@@ -215,12 +215,12 @@ function Evolucao() {
               rotulos={ms.map((m) => mesCurto(m.mes))}
               formatar={(v) => moeda(v)}
               series={[
-                { nome: 'Receita líquida', cor: 'var(--grafico-1)', valores: ms.map((m) => num(m.receita_liquida)) },
-                { nome: 'Despesas operacionais', cor: 'var(--grafico-3)', valores: ms.map((m) => num(m.despesas_operacionais ?? null)) },
+                { nome: 'Receita líquida', cor: 'var(--receita)', valores: ms.map((m) => num(m.receita_liquida)) },
+                { nome: 'Despesas operacionais', cor: 'var(--despesa)', valores: ms.map((m) => num(m.despesas_operacionais ?? null)) },
                 { nome: 'Resultado gerencial', cor: 'var(--grafico-2)', valores: ms.map((m) => num(m.resultado_gerencial ?? null)), tracejada: true },
               ]}
             />
-            <Legenda series={[{ nome: 'Receita líquida', cor: 'var(--grafico-1)' }, { nome: 'Despesas operacionais', cor: 'var(--grafico-3)' }, { nome: 'Resultado gerencial', cor: 'var(--grafico-2)', tracejada: true }]} />
+            <Legenda series={[{ nome: 'Receita líquida', cor: 'var(--receita)' }, { nome: 'Despesas operacionais', cor: 'var(--despesa)' }, { nome: 'Resultado gerencial', cor: 'var(--grafico-2)', tracejada: true }]} />
             <details class="fin-detalhes">
               <summary>Ver os números</summary>
               <div class="tabela-rolagem">

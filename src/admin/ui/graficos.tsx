@@ -97,7 +97,7 @@ export function GraficoLinhas({ rotulos, series, formatar, altura = 240, rotulo 
           <strong>{rotulos[foco]}</strong>
           {series.map((s) => (
             <div key={s.nome} class="linha" style={{ justifyContent: 'space-between', gap: '12px' }}>
-              <span class="fraco">{s.nome}</span>
+              <span class="fraco grafico__dica-serie"><i style={{ '--c': s.cor }} aria-hidden="true" />{s.nome}</span>
               <span class="num forte">{s.valores[foco] === null ? '—' : formatar(s.valores[foco]!)}</span>
             </div>
           ))}
@@ -169,7 +169,7 @@ export function GraficoBarras({ rotulos, series, formatar, altura = 240, rotulo 
           <strong>{rotulos[foco]}</strong>
           {series.map((s) => (
             <div key={s.nome} class="linha" style={{ justifyContent: 'space-between', gap: '12px' }}>
-              <span class="fraco">{s.nome}</span>
+              <span class="fraco grafico__dica-serie"><i style={{ '--c': s.cor }} aria-hidden="true" />{s.nome}</span>
               <span class="num forte">{s.valores[foco] === null ? '—' : formatar(s.valores[foco]!)}</span>
             </div>
           ))}

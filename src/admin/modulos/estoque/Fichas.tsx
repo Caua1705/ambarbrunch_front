@@ -1,7 +1,8 @@
 // Fichas técnicas: catálogo visual dos produtos vendidos na Eyemobile (GET /admin/estoque/fichas: só os que tiveram venda
-// no período), dos mais vendidos para os menos — são a prioridade para cadastrar. Cada cartão: foto (só quando o produto
-// está vinculado ao catálogo oficial pelo id estável; o vínculo ainda não existe no backend), nome, grupo, preço, vendidos
-// em 30 dias, custo estimado e a situação da ficha. Ao abrir, a ficha: preço, custo dos ingredientes e margem de
+// no período), dos mais vendidos para os menos — são a prioridade para cadastrar. Só a busca por produto, sem filtros.
+// Cada cartão: foto (só quando o produto está vinculado ao catálogo oficial pelo id estável; o vínculo ainda não existe no
+// backend, e a falta dele fica na gaveta, não repetida em cada cartão), nome, vendidos em 30 dias, preço, custo calculado
+// e a situação da ficha. Ao abrir, a ficha: preço, custo dos ingredientes e margem de
 // contribuição parcial (não é lucro), ingredientes e versões. Custo e margem vêm prontos do backend e só aparecem com todos
 // os ingredientes com preço conhecido. Editar cria uma versão nova a partir de agora (as vendas passadas não mudam).
 // Só gerência (estoque.editar; o backend confere: 403).
@@ -11,7 +12,7 @@ import { useConsulta } from '../../lib/consulta';
 import { estoque } from '../../lib/api/estoque';
 import { moeda, pct, quantidade, dataCurta, num, decimal, custoBase, plural } from '../../lib/formato';
 import { Gaveta, useConfirmacao } from '../../ui/camadas';
-import { Botao, Campo, Situacao, Aviso, Segmentado, Etiqueta } from '../../ui/base';
+import { Botao, Campo, Situacao, Aviso } from '../../ui/base';
 import { Dados, Esqueleto, Vazio, Falha } from '../../ui/estados';
 import { Autocompletar, type OpcaoAuto } from '../../ui/entradas';
 import type { Dec } from '../../lib/tipos/comum';
@@ -28,7 +29,6 @@ export const SITUACAO_FICHA: Record<SituacaoFicha, { rotulo: string; tom: 'ok' |
   incompleta: { rotulo: 'Incompleta', tom: 'neutro' },
   completa: { rotulo: 'Completa', tom: 'ok' },
 };
-type Filtro = 'todas' | SituacaoFicha;
 /** Mais vendidos primeiro (quantidade em 30 dias; empate pela receita). */
 export const porVendas = (a: FichaLista, b: FichaLista) => num(b.quantidade_periodo)! - num(a.quantidade_periodo)! || num(b.receita_periodo)! - num(a.receita_periodo)!;
 
@@ -57,23 +57,18 @@ export const alvoDoProduto = (f: FichaLista): AlvoFicha => ({
 /** Lista de produtos com ficha (30 dias): a mesma consulta para o catálogo e para Custos e CMV. */
 export const useFichas = (pode: boolean) => useConsulta(pode ? 'estoque/fichas?30' : null, () => estoque.fichas('todas', 30));
 
-export function Fichas({ pode, filtroInicial, responsavel }: { pode: boolean; filtroInicial?: Filtro; responsavel: (r: string | null | undefined, nome?: string | null) => string | null }) {
-  const [filtro, setFiltro] = useState<Filtro>(filtroInicial ?? 'todas');
+export function Fichas({ pode, responsavel }: { pode: boolean; responsavel: (r: string | null | undefined, nome?: string | null) => string | null }) {
   const [busca, setBusca] = useState('');
   const [aberta, setAberta] = useState<AlvoFicha | null>(null);
   const lista = useFichas(pode);
-  useEffect(() => void (filtroInicial && setFiltro(filtroInicial)), [filtroInicial]);
 
   const todos = useMemo(() => [...(lista.dados ?? [])].sort(porVendas), [lista.dados]);
-  const posicao = useMemo(() => new Map(todos.map((f, k) => [f.eye_product_id, k + 1])), [todos]);
   const linhas = useMemo(() => {
     const t = busca.trim().toLowerCase();
-    return todos.filter((f) => (filtro === 'todas' || situacaoFicha(f) === filtro) && (!t || f.produto.toLowerCase().includes(t) || (f.grupo ?? '').toLowerCase().includes(t)));
-  }, [todos, filtro, busca]);
+    return todos.filter((f) => !t || f.produto.toLowerCase().includes(t) || (f.grupo ?? '').toLowerCase().includes(t));
+  }, [todos, busca]);
 
   if (!pode) return <Vazio icone={<Lock aria-hidden="true" />} titulo="Fichas técnicas são da gerência">Custos dos produtos ficam com a gerência.</Vazio>;
-  const n = (s: SituacaoFicha) => todos.filter((f) => situacaoFicha(f) === s).length;
-  const semFicha = n('sem');
 
   return (
     <>
@@ -82,29 +77,15 @@ export function Fichas({ pode, filtroInicial, responsavel }: { pode: boolean; fi
           <Search aria-hidden="true" />
           <input class="entrada" type="search" placeholder="Buscar produto" aria-label="Buscar produto" value={busca} onInput={(e) => setBusca(e.currentTarget.value)} />
         </div>
-        {todos.length > 0 && (
-          <Segmentado<Filtro>
-            rotulo="Situação da ficha"
-            valor={filtro}
-            aoMudar={setFiltro}
-            opcoes={[
-              { valor: 'todas', rotulo: 'Todos' },
-              { valor: 'sem', rotulo: <>Sem ficha{semFicha ? <span class="contador">{semFicha}</span> : null}</> },
-              { valor: 'incompleta', rotulo: `Incompletas (${n('incompleta')})` },
-              { valor: 'completa', rotulo: `Completas (${n('completa')})` },
-            ]}
-          />
-        )}
       </div>
-      {todos.length > 0 && <p class="fraco">Do mais vendido ao menos vendido nos últimos 30 dias{semFicha > 0 ? <>. Comece pelos primeiros: {plural(semFicha, 'produto ainda está', 'produtos ainda estão')} sem ficha técnica.</> : '.'}</p>}
-      <Dados consulta={lista} recurso="Os produtos" esqueleto={<div class="produtos-grade">{[0, 1, 2, 3, 4, 5].map((k) => <span key={k} class="esqueleto" style={{ height: '232px' }} />)}</div>}>
+      <Dados consulta={lista} recurso="Os produtos" esqueleto={<div class="produtos-grade">{[0, 1, 2, 3, 4, 5].map((k) => <span key={k} class="esqueleto" style={{ height: '150px' }} />)}</div>}>
         {() =>
           linhas.length ? (
             <ul class="produtos-grade" aria-label="Produtos da Eyemobile">
-              {linhas.map((f) => <li key={f.eye_product_id}><CartaoProduto f={f} posicao={posicao.get(f.eye_product_id)!} aoAbrir={() => setAberta(alvoDoProduto(f))} /></li>)}
+              {linhas.map((f) => <li key={f.eye_product_id}><CartaoProduto f={f} aoAbrir={() => setAberta(alvoDoProduto(f))} /></li>)}
             </ul>
           ) : todos.length ? (
-            <Vazio compacto titulo={busca ? 'Nenhum produto com essa busca' : 'Nenhum produto nesta situação'}>{filtro === 'sem' ? 'Todos os produtos vendidos têm ficha.' : undefined}</Vazio>
+            <Vazio compacto titulo="Nenhum produto com essa busca" />
           ) : (
             <Vazio icone={<UtensilsCrossed aria-hidden="true" />} titulo="Nenhum produto vendido nos últimos 30 dias">Os produtos aparecem aqui quando as vendas chegam da Eyemobile. Aí é só abrir cada um e cadastrar os ingredientes.</Vazio>
           )
@@ -115,28 +96,18 @@ export function Fichas({ pode, filtroInicial, responsavel }: { pode: boolean; fi
   );
 }
 
-function CartaoProduto({ f, posicao, aoAbrir }: { f: FichaLista; posicao: number; aoAbrir: () => void }) {
+function CartaoProduto({ f, aoAbrir }: { f: FichaLista; aoAbrir: () => void }) {
   const s = situacaoFicha(f);
   const foto = fotoDoCatalogo(f.catalogo_item_id);
   return (
     <button type="button" class="produto-cartao" data-situacao={s} onClick={aoAbrir} aria-label={`${f.produto}: ${SITUACAO_FICHA[s].rotulo}`}>
-      <span class={foto ? 'produto-cartao__foto' : 'produto-cartao__foto produto-cartao__foto--vazia'}>
-        {foto ? (
-          <img src={foto.src} alt="" loading="lazy" decoding="async" width={320} height={320} />
-        ) : (
-          <span class="produto-cartao__sem-foto">
-            <UtensilsCrossed aria-hidden="true" />
-            <span>{f.catalogo_item_id === undefined || f.catalogo_item_id === null ? 'Não vinculado' : 'Sem foto'}</span>
-          </span>
-        )}
-        {posicao <= 10 && <span class="produto-cartao__posicao" title="Posição em vendas nos últimos 30 dias">{posicao}º</span>}
-      </span>
+      {foto && <span class="produto-cartao__foto"><img src={foto.src} alt="" loading="lazy" decoding="async" width={320} height={320} /></span>}
       <span class="produto-cartao__corpo">
         <span class="produto-cartao__nome">{f.produto}</span>
-        <span class="produto-cartao__grupo"><span>{f.grupo ?? 'Sem grupo'}</span> · <span class="num">{decimal(f.quantidade_periodo, 0)}</span> vendidos</span>
+        <span class="produto-cartao__vendidos"><strong class="num">{decimal(f.quantidade_periodo, 0)}</strong> vendidos em 30 dias</span>
         <span class="produto-cartao__numeros">
-          <span><span class="produto-cartao__rotulo">Preço</span><strong class="num">{moeda(f.preco_pdv)}</strong></span>
-          <span><span class="produto-cartao__rotulo">Custo</span><strong class={`num${s === 'completa' ? '' : ' fraco'}`}>{s === 'completa' ? moeda(f.ficha!.custo_porcao_hoje) : '—'}</strong></span>
+          <span><span class="produto-cartao__rotulo">Preço de venda</span><strong class="num">{moeda(f.preco_pdv)}</strong></span>
+          <span><span class="produto-cartao__rotulo">Custo calculado</span><strong class={`num${s === 'completa' ? '' : ' fraco'}`}>{s === 'completa' ? moeda(f.ficha!.custo_porcao_hoje) : '—'}</strong></span>
         </span>
         <Situacao tom={SITUACAO_FICHA[s].tom} destaque={s === 'sem'}>{SITUACAO_FICHA[s].rotulo}</Situacao>
       </span>
@@ -251,15 +222,15 @@ export function GavetaFicha({ alvo, aoFechar, responsavel }: { alvo: AlvoFicha |
 }
 
 /** Vínculo do produto da Eyemobile com o catálogo oficial. Nunca deduzido por nome ou preço: só o id que o backend
- *  guardar. Enquanto o backend não guarda vínculo nenhum (08/11/2026), o produto aparece "Não vinculado" e não há
- *  seleção manual — salvar um vínculo que o backend descarta seria fingir. */
+ *  guardar. Enquanto o backend não guarda vínculo nenhum (08/11/2026), uma linha discreta aqui na gaveta (não em cada
+ *  cartão) e nenhuma seleção manual — salvar um vínculo que o backend descarta seria fingir. */
 function Vinculo({ alvo }: { alvo: AlvoFicha }) {
   const foto = fotoDoCatalogo(alvo.catalogo);
   if (foto) return <img class="ficha-foto" src={foto.src} alt={foto.alt} width={320} height={320} />;
   return (
-    <p class="ficha-vinculo">
-      <Etiqueta icone={<Link2Off aria-hidden="true" />}>Não vinculado</Etiqueta>
-      <span class="fraco">{alvo.catalogo === undefined ? 'O vínculo com o cardápio do site ainda não pode ser feito pelo painel; a foto aparece quando existir.' : 'Sem produto do cardápio ligado a este item da Eyemobile.'}</span>
+    <p class="ficha-vinculo fraco">
+      <Link2Off aria-hidden="true" size={14} />
+      <span>{alvo.catalogo === undefined ? 'Ainda sem vínculo com o cardápio do site: a foto aparece quando o sistema guardar esse vínculo.' : 'Sem produto do cardápio do site ligado a este item da Eyemobile.'}</span>
     </p>
   );
 }
@@ -284,6 +255,10 @@ function EditorFicha({ alvo, atual, aoTerminar }: { alvo: AlvoFicha; atual: Fich
   );
   const [rendimento, setRendimento] = useState(atual ? String(Number(atual.rendimento)).replace('.', ',') : '1');
   const [obs, setObs] = useState(atual?.observacao ?? '');
+  // Rendimento, perda e observação ficam em "Opções avançadas" (receitas em lote). Abertas de saída só quando a ficha já
+  // usa alguma delas, para ninguém editar sem ver. O preparo da casa mede o rendimento na sua unidade: fica à vista.
+  const preparo = alvo.alvo === 'preparo';
+  const [avancado, setAvancado] = useState(() => !!atual && (Number(atual.rendimento) !== 1 || !!atual.observacao || atual.itens.some((i) => Number(i.perda_percentual) > 0 || i.opcional)));
   const [erro, setErro] = useState<string | null>(null);
   // O que a busca trouxe de cada insumo: unidade e preço médio (só para mostrar; o custo oficial é o do backend).
   const [conhecidos] = useState(() => new Map<string, { unidade: UnidadeBase; custo: Dec | null }>(atual?.itens.map((i) => [i.insumo_id, { unidade: i.unidade_base, custo: i.custo_unitario }]) ?? []));
@@ -331,16 +306,25 @@ function EditorFicha({ alvo, atual, aoTerminar }: { alvo: AlvoFicha; atual: Fich
     });
   }
 
+  const rendimentoCampo = (
+    <Campo
+      rotulo={preparo ? `Rendimento (${alvo.unidade ? UNIDADE_CURTA[alvo.unidade] : 'unidade do preparo'})` : 'Rendimento (porções)'}
+      ajuda={preparo ? 'Quanto a receita inteira rende, na unidade do preparo.' : 'Quantas porções a receita rende. Feito na hora, uma porção: 1.'}
+    >
+      {(id, d) => <input id={id} class="entrada num" inputMode="decimal" aria-describedby={d} value={rendimento} onInput={(e) => setRendimento(e.currentTarget.value)} />}
+    </Campo>
+  );
+
   return (
     <form class="pilha" onSubmit={salvar} noValidate>
       <h3 class="secao-titulo">{atual ? `Editar ficha (nova versão ${atual.versao + 1})` : 'Nova ficha técnica'}</h3>
-      <p class="suave">Ingredientes do estoque e quanto vai em {alvo.alvo === 'preparo' ? 'uma receita' : 'uma porção (ou na receita inteira, com o rendimento)'}. Perda é o que se joga fora no preparo (casca, aparas). Opcional não entra no custo.</p>
+      <p class="suave">{preparo ? 'Ingredientes do estoque e quanto vai na receita inteira.' : 'Ingredientes do estoque e quanto vai em uma porção.'} Produto pronto (água, refrigerante): escolha o item do estoque e 1 un.</p>
       <div class="linhas-edicao">
         {linhas.map((l, k) => {
           const conhecido = l.insumo ? conhecidos.get(l.insumo.valor) : undefined;
           const unidades = l.unidade ? unidadesDaBase(l.unidade) : [];
           return (
-            <div class="linha-edicao linha-edicao--ficha" key={k}>
+            <div class={`linha-edicao linha-edicao--ficha${avancado ? ' linha-edicao--ficha-avancada' : ''}`} key={k}>
               <div class="campo">
                 <span class="campo__rotulo">Ingrediente {k + 1}</span>
                 <Autocompletar
@@ -364,23 +348,23 @@ function EditorFicha({ alvo, atual, aoTerminar }: { alvo: AlvoFicha; atual: Fich
               ) : (
                 <Campo rotulo="Unid.">{(id) => <output id={id} class="entrada fraco" style={{ display: 'flex', alignItems: 'center' }}>{l.unidade ? UNIDADE_CURTA[l.unidade] : '—'}</output>}</Campo>
               )}
-              <Campo rotulo="Perda %">{(id) => <input id={id} class="entrada num" inputMode="decimal" placeholder="0" value={l.perda} onInput={(e) => set(k, { perda: e.currentTarget.value })} />}</Campo>
-              <label class="marcar ficha-opcional"><input type="checkbox" checked={l.opcional} onChange={(e) => set(k, { opcional: e.currentTarget.checked })} /> Opcional</label>
+              {avancado && <Campo rotulo="Perda %">{(id) => <input id={id} class="entrada num" inputMode="decimal" placeholder="0" value={l.perda} onInput={(e) => set(k, { perda: e.currentTarget.value })} />}</Campo>}
+              {avancado && <label class="marcar ficha-opcional"><input type="checkbox" checked={l.opcional} onChange={(e) => set(k, { opcional: e.currentTarget.checked })} /> Opcional</label>}
               <Botao so_icone variante="fantasma" aria-label={`Remover o ingrediente ${k + 1}`} icone={<Trash2 aria-hidden="true" />} disabled={linhas.length === 1} onClick={() => setLinhas(linhas.filter((_, i) => i !== k))} />
             </div>
           );
         })}
         <Botao tamanho="p" icone={<Plus aria-hidden="true" />} style={{ alignSelf: 'flex-start' }} onClick={() => setLinhas([...linhas, linhaNova()])}>Adicionar ingrediente</Botao>
       </div>
-      <div class="grade-campos">
-        <Campo
-          rotulo={alvo.alvo === 'preparo' ? `Rendimento (${alvo.unidade ? UNIDADE_CURTA[alvo.unidade] : 'unidade do preparo'})` : 'Rendimento (porções)'}
-          ajuda={alvo.alvo === 'preparo' ? 'Quanto a receita inteira rende, na unidade do preparo.' : 'Quantas porções a receita rende. Feito na hora, uma porção: 1.'}
-        >
-          {(id, d) => <input id={id} class="entrada num" inputMode="decimal" aria-describedby={d} value={rendimento} onInput={(e) => setRendimento(e.currentTarget.value)} />}
-        </Campo>
-        <Campo rotulo="Observação" opcional>{(id) => <input id={id} class="entrada" maxLength={300} value={obs} onInput={(e) => setObs(e.currentTarget.value)} />}</Campo>
-      </div>
+      {preparo && <div class="grade-campos">{rendimentoCampo}</div>}
+      <details class="mais-opcoes" open={avancado} onToggle={(e) => setAvancado((e.currentTarget as HTMLDetailsElement).open)}>
+        <summary>Opções avançadas{preparo ? '' : ': rendimento'}, perda e observação</summary>
+        <p class="fraco">Para receitas feitas em lote. {preparo ? '' : 'Rendimento: quantas porções a receita rende (feito na hora, 1). '}Perda: o que se joga fora no preparo (casca, aparas). Opcional: não entra no custo.</p>
+        <div class="grade-campos">
+          {!preparo && rendimentoCampo}
+          <Campo rotulo="Observação" opcional>{(id) => <input id={id} class="entrada" maxLength={300} value={obs} onInput={(e) => setObs(e.currentTarget.value)} />}</Campo>
+        </div>
+      </details>
       <p class="fraco">O custo é calculado pelo sistema ao salvar, com os preços conhecidos dos insumos. Ingrediente sem preço não ganha custo inventado.</p>
       {erro && <Aviso tom="perigo" icone={<Info aria-hidden="true" />}>{erro}</Aviso>}
       <div class="linha" style={{ justifyContent: 'flex-end' }}>

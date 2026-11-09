@@ -1,28 +1,27 @@
 // Custos e CMV (seção de Fichas técnicas): o essencial em linguagem simples — quanto custaram os ingredientes do que foi
 // vendido (quando dá para saber), quanto da receita as fichas cobrem, o que falta cadastrar e o preço de venda ao lado do
-// custo dos ingredientes. Tudo vem do backend (fichas, resumo e CMV do mês); sem dados, diz o próximo passo em vez de
-// mostrar R$ 0,00. Os relatórios completos (CMV teórico × físico, fornecedores, Cardápio Inteligente, previsões) seguem
+// custo dos ingredientes — só dos produtos com todos os ingredientes com preço. Tudo vem do backend (fichas, resumo e CMV
+// do mês); sem fichas, uma frase curta em vez de R$ 0,00. Os relatórios completos (CMV teórico × físico, fornecedores, Cardápio Inteligente, previsões) seguem
 // em "Relatórios avançados".
 import { useState } from 'preact/hooks';
 import { FileText, ChevronRight } from 'lucide-preact';
 import { useConsulta } from '../../lib/consulta';
 import { estoque } from '../../lib/api/estoque';
 import { moeda, pct, decimal, hojeISO, inicioMes, mesAno, num } from '../../lib/formato';
-import { Botao, Cartao, Situacao } from '../../ui/base';
-import { Dados, Esqueleto, EsqueletoTabela, Vazio } from '../../ui/estados';
+import { Cartao } from '../../ui/base';
+import { Dados, Esqueleto, Vazio } from '../../ui/estados';
 import { Tabela, type Coluna } from '../../ui/tabela';
 import type { FichaLista } from '../../lib/tipos/estoque';
 import type { PermissoesEstoque } from './comum';
-import { GavetaFicha, SITUACAO_FICHA, alvoDoProduto, porVendas, situacaoFicha, useFichas, type AlvoFicha } from './Fichas';
+import { GavetaFicha, alvoDoProduto, porVendas, situacaoFicha, useFichas, type AlvoFicha } from './Fichas';
 import { Relatorios, teoricoConfiavel } from './Relatorios';
 
-export function CustosCmv({ perm, pode, cobertura, baixa, responsavel, aoVerSemFicha }: {
+export function CustosCmv({ perm, pode, cobertura, baixa, responsavel }: {
   perm: PermissoesEstoque;
   pode: boolean;
   cobertura: string | null;
   baixa: boolean;
   responsavel: (r: string | null | undefined, nome?: string | null) => string | null;
-  aoVerSemFicha: () => void;
 }) {
   const fichas = useFichas(pode);
   const [aberta, setAberta] = useState<AlvoFicha | null>(null);
@@ -45,16 +44,11 @@ export function CustosCmv({ perm, pode, cobertura, baixa, responsavel, aoVerSemF
           const comFicha = todos.filter((f) => f.ficha);
           const semFicha = todos.filter((f) => !f.ficha);
           const semCusto = todos.filter((f) => situacaoFicha(f) === 'incompleta');
+          const completas = todos.filter((f) => situacaoFicha(f) === 'completa');
           if (!comFicha.length)
             return (
               <Cartao>
-                <Vazio
-                  icone={<FileText aria-hidden="true" />}
-                  titulo="Cadastre as fichas técnicas dos produtos para começar a calcular os custos."
-                  acao={semFicha.length ? <Botao variante="primario" onClick={aoVerSemFicha}>Ver produtos sem ficha</Botao> : undefined}
-                >
-                  O custo de um produto vem da ficha (quanto leva de cada ingrediente) e do preço de compra de cada ingrediente. Só o preço de venda da Eyemobile não basta.
-                </Vazio>
+                <Vazio icone={<FileText aria-hidden="true" />} titulo="Ainda não há fichas técnicas">Os custos aparecem quando os produtos tiverem ficha e os ingredientes tiverem preço de compra.</Vazio>
               </Cartao>
             );
           return (
@@ -68,7 +62,7 @@ export function CustosCmv({ perm, pode, cobertura, baixa, responsavel, aoVerSemF
                   </div>
                   <div>
                     <dt>Produtos sem ficha</dt>
-                    <dd>{semFicha.length ? <button type="button" class="link" onClick={aoVerSemFicha}><strong class="num">{semFicha.length}</strong> · ver quais</button> : <span class="fraco">Nenhum</span>}</dd>
+                    <dd>{semFicha.length ? <strong class="num">{semFicha.length}</strong> : <span class="fraco">Nenhum</span>}</dd>
                   </div>
                   <div>
                     <dt>Sem custo conhecido</dt>
@@ -79,7 +73,7 @@ export function CustosCmv({ perm, pode, cobertura, baixa, responsavel, aoVerSemF
                   O custo dos ingredientes vendidos (CMV teórico) usa as fichas técnicas, os preços de compra e as quantidades vendidas. O CMV físico depende também de contagens e movimentações confiáveis.
                 </p>
               </Cartao>
-              <PrecoCusto linhas={comFicha} aoAbrir={(f) => setAberta(alvoDoProduto(f))} />
+              {completas.length > 0 && <PrecoCusto linhas={completas} aoAbrir={(f) => setAberta(alvoDoProduto(f))} />}
               {semFicha.length > 0 && (
                 <Cartao titulo="Mais vendidos sem ficha" descricao="Os próximos a cadastrar" justo>
                   <ul class="lista">
@@ -132,13 +126,12 @@ function PrecoCusto({ linhas, aoAbrir }: { linhas: FichaLista[]; aoAbrir: (f: Fi
   const colunas: Coluna<FichaLista>[] = [
     { id: 'produto', titulo: 'Produto', ordenar: (f) => f.produto, celula: (f) => <><span class="principal-celula">{f.produto}</span><span class="sub">{decimal(f.quantidade_periodo, 0)} vendidos em 30 dias</span></> },
     { id: 'preco', titulo: 'Preço', numero: true, ordenar: (f) => num(f.preco_pdv) ?? -1, celula: (f) => <span class="num">{moeda(f.preco_pdv)}</span> },
-    { id: 'custo', titulo: 'Ingredientes', numero: true, ordenar: (f) => num(f.ficha?.custo_porcao_hoje) ?? -1, celula: (f) => (situacaoFicha(f) === 'completa' ? <span class="num">{moeda(f.ficha!.custo_porcao_hoje)}</span> : <span class="fraco">sem preço</span>) },
-    { id: 'margem', titulo: 'Margem parcial', numero: true, prioridade: 'media', ordenar: (f) => num(f.ficha?.margem_hoje_pct) ?? -999, celula: (f) => (situacaoFicha(f) === 'completa' && f.ficha!.margem_hoje_pct !== null ? <span class="num">{pct(f.ficha!.margem_hoje_pct)}</span> : <span class="fraco">—</span>) },
-    { id: 'situacao', titulo: 'Ficha', prioridade: 'baixa', celula: (f) => { const s = situacaoFicha(f); return <Situacao tom={SITUACAO_FICHA[s].tom}>{SITUACAO_FICHA[s].rotulo}</Situacao>; } },
+    { id: 'custo', titulo: 'Ingredientes', numero: true, ordenar: (f) => num(f.ficha?.custo_porcao_hoje) ?? -1, celula: (f) => <span class="num">{moeda(f.ficha!.custo_porcao_hoje)}</span> },
+    { id: 'margem', titulo: 'Margem parcial', numero: true, prioridade: 'media', ordenar: (f) => num(f.ficha?.margem_hoje_pct) ?? -999, celula: (f) => (f.ficha!.margem_hoje_pct !== null ? <span class="num">{pct(f.ficha!.margem_hoje_pct)}</span> : <span class="fraco">—</span>) },
   ];
   return (
-    <Cartao titulo="Preço de venda × custo dos ingredientes" descricao="Margem parcial = preço − ingredientes, a preço de hoje. Não é lucro: faltam mão de obra, embalagens, taxas e despesas fixas." justo>
-      {linhas.length ? <Tabela rotulo="Preço de venda e custo dos ingredientes" colunas={colunas} linhas={linhas} chave={(f) => f.eye_product_id} aoAbrir={aoAbrir} porPagina={15} /> : <EsqueletoTabela linhas={2} />}
+    <Cartao titulo="Preço de venda × custo dos ingredientes" descricao="Só fichas com todos os ingredientes com preço. Margem parcial = preço − ingredientes, a preço de hoje. Não é lucro: faltam mão de obra, embalagens, taxas e despesas fixas." justo>
+      <Tabela rotulo="Preço de venda e custo dos ingredientes" colunas={colunas} linhas={linhas} chave={(f) => f.eye_product_id} aoAbrir={aoAbrir} porPagina={15} />
     </Cartao>
   );
 }

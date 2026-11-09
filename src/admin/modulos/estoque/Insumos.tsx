@@ -81,7 +81,8 @@ export function Insumos({ perm, aoAbrir, aoNovo, aoContar, aoCancelamentos }: {
           </div>
           <div class="estoque-filtros__acao">
             {perm.visualizar && itens.length > 0 && <Botao icone={<ClipboardList aria-hidden="true" />} onClick={aoContar}>Contar estoque</Botao>}
-            {perm.editar && <Botao variante="primario" icone={<Plus aria-hidden="true" />} onClick={aoNovo}>Novo insumo</Botao>}
+            {/* Lista vazia: o cadastro fica só no convite do meio da tela (um botão por vez). */}
+            {perm.editar && itens.length > 0 && <Botao variante="primario" icone={<Plus aria-hidden="true" />} onClick={aoNovo}>Novo insumo</Botao>}
           </div>
         </div>
         <Dados consulta={fonte} recurso="Os insumos" esqueleto={<EsqueletoTabela linhas={8} />}>

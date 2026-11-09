@@ -56,7 +56,6 @@ export default function Estoque({ contexto }: { contexto: ContextoPainel }) {
   const [area, setArea] = useState<AreaEstoque | null>(null);
   const [secao, setSecao] = useState<SecaoFichas>('produtos');
   const [contando, setContando] = useState(false);
-  const [filtroFichas, setFiltroFichas] = useState<'sem' | undefined>(undefined);
   const [compra, setCompra] = useState<string | null>(null);
   const [insumo, setInsumo] = useState<string | null>(null);
   const [novoInsumo, setNovoInsumo] = useState(false);
@@ -131,7 +130,7 @@ export default function Estoque({ contexto }: { contexto: ContextoPainel }) {
           <>
             {perm.editar && <Segmentado<SecaoFichas> rotulo="Fichas técnicas" valor={secao} aoMudar={setSecao} opcoes={[{ valor: 'produtos', rotulo: 'Produtos' }, { valor: 'custos', rotulo: 'Custos e CMV' }]} />}
             {secao === 'produtos' && perm.editar ? (
-              <Fichas pode={perm.editar} filtroInicial={filtroFichas} responsavel={responsavel} />
+              <Fichas pode={perm.editar} responsavel={responsavel} />
             ) : (
               <CustosCmv
                 perm={perm}
@@ -139,7 +138,6 @@ export default function Estoque({ contexto }: { contexto: ContextoPainel }) {
                 cobertura={resumo.dados?.cobertura_fichas_30d ?? null}
                 baixa={!!resumo.dados?.baixa_automatica}
                 responsavel={responsavel}
-                aoVerSemFicha={() => { setFiltroFichas('sem'); setSecao('produtos'); }}
               />
             )}
           </>
@@ -155,7 +153,7 @@ export default function Estoque({ contexto }: { contexto: ContextoPainel }) {
         aoMovimento={(tipo, i) => setMovimento({ tipo, insumo: i })}
         aoFicha={(i) => { setInsumo(null); setFicha({ alvo: 'preparo', id: i.id, nome: i.nome, unidade: i.unidade_base }); }}
       />
-      <NovoInsumo aberto={novoInsumo} aoFechar={() => setNovoInsumo(false)} aoCriar={(id) => { setNovoInsumo(false); setArea('insumos'); setContando(false); setInsumo(id); }} />
+      <NovoInsumo aberto={novoInsumo} aoFechar={() => setNovoInsumo(false)} aoAbrir={(id) => { setNovoInsumo(false); setArea('insumos'); setContando(false); setInsumo(id); }} />
       <GavetaFicha alvo={ficha} aoFechar={() => setFicha(null)} responsavel={responsavel} />
       <MovimentoInsumo
         tipo={movimento?.tipo ?? null}

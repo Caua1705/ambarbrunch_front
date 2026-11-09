@@ -431,27 +431,32 @@ de lá (situação, unidade, responsável, Financeiro, Produtos × Pix, sem dado
 
 | Aba | O que tem |
 |---|---|
-| Insumos | Busca e duas ações: **Contar estoque** e **Novo insumo**. Tabela: insumo (categoria), quantidade com unidade, mínimo, ideal (só quando o backend guardar), preço médio, situação (Normal · Baixo · Esgotado · Não conferido) e "Conferido em". Sem números no topo, sem filtro de situação, sem "Saldo = …". Com a baixa pelas vendas desligada, um aviso: "As vendas ainda não descontam do estoque" (some quando o backend ligar a baixa). Vendas canceladas a responder: aviso com link para a gaveta. Gaveta do insumo: quantidade estimada, mínimo, preço médio, última compra, última conferência, histórico e as ações **Conferir quantidade · Perda ou uso interno · Corrigir saldo · Editar** (e Ficha do preparo). |
+| Insumos | Busca e duas ações: **Contar estoque** e **Novo insumo** (com a lista vazia, só o convite do meio da tela: um botão de cadastro por vez). Tabela: insumo (categoria), quantidade com unidade, mínimo, ideal (só quando o backend guardar), preço médio, situação (Normal · Baixo · Esgotado · Não conferido) e "Conferido em". Sem números no topo, sem filtro de situação, sem "Saldo = …". Com a baixa pelas vendas desligada, um aviso: "As vendas ainda não descontam do estoque" (some quando o backend ligar a baixa). Vendas canceladas a responder: aviso com link para a gaveta. Gaveta do insumo: quantidade estimada, mínimo, preço médio, última compra, última conferência, histórico e as ações **Conferir quantidade · Perda ou uso interno · Corrigir saldo · Editar** (e Ficha do preparo). |
 | Contar estoque (`?vista=contagem`) | Dentro de Insumos, com "← Insumos". Três escolhas: Todos os insumos (padrão enquanto houver insumo nunca conferido — o inventário inicial), Escolher insumos, Só os baixos ou com divergência (abaixo do mínimo, esgotados, saldo negativo). Os três passos e o histórico (responsável e data) são os de antes. Abrir ou abandonar não muda saldo; só "Confirmar contagem". |
-| Compras | Pendentes · Confirmadas · Histórico. Origem na linha do fornecedor (Júlia · comprovante de pagamento / Painel · nota fiscal / sem nota). Botão "Conferir" em cada pendente; **Registrar compra** (com nota: foto/PDF/XML lida e revisada por uma pessoa; sem nota: digitada) para o que não passou pela Júlia. Tudo na MESMA conferência; "Confirmar recebimento" é o único passo que dá entrada; nenhuma segunda despesa (B1–B3). |
-| Fichas técnicas | Produtos: catálogo em cartões, do mais vendido ao menos vendido em 30 dias (posição 1º–10º), com foto (só com vínculo), nome, grupo, preço, vendidos, custo e situação (Completa · Incompleta · Sem ficha); filtro por situação. Ficha: preço de venda, custo dos ingredientes, **margem de contribuição parcial** (preço − ingredientes, "não é lucro líquido"), rendimento, ingredientes, versões. Editor: ingrediente só por busca no estoque (sem texto livre), quantidade com unidade (kg/g, L/ml, un), perda %, opcional, rendimento; mostra o preço médio de cada ingrediente ou "sem preço". **Custos e CMV** (`&secao=custos`): custo dos ingredientes vendidos no mês (só quando o CMV teórico é confiável), cobertura das fichas, produtos sem ficha, sem custo conhecido, tabela preço × ingredientes e "mais vendidos sem ficha"; sem nenhuma ficha, "Cadastre as fichas técnicas dos produtos para começar a calcular os custos." Os relatórios de antes ficam em "Relatórios avançados" (montados só ao abrir). |
+| Compras | **Pendentes · Histórico** (o Histórico traz as conferidas e as canceladas). Origem na linha do fornecedor (Júlia · comprovante de pagamento / Painel · nota fiscal / sem nota). Botão "Conferir" em cada pendente; **Registrar compra** (com nota: foto/PDF/XML lida e revisada por uma pessoa; sem nota: digitada) para o que não passou pela Júlia. Tudo na MESMA conferência; "Confirmar recebimento" é o único passo que dá entrada; nenhuma segunda despesa (B1–B3). |
+| Fichas técnicas | Produtos: só a busca (sem filtros nem texto de ordenação); cartões largos (3 por linha no tablet), do mais vendido ao menos vendido em 30 dias, com foto (só com vínculo), nome, vendidos em 30 dias, preço de venda, custo calculado e situação (Completa · Incompleta · Sem ficha). A falta de vínculo com o cardápio não aparece nos cartões: fica numa linha discreta na gaveta. Ficha: preço de venda, custo dos ingredientes, **margem de contribuição parcial** (preço − ingredientes, "não é lucro líquido"), rendimento, ingredientes, versões. Editor: à vista só ingrediente (busca no estoque, sem texto livre), quantidade e unidade (kg/g, L/ml, un), e "Adicionar ingrediente"; rendimento (padrão 1 porção), perda %, opcional e observação ficam em **Opções avançadas** (abertas de saída quando a ficha já usa alguma; no preparo da casa o rendimento fica à vista, porque é medido na unidade do preparo). Produto pronto (água, refrigerante) = ficha com o item do estoque e 1 un. Mostra o preço médio de cada ingrediente ou "sem preço". **Custos e CMV** (`&secao=custos`): custo dos ingredientes vendidos no mês (só quando o CMV teórico é confiável), cobertura das fichas, produtos sem ficha (só o número), sem custo conhecido, tabela preço × ingredientes **só com as fichas completas** e "mais vendidos sem ficha"; sem nenhuma ficha, só "Ainda não há fichas técnicas" (sem o botão "Ver produtos sem ficha"). Os relatórios de antes ficam em "Relatórios avançados" (montados só ao abrir). |
 
 Endereços antigos continuam: `?aba=estoque|resumo` → Insumos; `recebimentos` → Compras; `contagem|inventario(s)` →
 Insumos › Contar estoque; `custos` → Fichas técnicas; `analises|mais` e `secao=cmv` → Custos e CMV; `cancelamentos` →
 Insumos + gaveta. O sino (`avisos.ts`), `rotas.ts` e o Financeiro ainda usam os nomes antigos de propósito.
 
-Cadastro de insumo: Nome, Categoria (sugere as existentes), Unidade (g, kg, ml, L, un — kg e L são gravados em g e ml),
-Quantidade inicial, Estoque mínimo, Estoque ideal; Tipo e controle do preparo em "Mais opções". A quantidade inicial é
-gravada logo depois do cadastro como a primeira conferência (`POST /estoque/ajustes`, motivo `contagem_fisica` → o
-backend marca "abertura"); se só o cadastro der certo, o insumo abre e a tela pede "Conferir quantidade". Todas as
+Cadastro de insumo (simplificado na noite de 08/11): Nome, Unidade (g, kg, ml, L, un — kg e L são gravados em g e ml),
+Quantidade inicial, **Estoque mínimo (obrigatório: "quantidade que dispara o alerta")** e Estoque ideal ("quantidade que
+queremos alcançar depois de comprar"). Sem Categoria (as que já existem continuam aparecendo) e sem "Mais opções": o
+tipo "preparo da casa" — que o backend não deixa mudar depois — é um link discreto no fim do formulário, e o controle do
+preparo fica na edição. **Cadastro em sequência**: cadastrou, a gaveta fica aberta, limpa, com a mesma unidade e o cursor
+no nome; a lista "Cadastrados agora" abre cada um. A quantidade inicial é gravada logo depois do cadastro como a
+primeira conferência (`POST /estoque/ajustes`, motivo `contagem_fisica` → o backend marca "abertura"); se só o
+cadastro der certo, o item entra na lista com o aviso e a pessoa usa "Conferir quantidade". A edição também exige o mínimo. Todas as
 mudanças de saldo pedem confirmação com o resumo (quantidade, de → para, motivo).
 
 ### Contratos que faltam no backend (a interface está preparada, nada é simulado)
 
 1. **Estoque ideal** — `estoque_ideal` (Decimal ≥ 0, na unidade-base) em `InsumoEntrada`, `InsumoAlteracao`, na saída
    do insumo (`_insumo_saida`) e na listagem (`GET /admin/estoque/insumos`). O painel liga campo e coluna quando a
-   resposta trouxer a chave `estoque_ideal` (mesmo `null`); hoje o campo aparece desligado ("Ainda não é guardado pelo
-   sistema") e a coluna não aparece. Sugestão: validar ideal ≥ mínimo.
+   resposta trouxer a chave `estoque_ideal` (mesmo `null`); hoje o campo aparece desligado ("Ainda não é salvo pelo
+   sistema: o campo é liberado quando passar a ser") e a coluna não aparece. Sem migração no backend, o ideal **não é
+   salvo** — conferido em 08/11 23h: `InsumoEntrada`/`InsumoAlteracao` (giardini_back 54748c5) não têm o campo. Sugestão: validar ideal ≥ mínimo.
 2. **Custo unitário conhecido no cadastro** — não existe. Proposta: `custo_unitario` opcional em `POST /estoque/ajustes`
    aceito só na abertura (vira `saldo_inicial`/abertura com custo), ou em `POST /estoque/insumos` junto com a quantidade
    inicial. Até lá, o preço médio vem só de compras conferidas (a tela diz isso).
@@ -470,9 +475,18 @@ mudanças de saldo pedem confirmação com o resumo (quantidade, de → para, mo
 **Baixa automática pelas vendas**: continua desligada e não foi tocada. Ligar exige comprovar no backend o desconto de
 itens vendidos, adicionais e cancelamentos (e as fichas completas dos mais vendidos).
 
-Testes: `tests-painel/estoque.spec.ts` (demonstração, 12: três abas, cadastro com quantidade inicial, perda/uso interno,
+Testes: `tests-painel/estoque.spec.ts` (demonstração, 12: três abas, cadastro em sequência com mínimo obrigatório, perda/uso interno,
 corrigir, conferir sem diferença, contar estoque e abandonar, compra sem nota, endereço antigo, fichas, editor em kg,
 custos sem número inventado, vínculo por id com foto) e `tests-painel-real/estoque.spec.ts` (backend real local, 11).
+
+### Cores de receita e despesa (08/11/2026)
+
+Tokens `--receita` (verde, #2f6b46 claro / #86c79a escuro) e `--despesa` (vermelho, #c0473b / #e07b6f) em
+`estilos/tokens.css`. Receita sempre verde e despesa sempre vermelha em barras, linhas, legenda e dica (a dica ganhou a
+amostra de cor ao lado do nome): Visão Geral (Receitas × despesas e Despesas por categoria), Financeiro › Resultado
+(evolução mensal; o resultado gerencial segue tracejado em caramelo) e Financeiro › Vendas (receita). O vinho continua
+na marca (botões, menu, navegação). Valor indisponível segue sem barra e "—" na dica, nunca zero. Nenhum cálculo,
+endpoint ou dado mudou. Teste: `tests-painel/visao-geral.spec.ts`.
 
 ## 4g. Equipe em três abas (08/11/2026)
 

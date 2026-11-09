@@ -39,8 +39,8 @@ const QUALIDADE: Record<NivelQualidade, { rotulo: string; tom: 'ok' | 'atencao' 
   indisponivel: { rotulo: 'Indisponível', tom: 'apagado' },
 };
 
-const COR_RECEITA = 'var(--grafico-1)';
-const COR_DESPESA = 'var(--grafico-2)';
+const COR_RECEITA = 'var(--receita)';
+const COR_DESPESA = 'var(--despesa)';
 
 const SEM_VENDAS = 'Sem vendas sincronizadas';
 

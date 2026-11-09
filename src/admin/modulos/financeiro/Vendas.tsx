@@ -133,9 +133,9 @@ function Relatorio({ r }: { r: Extract<RelatorioVendas, { disponivel: true }> })
               rotulo="Receita líquida de vendas por período"
               rotulos={r.periodos.map((p) => rotuloCurto(r.agrupar, p))}
               formatar={(v) => moeda(v)}
-              series={[{ nome: 'Receita líquida', cor: 'var(--grafico-1)', valores: r.periodos.map((p) => num(p.receita_liquida)) }]}
+              series={[{ nome: 'Receita líquida', cor: 'var(--receita)', valores: r.periodos.map((p) => num(p.receita_liquida)) }]}
             />
-            <Legenda series={[{ nome: 'Receita líquida', cor: 'var(--grafico-1)' }]} />
+            <Legenda series={[{ nome: 'Receita líquida', cor: 'var(--receita)' }]} />
           </div>
         </Cartao>
       )}

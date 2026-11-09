@@ -210,7 +210,7 @@ function SeletorUnidade({ id, base, valor, aoMudar }: { id: string; base: Insumo
 function EditarInsumo({ i, aoTerminar }: { i: InsumoDetalhe; aoTerminar: () => void }) {
   const inicial = unidadeExibicao(i.unidade_base, i.estoque_minimo, i.estoque_ideal).fator;
   const [fator, setFator] = useState<1 | 1000>(inicial);
-  const [f, setF] = useState({ nome: i.nome, categoria: i.categoria ?? '', minimo: emTexto(i.estoque_minimo, inicial), ideal: emTexto(i.estoque_ideal, inicial), prazo: i.prazo_reposicao_dias === null ? '' : String(i.prazo_reposicao_dias), ativo: i.ativo, controle: i.controle_preparo ?? 'explodir' });
+  const [f, setF] = useState({ nome: i.nome, minimo: emTexto(i.estoque_minimo, inicial), ideal: emTexto(i.estoque_ideal, inicial), prazo: i.prazo_reposicao_dias === null ? '' : String(i.prazo_reposicao_dias), ativo: i.ativo, controle: i.controle_preparo ?? 'explodir' });
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<ErroApi | null>(null);
   const comIdeal = aceitaEstoqueIdeal(i);
@@ -218,11 +218,12 @@ function EditarInsumo({ i, aoTerminar }: { i: InsumoDetalhe; aoTerminar: () => v
   async function salvar(e: Event) {
     e.preventDefault();
     if (!f.nome.trim()) return setErro(new ErroApi('validacao', 'Informe o nome.'));
-    const minimo = f.minimo.trim() ? paraBase(f.minimo, fator) : undefined;
+    if (!f.minimo.trim()) return setErro(new ErroApi('validacao', 'Informe o estoque mínimo: é ele que dispara o alerta.'));
+    const minimo = paraBase(f.minimo, fator);
     if (minimo === null) return setErro(new ErroApi('validacao', 'Estoque mínimo inválido.'));
     const ideal = comIdeal && f.ideal.trim() ? paraBase(f.ideal, fator) : undefined;
     if (ideal === null) return setErro(new ErroApi('validacao', 'Estoque ideal inválido.'));
-    if (ideal !== undefined && minimo !== undefined && Number(ideal) < Number(minimo)) return setErro(new ErroApi('validacao', 'O ideal não pode ser menor que o mínimo.'));
+    if (ideal !== undefined && Number(ideal) < Number(minimo)) return setErro(new ErroApi('validacao', 'O ideal não pode ser menor que o mínimo.'));
     const prazo = f.prazo.trim() ? Number(f.prazo) : undefined;
     if (prazo !== undefined && !(Number.isInteger(prazo) && prazo >= 0 && prazo <= 90)) return setErro(new ErroApi('validacao', 'O prazo vai de 0 a 90 dias.'));
     setEnviando(true);
@@ -232,8 +233,7 @@ function EditarInsumo({ i, aoTerminar }: { i: InsumoDetalhe; aoTerminar: () => v
       await estoque.alterarInsumo(i.id, {
         versao: i.versao,
         nome: f.nome.trim(),
-        ...(f.categoria.trim() ? { categoria: f.categoria.trim() } : {}),
-        ...(minimo !== undefined ? { estoque_minimo: minimo } : {}),
+        estoque_minimo: minimo,
         ...(ideal !== undefined ? { estoque_ideal: ideal } : {}),
         ...(prazo !== undefined ? { prazo_reposicao_dias: prazo } : {}),
         ...(i.tipo === 'preparo' ? { controle_preparo: f.controle } : {}),
@@ -256,9 +256,8 @@ function EditarInsumo({ i, aoTerminar }: { i: InsumoDetalhe; aoTerminar: () => v
       {erro && <Aviso tom="perigo" icone={<Info aria-hidden="true" />}>{erro.message}</Aviso>}
       <div class="grade-campos">
         <Campo rotulo="Nome" class="inteiro" erro={erro?.campos.nome}>{(id) => <input id={id} class="entrada" maxLength={120} value={f.nome} onInput={(e) => setF({ ...f, nome: e.currentTarget.value })} />}</Campo>
-        <Campo rotulo="Categoria" opcional>{(id) => <input id={id} class="entrada" maxLength={60} list="categorias-insumo" value={f.categoria} onInput={(e) => setF({ ...f, categoria: e.currentTarget.value })} />}</Campo>
         <Campo rotulo="Unidade das quantidades">{(id) => <SeletorUnidade id={id} base={i.unidade_base} valor={fator} aoMudar={setFator} />}</Campo>
-        <Campo rotulo={`Estoque mínimo (${rotuloU})`} opcional ajuda="Abaixo disso, o insumo aparece como baixo.">{(id, d) => <input id={id} class="entrada num" inputMode="decimal" aria-describedby={d} value={f.minimo} onInput={(e) => setF({ ...f, minimo: e.currentTarget.value })} />}</Campo>
+        <Campo rotulo={`Estoque mínimo (${rotuloU})`} ajuda={AJUDA_MINIMO}>{(id, d) => <input id={id} class="entrada num" inputMode="decimal" aria-describedby={d} aria-required="true" value={f.minimo} onInput={(e) => setF({ ...f, minimo: e.currentTarget.value })} />}</Campo>
         <CampoIdeal ativo={comIdeal} rotuloU={rotuloU} valor={f.ideal} aoMudar={(v) => setF({ ...f, ideal: v })} />
         <Campo rotulo="Prazo de entrega do fornecedor (dias)" opcional>{(id) => <input id={id} class="entrada num" type="number" min={0} max={90} value={f.prazo} onInput={(e) => setF({ ...f, prazo: e.currentTarget.value })} />}</Campo>
         {i.tipo === 'preparo' && (
@@ -273,7 +272,6 @@ function EditarInsumo({ i, aoTerminar }: { i: InsumoDetalhe; aoTerminar: () => v
         )}
         <label class="marcar inteiro"><input type="checkbox" checked={f.ativo} onChange={(e) => setF({ ...f, ativo: e.currentTarget.checked })} /> Insumo ativo</label>
       </div>
-      <ListaCategorias />
       <p class="fraco">A unidade-base ({UNIDADE[i.unidade_base]}) não muda depois que há movimentos.</p>
       <div class="linha" style={{ justifyContent: 'flex-end' }}>
         <Botao onClick={aoTerminar} disabled={enviando}>Voltar</Botao>
@@ -283,42 +281,54 @@ function EditarInsumo({ i, aoTerminar }: { i: InsumoDetalhe; aoTerminar: () => v
   );
 }
 
+/** O que cada número quer dizer, igual no cadastro e na edição. */
+const AJUDA_MINIMO = 'Quantidade que dispara o alerta: abaixo dela, o insumo aparece como baixo.';
+const AJUDA_IDEAL = 'Quantidade que queremos alcançar depois de comprar.';
+
 /** Estoque ideal: ligado só quando o backend guarda o campo (aceitaEstoqueIdeal). Desligado, diz por quê — nunca finge
  *  que salvou. */
 function CampoIdeal({ ativo, rotuloU, valor, aoMudar }: { ativo: boolean; rotuloU: string; valor: string; aoMudar: (v: string) => void }) {
   return (
-    <Campo rotulo={`Estoque ideal (${rotuloU})`} opcional ajuda={ativo ? 'Até onde repor numa compra.' : 'Ainda não é guardado pelo sistema.'}>
+    <Campo rotulo={`Estoque ideal (${rotuloU})`} opcional ajuda={ativo ? AJUDA_IDEAL : `${AJUDA_IDEAL} Ainda não é salvo pelo sistema: o campo é liberado quando passar a ser.`}>
       {(id, d) => <input id={id} class="entrada num" inputMode="decimal" aria-describedby={d} value={ativo ? valor : ''} disabled={!ativo} onInput={(e) => aoMudar(e.currentTarget.value)} />}
     </Campo>
   );
 }
 
-/** Sugestões de categoria: as que já existem no cadastro (digitar uma nova continua valendo). */
-function ListaCategorias() {
-  const catalogo = useConsulta('estoque/insumos?catalogo', () => estoque.insumos({ limite: 200 }));
-  const cats = [...new Set((catalogo.dados?.itens ?? []).map((i) => i.categoria).filter((c): c is string => !!c))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
-  return <datalist id="categorias-insumo">{cats.map((c) => <option key={c} value={c} />)}</datalist>;
-}
+const VAZIO_NOVO = { nome: '', unidade: 'kg' as UnidadeCadastro, inicial: '', minimo: '', ideal: '', tipo: 'comprado' as 'comprado' | 'preparo' };
 
-const VAZIO_NOVO = { nome: '', unidade: 'kg' as UnidadeCadastro, categoria: '', inicial: '', minimo: '', ideal: '', tipo: 'comprado' as 'comprado' | 'preparo', controle: 'explodir' as 'explodir' | 'lote' };
-
-/** Cadastro simples: nome, categoria, unidade (g, kg, ml, L ou un), quantidade inicial, mínimo e ideal. A quantidade
- *  inicial vira a primeira conferência do insumo (POST /ajustes, abertura do estoque), registrada logo depois do cadastro.
- *  O custo não é digitado aqui: vem da primeira compra conferida (o backend ainda não aceita custo inicial). */
-export function NovoInsumo({ aberto, aoFechar, aoCriar }: { aberto: boolean; aoFechar: () => void; aoCriar: (id: string) => void }) {
+/** Cadastro rápido, um ingrediente atrás do outro: nome, unidade (g, kg, ml, L ou un), quantidade inicial, mínimo
+ *  (obrigatório: é ele que liga o alerta) e ideal. Cadastrou, o formulário limpa (mantém a unidade) e volta ao nome; a
+ *  lista "Cadastrados agora" abre cada um. A quantidade inicial vira a primeira conferência do insumo (POST /ajustes),
+ *  registrada logo depois do cadastro. Sem categoria nem "mais opções": o tipo "preparo da casa" (que não muda depois) é
+ *  um link discreto no fim; o controle do preparo fica na edição. O custo vem da primeira compra conferida (o backend
+ *  ainda não aceita custo inicial). */
+export function NovoInsumo({ aberto, aoFechar, aoAbrir }: { aberto: boolean; aoFechar: () => void; aoAbrir: (id: string) => void }) {
   const [f, setF] = useState(VAZIO_NOVO);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<ErroApi | null>(null);
+  const [feitos, setFeitos] = useState<{ id: string; nome: string; aviso?: boolean }[]>([]);
+  const nome = useRef<HTMLInputElement>(null);
   const catalogo = useConsulta(aberto ? 'estoque/insumos?catalogo' : null, () => estoque.insumos({ limite: 200 }));
   const comIdeal = aceitaEstoqueIdeal(catalogo.dados?.itens[0]);
   useEffect(() => {
-    if (aberto) setErro(null);
+    if (aberto) {
+      setErro(null);
+      setFeitos([]);
+    }
   }, [aberto]);
   const u = unidadeCadastro(f.unidade);
+  const preparo = f.tipo === 'preparo';
+
+  function proximo(id: string, nomeFeito: string, aviso?: boolean) {
+    setFeitos((x) => [{ id, nome: nomeFeito, aviso }, ...x]);
+    setF({ ...VAZIO_NOVO, unidade: f.unidade });
+    setTimeout(() => nome.current?.focus(), 0);
+  }
 
   async function criar(e: Event) {
     e.preventDefault();
-    if (!f.nome.trim()) return setErro(new ErroApi('validacao', 'Informe o nome do insumo.'));
+    if (!f.nome.trim()) return setErro(new ErroApi('validacao', 'Informe o nome do insumo.', 0, null, { nome: 'Informe o nome.' }));
     const conv = (t: string, rotulo: string) => {
       if (!t.trim()) return { v: null as string | null };
       const v = paraBase(t, u.fator);
@@ -329,28 +339,27 @@ export function NovoInsumo({ aberto, aoFechar, aoCriar }: { aberto: boolean; aoF
     const ideal = comIdeal ? conv(f.ideal, 'Estoque ideal') : { v: null };
     const falha = inicial.erro ?? minimo.erro ?? ideal.erro;
     if (falha) return setErro(new ErroApi('validacao', falha));
-    if (ideal.v && minimo.v && Number(ideal.v) < Number(minimo.v)) return setErro(new ErroApi('validacao', 'O ideal não pode ser menor que o mínimo.'));
+    if (!minimo.v) return setErro(new ErroApi('validacao', 'Informe o estoque mínimo: é ele que dispara o alerta.', 0, null, { estoque_minimo: 'Informe o mínimo (pode ser 0).' }));
+    if (ideal.v && Number(ideal.v) < Number(minimo.v)) return setErro(new ErroApi('validacao', 'O ideal não pode ser menor que o mínimo.'));
     setEnviando(true);
     setErro(null);
     let criado: string | null = null;
+    const nomeFeito = f.nome.trim();
     try {
       const r = await estoque.criarInsumo({
-        nome: f.nome.trim(), unidade_base: u.base, tipo: f.tipo, controle_preparo: f.tipo === 'preparo' ? f.controle : null, categoria: f.categoria.trim() || null,
-        estoque_minimo: minimo.v ?? null, ...(comIdeal && ideal.v ? { estoque_ideal: ideal.v } : {}),
+        nome: nomeFeito, unidade_base: u.base, tipo: f.tipo, controle_preparo: preparo ? 'explodir' : null,
+        estoque_minimo: minimo.v, ...(comIdeal && ideal.v ? { estoque_ideal: ideal.v } : {}),
       });
       criado = r.id;
       if (inicial.v !== null && inicial.v !== undefined) await estoque.ajustar({ insumo_id: r.id, quantidade: inicial.v, motivo: 'contagem_fisica', observacao: 'Quantidade inicial no cadastro' });
       atualizarEstoque();
-      avisar(inicial.v ? 'Insumo cadastrado com a quantidade inicial.' : 'Insumo cadastrado.', 'ok');
-      setF(VAZIO_NOVO);
-      aoCriar(r.id);
+      proximo(r.id, nomeFeito);
     } catch (x) {
       if (criado) {
-        // Cadastrou, mas a quantidade inicial não entrou: o insumo existe e abre; a pessoa confere por lá.
+        // Cadastrou, mas a quantidade inicial não entrou: o insumo existe; a pessoa confere por lá.
         atualizarEstoque();
-        avisar('Insumo cadastrado, mas a quantidade inicial não foi registrada. Use “Conferir quantidade”.', 'erro');
-        setF(VAZIO_NOVO);
-        aoCriar(criado);
+        avisar(`${nomeFeito} cadastrado, mas a quantidade inicial não foi registrada. Abra o insumo e use “Conferir quantidade”.`, 'erro');
+        proximo(criado, nomeFeito, true);
       } else setErro(x instanceof ErroApi ? x : new ErroApi('servidor', 'Não foi possível cadastrar.'));
     } finally {
       setEnviando(false);
@@ -358,24 +367,22 @@ export function NovoInsumo({ aberto, aoFechar, aoCriar }: { aberto: boolean; aoF
   }
   // 409 nome_ja_existe traz o id do insumo que já existe em dados.insumo_id.
   const existente = erro?.codigo === 'nome_ja_existe' && typeof erro.dados?.insumo_id === 'string' ? erro.dados.insumo_id : null;
-  const comInicial = !!f.inicial.trim();
   return (
     <Gaveta
       aberta={aberto}
       aoFechar={aoFechar}
-      titulo="Novo insumo"
-      rodape={<><Botao onClick={aoFechar}>Cancelar</Botao><Botao variante="primario" type="submit" form="form-novo-insumo" carregando={enviando}>{comInicial ? 'Cadastrar com a quantidade' : 'Cadastrar'}</Botao></>}
+      titulo={preparo ? 'Novo preparo da casa' : 'Novo insumo'}
+      rodape={<><Botao onClick={aoFechar}>{feitos.length ? 'Concluir' : 'Cancelar'}</Botao><Botao variante="primario" type="submit" form="form-novo-insumo" carregando={enviando}>Cadastrar</Botao></>}
     >
       <form id="form-novo-insumo" class="pilha" onSubmit={criar} noValidate>
         {erro && (
           <Aviso tom="perigo" icone={<Info aria-hidden="true" />}>
             {erro.message}
-            {existente && <div style={{ marginTop: '6px' }}><Botao tamanho="p" onClick={() => aoCriar(existente)}>Abrir o insumo existente</Botao></div>}
+            {existente && <div style={{ marginTop: '6px' }}><Botao tamanho="p" onClick={() => aoAbrir(existente)}>Abrir o insumo existente</Botao></div>}
           </Aviso>
         )}
         <div class="grade-campos">
-          <Campo rotulo="Nome" class="inteiro">{(id) => <input id={id} class="entrada" maxLength={120} value={f.nome} placeholder="Ex.: Leite integral" onInput={(e) => setF({ ...f, nome: e.currentTarget.value })} data-autofoco />}</Campo>
-          <Campo rotulo="Categoria" opcional>{(id) => <input id={id} class="entrada" maxLength={60} list="categorias-insumo" value={f.categoria} placeholder="Ex.: Laticínios" onInput={(e) => setF({ ...f, categoria: e.currentTarget.value })} />}</Campo>
+          <Campo rotulo="Nome" class="inteiro" erro={erro?.campos.nome}>{(id) => <input id={id} ref={nome} class="entrada" maxLength={120} value={f.nome} placeholder={preparo ? 'Ex.: Molho da casa' : 'Ex.: Leite integral'} onInput={(e) => setF({ ...f, nome: e.currentTarget.value })} data-autofoco />}</Campo>
           <Campo rotulo="Unidade" ajuda="Compras em caixa ou pacote são convertidas na conferência.">
             {(id, d) => (
               <select id={id} class="selecao" aria-describedby={d} value={f.unidade} onChange={(e) => setF({ ...f, unidade: e.currentTarget.value as UnidadeCadastro })}>
@@ -384,34 +391,28 @@ export function NovoInsumo({ aberto, aoFechar, aoCriar }: { aberto: boolean; aoF
             )}
           </Campo>
           <Campo rotulo={`Quantidade inicial (${u.valor})`} opcional ajuda="O que há agora na prateleira. Vira a primeira conferência.">{(id, d) => <input id={id} class="entrada num" inputMode="decimal" aria-describedby={d} value={f.inicial} onInput={(e) => setF({ ...f, inicial: e.currentTarget.value })} />}</Campo>
-          <Campo rotulo={`Estoque mínimo (${u.valor})`} opcional ajuda="Abaixo disso, aparece como baixo.">{(id, d) => <input id={id} class="entrada num" inputMode="decimal" aria-describedby={d} value={f.minimo} onInput={(e) => setF({ ...f, minimo: e.currentTarget.value })} />}</Campo>
+          <Campo rotulo={`Estoque mínimo (${u.valor})`} ajuda={AJUDA_MINIMO} erro={erro?.campos.estoque_minimo}>{(id, d) => <input id={id} class="entrada num" inputMode="decimal" aria-describedby={d} aria-required="true" value={f.minimo} onInput={(e) => setF({ ...f, minimo: e.currentTarget.value })} />}</Campo>
           <CampoIdeal ativo={comIdeal} rotuloU={u.valor} valor={f.ideal} aoMudar={(v) => setF({ ...f, ideal: v })} />
         </div>
-        <p class="fraco">O preço médio vem das compras conferidas em Compras.</p>
-        <details class="mais-opcoes">
-          <summary>Mais opções</summary>
-          <div class="grade-campos">
-            <Campo rotulo="Tipo">
-              {(id) => (
-                <select id={id} class="selecao" value={f.tipo} onChange={(e) => setF({ ...f, tipo: e.currentTarget.value as 'comprado' | 'preparo' })}>
-                  <option value="comprado">Comprado pronto</option>
-                  <option value="preparo">Preparo da casa (tem ficha técnica)</option>
-                </select>
-              )}
-            </Campo>
-            {f.tipo === 'preparo' && (
-              <Campo rotulo="Controle do preparo" ajuda="Sai a cada venda (padrão) ou em lote, quando a produção é registrada.">
-                {(id, d) => (
-                  <select id={id} class="selecao" aria-describedby={d} value={f.controle} onChange={(e) => setF({ ...f, controle: e.currentTarget.value as 'explodir' | 'lote' })}>
-                    <option value="explodir">{CONTROLE.explodir}</option>
-                    <option value="lote">{CONTROLE.lote}</option>
-                  </select>
-                )}
-              </Campo>
-            )}
-          </div>
-        </details>
-        <ListaCategorias />
+        <p class="fraco">
+          {preparo ? <>Preparo da casa: depois de cadastrar, abra o insumo e use “Ficha do preparo” para dizer o que leva. </> : <>O preço médio vem das compras conferidas em Compras. </>}
+          <button type="button" class="link" onClick={() => setF({ ...f, tipo: preparo ? 'comprado' : 'preparo' })}>{preparo ? 'Voltar para insumo comprado' : 'É um preparo feito aqui (molho, massa, calda)?'}</button>
+        </p>
+        {feitos.length > 0 && (
+          <section class="pilha pilha--p" aria-label="Cadastrados agora" aria-live="polite">
+            <h3 class="secao-titulo">Cadastrados agora ({feitos.length})</h3>
+            <ul class="lista" style={{ border: '1px solid var(--borda)', borderRadius: '12px' }}>
+              {feitos.map((x) => (
+                <li key={x.id}>
+                  <button type="button" class="lista__item lista__item--botao" onClick={() => aoAbrir(x.id)}>
+                    <span class="lista__texto"><strong>{x.nome}</strong>{x.aviso && <span class="fraco">quantidade inicial não registrada</span>}</span>
+                    <span class="lista__fim fraco">Abrir</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
       </form>
     </Gaveta>
   );

@@ -43,6 +43,10 @@
   --grafico-2: #c98a45;
   --grafico-3: #8f857c;
   --grafico-grade: #ece7e1;
+  /* Finanças: receita sempre verde, despesa sempre vermelha (tons sóbrios; o verde mais escuro que o vermelho ajuda quem
+     não distingue as duas cores, e legenda e dica dizem o nome da série). Barras ≥ 3:1 sobre o branco. */
+  --receita: #2f6b46;
+  --despesa: #c0473b;
 
   --sombra-1: 0 1px 2px rgba(36, 21, 15, 0.06);
   --sombra-2: 0 1px 2px rgba(36, 21, 15, 0.05), 0 4px 12px rgba(36, 21, 15, 0.06);
@@ -90,6 +94,8 @@
   --grafico-2: #c97a8e;
   --grafico-3: #7a6f68;
   --grafico-grade: #2c2522;
+  --receita: #86c79a;
+  --despesa: #e07b6f;
 
   --sombra-1: 0 1px 2px rgba(0, 0, 0, 0.4);
   --sombra-2: 0 1px 2px rgba(0, 0, 0, 0.35), 0 4px 12px rgba(0, 0, 0, 0.3);

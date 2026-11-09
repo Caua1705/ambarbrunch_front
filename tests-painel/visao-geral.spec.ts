@@ -38,6 +38,46 @@ test('receita, despesas e ticket médio são os totais do backend no período', 
   await expect(page.getByRole('heading', { name: 'Receitas × despesas' })).toBeVisible();
 });
 
+test('receitas × despesas: receita verde e despesa vermelha nas barras, na legenda e na dica; o vinho fica na marca', async ({ page }) => {
+  await page.goto(`${DEMO}/admin`);
+  const cartao = page.locator('.cartao', { has: page.getByRole('heading', { name: 'Receitas × despesas' }) });
+  const grafico = cartao.locator('.grafico svg');
+  await expect(grafico).toBeVisible();
+  const VERDE = 'rgb(47, 107, 70)';
+  const VERMELHO = 'rgb(192, 71, 59)';
+  // legenda: nome + cor (não depende só da cor)
+  await expect(cartao.locator('.legenda')).toContainText('Receita');
+  await expect(cartao.locator('.legenda')).toContainText('Despesas');
+  expect(await cartao.locator('.legenda i').nth(0).evaluate((e) => getComputedStyle(e).backgroundColor)).toBe(VERDE);
+  expect(await cartao.locator('.legenda i').nth(1).evaluate((e) => getComputedStyle(e).backgroundColor)).toBe(VERMELHO);
+  // barras: só as duas cores das séries
+  const fills = await grafico.locator('rect[rx]').evaluateAll((rs) => [...new Set(rs.map((r) => getComputedStyle(r).fill))]);
+  expect(fills.length).toBeGreaterThan(0);
+  for (const f of fills) expect([VERDE, VERMELHO]).toContain(f);
+  // dica ao passar o mouse: amostra da cor ao lado do nome de cada série
+  const caixa = (await grafico.boundingBox())!;
+  await page.mouse.move(caixa.x + caixa.width * 0.9, caixa.y + caixa.height * 0.5);
+  const dica = cartao.locator('.grafico__dica');
+  await expect(dica).toBeVisible();
+  await expect(dica.locator('.grafico__dica-serie')).toHaveText(['Receita', 'Despesas']);
+  expect(await dica.locator('.grafico__dica-serie i').nth(0).evaluate((e) => getComputedStyle(e).backgroundColor)).toBe(VERDE);
+  expect(await dica.locator('.grafico__dica-serie i').nth(1).evaluate((e) => getComputedStyle(e).backgroundColor)).toBe(VERMELHO);
+  // a marca continua vinho
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--marca').trim())).toBe('#670d27');
+});
+
+test('receitas × despesas sem vendas sincronizadas: nenhuma barra verde (receita indisponível não vira zero)', async ({ page }) => {
+  await semLoja(page);
+  await page.goto(`${DEMO}/admin`);
+  const cartao = page.locator('.cartao', { has: page.getByRole('heading', { name: 'Receitas × despesas' }) });
+  await expect(cartao.getByText(/Receita indisponível/)).toBeVisible();
+  const fills = await cartao.locator('.grafico svg rect[rx]').evaluateAll((rs) => rs.map((r) => getComputedStyle(r).fill));
+  expect(fills).not.toContain('rgb(47, 107, 70)');
+  const caixa = (await cartao.locator('.grafico svg').boundingBox())!;
+  await page.mouse.move(caixa.x + caixa.width * 0.9, caixa.y + caixa.height * 0.5);
+  await expect(cartao.locator('.grafico__dica')).toContainText('—');
+});
+
 test('o filtro de período muda o intervalo pedido ao backend', async ({ page }) => {
   await page.goto(`${DEMO}/admin`);
   await expect(kpi(page, 'Receita').locator('.indicador__valor')).not.toHaveText('—');

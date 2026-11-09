@@ -1891,13 +1891,22 @@ button.lista__item {
   align-items: center;
   gap: 6px;
 }
-.legenda i {
-  width: 12px;
-  height: 3px;
-  border-radius: 2px;
+.legenda i,
+.grafico__dica-serie i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
   background: var(--c);
+  flex: none;
+}
+.grafico__dica-serie {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 .legenda i.tracejado {
+  width: 12px;
+  height: 3px;
   background: repeating-linear-gradient(90deg, var(--c) 0 4px, transparent 4px 7px);
 }
 .barra-progresso {
