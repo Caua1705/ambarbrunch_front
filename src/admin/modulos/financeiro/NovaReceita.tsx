@@ -4,7 +4,7 @@
 // PATCH /admin/financeiro/outras-receitas/{id}. Valor igual a uma venda do PDV no mesmo dia, ou a uma receita já
 // lançada, volta 409 (possivel_venda_pdv / receita_parecida): a tela mostra o aviso e só grava se a pessoa confirmar
 // que é outro dinheiro. Empréstimo, aporte e transferência ficam registrados, mas fora do faturamento.
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { Check, Info, AlertTriangle } from 'lucide-preact';
 import { financeiro } from '../../lib/api/financeiro';
 import { ErroApi, novaChave } from '../../lib/api/cliente';
@@ -36,7 +36,8 @@ export function NovaReceita({ aberta, aoFechar, editar }: { aberta: boolean; aoF
   const [erros, setErros] = useState<Record<string, string>>({});
   const chave = useRef(novaChave());
 
-  useEffect(() => {
+  // Antes de a gaveta aparecer (layout effect): com useEffect, o que se digitasse logo ao abrir era apagado em seguida.
+  useLayoutEffect(() => {
     if (!aberta) return;
     const r = editar;
     setDescricao(r?.descricao ?? '');

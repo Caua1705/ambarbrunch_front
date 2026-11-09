@@ -36,6 +36,9 @@ export function ItemConferencia({ compraId, it, editavel, aoMudar }: { compraId:
   const [fator, setFator] = useState('');
   const s = it.sugestao;
   const fora = it.situacao === 'nao_estoque' || it.situacao === 'ignorado';
+  // 0028 manda `resolvido_por` (null = ninguém registrado): item "confirmado" do legado, sem pessoa, bloqueia a compra
+  // (item_N_sem_confirmacao_humana) até alguém confirmar de novo. O backend anterior não manda o campo (undefined).
+  const semPessoa = it.situacao === 'confirmado' && it.resolvido_por === null;
   const escolhido: InsumoEscolhido | null = s?.insumo_id && s.insumo && s.unidade_base && !fora ? { id: s.insumo_id, nome: s.insumo, unidade_base: s.unidade_base } : null;
 
   async function resolver(r: Omit<ResolucaoItem, 'versao'>, ok?: string) {
@@ -101,6 +104,7 @@ export function ItemConferencia({ compraId, it, editavel, aoMudar }: { compraId:
         )}
         {escolhido && !s?.fator && it.situacao === 'pendente' && <span class="item-lido__conv item-lido__conv--falta">Falta a conversão</span>}
         {it.situacao === 'sugerido' && s?.confianca && <span class="item-lido__conv">Sugestão da leitura ({CONFIANCA[s.confianca]}): confirme</span>}
+        {semPessoa && <span class="item-lido__conv">Sem confirmação registrada: confirme de novo</span>}
         {opcoesMotor.length > 0 && (
           <span class="item-lido__candidatos" role="group" aria-label={`Correspondências para ${it.descricao}`} data-teste="candidatos">
             <span class="item-lido__conv">{escolhido ? 'Ou é:' : 'Pode ser:'}</span>
@@ -130,9 +134,9 @@ export function ItemConferencia({ compraId, it, editavel, aoMudar }: { compraId:
       <div class="itens-tabela__celula"><span class="itens-tabela__rotulo">Valor unitário</span><span class="num">{it.valor_unitario ? moeda(it.valor_unitario) : '—'}</span></div>
       <div class="itens-tabela__celula"><span class="itens-tabela__rotulo">Subtotal</span><span class="num">{moeda(it.valor_liquido)}</span></div>
       <div class="item-lido__acoes">
-        {it.situacao === 'confirmado' && <span class="item-lido__ok" title="Conferido"><Check aria-hidden="true" /><span class="sr">Conferido</span></span>}
+        {it.situacao === 'confirmado' && !semPessoa && <span class="item-lido__ok" title="Conferido"><Check aria-hidden="true" /><span class="sr">Conferido</span></span>}
         {/* Sugestão da leitura, ou item já com insumo e conversão que ainda espera alguém dizer que é ele. */}
-        {editavel && (it.situacao === 'sugerido' || (it.situacao === 'pendente' && !!s?.fator)) && escolhido && (
+        {editavel && (it.situacao === 'sugerido' || semPessoa || (it.situacao === 'pendente' && !!s?.fator)) && escolhido && (
           <Botao tamanho="p" variante="primario" icone={<Check aria-hidden="true" />} carregando={ocupado} aria-label={`Confirmar ${escolhido.nome} para ${it.descricao}`} onClick={() => resolver({ insumo_id: escolhido.id }, `Confirmado: ${escolhido.nome}.`)}>
             Confirmar
           </Botao>

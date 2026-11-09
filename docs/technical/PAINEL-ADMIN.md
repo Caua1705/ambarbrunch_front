@@ -507,19 +507,30 @@ anterior com o backend publicado antes da 0028 (testado com o backend simulado s
 | Estoque ideal | `estoque_ideal` em POST/PATCH/listagem/detalhe; `falta_para_ideal` | Campo no cadastro e na edição (apagar manda `null`, que limpa); detalhe com "Estoque ideal" e "Falta para o ideal" (só quando o backend calcula — com a baixa desligada vem null) | Campo desligado: "Ainda não é salvo pelo sistema" |
 | Quantidade e custo inicial | `quantidade_inicial`, `custo_unitario_inicial` no POST (abertura na mesma transação, com `Idempotency-Key`); `custo_unitario` no POST /ajustes só na abertura | "Custo unitário inicial (R$/kg)" no cadastro; "Custo unitário" na correção de inventário quando é a 1ª contagem e não há custo de compras. Histórico: "Custo inicial informado". Não vira despesa | Sem campo de custo; a quantidade vira um POST /ajustes logo depois (resposta sem `abertura`) |
 | Parecidos | GET /insumos/semelhantes; `semelhantes` na resposta do POST | Aviso discreto no cadastro ("Parecido com o que já existe"), nunca bloqueio | — |
-| Combobox | GET /insumos/opcoes (acha também pelo texto de nota já confirmado: "pelo texto da nota") | SeletorInsumo | 404 de rota → listagem de insumos (como antes) |
+| Combobox | GET /insumos/opcoes (acha também pelo texto de nota já confirmado: "pelo texto da nota") | SeletorInsumo | Rota ausente → listagem de insumos (como antes). No backend de produção (main 4dd7e2e) `/insumos/opcoes` e `/insumos/semelhantes` caem em `/insumos/{insumo_id}` e voltam **422 do caminho**, não 404: o cliente da API trata 422 só de caminho com uma palavra no lugar do id como rota inexistente |
 | Correspondência | GET /compras/{id}/itens/{item}/candidatos | Item lido pendente: "Pode ser:" com até 3 candidatos (status, %); escolher = PATCH do item com o `insumo_id` (e o fator do alias, se houver) | Sem candidatos; o seletor continua |
 | Produtos sem venda | GET /fichas?incluir_sem_venda=true | Fichas técnicas mostra o cardápio da loja: "Sem venda em 30 dias · no cardápio da loja". Custos e CMV continua só com os vendidos | O parâmetro é ignorado |
 | Vínculo com o catálogo | GET /vinculos-cardapio; PUT /fichas/produto/{id}/catalogo | Gaveta da ficha: sugestões por nome como botões "confirme" (nunca aplicadas), escolha no cardápio do site por categoria, Trocar/Desfazer; a foto da miniatura aparece pelo id. 409 `catalogo_ja_vinculado`/422 mostrados | Linha discreta, sem seleção |
-| Confirmação humana | `pendencias` com `item_N_sugestao_nao_confirmada` e `item_N_sem_confirmacao_humana`; 409 `pendencias`; PATCH sem `insumo_id` → 422 `insumo_nao_informado` | O botão "Confirmar" de cada item manda o `insumo_id`; o rodapé não repete a pendência; a API recusa a confirmação forçada (testado) | Só o painel bloqueava |
+| Confirmação humana | `pendencias` com `item_N_sugestao_nao_confirmada` e `item_N_sem_confirmacao_humana`; 409 `pendencias`; PATCH sem `insumo_id` → 422 `insumo_nao_informado` | O botão "Confirmar" de cada item manda o `insumo_id`; o rodapé não repete a pendência; a API recusa a confirmação forçada (testado). Item "confirmado" do legado sem `resolvido_por` (null) não aparece como conferido: "Sem confirmação registrada: confirme de novo" + "Confirmar" | Só o painel bloqueava |
 
 Rotas conferidas uma a uma contra as fichas do contrato (38 chamadas do Estoque, nenhuma inexistente).
 
-Testes: demonstração 22 (Estoque + Compras, com o backend simulado no formato da 0028 e um teste do backend anterior),
-responsivo (Chromium e WebKit, inclusive as gavetas a 375 px), permissões/segurança/Visão Geral 35, Financeiro 30,
-Operação/Unidade 28 (+1 intermitente já conhecido, 3/3 isolado). Integração real (`tests-painel-real/estoque.spec.ts`,
-base isolada no Postgres `ambar-pg-estoque`, backend cd06c84): 12/12. `financeiro-estoque.spec.ts` (B3) não rodou: exige
-o seed de cenários do Financeiro.
+Validação final (09/11/2026, antes da publicação): demonstração Estoque + Compras 23 (Chromium e WebKit desktop),
+Financeiro 30, permissões/segurança/Visão Geral 35, responsivo (Chromium + WebKit celular), Operação/Unidade 29,
+Atendimento/Reservas 68. Integração real em base isolada (Postgres `ambar-pg-estoque`): `estoque.spec.ts` 12/12 contra o
+backend 0028 (cd06c84) e 10/12 contra o backend de PRODUÇÃO (main 4dd7e2e) — os 2 que faltam são os testes do contrato
+0028 (campo de custo inicial e /opcoes), que não existem sem ela, como deve ser; `financeiro-estoque.spec.ts`: B3, Pix
+com divergência e Sem categoria 3/3 com um seed próprio (fora do repositório); B1, B2 e B5 não rodaram (pedem documentos
+lidos pela Júlia e vendas da Eyemobile).
+
+Defeitos corrigidos nessa validação: (1) o 422 de `/opcoes` no backend de produção deixava o seletor em "Não foi
+possível carregar os insumos" — publicar o front antes da 0028 teria quebrado o seletor; (2) item legado confirmado sem
+pessoa ficava sem como ser confirmado de novo; (3) gavetas Novo insumo, Novo fornecedor e Outra receita limpavam o
+formulário num `useEffect` depois de aparecer, apagando o que se digitasse no primeiro instante (agora
+`useLayoutEffect`; outras gavetas têm o mesmo padrão e ficaram como estavam); (4) o endereço antigo
+`?aba=relatorios&relatorio=fornecedores` montava Relatórios antes de redirecionar, e a navegação cancelava 3 consultas —
+era a falha intermitente do WebKit ("Fetch API cannot load … due to access control checks": no WebKit, o Playwright
+transforma esse erro de console em `pageerror`; consultas canceladas com o erro tratado não geram exceção).
 
 Testes do refinamento: `tests-painel/estoque.spec.ts` (15, incluindo ajuste com entrada identificada, nota lida com
 sugestões confirmadas uma a uma, estados do seletor e o ponta a ponta cadastrar → comprar com cadastro rápido → conferir →

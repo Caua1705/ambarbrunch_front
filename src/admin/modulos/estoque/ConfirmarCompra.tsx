@@ -100,7 +100,7 @@ export function ConfirmarCompra({ c, perm, form, aoConfirmar, aoEnviando, aoAbri
       if (er.codigo === 'despesa_ja_registrada' && fortes[0]) setEscolha(`vincular:${fortes[0].despesa_id}`);
       // O pagamento espera a conferência: nada de conta nova; volta para a vinculável (se houver) e recarrega as candidatas.
       if (er.codigo === 'pagamento_aguarda_conferencia') setEscolha(vinculaveis[0] ? `vincular:${vinculaveis[0].despesa_id}` : 'bloqueada');
-      if (er.codigo && ['conflito_versao', 'pendencias', 'total_diverge_do_financeiro', 'pagamento_aguarda_conferencia'].includes(er.codigo)) atualizarEstoque();
+      if (er.codigo && ['conflito_versao', 'pendencias', 'itens_sem_confirmacao_humana', 'total_diverge_do_financeiro', 'pagamento_aguarda_conferencia'].includes(er.codigo)) atualizarEstoque();
     } finally {
       enviandoRef.current = false;
       aoEnviando(false);

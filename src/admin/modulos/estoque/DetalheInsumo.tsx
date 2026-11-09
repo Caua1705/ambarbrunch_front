@@ -2,7 +2,7 @@
 // o histórico do livro (com o nome de quem registrou, nunca o id) e duas ações — Ajustar estoque (entrada, perda ou
 // correção de inventário, em Movimento.tsx) e Editar cadastro. Cadastro (novo, rápido, editar) também mora aqui. Nada é
 // calculado: tudo vem do backend; o painel só converte kg/L para a unidade-base.
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { Pencil, Info, ChefHat, SlidersHorizontal } from 'lucide-preact';
 import { useConsulta } from '../../lib/consulta';
 import { estoque } from '../../lib/api/estoque';
@@ -321,7 +321,8 @@ export function NovoInsumo({ aberto, aoFechar, aoAbrir, rapido }: { aberto: bool
   // Backend 0028: ideal, quantidade e custo inicial gravados no próprio cadastro (uma transação só).
   const novo = useEstoque0028(aberto) === true;
   const comIdeal = novo;
-  useEffect(() => {
+  // Antes de a gaveta aparecer (layout effect): com useEffect, o que se digitasse logo ao abrir era apagado em seguida.
+  useLayoutEffect(() => {
     if (aberto) {
       setErro(null);
       setFeitos([]);

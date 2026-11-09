@@ -90,6 +90,12 @@ export async function pedir<T>(caminho: string, p: Pedido = {}): Promise<T> {
   throw await converterErro(res);
 }
 
+/** 422 de validação só do caminho, com uma palavra (não um id) no lugar do parâmetro: a rota pedida não existe ali. */
+function rotaInexistente(detail: unknown): boolean {
+  if (!Array.isArray(detail) || !detail.length) return false;
+  return (detail as { loc?: unknown[]; input?: unknown }[]).every((d) => d.loc?.[0] === 'path' && typeof d.input === 'string' && /^[a-z][a-z_-]*$/.test(d.input));
+}
+
 export async function converterErro(res: Response): Promise<ErroApi> {
   const corpo = (await res.json().catch(() => ({}))) as { detail?: unknown; codigo?: string; dados?: Record<string, unknown> };
   const codigo = corpo.codigo ?? null;
@@ -116,6 +122,9 @@ export async function converterErro(res: Response): Promise<ErroApi> {
     const msg = codigo === 'conflito_versao' ? 'Alguém alterou isto enquanto você editava. Os dados foram recarregados: confira e tente de novo.' : detalhe ?? 'Esta ação conflita com o estado atual. Recarregue e confira.';
     return new ErroApi('conflito', msg, s, codigo, {}, corpo.dados ?? null);
   }
+  // Rota nova num backend antigo que tem uma rota com parâmetro no mesmo lugar (ex.: GET /insumos/opcoes cai em
+  // /insumos/{insumo_id}): o 422 é do PRÓPRIO endereço — uma palavra onde se esperava um id —, não dos dados enviados.
+  if (s === 422 && !codigo && rotaInexistente(corpo.detail)) return new ErroApi('nao_implantado', 'Este recurso ainda não está disponível no sistema do Âmbar.', 404, null);
   if (s === 422 || s === 400) return new ErroApi('validacao', detalhe ?? (Object.keys(campos).length ? 'Confira os campos destacados.' : 'Dados inválidos.'), s, codigo, campos, corpo.dados ?? null);
   if (s === 429) return new ErroApi('limite', 'Muitas tentativas em pouco tempo. Aguarde um instante e tente de novo.', s, codigo);
   if (s === 413) return new ErroApi('arquivo', 'O arquivo é grande demais.', s, codigo);

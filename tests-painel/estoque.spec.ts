@@ -143,7 +143,11 @@ test('backend anterior (sem 0028): ideal desligado e identificado, quantidade in
     const l = await (await r.fetch()).json();
     await r.fulfill({ json: { ...l, itens: l.itens.map(({ estoque_ideal: _i, falta_para_ideal: _f, ...x }: Record<string, unknown>) => (void _i, void _f, x)) } });
   });
-  await page.route('**/admin/api/estoque/insumos/opcoes*', (r) => r.fulfill({ status: 404, json: { detail: 'Not Found' } }));
+  // Como o backend de produção responde de fato (conferido em 09/11 contra o main 4dd7e2e): /insumos/opcoes e
+  // /insumos/semelhantes caem em /insumos/{insumo_id} e voltam 422 do caminho, não 404.
+  const doCaminho = (palavra: string) => ({ status: 422, json: { detail: [{ type: 'uuid_parsing', loc: ['path', 'insumo_id'], msg: 'Input should be a valid UUID', input: palavra }] } });
+  await page.route('**/admin/api/estoque/insumos/opcoes*', (r) => r.fulfill(doCaminho('opcoes')));
+  await page.route('**/admin/api/estoque/insumos/semelhantes*', (r) => r.fulfill(doCaminho('semelhantes')));
   await page.route('**/admin/api/estoque/insumos', async (r) => {
     if (r.request().method() !== 'POST') return r.fallback();
     const corpo = r.request().postDataJSON();
@@ -575,6 +579,30 @@ test('correspondência (0028): candidatos do motor aparecem no item lido como op
   await candidatos.getByRole('button', { name: /Detergente neutro/ }).click();
   expect((await patch).postDataJSON()).toMatchObject({ insumo_id: (await criar.json()).id });
   await expect(itens.locator('.item-lido', { hasText: 'DETERGENTE NEUTRO 500ML' })).toHaveAttribute('data-situacao', 'confirmado');
+});
+
+test('item "confirmado" do legado sem pessoa registrada (0028): não aparece como conferido e pode ser confirmado de novo', async ({ page }) => {
+  // O backend 0028 manda `resolvido_por: null` e a pendência item_N_sem_confirmacao_humana (bloqueia a compra).
+  const ID = 'e2000000-0000-4000-8000-000000000002';
+  await page.route((u) => u.pathname.endsWith(`/estoque/compras/${ID}`), async (r) => {
+    if (r.request().method() !== 'GET') return r.fallback();
+    const res = await r.fetch();
+    const c = await res.json();
+    const it = c.itens.find((i: { ordem: number }) => i.ordem === 1);
+    Object.assign(it, { situacao: 'confirmado', aguarda_confirmacao: false, resolvido_por: null, resolvido_em: null });
+    c.pendencias = [...c.pendencias.filter((p: string) => !p.startsWith('item_1_')), 'item_1_sem_confirmacao_humana'];
+    c.pode_confirmar = false;
+    await r.fulfill({ response: res, json: c });
+  });
+  await page.goto(`${DEMO}/admin/estoque?aba=compras&compra=${ID}`);
+  const item = page.getByRole('list', { name: 'Itens lidos' }).locator('.item-lido', { hasText: 'OVOS BRANCOS' });
+  await expect(item).toContainText('Sem confirmação registrada: confirme de novo');
+  await expect(item.getByText('Conferido')).toHaveCount(0);
+  // O rodapé resume só as duas primeiras pendências; a do item aparece na própria linha (acima), e a compra não segue.
+  await expect(page.getByRole('button', { name: 'Continuar' })).toBeDisabled();
+  const patch = page.waitForRequest((r) => r.method() === 'PATCH' && r.url().includes('/itens/'));
+  await item.getByRole('button', { name: /^Confirmar Ovos/ }).click();
+  expect((await patch).postDataJSON()).toMatchObject({ insumo_id: expect.any(String) });
 });
 
 test('ponta a ponta: cadastrar insumo, escolhê-lo numa compra (e cadastrar outro pelo seletor), conferir e usar numa ficha', async ({ page }) => {

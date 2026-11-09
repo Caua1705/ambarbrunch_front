@@ -138,7 +138,7 @@ test('Pix com divergência: R$ 85 contra um Pix de R$ 90 não confirma (409); re
   await gaveta.getByRole('textbox', { name: 'Quantidade', exact: true }).first().fill('10');
   await gaveta.getByRole('combobox', { name: 'Unidade', exact: true }).first().selectOption('L');
   await gaveta.getByRole('textbox', { name: 'Valor unitário', exact: true }).first().fill('8,50');
-  await expect(gaveta.locator('[data-teste="soma-produtos"]')).toContainText('diferença de R$ 5,00');
+  await expect(gaveta.locator('[data-teste="soma-produtos"]')).toContainText('R$ 5,00 a menos');
   await gaveta.getByRole('button', { name: 'Salvar itens' }).click();
   await expect(gaveta.getByText(/Os itens não batem com o Financeiro./)).toBeVisible();
   // A gerência pode seguir, mas só confirma justificando a diferença (02/11); sem motivo, nada é enviado.
@@ -154,7 +154,7 @@ test('Pix com divergência: R$ 85 contra um Pix de R$ 90 não confirma (409); re
   const recusa = await page.request.post(`${API}/estoque/compras/${atual}/confirmar`, { headers: escrever, data: { versao: detalhe.versao } });
   expect(recusa.status()).toBe(409);
 
-  await gaveta.getByRole('button', { name: 'Corrigir os produtos ou enviar a nota' }).click();
+  await gaveta.getByRole('button', { name: 'Corrigir itens ou enviar a nota' }).click();
   await gaveta.getByRole('textbox', { name: 'Valor unitário', exact: true }).first().fill('9,00');
   await expect(gaveta.locator('[data-teste="soma-produtos"]')).toContainText('Confere');
   await gaveta.getByRole('button', { name: 'Salvar itens' }).click();

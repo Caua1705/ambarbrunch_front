@@ -4,7 +4,7 @@
 // despesas desta unidade e o que falta pagar.
 // `EscolherFornecedor` é o campo dos formulários: busca no cadastro e envia `{ id }`; só cadastra um nome novo quando a
 // pessoa escolhe "Cadastrar …", para não criar o mesmo fornecedor duas vezes com grafias diferentes.
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useState } from 'preact/hooks';
 import { Plus, Search, Truck } from 'lucide-preact';
 import { useConsulta, invalidar } from '../../lib/consulta';
 import { financeiro } from '../../lib/api/financeiro';
@@ -193,7 +193,8 @@ function NovoFornecedor({ aberta, aoFechar, aoCriar }: { aberta: boolean; aoFech
   const [doc, setDoc] = useState('');
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<ErroApi | null>(null);
-  useEffect(() => {
+  // Antes de a gaveta aparecer (layout effect): com useEffect, o que se digitasse logo ao abrir era apagado em seguida.
+  useLayoutEffect(() => {
     if (!aberta) return;
     setNome('');
     setDoc('');

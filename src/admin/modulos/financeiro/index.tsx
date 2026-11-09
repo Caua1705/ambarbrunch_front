@@ -24,6 +24,12 @@ const ABAS: Aba[] = ['movimentacoes', 'pendencias', 'relatorios'];
 /** Cadastro que saiu do Financeiro: o endereço antigo leva à seção de Configurações que o mostra agora. */
 const CADASTROS = ['categorias', 'fornecedores'];
 export const hrefCadastro = (c: string) => `/admin/configuracoes?secao=financeiro&cadastro=${c}`;
+/** Endereço antigo de um cadastro (antes em Relatórios e cadastros, hoje em Configurações), ou null. */
+function cadastroAntigo(): string | null {
+  const a = lerParam('aba');
+  const relatorio = lerParam('relatorio');
+  return a === 'categorias' ? 'categorias' : a === 'relatorios' && relatorio && CADASTROS.includes(relatorio) ? relatorio : null;
+}
 
 /**
  * Aba da URL, aceitando os endereços antigos (links salvos, sino, Estoque, a Visão Geral e o backend ainda mandam
@@ -35,13 +41,6 @@ function abaDaUrl(): Aba {
   const mudar = (extras: Record<string, string | null>) => gravarParams(extras);
   const vista = lerParam('vista');
   const relatorio = lerParam('relatorio');
-
-  // Cadastros (antes em Relatórios e cadastros): vão para Configurações.
-  const cadastro = a === 'categorias' ? 'categorias' : a === 'relatorios' && relatorio && CADASTROS.includes(relatorio) ? relatorio : null;
-  if (cadastro) {
-    location.replace(hrefCadastro(cadastro));
-    return 'relatorios';
-  }
 
   if (a === null || a === 'resumo') return 'movimentacoes';
   if (a === 'lancamentos') {
@@ -91,7 +90,13 @@ export default function Financeiro({ contexto }: { contexto: ContextoPainel }) {
   // A aba e os filtros vêm da URL, que o servidor não repassa à ilha: o conteúdo só é desenhado no navegador, depois da
   // hidratação (senão o HTML do servidor divergiria do da página aberta em ?aba=pendencias).
   const [pronto, setPronto] = useState(false);
-  useEffect(() => setPronto(true), []);
+  useEffect(() => {
+    // Endereço antigo de cadastro: vai direto para Configurações, sem montar uma aba cujas consultas a troca de página
+    // cancelaria (o WebKit registra esse cancelamento como erro no console).
+    const cadastro = cadastroAntigo();
+    if (cadastro) location.replace(hrefCadastro(cadastro));
+    else setPronto(true);
+  }, []);
   return pronto ? <Conteudo contexto={contexto} /> : <Raiz><Esqueleto linhas={6} altura={32} /></Raiz>;
 }
 
