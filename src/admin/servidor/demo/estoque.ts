@@ -342,7 +342,11 @@ function itensManuais(lista: { descricao: string; quantidade: string | number; u
     const ins = x.insumo_id ? acharInsumo(x.insumo_id) : insumos.find((i) => i.tipo === 'comprado' && i.nome.toLowerCase().split(' ')[0] && nome.toLowerCase().includes(i.nome.toLowerCase().split(' ')[0]));
     const un = String(x.unidade ?? 'UN').toUpperCase();
     const fator = ins ? (un === 'KG' && ins.unidade_base === 'g' ? 1000 : un === 'L' && ins.unidade_base === 'ml' ? 1000 : un === 'G' || un === 'ML' ? 1 : un === 'UN' && ins.unidade_base === 'un' ? 1 : undefined) : undefined;
-    return item(k + 1, nome.toUpperCase(), Number(x.quantidade), un, Number(x.valor_total), ins ? { nome: ins.nome, confianca: fator ? 'alta' : 'media', fator, motivo: 'nome_parecido' } : {});
+    const linha = item(k + 1, nome.toUpperCase(), Number(x.quantidade), un, Number(x.valor_total), ins ? { nome: ins.nome, confianca: fator ? 'alta' : 'media', fator, motivo: x.insumo_id ? 'confirmado_pela_equipe' : 'nome_parecido' } : {});
+    // Insumo escolhido no seletor do painel: a linha nasce conferida pela pessoa (compras._associar_escolhidos); sem
+    // conversão automática, fica pendente só da conversão. Sem escolha, é só uma sugestão pelo nome.
+    if (x.insumo_id && fator) linha.situacao = 'confirmado';
+    return linha;
   });
 }
 type PreenchimentoDemo = { emitida_em: string; valor_total: string; desconto?: string; fornecedor_nome?: string | null; itens: { descricao: string; quantidade: string; unidade: string; valor_total: string; insumo_id?: string | null }[] };

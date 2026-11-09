@@ -153,7 +153,7 @@ valor indisponível vira "R$ 0,00".
 | Visão Geral | `financeiro/relatorios/vendas` (receita, ticket médio, por meio), `financeiro/relatorios/despesas-por-categoria`, `financeiro/relatorios/resultado?mes=` (só mês civil), `financeiro/lancamentos?tipo=despesa&status=confirmada` (distribuição do gráfico), `estoque/analises/produtos` (top 5); sem Financeiro: `reservas/operacao` |
 | Sino (topo) | `reservas?status=pendente`, `reservas/comparecimento/pendentes`, `atendimento/resumo`, `financeiro/revisao?limite=1`, `financeiro/resumo`, `estoque/compras?etapa=aguardando_conferencia` — só módulos liberados ao papel, da unidade da aba |
 | Financeiro | `financeiro/resumo`, `relatorios/vendas`, `lancamentos`, `despesas` (+ confirmar/cancelar), `outras-receitas` (+ cancelar), `contas-a-pagar`, `parcelas/{id}/pagamentos`, `pagamentos/{id}/estornar`, `revisao`, `revisao/documentos/{id}` (GET/PATCH) e `…/resolver`, `despesas/{id}/documentos`, `despesas/{id}/unidade`, `comprovantes/{id}/enviar-para-compras`, `relatorios/resultado`, `relatorios/despesas-por-categoria`, `fechamento/{mes}`, `apuracoes/{mes}` (+ conferir/fechar/reabrir, `participacao`), `recorrencias`, `taxas-pagamento`, `conciliacao/*`, `extratos/*`, `contas-bancarias`, `categorias` (GET/POST/PATCH, `PUT …/{codigo}/unidades/{unidade}`), `fornecedores` (GET/POST, `fornecedores/{id}` GET/PATCH), `conciliacao/repasses`, `arquivos/{id}/url` |
-| Estoque | `estoque/resumo`, `compras` (+ manual, confirmar, cancelar, reprocessar, itens), `insumos` (+ movimentos), `insumos-sugestoes` (um objeto), `perdas`, `fichas/{produto|preparo}/{id}`, `inventarios` (+ sugestão, itens, fechar, cancelar), `cancelamentos` (+ resolver), `analises/{cmv,produtos,cardapio,fornecedores,reposicao,ruptura}` |
+| Estoque | `estoque/resumo`, `compras` (+ PUT manual, nota, confirmar, cancelar, reprocessar, itens; POST `compras` e `compras/manual` sem tela desde 09/11), `ajustes`, `insumos` (+ movimentos), `insumos-sugestoes` (um objeto), `perdas`, `fichas/{produto|preparo}/{id}`, `inventarios` (+ sugestão, itens, fechar, cancelar), `cancelamentos` (+ resolver), `analises/{cmv,produtos,cardapio,fornecedores,reposicao,ruptura}` |
 
 ## 4a. Organização das telas (redesign de 01/11/2026)
 
@@ -168,7 +168,7 @@ backend; a tela mostra primeiro o essencial e o resto sob pedido (filtros recolh
 | Reservas | Barra única (‹ Hoje ›, intervalo, período Dia · Semana · Mês, visualização Calendário · Por ambiente, Nova reserva); resumo do dia em uma linha; aprovações pendentes numa pílula → gaveta. |
 | Atendimento | Central única de conversas (02/11/2026): "Nova conversa", "Cardápio" e "Campanhas" no topo da coluna, avisos discretos só quando o assistente ou o envio estão desligados no servidor, busca, Todas · Esperando · Assistente · Equipe · Encerradas (contador em Esperando), falhas de envio só quando existem. Conversa: cabeçalho com Contato (ficha em gaveta) e "…" (enviar template, follow-up), barra com o interruptor do assistente, Assumir e Encerrar. Sem indicadores e sem página Clientes. |
 | Financeiro | Três abas desde 07/11/2026 (ver 4f): Movimentações · Pendências · Relatórios. Sem o Resumo (o executivo é a Visão Geral). Endereços antigos redirecionados em `modulos/financeiro/index.tsx`. |
-| Estoque | Quatro áreas (02/11/2026, ver 4c): Estoque atual (tela inicial) · Recebimentos (Pendentes · Histórico) · Contagem (3 passos) · Fichas e custos (Fichas técnicas · CMV e custos). Uma ação principal em todas: "Registrar movimento". Baixa automática mostrada como está no backend (hoje desligada). |
+| Estoque | Três abas desde 08/11/2026 (ver 4h; refinado em 09/11). Antes: quatro áreas (02/11/2026, ver 4c): Estoque atual (tela inicial) · Recebimentos (Pendentes · Histórico) · Contagem (3 passos) · Fichas e custos (Fichas técnicas · CMV e custos). Uma ação principal em todas: "Registrar movimento". Baixa automática mostrada como está no backend (hoje desligada). |
 | Configurações | Grupos ao lado: Conta e aparência · Agenda e ambientes · Equipe e acessos · Atendimento · Financeiro (Categorias e Fornecedores; atalhos para contas fixas, taxas e contas bancárias) · Ponto: tablets e auditoria (só quem tem `ponto.dispositivos` ou `auditoria.visualizar`, hoje o Proprietário). |
 
 Decisões registradas:
@@ -431,9 +431,9 @@ de lá (situação, unidade, responsável, Financeiro, Produtos × Pix, sem dado
 
 | Aba | O que tem |
 |---|---|
-| Insumos | Busca e duas ações: **Contar estoque** e **Novo insumo** (com a lista vazia, só o convite do meio da tela: um botão de cadastro por vez). Tabela: insumo (categoria), quantidade com unidade, mínimo, ideal (só quando o backend guardar), preço médio, situação (Normal · Baixo · Esgotado · Não conferido) e "Conferido em". Sem números no topo, sem filtro de situação, sem "Saldo = …". Com a baixa pelas vendas desligada, um aviso: "As vendas ainda não descontam do estoque" (some quando o backend ligar a baixa). Vendas canceladas a responder: aviso com link para a gaveta. Gaveta do insumo: quantidade estimada, mínimo, preço médio, última compra, última conferência, histórico e as ações **Conferir quantidade · Perda ou uso interno · Corrigir saldo · Editar** (e Ficha do preparo). |
+| Insumos | (Refinada em 09/11: ver "Refinamento de 09/11/2026" abaixo.) Busca e duas ações: **Contar estoque** e **Novo insumo** (com a lista vazia, só o convite do meio da tela: um botão de cadastro por vez). Tabela: insumo (categoria), quantidade com unidade, mínimo, ideal (só quando o backend guardar), preço médio, situação (Normal · Baixo · Esgotado · Não conferido) e "Conferido em". Sem números no topo, sem filtro de situação, sem "Saldo = …". Com a baixa pelas vendas desligada, um aviso: "As vendas ainda não descontam do estoque" (some quando o backend ligar a baixa). Vendas canceladas a responder: aviso com link para a gaveta. Gaveta do insumo: quantidade estimada, mínimo, preço médio, última compra, última conferência, histórico e as ações **Conferir quantidade · Perda ou uso interno · Corrigir saldo · Editar** (e Ficha do preparo). |
 | Contar estoque (`?vista=contagem`) | Dentro de Insumos, com "← Insumos". Três escolhas: Todos os insumos (padrão enquanto houver insumo nunca conferido — o inventário inicial), Escolher insumos, Só os baixos ou com divergência (abaixo do mínimo, esgotados, saldo negativo). Os três passos e o histórico (responsável e data) são os de antes. Abrir ou abandonar não muda saldo; só "Confirmar contagem". |
-| Compras | **Pendentes · Histórico** (o Histórico traz as conferidas e as canceladas). Origem na linha do fornecedor (Júlia · comprovante de pagamento / Painel · nota fiscal / sem nota). Botão "Conferir" em cada pendente; **Registrar compra** (com nota: foto/PDF/XML lida e revisada por uma pessoa; sem nota: digitada) para o que não passou pela Júlia. Tudo na MESMA conferência; "Confirmar recebimento" é o único passo que dá entrada; nenhuma segunda despesa (B1–B3). |
+| Compras | (Desde 09/11, só conferência: "Registrar compra" saiu — ver abaixo.) **Pendentes · Histórico** (o Histórico traz as conferidas e as canceladas). Origem na linha do fornecedor (Júlia · comprovante de pagamento / Painel · nota fiscal / sem nota). Botão "Conferir" em cada pendente; **Registrar compra** (com nota: foto/PDF/XML lida e revisada por uma pessoa; sem nota: digitada) para o que não passou pela Júlia. Tudo na MESMA conferência; "Confirmar recebimento" é o único passo que dá entrada; nenhuma segunda despesa (B1–B3). |
 | Fichas técnicas | Produtos: só a busca (sem filtros nem texto de ordenação); cartões largos (3 por linha no tablet), do mais vendido ao menos vendido em 30 dias, com foto (só com vínculo), nome, vendidos em 30 dias, preço de venda, custo calculado e situação (Completa · Incompleta · Sem ficha). A falta de vínculo com o cardápio não aparece nos cartões: fica numa linha discreta na gaveta. Ficha: preço de venda, custo dos ingredientes, **margem de contribuição parcial** (preço − ingredientes, "não é lucro líquido"), rendimento, ingredientes, versões. Editor: à vista só ingrediente (busca no estoque, sem texto livre), quantidade e unidade (kg/g, L/ml, un), e "Adicionar ingrediente"; rendimento (padrão 1 porção), perda %, opcional e observação ficam em **Opções avançadas** (abertas de saída quando a ficha já usa alguma; no preparo da casa o rendimento fica à vista, porque é medido na unidade do preparo). Produto pronto (água, refrigerante) = ficha com o item do estoque e 1 un. Mostra o preço médio de cada ingrediente ou "sem preço". **Custos e CMV** (`&secao=custos`): custo dos ingredientes vendidos no mês (só quando o CMV teórico é confiável), cobertura das fichas, produtos sem ficha (só o número), sem custo conhecido, tabela preço × ingredientes **só com as fichas completas** e "mais vendidos sem ficha"; sem nenhuma ficha, só "Ainda não há fichas técnicas" (sem o botão "Ver produtos sem ficha"). Os relatórios de antes ficam em "Relatórios avançados" (montados só ao abrir). |
 
 Endereços antigos continuam: `?aba=estoque|resumo` → Insumos; `recebimentos` → Compras; `contagem|inventario(s)` →
@@ -449,6 +449,60 @@ no nome; a lista "Cadastrados agora" abre cada um. A quantidade inicial é grava
 primeira conferência (`POST /estoque/ajustes`, motivo `contagem_fisica` → o backend marca "abertura"); se só o
 cadastro der certo, o item entra na lista com o aviso e a pessoa usa "Conferir quantidade". A edição também exige o mínimo. Todas as
 mudanças de saldo pedem confirmação com o resumo (quantidade, de → para, motivo).
+
+### Refinamento de 09/11/2026 (só front; backend, Financeiro, Júlia e Eyemobile intocados)
+
+Pedido do dono antes do cadastro real dos insumos e fichas: o módulo enxuto, sem textos permanentes, sem caminhos
+duplicados. As três abas continuam; o que mudou:
+
+- **Insumos**: tabela compacta (Nome · Quantidade com unidade · Estoque mínimo · Custo médio · Situação · Detalhes). O
+  ideal e a última conferência saíram da tabela e ficam no detalhe (o ideal aparece "Ainda não salvo pelo sistema" até o
+  backend guardar). "As vendas ainda não descontam do estoque" virou uma nota discreta no rodapé da tabela (não banner).
+  Gaveta do insumo com duas ações: **Ajustar estoque** e **Editar cadastro** (e Ficha do preparo).
+- **Ajustar estoque** (`Movimento.tsx`, uma gaveta, `Tipo de ajuste`): **Entrada** — identificada, sem formulário: não
+  há rota de entrada avulsa no backend; entradas nascem na conferência de Compras ("Ir para Compras") · **Perda** —
+  `POST /estoque/perdas` (vencido, quebra, sobra de preparo, uso interno, outro), com data e observação · **Correção de
+  inventário** — `POST /estoque/ajustes` com motivo (contagem física, erro de registro, outro; os dois últimos exigem
+  justificativa). Quantidade, motivo e "Responsável: <quem está logado>" à vista; o backend grava quem registrou.
+  Confirmação com o resumo antes de lançar, como antes.
+- **Cadastro**: saíram "O preço médio vem das compras conferidas em Compras." e a pergunta "É um preparo feito aqui
+  (molho, massa, calda)?"; o tipo continua (o backend precisa dele e não deixa mudar depois) num campo discreto **Tipo**
+  (Comprado · Preparo da casa). Ajudas encurtadas. Cadastro em sequência preservado.
+- **Seletor único de insumos** (`SeletorInsumo.tsx`): combobox pesquisável sobre `GET /estoque/insumos` (mesmo cache da
+  tabela; acima de 200 insumos a busca vai ao backend), busca sem acento, escolha sempre pelo **id**, unidade cadastrada
+  dentro do campo e na lista, só insumos ativos (Compras: só comprados; Fichas: todos, menos o próprio preparo). Estados
+  dentro da lista: carregando, erro com "Tentar de novo", busca vazia. Sem o insumo: **Cadastrar "…"** (só com
+  `estoque.editar`, e só quando não há um com o mesmo nome) abre o **cadastro rápido** (`NovoInsumo` em modo rápido,
+  montado uma vez em `index.tsx` via contexto) e devolve o insumo criado já escolhido; 409 `nome_ja_existe` oferece "Usar o
+  insumo existente". Usado na conferência de Compras (itens digitados e itens lidos da nota) e nas Fichas técnicas.
+- **Compras**: saíram "Registrar compra", o modal "Com nota fiscal / Sem nota" e a compra digitada pelo Estoque (o
+  Financeiro é a entrada oficial de compras/despesas; o Estoque confere e dá entrada). Pendentes e Histórico continuam.
+  `estoque.compraManual` e `estoque.enviarNota` seguem no cliente da API (contrato intacto), sem tela que os chame.
+- **Conferência**: cabeçalho com Fornecedor (documento e nº numa linha pequena) · Data · Total; documento à esquerda;
+  status numa linha discreta (itens sem insumo, sugestões a confirmar, foto lida por IA) no lugar das faixas amarelas.
+  Itens numa grade única **Insumo · Quantidade · Unidade · Valor unitário · Subtotal** (itens digitados: editáveis, com
+  adicionar/remover linha; itens lidos: valores do documento, insumo pelo seletor, conversão e "não é estoque/não
+  chegou" no "…"). **Total dos itens × Registrado no Financeiro**, com a diferença e um aviso vermelho só quando ela existe.
+  Leitura da nota fiscal opcional recolhida em "Ler a nota fiscal (opcional)". A confirmação continua com as regras do
+  backend (B1–B3, justificativa da gerência) — nenhuma despesa nova.
+- **Sugestão da leitura não passa sozinha**: o backend dá entrada em itens `sugerido` (confiança alta) ao confirmar a
+  compra. O painel agora exige que uma pessoa clique em **Confirmar** em cada sugestão (PATCH do item com o mesmo
+  `insumo_id` → `confirmado`, a conversão mantida); "Continuar" fica desligado e o rodapé diz "N sugestões a confirmar".
+  Item escolhido no seletor ao digitar já nasce conferido (`_associar_escolhidos`), como antes.
+- **Fichas técnicas**: editor com o seletor único (Ingrediente · Quantidade · Unidade · Adicionar ingrediente),
+  rendimento/perda/opcional/observação em "Opções avançadas", textos repetidos removidos; produto pronto (água,
+  refrigerante) segue como o item do estoque e 1 un. Cartões da Eyemobile e gaveta sem mudança.
+
+Depende do backend (continua identificado na tela, nada simulado): entrada avulsa de estoque; estoque ideal; custo
+inicial no cadastro; vínculo Eyemobile ↔ catálogo; produtos sem venda no período (ver a lista abaixo); confirmar compra
+com sugestões ainda "sugerido" é recusado só pelo painel — a API ainda aceita (proposta: `pendencias` incluir
+`item_N_sugerido` para o backend recusar também).
+
+Testes do refinamento: `tests-painel/estoque.spec.ts` (15, incluindo ajuste com entrada identificada, nota lida com
+sugestões confirmadas uma a uma, estados do seletor e o ponta a ponta cadastrar → comprar com cadastro rápido → conferir →
+ficha), `tests-painel/estoque-compras.spec.ts` (3) e `tests-painel/responsivo.spec.ts` (gavetas do Estoque a 375, 768 e
+1366 px). `tests-painel-real/estoque.spec.ts` e `financeiro-estoque.spec.ts` atualizados para os rótulos novos (rodam só
+com o Postgres de integração).
 
 ### Contratos que faltam no backend (a interface está preparada, nada é simulado)
 

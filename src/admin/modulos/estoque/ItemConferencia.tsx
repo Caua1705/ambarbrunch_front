@@ -1,31 +1,33 @@
-// Um item da nota na conferência: o que foi lido, a qual insumo ele corresponde, a conversão para a unidade-base e as
-// decisões possíveis (confirmar sugestão, trocar, informar conversão, "não é estoque", ignorar). Cada decisão é um PATCH
-// com a `versao` lida do item; nada entra no estoque antes da confirmação da compra inteira.
+// Um item lido da nota na conferência, numa linha compacta: o texto da nota, o insumo (seletor único do cadastro, pelo
+// id), quantidade, unidade, valor unitário e subtotal como vieram no documento, e as decisões — confirmar a sugestão,
+// trocar o insumo, informar a conversão, "não é estoque" ou "não chegou". Cada decisão é um PATCH com a `versao` lida do
+// item; nada entra no estoque antes da confirmação da compra inteira. Sugestão da leitura (mesmo com confiança alta) só
+// vale depois que uma pessoa clica em "Confirmar": a conferência não segue com sugestão sem confirmação.
 import { useState } from 'preact/hooks';
-import { ArrowRight, Check, MoreHorizontal, Replace, Ruler, Ban, EyeOff, Sparkles } from 'lucide-preact';
+import { Check, MoreHorizontal, Ruler, Ban, EyeOff, Undo2 } from 'lucide-preact';
 import { useConsulta } from '../../lib/consulta';
 import { estoque } from '../../lib/api/estoque';
 import { financeiro } from '../../lib/api/financeiro';
 import { ErroApi } from '../../lib/api/cliente';
 import { moeda, quantidade, custoBase, decimal } from '../../lib/formato';
 import { Suspenso, avisar, avisarErro } from '../../ui/camadas';
-import { Botao, Etiqueta, Situacao } from '../../ui/base';
-import { Autocompletar, type OpcaoAuto } from '../../ui/entradas';
+import { Botao, Etiqueta } from '../../ui/base';
 import type { ItemCompra, ResolucaoItem, UnidadeBase } from '../../lib/tipos/estoque';
-import { SITUACAO_ITEM, ALERTA, UNIDADE_CURTA, atualizarEstoque } from './comum';
+import { ALERTA, UNIDADE_CURTA, atualizarEstoque } from './comum';
+import { SeletorInsumo, baseDaUnidadeCompra, type InsumoEscolhido } from './SeletorInsumo';
 
-const CONFIANCA = { alta: 'Confiança alta', media: 'Confiança média — confira', baixa: 'Confiança baixa — confira', nenhuma: 'Sem sugestão' } as const;
+const CONFIANCA = { alta: 'confiança alta', media: 'confiança média', baixa: 'confiança baixa', nenhuma: 'sem sugestão' } as const;
 
-type Modo = 'ver' | 'trocar' | 'conversao' | 'nao_estoque' | 'novo';
+type Modo = 'ver' | 'trocar' | 'conversao' | 'nao_estoque';
 
-export function ItemConferencia({ compraId, fornecedorId, it, editavel, podeCriarInsumo, aoMudar }: { compraId: string; fornecedorId: string | null; it: ItemCompra; editavel: boolean; podeCriarInsumo: boolean; aoMudar: () => void }) {
-  const [modo, setModo] = useState<Modo>(editavel && it.situacao === 'pendente' && !it.sugestao?.insumo_id ? 'trocar' : 'ver');
+export function ItemConferencia({ compraId, it, editavel, aoMudar }: { compraId: string; it: ItemCompra; editavel: boolean; aoMudar: () => void }) {
+  const [modo, setModo] = useState<Modo>('ver');
   const [ocupado, setOcupado] = useState(false);
-  const [pendente, setPendente] = useState<{ insumo_id?: string; novo?: { nome: string; unidade_base: UnidadeBase }; unidade: UnidadeBase | null; texto: string } | null>(null);
+  const [pendente, setPendente] = useState<{ insumo_id: string; unidade: UnidadeBase | null; texto: string } | null>(null);
   const [fator, setFator] = useState('');
-  const [novoNome, setNovoNome] = useState('');
-  const [novaUnidade, setNovaUnidade] = useState<UnidadeBase>('g');
   const s = it.sugestao;
+  const fora = it.situacao === 'nao_estoque' || it.situacao === 'ignorado';
+  const escolhido: InsumoEscolhido | null = s?.insumo_id && s.insumo && s.unidade_base && !fora ? { id: s.insumo_id, nome: s.insumo, unidade_base: s.unidade_base } : null;
 
   async function resolver(r: Omit<ResolucaoItem, 'versao'>, ok?: string) {
     setOcupado(true);
@@ -36,10 +38,10 @@ export function ItemConferencia({ compraId, fornecedorId, it, editavel, podeCria
       setPendente(null);
       setFator('');
     } catch (e) {
-      if (e instanceof ErroApi && e.codigo === 'conversao_ambigua') {
+      if (e instanceof ErroApi && e.codigo === 'conversao_ambigua' && r.insumo_id) {
         // O backend não sabe quanto vem na embalagem: a pessoa informa e reenviamos com o fator.
         const unidade = (e.dados?.unidade_base as UnidadeBase | undefined) ?? null;
-        setPendente({ insumo_id: r.insumo_id ?? undefined, novo: r.novo_insumo ?? undefined, unidade, texto: e.message });
+        setPendente({ insumo_id: r.insumo_id, unidade, texto: e.message });
         setModo('conversao');
       } else {
         avisarErro(e);
@@ -50,142 +52,97 @@ export function ItemConferencia({ compraId, fornecedorId, it, editavel, podeCria
       aoMudar();
     }
   }
-
-  // insumos-sugestoes devolve UM objeto (a melhor associação para o texto, ou insumo_id null): ele vai no topo, e a
-  // busca no catálogo completa as opções.
-  const buscar = async (texto: string): Promise<OpcaoAuto[]> => {
-    const t = texto.trim();
-    const [sug, cat] = await Promise.all([
-      estoque.sugestaoInsumo((t || it.descricao).slice(0, 200), it.unidade, fornecedorId).catch(() => null),
-      estoque.insumos({ busca: t || undefined, limite: 20 }),
-    ]);
-    const opcoes: OpcaoAuto[] = [];
-    if (sug?.insumo_id && sug.insumo && (t.length >= 2 || !t)) opcoes.push({ valor: sug.insumo_id, rotulo: sug.insumo, detalhe: `sugestão · ${CONFIANCA[sug.confianca] ?? sug.confianca}${sug.unidade_base ? ` · em ${UNIDADE_CURTA[sug.unidade_base]}` : ''}` });
-    for (const i of cat.itens) if (i.id !== sug?.insumo_id) opcoes.push({ valor: i.id, rotulo: i.nome, detalhe: `em ${UNIDADE_CURTA[i.unidade_base]}` });
-    return opcoes;
+  const pedirConversao = (insumoId: string, unidade: UnidadeBase | null) => {
+    setPendente({ insumo_id: insumoId, unidade, texto: `Quanto vem em 1 ${it.unidade}${unidade ? ` (em ${UNIDADE_CURTA[unidade]})` : ''}?` });
+    setModo('conversao');
   };
 
   const fatorN = Number(fator.replace(',', '.'));
-  const unidadeConv = pendente?.unidade ?? pendente?.novo?.unidade_base ?? s?.unidade_base ?? null;
+  const unidadeConv = pendente?.unidade ?? s?.unidade_base ?? null;
+  const mostraSeletor = editavel && (!fora || modo === 'trocar');
 
   return (
-    <li class="item-compra" data-situacao={it.situacao}>
-      <div class="item-compra__topo">
-        <div style={{ minWidth: 0 }}>
-          <div class="item-compra__nome">{it.descricao}</div>
-          <div class="item-compra__meta num">
-            {decimal(it.quantidade, 3)} {it.unidade} · {moeda(it.valor_liquido)}
-            {it.valor_unitario && <span class="fraco"> ({moeda(it.valor_unitario)}/{it.unidade})</span>}
-          </div>
-        </div>
-        <Situacao tom={SITUACAO_ITEM[it.situacao].tom} destaque={it.situacao === 'pendente'}>{SITUACAO_ITEM[it.situacao].rotulo}</Situacao>
-      </div>
-
-      {it.alertas.length > 0 && (
-        <div class="linha" style={{ gap: '6px' }}>
-          {it.alertas.map((a) => <Etiqueta key={a} tom="atencao">{ALERTA[a] ?? a}</Etiqueta>)}
-        </div>
-      )}
-
-      {it.situacao === 'nao_estoque' && <div class="item-compra__assoc">Vira despesa, não estoque{it.categoria_despesa ? <> · categoria <strong>{it.categoria_despesa}</strong></> : null}</div>}
-      {it.situacao === 'ignorado' && <div class="item-compra__assoc">Fora do estoque e da conta (ex.: linha repetida, brinde).</div>}
-
-      {s?.insumo_id && it.situacao !== 'nao_estoque' && it.situacao !== 'ignorado' && modo !== 'trocar' && (
-        <div class="item-compra__assoc">
-          <ArrowRight size={14} aria-hidden="true" />
-          <strong>{s.insumo}</strong>
-          {s.quantidade_base && s.unidade_base && <span class="num">{quantidade(s.quantidade_base, s.unidade_base)}</span>}
-          {s.fator && s.unidade_base && <span class="fraco num">1 {it.unidade} = {quantidade(s.fator, s.unidade_base)}</span>}
-          {s.custo_unitario_base && s.unidade_base && <span class="num">{custoBase(s.custo_unitario_base, s.unidade_base)}</span>}
-          {it.situacao === 'pendente' && s.confianca && s.confianca !== 'alta' && <Etiqueta tom="atencao">{CONFIANCA[s.confianca]}</Etiqueta>}
-          {it.situacao === 'pendente' && !s.fator && <span class="fraco">Falta a conversão</span>}
-        </div>
-      )}
-
-      {modo === 'trocar' && (
-        <div class="item-compra__acoes">
-          <Autocompletar
+    <li class="itens-tabela__linha item-lido" data-situacao={it.situacao}>
+      <div class="itens-tabela__insumo">
+        <span class="item-lido__nota" title="Como veio no documento">{it.descricao}</span>
+        {mostraSeletor ? (
+          <SeletorInsumo
             rotulo={`Insumo para ${it.descricao}`}
-            placeholder="Buscar o insumo (ex.: leite)"
-            valor={null}
-            buscar={buscar}
-            aoEscolher={(o) => o && resolver({ insumo_id: o.valor }, `Item associado a ${o.rotulo}.`)}
-            criar={podeCriarInsumo ? { rotulo: (t) => `Criar o insumo “${t}”`, acao: (t) => { setNovoNome(t); setModo('novo'); } } : undefined}
+            tipo="comprado"
+            valor={escolhido}
+            unidadeSugerida={baseDaUnidadeCompra(it.unidade)}
+            desativado={ocupado}
+            aoEscolher={(i) => i && i.id !== escolhido?.id && resolver({ insumo_id: i.id }, `Item associado a ${i.nome}.`)}
           />
-          {s?.insumo_id ? (
-            <Botao tamanho="p" variante="fantasma" onClick={() => setModo('ver')}>Voltar</Botao>
-          ) : (
-            <Suspenso rotulo={`Mais opções para ${it.descricao}`} gatilho={(p) => <Botao tamanho="p" variante="fantasma" so_icone {...p} icone={<MoreHorizontal aria-hidden="true" />} />}>
-              {(fechar) => (
-                <>
-                  <button class="suspenso__item" role="menuitem" onClick={() => { fechar(); setModo('nao_estoque'); }}><Ban aria-hidden="true" /> Não é estoque (vira despesa)</button>
-                  <button class="suspenso__item" role="menuitem" onClick={() => { fechar(); resolver({ ignorar: true }, 'Item fora deste recebimento: não entra no estoque.'); }}><EyeOff aria-hidden="true" /> Não chegou / ignorar</button>
-                </>
-              )}
-            </Suspenso>
-          )}
-        </div>
-      )}
-
-      {modo === 'novo' && (
-        <div class="item-compra__acoes">
-          <input class="entrada" aria-label="Nome do novo insumo" value={novoNome} onInput={(e) => setNovoNome(e.currentTarget.value)} style={{ flex: '1 1 200px' }} />
-          <select class="selecao" aria-label="Unidade-base do novo insumo" value={novaUnidade} onChange={(e) => setNovaUnidade(e.currentTarget.value as UnidadeBase)} style={{ width: 'auto' }}>
-            <option value="g">em gramas</option>
-            <option value="ml">em mililitros</option>
-            <option value="un">em unidades</option>
-          </select>
-          <Botao tamanho="p" variante="primario" carregando={ocupado} disabled={novoNome.trim().length < 2} onClick={() => resolver({ novo_insumo: { nome: novoNome.trim(), unidade_base: novaUnidade } }, `Insumo “${novoNome.trim()}” criado.`)}>Criar e associar</Botao>
-          <Botao tamanho="p" variante="fantasma" onClick={() => setModo('trocar')}>Voltar</Botao>
-        </div>
-      )}
-
-      {modo === 'conversao' && (
-        <div class="pilha pilha--p">
-          <span class="campo__rotulo">{pendente?.texto ?? `Quanto vem em 1 ${it.unidade}${unidadeConv ? ` (em ${UNIDADE_CURTA[unidadeConv]})` : ''}?`}</span>
-          <div class="item-compra__acoes">
-            <div class="entrada-grupo" style={{ flex: '0 1 200px' }}>
-              <input class="entrada num" inputMode="decimal" aria-label={`Quantidade em 1 ${it.unidade}`} value={fator} onInput={(e) => setFator(e.currentTarget.value)} style={{ paddingRight: '44px' }} data-autofoco />
-              <span class="fraco" style={{ position: 'absolute', right: '12px', pointerEvents: 'none' }}>{unidadeConv ? UNIDADE_CURTA[unidadeConv] : ''}</span>
-            </div>
-            {fatorN > 0 && unidadeConv && <span class="fraco num">Total: {quantidade(fatorN * Number(it.quantidade), unidadeConv)}</span>}
-            <Botao tamanho="p" variante="primario" carregando={ocupado} disabled={!(fatorN > 0)} onClick={() => resolver({ insumo_id: pendente?.insumo_id ?? s?.insumo_id ?? undefined, novo_insumo: pendente?.novo, fator: String(fatorN) }, 'Conversão registrada.')}>Aplicar</Botao>
-            <Botao tamanho="p" variante="fantasma" onClick={() => { setModo('ver'); setPendente(null); }}>Voltar</Botao>
-          </div>
-          {unidadeConv === 'g' && <span class="campo__ajuda">Ex.: caixa com 12 pacotes de 500 g → 6000.</span>}
-          {unidadeConv === 'ml' && <span class="campo__ajuda">Ex.: caixa com 12 litros → 12000.</span>}
-        </div>
-      )}
-
-      {modo === 'nao_estoque' && <NaoEstoque ocupado={ocupado} aoEscolher={(c, nome) => resolver({ nao_estoque: c }, `Marcado como despesa (${nome}).`)} aoVoltar={() => setModo(s?.insumo_id || it.situacao !== 'pendente' ? 'ver' : 'trocar')} />}
-
-      {modo === 'ver' && editavel && (
-        <div class="item-compra__acoes">
-          {it.situacao === 'pendente' && s?.insumo_id && s.fator && (
-            <Botao tamanho="p" variante="primario" icone={<Check aria-hidden="true" />} carregando={ocupado} onClick={() => resolver({ insumo_id: s.insumo_id! }, `Confirmado: ${s.insumo}.`)}>
-              É {s.insumo}
-            </Botao>
-          )}
-          {it.situacao === 'pendente' && s?.insumo_id && !s.fator && (
-            <Botao tamanho="p" variante="primario" icone={<Ruler aria-hidden="true" />} onClick={() => { setPendente({ insumo_id: s.insumo_id!, unidade: s.unidade_base, texto: `Quanto vem em 1 ${it.unidade} (em ${s.unidade_base ? UNIDADE_CURTA[s.unidade_base] : 'unidade-base'})?` }); setModo('conversao'); }}>
-              Informar conversão
-            </Botao>
-          )}
-          {it.situacao === 'sugerido' && <span class="fraco linha" style={{ gap: '4px' }}><Sparkles size={14} aria-hidden="true" /> Entra assim ao confirmar a compra</span>}
-          <Botao tamanho="p" icone={<Replace aria-hidden="true" />} onClick={() => setModo('trocar')}>{s?.insumo_id && it.situacao !== 'nao_estoque' && it.situacao !== 'ignorado' ? 'Trocar insumo' : 'Associar a um insumo'}</Botao>
+        ) : fora ? (
+          <span class="item-lido__fora">{it.situacao === 'nao_estoque' ? <>Despesa, não estoque{it.categoria_despesa ? <> · {it.categoria_despesa}</> : null}</> : 'Não chegou · fora do estoque'}</span>
+        ) : (
+          <span>{s?.insumo ?? <span class="fraco">Sem insumo</span>}</span>
+        )}
+        {escolhido && s?.fator && s.quantidade_base && s.unidade_base && (
+          <span class="item-lido__conv num">
+            1 {it.unidade} = {quantidade(s.fator, s.unidade_base)} · entra {quantidade(s.quantidade_base, s.unidade_base)}
+            {s.custo_unitario_base ? ` · ${custoBase(s.custo_unitario_base, s.unidade_base)}` : ''}
+          </span>
+        )}
+        {escolhido && !s?.fator && it.situacao === 'pendente' && <span class="item-lido__conv item-lido__conv--falta">Falta a conversão</span>}
+        {it.situacao === 'sugerido' && s?.confianca && <span class="item-lido__conv">Sugestão da leitura ({CONFIANCA[s.confianca]}): confirme</span>}
+        {it.alertas.length > 0 && (
+          <span class="linha" style={{ gap: '4px' }}>
+            {it.alertas.map((a) => <Etiqueta key={a} tom="atencao">{ALERTA[a] ?? a}</Etiqueta>)}
+          </span>
+        )}
+      </div>
+      <div class="itens-tabela__celula"><span class="itens-tabela__rotulo">Quantidade</span><span class="num">{decimal(it.quantidade, 3)}</span></div>
+      <div class="itens-tabela__celula"><span class="itens-tabela__rotulo">Unidade</span><span>{it.unidade}</span></div>
+      <div class="itens-tabela__celula"><span class="itens-tabela__rotulo">Valor unitário</span><span class="num">{it.valor_unitario ? moeda(it.valor_unitario) : '—'}</span></div>
+      <div class="itens-tabela__celula"><span class="itens-tabela__rotulo">Subtotal</span><span class="num">{moeda(it.valor_liquido)}</span></div>
+      <div class="item-lido__acoes">
+        {it.situacao === 'confirmado' && <span class="item-lido__ok" title="Conferido"><Check aria-hidden="true" /><span class="sr">Conferido</span></span>}
+        {/* Sugestão da leitura, ou item já com insumo e conversão que ainda espera alguém dizer que é ele. */}
+        {editavel && (it.situacao === 'sugerido' || (it.situacao === 'pendente' && !!s?.fator)) && escolhido && (
+          <Botao tamanho="p" variante="primario" icone={<Check aria-hidden="true" />} carregando={ocupado} aria-label={`Confirmar ${escolhido.nome} para ${it.descricao}`} onClick={() => resolver({ insumo_id: escolhido.id }, `Confirmado: ${escolhido.nome}.`)}>
+            Confirmar
+          </Botao>
+        )}
+        {editavel && it.situacao === 'pendente' && escolhido && !s?.fator && (
+          <Botao tamanho="p" variante="primario" icone={<Ruler aria-hidden="true" />} onClick={() => pedirConversao(escolhido.id, escolhido.unidade_base)}>Conversão</Botao>
+        )}
+        {editavel && (
           <Suspenso rotulo={`Mais opções para ${it.descricao}`} gatilho={(p) => <Botao tamanho="p" variante="fantasma" so_icone {...p} icone={<MoreHorizontal aria-hidden="true" />} />}>
             {(fechar) => (
               <>
-                {s?.insumo_id && it.situacao !== 'nao_estoque' && it.situacao !== 'ignorado' && (
-                  <button class="suspenso__item" role="menuitem" onClick={() => { fechar(); setPendente({ insumo_id: s.insumo_id!, unidade: s.unidade_base, texto: `Quanto vem em 1 ${it.unidade} (em ${s.unidade_base ? UNIDADE_CURTA[s.unidade_base] : 'unidade-base'})?` }); setModo('conversao'); }}>
+                {escolhido && s?.fator && (
+                  <button class="suspenso__item" role="menuitem" onClick={() => { fechar(); pedirConversao(escolhido.id, escolhido.unidade_base); }}>
                     <Ruler aria-hidden="true" /> Corrigir a conversão
                   </button>
                 )}
+                {fora && <button class="suspenso__item" role="menuitem" onClick={() => { fechar(); setModo('trocar'); }}><Undo2 aria-hidden="true" /> Associar a um insumo</button>}
                 {it.situacao !== 'nao_estoque' && <button class="suspenso__item" role="menuitem" onClick={() => { fechar(); setModo('nao_estoque'); }}><Ban aria-hidden="true" /> Não é estoque (vira despesa)</button>}
                 {it.situacao !== 'ignorado' && <button class="suspenso__item" role="menuitem" onClick={() => { fechar(); resolver({ ignorar: true }, 'Item fora deste recebimento: não entra no estoque.'); }}><EyeOff aria-hidden="true" /> Não chegou / ignorar</button>}
               </>
             )}
           </Suspenso>
+        )}
+      </div>
+
+      {modo === 'conversao' && pendente && (
+        <div class="item-lido__extra">
+          <span class="campo__rotulo">{pendente.texto}</span>
+          <div class="item-compra__acoes">
+            <div class="entrada-grupo" style={{ flex: '0 1 200px' }}>
+              <input class="entrada num" inputMode="decimal" aria-label={`Quantidade em 1 ${it.unidade}`} value={fator} onInput={(e) => setFator(e.currentTarget.value)} style={{ paddingRight: '44px' }} />
+              <span class="fraco" style={{ position: 'absolute', right: '12px', pointerEvents: 'none' }}>{unidadeConv ? UNIDADE_CURTA[unidadeConv] : ''}</span>
+            </div>
+            {fatorN > 0 && unidadeConv && <span class="fraco num">Total: {quantidade(fatorN * Number(it.quantidade), unidadeConv)}</span>}
+            <Botao tamanho="p" variante="primario" carregando={ocupado} disabled={!(fatorN > 0)} onClick={() => resolver({ insumo_id: pendente.insumo_id, fator: String(fatorN) }, 'Conversão registrada.')}>Aplicar</Botao>
+            <Botao tamanho="p" variante="fantasma" onClick={() => { setModo('ver'); setPendente(null); }}>Voltar</Botao>
+          </div>
+        </div>
+      )}
+      {modo === 'nao_estoque' && (
+        <div class="item-lido__extra">
+          <NaoEstoque ocupado={ocupado} aoEscolher={(c, nome) => resolver({ nao_estoque: c }, `Marcado como despesa (${nome}).`)} aoVoltar={() => setModo('ver')} />
         </div>
       )}
     </li>

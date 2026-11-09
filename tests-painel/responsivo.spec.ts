@@ -46,3 +46,26 @@ test('menu do celular abre, navega e fecha com Esc', async ({ page, isMobile }) 
   await page.getByRole('navigation', { name: 'Módulos' }).getByRole('link', { name: 'Reservas' }).click();
   await page.waitForURL(/\/admin\/reservas/);
 });
+
+// Estoque (09/11): as gavetas de trabalho — conferência com itens lidos, ajuste de estoque e editor de ficha — cabem na
+// largura sem rolagem lateral, no celular e no computador.
+for (const largura of [375, 768, 1366]) {
+  test(`estoque: gavetas de conferência, ajuste e ficha sem rolagem lateral em ${largura}px`, async ({ page }) => {
+    await page.setViewportSize({ width: largura, height: 860 });
+    await entrarDemo(page, 'gerente');
+    const cabe = () => page.locator('.gaveta__corpo').last().evaluate((e) => e.scrollWidth <= e.clientWidth + 1);
+    await page.goto(`${DEMO}/admin/estoque?aba=compras&compra=e2000000-0000-4000-8000-000000000002`);
+    await expect(page.getByRole('list', { name: 'Itens lidos' })).toBeVisible();
+    expect(await cabe(), 'conferência').toBe(true);
+    expect(await semRolagemHorizontal(page)).toBe(true);
+    await page.goto(`${DEMO}/admin/estoque?insumo=e1000000-0000-4000-8000-000000000005`);
+    await page.getByRole('button', { name: 'Ajustar estoque' }).click();
+    await expect(page.getByRole('dialog', { name: 'Ajustar estoque' })).toBeVisible();
+    expect(await cabe(), 'ajuste').toBe(true);
+    await page.goto(`${DEMO}/admin/estoque?aba=fichas`);
+    await page.getByRole('list', { name: 'Produtos da Eyemobile' }).getByRole('button', { name: /Roll de chocolate/ }).click();
+    await page.getByRole('button', { name: 'Cadastrar ficha' }).click();
+    await page.getByText('Opções avançadas').click();
+    expect(await cabe(), 'ficha').toBe(true);
+  });
+}

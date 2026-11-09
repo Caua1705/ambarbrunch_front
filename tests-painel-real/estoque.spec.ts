@@ -97,22 +97,22 @@ test('Pix da Júlia: os produtos conferem o MESMO pagamento, nenhuma despesa nov
   await pix.getByRole('button', { name: 'Conferir' }).click();
 
   const gaveta = page.getByRole('dialog');
-  await expect(gaveta.getByText('Produtos e quantidades ainda não informados.')).toBeVisible();
-  await gaveta.getByRole('combobox', { name: 'Produto 1' }).fill('leite');
+  await expect(gaveta.locator('[data-teste="status-conferencia"]')).toHaveText('Itens ainda não informados.');
+  await gaveta.getByRole('combobox', { name: 'Insumo 1' }).fill('leite');
   await page.getByRole('option', { name: /Leite integral/ }).click();
-  await gaveta.getByLabel('Qtd.').nth(0).fill('10');
-  await gaveta.getByLabel('Unid.').nth(0).selectOption('L');
-  await gaveta.getByLabel('Valor unit.').nth(0).fill('8,60');
-  await gaveta.getByRole('combobox', { name: 'Produto 2' }).fill('café');
+  await gaveta.getByRole('textbox', { name: 'Quantidade', exact: true }).nth(0).fill('10');
+  await gaveta.getByRole('combobox', { name: 'Unidade', exact: true }).nth(0).selectOption('L');
+  await gaveta.getByRole('textbox', { name: 'Valor unitário', exact: true }).nth(0).fill('8,60');
+  await gaveta.getByRole('combobox', { name: 'Insumo 2' }).fill('café');
   await page.getByRole('option', { name: /Café em grãos/ }).click();
-  await gaveta.getByLabel('Qtd.').nth(1).fill('1');
-  await gaveta.getByLabel('Unid.').nth(1).selectOption('KG');
-  await gaveta.getByLabel('Valor unit.').nth(1).fill('86,00');
-  await expect(gaveta.locator('[data-teste="soma-produtos"]')).toContainText('confere');
+  await gaveta.getByRole('textbox', { name: 'Quantidade', exact: true }).nth(1).fill('1');
+  await gaveta.getByRole('combobox', { name: 'Unidade', exact: true }).nth(1).selectOption('KG');
+  await gaveta.getByRole('textbox', { name: 'Valor unitário', exact: true }).nth(1).fill('86,00');
+  await expect(gaveta.locator('[data-teste="soma-produtos"]')).toContainText('Confere');
   // Pagamento registrado ≠ produtos recebidos: até confirmar, nada entra.
   expect((await saldo(page, 'Leite integral')).saldo).toBe('12000.0000');
-  await gaveta.getByRole('button', { name: 'Salvar produtos' }).click();
-  await expect(gaveta.getByText(/igual ao pagamento no Financeiro/)).toBeVisible();
+  await gaveta.getByRole('button', { name: 'Salvar itens' }).click();
+  await expect(gaveta.locator('[data-teste="soma-produtos"]')).toContainText('Confere');
   await page.getByRole('button', { name: 'Continuar' }).click();
   await expect(gaveta.getByText('É o pagamento que a Júlia registrou')).toBeVisible();
   await expect(gaveta.getByText('Conta a pagar')).toHaveCount(0);
@@ -134,8 +134,9 @@ test('uso interno pela gaveta do insumo: sai do saldo com motivo próprio e NÃO
   await entrar(page, 'gerente');
   await page.goto(`${PAINEL}/admin/estoque`);
   await linha(page, 'Ovos').click();
-  await page.getByRole('dialog', { name: 'Ovos' }).getByRole('button', { name: 'Perda ou uso interno' }).click();
-  const saida = page.getByRole('dialog', { name: 'Perda ou uso interno' });
+  await page.getByRole('dialog', { name: 'Ovos' }).getByRole('button', { name: 'Ajustar estoque' }).click();
+  const saida = page.getByRole('dialog', { name: 'Ajustar estoque' });
+  await saida.getByRole('group', { name: 'Tipo de ajuste' }).getByRole('button', { name: 'Perda' }).click();
   await saida.getByLabel('Quantidade que saiu').fill('4');
   await saida.getByLabel('Motivo').selectOption('uso_interno');
   await saida.getByLabel('Observação').fill('café da manhã da equipe');
@@ -192,13 +193,13 @@ test('ajuste com motivo: saldo anterior e novo, motivo, responsável e data grav
   await entrar(page, 'gerente');
   await page.goto(`${PAINEL}/admin/estoque`);
   await linha(page, 'Café em grãos').click();
-  await page.getByRole('dialog', { name: 'Café em grãos' }).getByRole('button', { name: 'Corrigir saldo' }).click();
-  const ajuste = page.getByRole('dialog', { name: 'Corrigir saldo' });
-  await ajuste.getByLabel('Saldo correto').fill('1,5');
+  await page.getByRole('dialog', { name: 'Café em grãos' }).getByRole('button', { name: 'Ajustar estoque' }).click();
+  const ajuste = page.getByRole('dialog', { name: 'Ajustar estoque' });
+  await ajuste.getByLabel('Quantidade correta').fill('1,5');
   await expect(ajuste.locator('.ajuste-previa')).toContainText('-2,5 kg');
   await ajuste.getByLabel('Motivo').selectOption('erro_de_registro');
   await ajuste.getByLabel('Justificativa').fill('recebimento digitado em dobro');
-  await ajuste.getByRole('button', { name: 'Revisar correção' }).click();
+  await ajuste.getByRole('button', { name: 'Revisar ajuste' }).click();
   await page.getByRole('dialog', { name: 'Corrigir o saldo?' }).getByRole('button', { name: 'Corrigir saldo' }).click();
   await expect(ajuste.getByRole('heading', { name: 'Saldo ajustado' })).toBeVisible();
   const registro = ajuste.locator('[data-teste="ajuste-registrado"]');
@@ -220,14 +221,14 @@ test('ajuste com motivo: saldo anterior e novo, motivo, responsável e data grav
 async function produtos(page: Page, compra: string, insumo: string, busca: string, qtd: string, unidade: string, unitario: string) {
   await page.goto(`${PAINEL}/admin/estoque?aba=compras&compra=${compra}`);
   const gaveta = page.getByRole('dialog');
-  await expect(gaveta.getByText('Produtos e quantidades ainda não informados.')).toBeVisible();
-  await gaveta.getByRole('combobox', { name: 'Produto 1' }).fill(busca);
+  await expect(gaveta.locator('[data-teste="status-conferencia"]')).toHaveText('Itens ainda não informados.');
+  await gaveta.getByRole('combobox', { name: 'Insumo 1' }).fill(busca);
   await page.getByRole('option', { name: new RegExp(insumo) }).click();
-  await gaveta.getByLabel('Qtd.').nth(0).fill(qtd);
-  await gaveta.getByLabel('Unid.').nth(0).selectOption(unidade);
-  await gaveta.getByLabel('Valor unit.').nth(0).fill(unitario);
-  await gaveta.getByRole('button', { name: 'Salvar produtos' }).click();
-  await expect(gaveta.getByText('Os produtos não batem com o pagamento.')).toBeVisible();
+  await gaveta.getByRole('textbox', { name: 'Quantidade', exact: true }).nth(0).fill(qtd);
+  await gaveta.getByRole('combobox', { name: 'Unidade', exact: true }).nth(0).selectOption(unidade);
+  await gaveta.getByRole('textbox', { name: 'Valor unitário', exact: true }).nth(0).fill(unitario);
+  await gaveta.getByRole('button', { name: 'Salvar itens' }).click();
+  await expect(gaveta.getByText(/Os itens não batem com o Financeiro./)).toBeVisible();
   return gaveta;
 }
 const lancamentos = async (page: Page, busca: string) => {

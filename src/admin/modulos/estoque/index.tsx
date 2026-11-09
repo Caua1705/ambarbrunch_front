@@ -1,14 +1,16 @@
 // Estoque em três abas: Insumos (o que temos, quanto e o que está acabando — a primeira tela, com "Contar estoque" e o
-// detalhe de cada insumo), Compras (o que chegou e precisa ser conferido, com "Registrar compra" para o que não passou pela
-// Júlia) e Fichas técnicas (catálogo dos produtos da Eyemobile, com a seção "Custos e CMV"). Sem botão genérico de
-// movimento: entradas nascem em Compras; conferência, correção e perda saem da gaveta do insumo. Vendas canceladas depois
-// da baixa (só existem com a baixa automática ligada) abrem numa gaveta a partir de Insumos.
+// detalhe de cada insumo), Compras (conferência do que foi lançado no Financeiro; o Estoque não cria compra nem despesa) e
+// Fichas técnicas (catálogo dos produtos da Eyemobile, com a seção "Custos e CMV"). Sem botão genérico de movimento:
+// entradas nascem na conferência de Compras; perda e correção de inventário saem de "Ajustar estoque", na gaveta do
+// insumo. O cadastro rápido de insumo (aberto pelo seletor de insumos de Compras e Fichas) mora aqui, uma vez só, e devolve
+// o insumo criado ao fluxo que pediu. Vendas canceladas depois da baixa (só existem com a baixa automática ligada) abrem
+// numa gaveta a partir de Insumos.
 // A área vive na URL (?aba=insumos|compras|fichas, &vista=contagem, &secao=custos); ?aba=compras&compra=<id> abre direto a
 // conferência. Endereços antigos (estoque, recebimentos, contagem, custos, analises, mais, cancelamentos…) continuam
 // funcionando — o sino, o Financeiro e o backend ainda apontam para eles. Quem decide o que cada perfil pode é o backend:
 // o painel só esconde o que daria 403.
 import '../../estilos/estoque.css';
-import { useEffect, useState } from 'preact/hooks';
+import { useCallback, useEffect, useState } from 'preact/hooks';
 import { ArrowLeft } from 'lucide-preact';
 import type { ContextoPainel } from '../../lib/sessao';
 import { useConsulta } from '../../lib/consulta';
@@ -20,10 +22,10 @@ import { Esqueleto } from '../../ui/estados';
 import type { Insumo } from '../../lib/tipos/estoque';
 import { permissoesEstoque, useResponsavel } from './comum';
 import { Insumos } from './Insumos';
-import { DetalheInsumo, NovoInsumo } from './DetalheInsumo';
-import { MovimentoInsumo, type TipoMovimentoManual } from './Movimento';
+import { DetalheInsumo, NovoInsumo, type PedidoCadastroRapido } from './DetalheInsumo';
+import { AjusteEstoque } from './Movimento';
 import { Compras } from './Compras';
-import { NovaCompra } from './EntradaCompra';
+import { CadastroRapido, type CadastrarInsumo } from './SeletorInsumo';
 import { Contagem } from './Contagem';
 import { Fichas, GavetaFicha, type AlvoFicha } from './Fichas';
 import { CustosCmv } from './Custos';
@@ -49,7 +51,6 @@ const APELIDOS: Record<string, { area: AreaEstoque; secao?: SecaoFichas; contage
 export default function Estoque({ contexto }: { contexto: ContextoPainel }) {
   const perm = permissoesEstoque(contexto.usuario);
   const eu = contexto.usuario;
-  const unidade = contexto.unidade?.codigo ?? null;
   const responsavel = useResponsavel(eu);
   // A área e a compra vêm da URL, que o servidor não vê: lidas só depois de montar (a primeira pintura bate com o HTML
   // do servidor e não há erro de hidratação). Até lá, um esqueleto.
@@ -61,8 +62,10 @@ export default function Estoque({ contexto }: { contexto: ContextoPainel }) {
   const [novoInsumo, setNovoInsumo] = useState(false);
   const [ficha, setFicha] = useState<AlvoFicha | null>(null);
   const [cancelamentos, setCancelamentos] = useState(false);
-  const [movimento, setMovimento] = useState<{ tipo: TipoMovimentoManual; insumo: Insumo } | null>(null);
-  const [novaCompra, setNovaCompra] = useState(false);
+  const [ajuste, setAjuste] = useState<Insumo | null>(null);
+  const [rapido, setRapido] = useState<PedidoCadastroRapido | null>(null);
+  // Cadastro rápido pedido pelo seletor de insumos: a promessa resolve com o insumo criado (ou null, se desistiu).
+  const cadastrar = useCallback<CadastrarInsumo>((nome, unidade) => new Promise((resolver) => setRapido({ nome, unidade, aoConcluir: resolver })), []);
 
   useEffect(() => {
     const lida = lerParam('aba') ?? '';
@@ -96,13 +99,14 @@ export default function Estoque({ contexto }: { contexto: ContextoPainel }) {
     setArea('compras');
   };
   const contar = () => {
-    setMovimento(null);
+    setAjuste(null);
     setInsumo(null);
     setArea('insumos');
     setContando(true);
   };
 
   return (
+    <CadastroRapido.Provider value={perm.editar ? cadastrar : null}>
     <Raiz>
       <Abas
         atual={area ?? 'insumos'}
@@ -125,7 +129,7 @@ export default function Estoque({ contexto }: { contexto: ContextoPainel }) {
             <Contagem perm={perm} inicioControle={inicio} responsavel={responsavel} aoConcluir={() => setContando(false)} />
           </>
         )}
-        {area === 'compras' && <Compras perm={perm} aberta={compra} aoAbrir={setCompra} aoNova={() => setNovaCompra(true)} />}
+        {area === 'compras' && <Compras perm={perm} aberta={compra} aoAbrir={setCompra} />}
         {area === 'fichas' && (
           <>
             {perm.editar && <Segmentado<SecaoFichas> rotulo="Fichas técnicas" valor={secao} aoMudar={setSecao} opcoes={[{ valor: 'produtos', rotulo: 'Produtos' }, { valor: 'custos', rotulo: 'Custos e CMV' }]} />}
@@ -150,34 +154,26 @@ export default function Estoque({ contexto }: { contexto: ContextoPainel }) {
         inicioControle={inicio}
         responsavel={responsavel}
         aoFechar={() => setInsumo(null)}
-        aoMovimento={(tipo, i) => setMovimento({ tipo, insumo: i })}
+        aoAjustar={setAjuste}
         aoFicha={(i) => { setInsumo(null); setFicha({ alvo: 'preparo', id: i.id, nome: i.nome, unidade: i.unidade_base }); }}
       />
       <NovoInsumo aberto={novoInsumo} aoFechar={() => setNovoInsumo(false)} aoAbrir={(id) => { setNovoInsumo(false); setArea('insumos'); setContando(false); setInsumo(id); }} />
       <GavetaFicha alvo={ficha} aoFechar={() => setFicha(null)} responsavel={responsavel} />
-      <MovimentoInsumo
-        tipo={movimento?.tipo ?? null}
-        insumo={movimento?.insumo ?? null}
+      <AjusteEstoque
+        insumo={ajuste}
         perm={perm}
         eu={eu}
         inicioControle={inicio}
         responsavel={responsavel}
-        aoFechar={() => setMovimento(null)}
+        aoFechar={() => setAjuste(null)}
         aoIrContagem={contar}
+        aoIrCompras={() => { setAjuste(null); setInsumo(null); irCompras(); }}
       />
-      {perm.conferir && (
-        <NovaCompra
-          aberto={novaCompra}
-          modo={null}
-          insumo={null}
-          unidade={unidade}
-          aoFechar={() => setNovaCompra(false)}
-          aoCriar={(id) => { setNovaCompra(false); irCompras(id); }}
-        />
-      )}
+      {perm.editar && <NovoInsumo aberto={!!rapido} rapido={rapido} aoFechar={() => setRapido(null)} aoAbrir={() => undefined} />}
       <Gaveta aberta={cancelamentos} aoFechar={() => setCancelamentos(false)} titulo="Vendas canceladas" subtitulo="Canceladas na Eyemobile depois da baixa: o que aconteceu com o produto?" largura="media">
         <Cancelamentos perm={perm} />
       </Gaveta>
     </Raiz>
+    </CadastroRapido.Provider>
   );
 }

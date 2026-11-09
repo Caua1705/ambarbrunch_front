@@ -1,9 +1,11 @@
-// Conferência de compra, numa gaveta larga: documento original à esquerda, nota e itens à direita (no celular, em coluna,
-// com o documento recolhível). Mesma tela para nota da Júlia, envio pelo painel, comprovante de Pix e compra sem nota.
-// Abrir a conferência não movimenta nada: o estoque só muda em "Confirmar recebimento". Os botões do rodapé têm key
-// própria: sem ela o Preact reaproveitaria o elemento de "Continuar" como o submit e o mesmo clique confirmaria a compra.
+// Conferência de compra, numa gaveta larga: documento original à esquerda, fornecedor, data, total e itens à direita (no
+// celular, em coluna, com o documento recolhível). A compra vem do Financeiro (comprovante enviado à Júlia, lançamento do
+// painel) ou de uma nota lida; o Estoque só confere os produtos — não cria outra despesa. Abrir a conferência não movimenta
+// nada: o estoque só muda em "Confirmar recebimento", e só depois que cada item tem um insumo conferido por uma pessoa
+// (sugestão da leitura não passa sozinha). Os botões do rodapé têm key própria: sem ela o Preact reaproveitaria o
+// elemento de "Continuar" como o submit e o mesmo clique confirmaria a compra.
 import { useEffect, useState } from 'preact/hooks';
-import { FileText, ScanLine, RotateCw, ExternalLink, CheckCircle2, AlertTriangle, Info, PackageX, Bot, ArrowLeft, Check, FileCode } from 'lucide-preact';
+import { FileText, ScanLine, RotateCw, ExternalLink, CheckCircle2, AlertTriangle, Info, PackageX, ArrowLeft, Check, FileCode } from 'lucide-preact';
 import { useConsulta } from '../../lib/consulta';
 import { estoque } from '../../lib/api/estoque';
 import { financeiro } from '../../lib/api/financeiro';
@@ -17,7 +19,7 @@ import type { CompraDetalhe } from '../../lib/tipos/estoque';
 import { ETAPA, LENDO, FONTE, ERRO_LEITURA, PENDENCIA, atualizarEstoque, textoProblemas, type PermissoesEstoque } from './comum';
 import { ItemConferencia } from './ItemConferencia';
 import { ConfirmarCompra, MOTIVO_DIFERENCA, type Confirmado } from './ConfirmarCompra';
-import { LinhasItens, linhaVazia, validarLinhas, somaLinhas, type LinhaManual } from './EntradaCompra';
+import { LinhasItens, linhaVazia, validarLinhas, somaLinhas, type LinhaManual } from './LinhasCompra';
 
 export function Conferencia({ id, perm, aoFechar, aoAbrir }: { id: string | null; perm: PermissoesEstoque; aoFechar: () => void; aoAbrir: (id: string) => void }) {
   const [lendo, setLendo] = useState(false);
@@ -43,9 +45,13 @@ export function Conferencia({ id, perm, aoFechar, aoAbrir }: { id: string | null
   const semItens = aguardando && (!c!.itens.length || corrigindo);
   // Rascunho digitado de um pagamento (ainda sem estoque): pode ser refeito ou trocado pela nota.
   const rascunho = !!c && aguardando && c.fonte_leitura === 'manual' && !!c.despesa_origem_id && c.itens.length > 0;
+  // Sugestão da leitura (situação "sugerido") entraria no estoque ao confirmar sem ninguém olhar: o painel só segue
+  // depois que uma pessoa confirma cada uma.
+  const sugeridas = c?.itens.filter((i) => i.situacao === 'sugerido').length ?? 0;
   // A gerência pode confirmar uma nota que não fecha (com motivo) e produtos que não somam o pagamento (justificando a
   // diferença na confirmação); os itens precisam estar resolvidos. O backend confere as duas coisas de novo.
-  const podeSeguir = !!c && aguardando && (c.pode_confirmar || (perm.editar && c.pendencias.every((p) => p === 'conferencia_aritmetica' || p === 'total_diverge_do_financeiro') && c.itens.length > 0));
+  const podeSeguir = !!c && aguardando && !sugeridas && (c.pode_confirmar || (perm.editar && c.pendencias.every((p) => p === 'conferencia_aritmetica' || p === 'total_diverge_do_financeiro') && c.itens.length > 0));
+  const pendenciasTexto = c ? [...(sugeridas ? [plural(sugeridas, 'sugestão a confirmar', 'sugestões a confirmar')] : []), ...c.pendencias.map(PENDENCIA)] : [];
 
   // Ler de novo cria uma compra NOVA a partir do mesmo arquivo (a antiga é cancelada): a gaveta passa para ela.
   const reprocessar = () =>
@@ -88,8 +94,8 @@ export function Conferencia({ id, perm, aoFechar, aoAbrir }: { id: string | null
   else if (c && aguardando && !semItens && passo === 'itens' && perm.conferir)
     rodape = (
       <>
-        <span class="fraco" style={{ marginRight: 'auto', alignSelf: 'center' }}>
-          {c.pendencias.length ? c.pendencias.map(PENDENCIA).slice(0, 2).join(' · ') : 'Tudo conferido'}
+        <span class="fraco" style={{ marginRight: 'auto', alignSelf: 'center' }} data-teste="pendencias-conferencia">
+          {pendenciasTexto.length ? pendenciasTexto.slice(0, 2).join(' · ') : 'Tudo conferido'}
         </span>
         {perm.editar && <Botao variante="fantasma" onClick={cancelar}>Cancelar compra</Botao>}
         <Botao key="continuar" variante="primario" icone={<Check aria-hidden="true" />} disabled={!podeSeguir} onClick={() => setPasso('confirmar')}>Continuar</Botao>
@@ -139,21 +145,12 @@ export function Conferencia({ id, perm, aoFechar, aoAbrir }: { id: string | null
                 {c.etapa === 'confirmada' ? (
                   <Confirmada c={c} />
                 ) : semItens ? (
-                  perm.conferir ? <PreencherItens c={c} aoAbrir={(n) => { setCorrigindo(false); aoAbrir(n); }} aoSalvar={() => setCorrigindo(false)} /> : <Aviso tom="atencao" icone={<PackageX aria-hidden="true" />}>Faltam os produtos desta compra. Quem confere compras precisa informá-los.</Aviso>
+                  perm.conferir ? <PreencherItens c={c} gerencia={perm.editar} aoAbrir={(n) => { setCorrigindo(false); aoAbrir(n); }} aoSalvar={() => setCorrigindo(false)} /> : <Aviso tom="atencao" icone={<PackageX aria-hidden="true" />}>Faltam os produtos desta compra. Quem confere compras precisa informá-los.</Aviso>
                 ) : passo === 'confirmar' ? (
                   <ConfirmarCompra c={c} perm={perm} form="form-confirmar-compra" aoEnviando={setEnviando} aoAbrir={aoAbrir} aoConfirmar={(r) => { setRecibo(r); avisar('Compra confirmada. Estoque atualizado.', 'ok'); }} />
                 ) : (
                   <>
-                    {c.fonte_leitura === 'foto_ia' && (
-                      <Aviso tom="atencao" icone={<Bot aria-hidden="true" />}>
-                        <strong>Lido por IA a partir da foto: confira cada item.</strong> Quantidades e unidades de foto erram mais que as do XML.
-                      </Aviso>
-                    )}
-                    {c.aviso && <Aviso tom="info" icone={<Info aria-hidden="true" />}>{c.aviso}</Aviso>}
-                    <Financeiro c={c} gerencia={perm.editar} />
-                    {rascunho && perm.conferir && (
-                      <Botao tamanho="p" style={{ alignSelf: 'flex-start' }} onClick={() => setCorrigindo(true)}>Corrigir os produtos ou enviar a nota</Botao>
-                    )}
+                    <Status c={c} />
                     {c.conferencia && !c.conferencia.ok && (
                       <Aviso tom="atencao" icone={<AlertTriangle aria-hidden="true" />}>
                         <strong>A nota não fecha{c.divergencia_aceita ? ` (aceita: ${c.divergencia_aceita})` : ''}.</strong> {textoProblemas(c.conferencia.problemas)}
@@ -162,14 +159,22 @@ export function Conferencia({ id, perm, aoFechar, aoAbrir }: { id: string | null
                     <section class="pilha pilha--p" aria-label="Itens da nota">
                       <div class="linha linha--entre">
                         <h3 class="secao-titulo">Itens ({c.itens.length})</h3>
-                        <span class="fraco">{plural(c.itens.filter((i) => i.situacao === 'pendente').length, 'precisa de você', 'precisam de você')}</span>
+                        {rascunho && perm.conferir && <Botao tamanho="p" variante="fantasma" onClick={() => setCorrigindo(true)}>Corrigir itens ou enviar a nota</Botao>}
                       </div>
-                      <ul class="itens-compra">
-                        {[...c.itens].sort((a, b) => Number(b.situacao === 'pendente') - Number(a.situacao === 'pendente') || a.ordem - b.ordem).map((it) => (
-                          <ItemConferencia key={`${it.id}:${it.versao}`} compraId={c.id} fornecedorId={c.fornecedor?.id ?? null} it={it} editavel={perm.conferir} podeCriarInsumo={perm.editar} aoMudar={consulta.recarregar} />
+                      <ul class="itens-tabela" aria-label="Itens lidos">
+                        <li class="itens-tabela__cabeca itens-tabela__linha" aria-hidden="true">
+                          <span>Insumo</span><span class="num">Quantidade</span><span>Unidade</span><span class="num">Valor unitário</span><span class="num">Subtotal</span><span />
+                        </li>
+                        {[...c.itens].sort((a, b) => peso(a.situacao) - peso(b.situacao) || a.ordem - b.ordem).map((it) => (
+                          <ItemConferencia key={`${it.id}:${it.versao}`} compraId={c.id} it={it} editavel={perm.conferir} aoMudar={consulta.recarregar} />
                         ))}
                       </ul>
                     </section>
+                    <Totais
+                      itens={c.financeiro ? Number(c.financeiro.total_itens) : c.itens.filter((i) => i.situacao !== 'ignorado').reduce((s, i) => s + Number(i.valor_liquido), 0)}
+                      financeiro={c.financeiro ? Number(c.financeiro.valor_financeiro) : null}
+                      gerencia={perm.editar}
+                    />
                   </>
                 )}
               </div>
@@ -189,6 +194,7 @@ function EtapaSelo({ c }: { c: CompraDetalhe }) {
   return <Etiqueta tom={tom}>{e.rotulo}</Etiqueta>;
 }
 
+/** Fornecedor, data e total; o documento e a nota numa linha pequena embaixo. */
 function Cabeca({ c }: { c: CompraDetalhe }) {
   const t = c.totais;
   return (
@@ -196,24 +202,63 @@ function Cabeca({ c }: { c: CompraDetalhe }) {
       <div>
         <dt>Fornecedor</dt>
         <dd>{c.fornecedor?.nome ?? c.fornecedor_lido?.nome ?? '—'}</dd>
-        {c.fornecedor?.documento && <dd class="fraco num" style={{ fontWeight: 400 }}>{c.fornecedor.documento}</dd>}
+        <dd class="nota-cabeca__sub">{[c.fonte_leitura ? FONTE[c.fonte_leitura] : null, c.numero ? `nº ${c.numero}${c.serie ? `/${c.serie}` : ''}` : null, c.origem === 'julia' ? 'via Júlia' : null].filter(Boolean).join(' · ')}</dd>
       </div>
       <div>
-        <dt>Documento</dt>
-        <dd>{c.fonte_leitura ? FONTE[c.fonte_leitura] : '—'}</dd>
-        <dd class="fraco" style={{ fontWeight: 400 }}>{c.origem === 'julia' ? 'Enviado pela Júlia' : 'Enviado pelo painel'}</dd>
-      </div>
-      <div>
-        <dt>Nota e emissão</dt>
-        <dd class="num">{c.numero ? `Nº ${c.numero}${c.serie ? ` · série ${c.serie}` : ''}` : 'Sem número'}</dd>
-        <dd class="fraco" style={{ fontWeight: 400 }}>{c.emitida_em ? dataHora(c.emitida_em) : '—'}</dd>
+        <dt>Data</dt>
+        <dd class="num">{c.emitida_em ? dataCurta(c.emitida_em.slice(0, 10), { ano: true }) : '—'}</dd>
       </div>
       <div>
         <dt>Total</dt>
-        <dd class="num" style={{ fontSize: '18px', fontWeight: 650 }}>{moeda(t.total)}</dd>
-        {(num(t.desconto) || num(t.frete)) ? <dd class="fraco num" style={{ fontWeight: 400 }}>{num(t.desconto) ? `desconto ${moeda(t.desconto)}` : ''}{num(t.desconto) && num(t.frete) ? ' · ' : ''}{num(t.frete) ? `frete ${moeda(t.frete)}` : ''}</dd> : null}
+        <dd class="num nota-cabeca__total">{moeda(t.total)}</dd>
+        {(num(t.desconto) || num(t.frete)) ? <dd class="nota-cabeca__sub num">{num(t.desconto) ? `desconto ${moeda(t.desconto)}` : ''}{num(t.desconto) && num(t.frete) ? ' · ' : ''}{num(t.frete) ? `frete ${moeda(t.frete)}` : ''}</dd> : null}
       </div>
     </dl>
+  );
+}
+
+/** Situação da conferência numa linha discreta (nada de faixa colorida para o trabalho normal). */
+function Status({ c }: { c: CompraDetalhe }) {
+  const pendentes = c.itens.filter((i) => i.situacao === 'pendente').length;
+  const sugeridas = c.itens.filter((i) => i.situacao === 'sugerido').length;
+  const partes = [
+    pendentes ? plural(pendentes, 'item sem insumo', 'itens sem insumo') : null,
+    sugeridas ? plural(sugeridas, 'sugestão a confirmar', 'sugestões a confirmar') : null,
+    c.fonte_leitura === 'foto_ia' ? 'lido de foto por IA: confira quantidades e unidades' : null,
+  ].filter(Boolean);
+  return (
+    <p class="conferencia-status" role="status" data-teste="status-conferencia">
+      {partes.length ? partes.join(' · ') : 'Itens conferidos'}
+      {c.aviso && <span class="fraco"> — {c.aviso}</span>}
+    </p>
+  );
+}
+
+/** Ordem das linhas: o que precisa de alguém primeiro. */
+const peso = (s: CompraDetalhe['itens'][number]['situacao']) => ({ pendente: 0, sugerido: 1, confirmado: 2, nao_estoque: 3, ignorado: 4 })[s] ?? 5;
+
+/** Total dos itens × total registrado no Financeiro; a diferença só aparece quando existe. A confirmação segue as regras
+ *  do backend (corrigir, ou a gerência justifica ao confirmar). */
+function Totais({ itens, financeiro: fin, gerencia }: { itens: number; financeiro: number | null; gerencia: boolean }) {
+  const diferenca = fin === null ? 0 : Math.round((itens - fin) * 100) / 100;
+  const diverge = fin !== null && Math.abs(diferenca) > 0.009;
+  return (
+    <div class="pilha pilha--p" role="status" aria-live="polite" data-teste="soma-produtos">
+      <dl class="conf-totais" data-diverge={diverge ? '' : undefined}>
+        <div><dt>Total dos itens</dt><dd class="num">{moeda(itens)}</dd></div>
+        <div><dt>Registrado no Financeiro</dt><dd class="num">{fin === null ? <span class="fraco">Definido ao confirmar</span> : moeda(fin)}</dd></div>
+        {diverge ? (
+          <div class="conf-totais__dif"><dt>Diferença</dt><dd class="num">{moeda(Math.abs(diferenca))} {diferenca > 0 ? 'a mais' : 'a menos'}</dd></div>
+        ) : fin !== null ? (
+          <div class="conf-totais__ok"><dt class="sr">Situação</dt><dd><Check size={14} aria-hidden="true" /> Confere</dd></div>
+        ) : null}
+      </dl>
+      {diverge && (
+        <p class="conf-totais__aviso">
+          <AlertTriangle size={14} aria-hidden="true" /> Os itens não batem com o Financeiro. {gerencia ? 'Corrija os itens ou justifique a diferença ao confirmar.' : 'Corrija os itens ou peça à gerência para justificar.'} Nada entrou no estoque.
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -318,25 +363,12 @@ function Falhou({ c }: { c: CompraDetalhe }) {
         {repetida ? (
           <div style={{ marginTop: '6px' }}>Nada foi lançado em dobro. Procure a compra original na lista (mesmo fornecedor e número).</div>
         ) : (
-          <div style={{ marginTop: '6px' }}>Tente ler de novo. Se não der, envie uma foto mais nítida, o PDF ou o XML — ou registre em “Registrar compra → Sem nota”.</div>
+          <div style={{ marginTop: '6px' }}>Tente ler de novo. Se não der, peça uma foto mais nítida, o PDF ou o XML a quem lançou a compra no Financeiro.</div>
         )}
       </Aviso>
       {c.arquivo_id && <DocumentoLink c={c} />}
       {c.observacoes.length > 0 && <p class="fraco">Detalhes técnicos: {c.observacoes.join(', ')}</p>}
     </div>
-  );
-}
-
-/** Produtos × pagamento do Financeiro: a confirmação só passa com o total batendo (o backend recusa de novo). */
-function Financeiro({ c, gerencia }: { c: CompraDetalhe; gerencia: boolean }) {
-  const f = c.financeiro;
-  if (!f) return null;
-  if (f.confere)
-    return <Aviso tom="ok" icone={<CheckCircle2 aria-hidden="true" />}>Os produtos somam {moeda(f.total_itens)}, igual ao pagamento no Financeiro.</Aviso>;
-  return (
-    <Aviso tom="perigo" icone={<AlertTriangle aria-hidden="true" />}>
-      <strong>Os produtos não batem com o pagamento.</strong> Pagamento no Financeiro: {moeda(f.valor_financeiro)} · produtos: {moeda(f.total_itens)} · diferença: {moeda(Math.abs(Number(f.diferenca)))}. Corrija os produtos{gerencia ? ', ou continue e justifique a diferença (frete, desconto, itens fora do estoque, pagamento parcial)' : ' ou peça à gerência para justificar a diferença'}. Nada entrou no estoque.
-    </Aviso>
   );
 }
 
@@ -346,9 +378,10 @@ function linhasDe(c: CompraDetalhe): LinhaManual[] {
   return [...c.itens].sort((a, b) => a.ordem - b.ordem).map((i) => {
     const q = Number(i.quantidade);
     const unit = q > 0 ? Number(i.valor_liquido) / q : 0;
+    const s = i.sugestao;
     return {
-      insumo: i.sugestao?.insumo_id && i.sugestao.insumo ? { valor: i.sugestao.insumo_id, rotulo: i.sugestao.insumo } : null,
-      descricao: i.sugestao?.insumo ?? i.descricao,
+      insumo: s?.insumo_id && s.insumo && s.unidade_base ? { id: s.insumo_id, nome: s.insumo, unidade_base: s.unidade_base } : null,
+      lido: s?.insumo_id ? undefined : i.descricao,
       quantidade: String(q).replace('.', ','),
       unidade: i.unidade,
       unitario: unit.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
@@ -357,14 +390,16 @@ function linhasDe(c: CompraDetalhe): LinhaManual[] {
   });
 }
 
-/** Compra que veio só do comprovante do pagamento (ou rascunho digitado): a pessoa informa os produtos aqui, sem reenviar
- *  o comprovante, ou envia a nota fiscal (opcional), lida só aqui no painel. O total é o do pagamento no Financeiro. */
-function PreencherItens({ c, aoAbrir, aoSalvar }: { c: CompraDetalhe; aoAbrir: (id: string) => void; aoSalvar: () => void }) {
+/** Compra que veio só do comprovante do pagamento (ou rascunho digitado): a pessoa informa os itens aqui, cada um com o
+ *  insumo do cadastro, sem reenviar o comprovante — ou lê a nota fiscal (opcional). O total de referência é o do
+ *  pagamento no Financeiro; nenhuma despesa nova nasce daqui. */
+function PreencherItens({ c, gerencia, aoAbrir, aoSalvar }: { c: CompraDetalhe; gerencia: boolean; aoAbrir: (id: string) => void; aoSalvar: () => void }) {
   const [linhas, setLinhas] = useState<LinhaManual[]>(() => linhasDe(c));
   const [data, setData] = useState(c.emitida_em?.slice(0, 10) ?? hojeISO());
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [notaEnviando, setNotaEnviando] = useState<string | null>(null);
+  const [invalida, setInvalida] = useState<number | null>(null);
   const soma = somaLinhas(linhas);
   // Pagamento que esta compra confere: o valor da despesa no Financeiro (a pendência nasce com ele).
   const pago = c.financeiro ? Number(c.financeiro.valor_financeiro) : c.despesa_origem_id && c.totais.total ? Number(c.totais.total) : null;
@@ -373,13 +408,14 @@ function PreencherItens({ c, aoAbrir, aoSalvar }: { c: CompraDetalhe; aoAbrir: (
   async function salvar(e: Event) {
     e.preventDefault();
     if (enviando) return;
-    const { itens, erro: er } = validarLinhas(linhas);
+    const { itens, erro: er, linha } = validarLinhas(linhas);
+    setInvalida(linha ?? null);
     if (er) return setErro(er);
     setEnviando(true);
     setErro(null);
     try {
       const r = await estoque.preencherManual(c.id, { versao: c.versao, emitida_em: data, valor_total: soma.toFixed(2), itens });
-      avisar(diverge ? 'Produtos salvos. Eles não somam o pagamento: corrija, ou a gerência justifica a diferença ao confirmar.' : 'Produtos registrados. Agora confira cada item.', diverge ? 'info' : 'ok');
+      avisar(diverge ? 'Itens salvos. Eles não somam o valor do Financeiro: corrija, ou a gerência justifica a diferença ao confirmar.' : 'Itens salvos.', diverge ? 'info' : 'ok');
       if (r.id !== c.id) aoAbrir(r.id);
       else aoSalvar();
     } catch (x) {
@@ -406,36 +442,29 @@ function PreencherItens({ c, aoAbrir, aoSalvar }: { c: CompraDetalhe; aoAbrir: (
   }
   return (
     <form class="pilha" onSubmit={salvar} noValidate>
-      <Aviso tom="atencao" icone={<PackageX aria-hidden="true" />}>
-        <strong>{c.itens.length ? 'Corrija os produtos desta compra.' : 'Produtos e quantidades ainda não informados.'}</strong> Esta compra veio do comprovante do pagamento{c.origem === 'julia' ? ' enviado à Júlia' : ''}. Escolha os produtos no cadastro e informe quantidade e valor — não precisa reenviar o comprovante.
-      </Aviso>
-      <LinhasItens linhas={linhas} aoMudar={setLinhas} />
-      <div class="grade-campos">
-        <Campo rotulo="Data da compra">{(id) => <input id={id} type="date" class="entrada" max={hojeISO()} value={data} onChange={(e) => setData(e.currentTarget.value)} />}</Campo>
-        <div class="pilha pilha--p" role="status" aria-live="polite" data-teste="soma-produtos">
-          <span class="fraco">Soma dos produtos</span>
-          <strong class="num">{moeda(soma)}</strong>
-          {pago !== null && (
-            <span class={diverge ? undefined : 'fraco'} style={diverge ? { color: 'var(--perigo)' } : undefined}>
-              Pagamento no Financeiro: {moeda(pago)}{diverge ? ` · diferença de ${moeda(Math.abs(diferenca))} — confirmar exige corrigir ou justificar` : ' · confere'}
-            </span>
-          )}
+      <p class="conferencia-status" role="status" data-teste="status-conferencia">{c.itens.length ? 'Corrija os itens desta compra.' : 'Itens ainda não informados.'}</p>
+      <section class="pilha pilha--p" aria-label="Itens da compra">
+        <div class="linha linha--entre">
+          <h3 class="secao-titulo">Itens</h3>
+          <Campo rotulo="Data da compra" class="campo--linha">{(id) => <input id={id} type="date" class="entrada" max={hojeISO()} value={data} onChange={(e) => setData(e.currentTarget.value)} />}</Campo>
         </div>
-      </div>
+        <LinhasItens linhas={linhas} aoMudar={setLinhas} invalida={invalida} />
+      </section>
+      <Totais itens={soma} financeiro={pago} gerencia={gerencia} />
       {erro && <Aviso tom="perigo" icone={<Info aria-hidden="true" />}>{erro}</Aviso>}
-      <Botao type="submit" variante="primario" carregando={enviando} style={{ alignSelf: 'flex-start' }}>Salvar produtos</Botao>
+      <Botao type="submit" variante="primario" carregando={enviando} style={{ alignSelf: 'flex-start' }}>Salvar itens</Botao>
       {c.despesa_origem_id && (
-        <section class="pilha pilha--p" aria-label="Enviar a nota fiscal (opcional)">
-          <h3 class="secao-titulo">Ou envie a nota fiscal (opcional)</h3>
+        <details class="mais-opcoes" aria-label="Ler a nota fiscal (opcional)">
+          <summary>Ler a nota fiscal (opcional)</summary>
           <EnvioArquivo
             aceitar="image/jpeg,image/png,image/webp,image/heic,application/pdf,.xml,text/xml,application/xml"
             captura
             desativado={!!notaEnviando}
             titulo={notaEnviando ? `Enviando ${notaEnviando}…` : 'Foto, PDF ou XML da nota desta compra'}
-            detalhe="A leitura propõe os produtos e você revisa antes de confirmar. Não cria outra despesa."
+            detalhe="A leitura sugere os itens; cada um é confirmado por você. Não cria outra despesa."
             aoEscolher={enviarNota}
           />
-        </section>
+        </details>
       )}
     </form>
   );

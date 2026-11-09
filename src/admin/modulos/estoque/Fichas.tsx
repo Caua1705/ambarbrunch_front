@@ -14,11 +14,11 @@ import { moeda, pct, quantidade, dataCurta, num, decimal, custoBase, plural } fr
 import { Gaveta, useConfirmacao } from '../../ui/camadas';
 import { Botao, Campo, Situacao, Aviso } from '../../ui/base';
 import { Dados, Esqueleto, Vazio, Falha } from '../../ui/estados';
-import { Autocompletar, type OpcaoAuto } from '../../ui/entradas';
 import type { Dec } from '../../lib/tipos/comum';
 import type { FichaDetalhe, FichaLista, UnidadeBase } from '../../lib/tipos/estoque';
 import { UNIDADE, UNIDADE_CURTA, atualizarEstoque, paraBase, quantidadeDigitada, unidadesDaBase } from './comum';
 import { fotoDoCatalogo } from './fotos';
+import { SeletorInsumo, type InsumoEscolhido } from './SeletorInsumo';
 
 export type SituacaoFicha = 'sem' | 'incompleta' | 'completa';
 export const situacaoFicha = (f: FichaLista): SituacaoFicha => (!f.ficha ? 'sem' : f.ficha.custo_incompleto ? 'incompleta' : 'completa');
@@ -236,63 +236,56 @@ function Vinculo({ alvo }: { alvo: AlvoFicha }) {
 }
 
 interface LinhaFicha {
-  insumo: OpcaoAuto | null;
-  unidade: UnidadeBase | null;
+  /** Insumo do cadastro (id real, nome e unidade cadastrada). */
+  insumo: InsumoEscolhido | null;
   /** Unidade em que a quantidade foi digitada: 1000 = kg/L, 1 = g/ml/un. */
   fator: 1 | 1000;
   quantidade: string;
   perda: string;
   opcional: boolean;
 }
-const linhaNova = (): LinhaFicha => ({ insumo: null, unidade: null, fator: 1, quantidade: '', perda: '', opcional: false });
+const linhaNova = (): LinhaFicha => ({ insumo: null, fator: 1, quantidade: '', perda: '', opcional: false });
 const decimalDigitado = (t: string) => quantidadeDigitada(t) ?? String(Number(t.replace(',', '.')));
 
 function EditorFicha({ alvo, atual, aoTerminar }: { alvo: AlvoFicha; atual: FichaDetalhe | null; aoTerminar: (salvou: boolean) => void }) {
   const [linhas, setLinhas] = useState<LinhaFicha[]>(() =>
     atual?.itens.length
-      ? atual.itens.map((i) => ({ insumo: { valor: i.insumo_id, rotulo: i.insumo }, unidade: i.unidade_base, fator: 1, quantidade: String(Number(i.quantidade)).replace('.', ','), perda: Number(i.perda_percentual) ? String(Number(i.perda_percentual)).replace('.', ',') : '', opcional: i.opcional }))
+      ? atual.itens.map((i) => ({ insumo: { id: i.insumo_id, nome: i.insumo, unidade_base: i.unidade_base, custo_medio: i.custo_unitario }, fator: 1, quantidade: String(Number(i.quantidade)).replace('.', ','), perda: Number(i.perda_percentual) ? String(Number(i.perda_percentual)).replace('.', ',') : '', opcional: i.opcional }))
       : [linhaNova()],
   );
   const [rendimento, setRendimento] = useState(atual ? String(Number(atual.rendimento)).replace('.', ',') : '1');
   const [obs, setObs] = useState(atual?.observacao ?? '');
-  // Rendimento, perda e observação ficam em "Opções avançadas" (receitas em lote). Abertas de saída só quando a ficha já
-  // usa alguma delas, para ninguém editar sem ver. O preparo da casa mede o rendimento na sua unidade: fica à vista.
+  // Rendimento, perda, opcional e observação ficam em "Opções avançadas" (receitas em lote). Abertas de saída só quando a
+  // ficha já usa alguma delas, para ninguém editar sem ver. O preparo da casa mede o rendimento na sua unidade: fica à vista.
   const preparo = alvo.alvo === 'preparo';
   const [avancado, setAvancado] = useState(() => !!atual && (Number(atual.rendimento) !== 1 || !!atual.observacao || atual.itens.some((i) => Number(i.perda_percentual) > 0 || i.opcional)));
   const [erro, setErro] = useState<string | null>(null);
-  // O que a busca trouxe de cada insumo: unidade e preço médio (só para mostrar; o custo oficial é o do backend).
-  const [conhecidos] = useState(() => new Map<string, { unidade: UnidadeBase; custo: Dec | null }>(atual?.itens.map((i) => [i.insumo_id, { unidade: i.unidade_base, custo: i.custo_unitario }]) ?? []));
+  const [invalida, setInvalida] = useState<number | null>(null);
   const { confirmar, elemento } = useConfirmacao();
   const set = (k: number, m: Partial<LinhaFicha>) => setLinhas(linhas.map((l, i) => (i === k ? { ...l, ...m } : l)));
-  const buscar = async (t: string): Promise<OpcaoAuto[]> =>
-    (await estoque.insumos({ busca: t.trim() || undefined, limite: 20 })).itens
-      // Um preparo não entra na própria ficha (o backend recusa ciclo).
-      .filter((i) => i.ativo && !(alvo.alvo === 'preparo' && i.id === alvo.id))
-      .map((i) => {
-        conhecidos.set(i.id, { unidade: i.unidade_base, custo: i.custo_medio });
-        return { valor: i.id, rotulo: i.nome, detalhe: `${i.tipo === 'preparo' ? 'preparo · ' : ''}${i.custo_medio !== null ? custoBase(i.custo_medio, i.unidade_base) : 'sem preço'}` };
-      });
 
   function salvar(e: Event) {
     e.preventDefault();
-    const usadas = linhas.filter((l) => l.insumo || l.quantidade);
+    const usadas = linhas.map((l, k) => ({ l, k })).filter(({ l }) => l.insumo || l.quantidade);
     if (!usadas.length) return setErro('Adicione pelo menos um ingrediente.');
     const itens: { insumo_id: string; quantidade: string; perda_percentual: string; opcional: boolean }[] = [];
-    for (const l of usadas) {
-      if (!l.insumo) return setErro('Escolha o ingrediente de cada linha (só insumos cadastrados no estoque).');
+    for (const { l, k } of usadas) {
+      setInvalida(k);
+      if (!l.insumo) return setErro(`Linha ${k + 1}: escolha o ingrediente no cadastro de insumos.`);
       const q = paraBase(l.quantidade, l.fator);
-      if (!q || !(Number(q) > 0)) return setErro(`${l.insumo.rotulo}: informe a quantidade.`);
+      if (!q || !(Number(q) > 0)) return setErro(`${l.insumo.nome}: informe a quantidade.`);
       const p = Number(decimalDigitado(l.perda || '0'));
-      if (!(p >= 0 && p < 100)) return setErro(`${l.insumo.rotulo}: a perda vai de 0 a 99%.`);
-      itens.push({ insumo_id: l.insumo.valor, quantidade: q, perda_percentual: decimalDigitado(l.perda || '0'), opcional: l.opcional });
+      if (!(p >= 0 && p < 100)) return setErro(`${l.insumo.nome}: a perda vai de 0 a 99%.`);
+      itens.push({ insumo_id: l.insumo.id, quantidade: q, perda_percentual: decimalDigitado(l.perda || '0'), opcional: l.opcional });
     }
+    setInvalida(null);
     if (new Set(itens.map((l) => l.insumo_id)).size !== itens.length) return setErro('Cada ingrediente entra uma vez só: some as quantidades na mesma linha.');
     if (!(Number(decimalDigitado(rendimento)) > 0)) return setErro('O rendimento precisa ser maior que zero.');
     setErro(null);
-    const semPreco = usadas.filter((l) => l.insumo && !l.opcional && conhecidos.get(l.insumo.valor)?.custo === null).map((l) => l.insumo!.rotulo);
+    const semPreco = usadas.filter(({ l }) => l.insumo && !l.opcional && l.insumo.custo_medio === null).map(({ l }) => l.insumo!.nome);
     confirmar({
       titulo: atual ? `Salvar a versão ${atual.versao + 1} da ficha?` : 'Cadastrar a ficha técnica?',
-      texto: `${plural(itens.length, 'ingrediente', 'ingredientes')}. A ficha passa a valer agora para custo e margem; vendas que já aconteceram não mudam.${semPreco.length ? ` Sem preço ainda: ${semPreco.join(', ')} — o custo fica incompleto até a primeira compra.` : ''}`,
+      texto: `${plural(itens.length, 'ingrediente', 'ingredientes')}. Vale a partir de agora; vendas passadas não mudam.${semPreco.length ? ` Sem preço ainda: ${semPreco.join(', ')} — o custo fica incompleto até a primeira compra.` : ''}`,
       confirmar: 'Salvar ficha',
       acao: async () => {
         try {
@@ -309,7 +302,7 @@ function EditorFicha({ alvo, atual, aoTerminar }: { alvo: AlvoFicha; atual: Fich
   const rendimentoCampo = (
     <Campo
       rotulo={preparo ? `Rendimento (${alvo.unidade ? UNIDADE_CURTA[alvo.unidade] : 'unidade do preparo'})` : 'Rendimento (porções)'}
-      ajuda={preparo ? 'Quanto a receita inteira rende, na unidade do preparo.' : 'Quantas porções a receita rende. Feito na hora, uma porção: 1.'}
+      ajuda={preparo ? 'Quanto a receita inteira rende.' : 'Feito na hora: 1.'}
     >
       {(id, d) => <input id={id} class="entrada num" inputMode="decimal" aria-describedby={d} value={rendimento} onInput={(e) => setRendimento(e.currentTarget.value)} />}
     </Campo>
@@ -317,38 +310,48 @@ function EditorFicha({ alvo, atual, aoTerminar }: { alvo: AlvoFicha; atual: Fich
 
   return (
     <form class="pilha" onSubmit={salvar} noValidate>
-      <h3 class="secao-titulo">{atual ? `Editar ficha (nova versão ${atual.versao + 1})` : 'Nova ficha técnica'}</h3>
-      <p class="suave">{preparo ? 'Ingredientes do estoque e quanto vai na receita inteira.' : 'Ingredientes do estoque e quanto vai em uma porção.'} Produto pronto (água, refrigerante): escolha o item do estoque e 1 un.</p>
-      <div class="linhas-edicao">
+      <h3 class="secao-titulo">{atual ? `Editar ficha (versão ${atual.versao + 1})` : 'Nova ficha técnica'}</h3>
+      <div class={`itens-tabela itens-tabela--ficha${avancado ? ' itens-tabela--ficha-avancada' : ''}`} role="group" aria-label="Ingredientes da ficha">
+        <div class="itens-tabela__cabeca itens-tabela__linha" aria-hidden="true">
+          <span>Ingrediente</span><span class="num">{preparo ? 'Quantidade (receita)' : 'Quantidade (porção)'}</span><span>Unidade</span>
+          {avancado && <span class="num">Perda %</span>}{avancado && <span>Opcional</span>}<span />
+        </div>
         {linhas.map((l, k) => {
-          const conhecido = l.insumo ? conhecidos.get(l.insumo.valor) : undefined;
-          const unidades = l.unidade ? unidadesDaBase(l.unidade) : [];
+          const unidades = l.insumo ? unidadesDaBase(l.insumo.unidade_base) : [];
           return (
-            <div class={`linha-edicao linha-edicao--ficha${avancado ? ' linha-edicao--ficha-avancada' : ''}`} key={k}>
-              <div class="campo">
-                <span class="campo__rotulo">Ingrediente {k + 1}</span>
-                <Autocompletar
+            <div class="itens-tabela__linha" key={k} data-invalida={invalida === k ? '' : undefined}>
+              <div class="itens-tabela__insumo">
+                <SeletorInsumo
                   rotulo={`Ingrediente ${k + 1}`}
-                  placeholder="Buscar no estoque"
+                  placeholder="Buscar insumo"
                   valor={l.insumo}
-                  buscar={buscar}
-                  aoEscolher={(o) => { const u = o ? conhecidos.get(o.valor)?.unidade ?? null : null; set(k, { insumo: o, unidade: u, fator: 1 }); }}
+                  excluir={preparo ? alvo.id : undefined}
+                  mostrarCusto
+                  invalido={invalida === k}
+                  aoEscolher={(i) => set(k, { insumo: i, fator: 1 })}
                 />
-                {l.insumo && conhecido && <span class="campo__ajuda">{conhecido.custo !== null ? `Preço médio ${custoBase(conhecido.custo, conhecido.unidade)}` : 'Sem preço ainda: o custo fica incompleto'}</span>}
+                {l.insumo && <span class="item-lido__conv">{l.insumo.custo_medio != null ? `Preço médio ${custoBase(l.insumo.custo_medio, l.insumo.unidade_base)}` : 'Sem preço ainda: o custo fica incompleto'}</span>}
               </div>
-              <Campo rotulo="Quantidade">{(id) => <input id={id} class="entrada num" inputMode="decimal" value={l.quantidade} onInput={(e) => set(k, { quantidade: e.currentTarget.value })} />}</Campo>
-              {unidades.length > 1 ? (
-                <Campo rotulo="Unid.">
-                  {(id) => (
-                    <select id={id} class="selecao" value={String(l.fator)} onChange={(e) => set(k, { fator: Number(e.currentTarget.value) as 1 | 1000 })}>
-                      {unidades.map((u) => <option key={u.valor} value={String(u.fator)}>{u.valor}</option>)}
-                    </select>
-                  )}
-                </Campo>
-              ) : (
-                <Campo rotulo="Unid.">{(id) => <output id={id} class="entrada fraco" style={{ display: 'flex', alignItems: 'center' }}>{l.unidade ? UNIDADE_CURTA[l.unidade] : '—'}</output>}</Campo>
+              <label class="itens-tabela__celula">
+                <span class="itens-tabela__rotulo">Quantidade</span>
+                <input class="entrada num" inputMode="decimal" aria-label="Quantidade" value={l.quantidade} onInput={(e) => set(k, { quantidade: e.currentTarget.value })} />
+              </label>
+              <label class="itens-tabela__celula">
+                <span class="itens-tabela__rotulo">Unidade</span>
+                {unidades.length > 1 ? (
+                  <select class="selecao" aria-label="Unidade" value={String(l.fator)} onChange={(e) => set(k, { fator: Number(e.currentTarget.value) as 1 | 1000 })}>
+                    {unidades.map((u) => <option key={u.valor} value={String(u.fator)}>{u.valor}</option>)}
+                  </select>
+                ) : (
+                  <output class="entrada fraco itens-tabela__fixo" aria-label="Unidade">{l.insumo ? UNIDADE_CURTA[l.insumo.unidade_base] : '—'}</output>
+                )}
+              </label>
+              {avancado && (
+                <label class="itens-tabela__celula">
+                  <span class="itens-tabela__rotulo">Perda %</span>
+                  <input class="entrada num" inputMode="decimal" aria-label="Perda %" placeholder="0" value={l.perda} onInput={(e) => set(k, { perda: e.currentTarget.value })} />
+                </label>
               )}
-              {avancado && <Campo rotulo="Perda %">{(id) => <input id={id} class="entrada num" inputMode="decimal" placeholder="0" value={l.perda} onInput={(e) => set(k, { perda: e.currentTarget.value })} />}</Campo>}
               {avancado && <label class="marcar ficha-opcional"><input type="checkbox" checked={l.opcional} onChange={(e) => set(k, { opcional: e.currentTarget.checked })} /> Opcional</label>}
               <Botao so_icone variante="fantasma" aria-label={`Remover o ingrediente ${k + 1}`} icone={<Trash2 aria-hidden="true" />} disabled={linhas.length === 1} onClick={() => setLinhas(linhas.filter((_, i) => i !== k))} />
             </div>
@@ -356,16 +359,15 @@ function EditorFicha({ alvo, atual, aoTerminar }: { alvo: AlvoFicha; atual: Fich
         })}
         <Botao tamanho="p" icone={<Plus aria-hidden="true" />} style={{ alignSelf: 'flex-start' }} onClick={() => setLinhas([...linhas, linhaNova()])}>Adicionar ingrediente</Botao>
       </div>
+      <p class="fraco">Produto pronto (água, refrigerante): o item do estoque e 1 un.</p>
       {preparo && <div class="grade-campos">{rendimentoCampo}</div>}
       <details class="mais-opcoes" open={avancado} onToggle={(e) => setAvancado((e.currentTarget as HTMLDetailsElement).open)}>
-        <summary>Opções avançadas{preparo ? '' : ': rendimento'}, perda e observação</summary>
-        <p class="fraco">Para receitas feitas em lote. {preparo ? '' : 'Rendimento: quantas porções a receita rende (feito na hora, 1). '}Perda: o que se joga fora no preparo (casca, aparas). Opcional: não entra no custo.</p>
+        <summary>Opções avançadas</summary>
         <div class="grade-campos">
           {!preparo && rendimentoCampo}
           <Campo rotulo="Observação" opcional>{(id) => <input id={id} class="entrada" maxLength={300} value={obs} onInput={(e) => setObs(e.currentTarget.value)} />}</Campo>
         </div>
       </details>
-      <p class="fraco">O custo é calculado pelo sistema ao salvar, com os preços conhecidos dos insumos. Ingrediente sem preço não ganha custo inventado.</p>
       {erro && <Aviso tom="perigo" icone={<Info aria-hidden="true" />}>{erro}</Aviso>}
       <div class="linha" style={{ justifyContent: 'flex-end' }}>
         <Botao onClick={() => aoTerminar(false)}>Voltar</Botao>

@@ -1,10 +1,10 @@
-// Compras: tudo o que chega ao café passa pela MESMA conferência — comprovante enviado à Júlia no grupo Financeiro (faltam
-// os produtos), nota enviada pelo painel (lida no backend, revisada por uma pessoa) e compra sem nota (digitada). Duas
-// listas: Pendentes (para conferir, sendo lidas, com problema) e Histórico (conferidas e canceladas). O
-// estoque só muda em "Confirmar recebimento", com os itens que chegaram; pagamento e nota sozinhos não mexem no saldo, e a
-// compra confere o MESMO registro do Financeiro (nenhuma despesa nova). Lista e conferência: estoque.conferir.
+// Compras: a conferência do que foi comprado. A compra nasce no Financeiro (comprovante enviado à Júlia, lançamento do
+// painel) — o Estoque não cria compra nem despesa. Duas listas: Pendentes (para conferir, sendo lidas, com problema) e
+// Histórico (conferidas e canceladas). O estoque só muda em "Confirmar recebimento", com os itens que chegaram; pagamento
+// e nota sozinhos não mexem no saldo, e a compra confere o MESMO registro do Financeiro (nenhuma despesa nova). Lista e
+// conferência: estoque.conferir.
 import { useMemo, useState } from 'preact/hooks';
-import { PackageCheck, Plus } from 'lucide-preact';
+import { PackageCheck } from 'lucide-preact';
 import { useConsulta } from '../../lib/consulta';
 import { estoque } from '../../lib/api/estoque';
 import { moeda, dataCurta, plural } from '../../lib/formato';
@@ -28,7 +28,7 @@ export function origemCompra(c: Pick<CompraLista, 'origem' | 'fonte_leitura' | '
   return { quem, doc: 'nota fiscal' };
 }
 
-export function Compras({ perm, aberta, aoAbrir, aoNova }: { perm: PermissoesEstoque; aberta: string | null; aoAbrir: (id: string | null) => void; aoNova: () => void }) {
+export function Compras({ perm, aberta, aoAbrir }: { perm: PermissoesEstoque; aberta: string | null; aoAbrir: (id: string | null) => void }) {
   const [lista, setLista] = useState<Lista>('pendentes');
   const todas = useConsulta(perm.conferir ? 'estoque/compras?todas' : null, () => estoque.compras({ limite: 200 }));
   const itens = todas.dados?.itens ?? [];
@@ -77,9 +77,6 @@ export function Compras({ perm, aberta, aoAbrir, aoNova }: { perm: PermissoesEst
             { valor: 'historico', rotulo: 'Histórico' },
           ]}
         />
-        <div class="barra-ferramentas__acoes">
-          <Botao icone={<Plus aria-hidden="true" />} onClick={aoNova}>Registrar compra</Botao>
-        </div>
       </div>
       <Cartao justo>
         <Dados consulta={todas} recurso="As compras" esqueleto={<EsqueletoTabela />}>
@@ -97,7 +94,7 @@ export function Compras({ perm, aberta, aoAbrir, aoNova }: { perm: PermissoesEst
                 vazio={
                   lista === 'pendentes' ? (
                     <Vazio icone={<PackageCheck aria-hidden="true" />} titulo="Nenhuma compra para conferir">
-                      Quando alguém mandar o comprovante para a Júlia no grupo Financeiro, a compra aparece aqui para conferir o que chegou. Comprou sem passar pela Júlia? Use “Registrar compra”.
+                      As compras lançadas no Financeiro aparecem aqui para conferir o que chegou.
                     </Vazio>
                   ) : (
                     <Vazio compacto titulo="Nenhuma compra conferida ainda" />

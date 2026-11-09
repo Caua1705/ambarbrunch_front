@@ -38,6 +38,13 @@ test('B3: nota parecida com um Pix que espera conferência — diferença visív
   const id = C.b3.compra_parecida_id;
   await page.goto(`${PAINEL}/admin/estoque?aba=compras&compra=${id}`);
   const gaveta = page.getByRole('dialog');
+  // Sugestões da leitura só valem confirmadas por uma pessoa (09/11).
+  const sugestoes = gaveta.getByRole('button', { name: /^Confirmar / });
+  for (let n = await sugestoes.count(); n > 0; n--) {
+    await sugestoes.first().click();
+    await expect(sugestoes).toHaveCount(n - 1);
+  }
+  await expect(gaveta.locator('.item-lido[data-situacao="sugerido"]')).toHaveCount(0);
   await page.getByRole('button', { name: 'Continuar' }).click();
   const parecida = gaveta.locator(`[data-candidata-bloqueada="${C.b3.pix_despesa_id}"]`);
   await expect(parecida).toContainText('diferença de R$ 2,00 (a menos que a nota)');
@@ -57,7 +64,7 @@ test('B3: nota parecida com um Pix que espera conferência — diferença visív
   // O atalho leva à conferência do Pix (a pendência), sem mexer nela.
   await parecida.getByRole('button', { name: 'Abrir a conferência deste pagamento' }).click();
   await expect(page).not.toHaveURL(new RegExp(`compra=${id}`));
-  await expect(gaveta.getByText('Produtos e quantidades ainda não informados.')).toBeVisible();
+  await expect(gaveta.locator('[data-teste="status-conferencia"]')).toHaveText('Itens ainda não informados.');
   expect((await (await page.request.get(`${API}/estoque/compras/${id}`)).json()).etapa).toBe('aguardando_conferencia');
 });
 
@@ -125,15 +132,15 @@ test('Pix com divergência: R$ 85 contra um Pix de R$ 90 não confirma (409); re
   const pendencia = C.pix_divergencia.pendencia_compra_id;
   await page.goto(`${PAINEL}/admin/estoque?aba=compras&compra=${pendencia}`);
   const gaveta = page.getByRole('dialog');
-  await expect(gaveta.getByText('Produtos e quantidades ainda não informados.')).toBeVisible();
-  await gaveta.getByRole('combobox', { name: 'Produto 1' }).fill('leite');
+  await expect(gaveta.locator('[data-teste="status-conferencia"]')).toHaveText('Itens ainda não informados.');
+  await gaveta.getByRole('combobox', { name: 'Insumo 1' }).fill('leite');
   await page.getByRole('option', { name: /Leite integral/ }).click();
-  await gaveta.getByLabel('Qtd.').first().fill('10');
-  await gaveta.getByLabel('Unid.').first().selectOption('L');
-  await gaveta.getByLabel('Valor unit.').first().fill('8,50');
+  await gaveta.getByRole('textbox', { name: 'Quantidade', exact: true }).first().fill('10');
+  await gaveta.getByRole('combobox', { name: 'Unidade', exact: true }).first().selectOption('L');
+  await gaveta.getByRole('textbox', { name: 'Valor unitário', exact: true }).first().fill('8,50');
   await expect(gaveta.locator('[data-teste="soma-produtos"]')).toContainText('diferença de R$ 5,00');
-  await gaveta.getByRole('button', { name: 'Salvar produtos' }).click();
-  await expect(gaveta.getByText('Os produtos não batem com o pagamento.')).toBeVisible();
+  await gaveta.getByRole('button', { name: 'Salvar itens' }).click();
+  await expect(gaveta.getByText(/Os itens não batem com o Financeiro./)).toBeVisible();
   // A gerência pode seguir, mas só confirma justificando a diferença (02/11); sem motivo, nada é enviado.
   await page.getByRole('button', { name: 'Continuar' }).click();
   await expect(gaveta.getByRole('group', { name: 'Diferença entre produtos e pagamento' })).toBeVisible();
@@ -148,10 +155,10 @@ test('Pix com divergência: R$ 85 contra um Pix de R$ 90 não confirma (409); re
   expect(recusa.status()).toBe(409);
 
   await gaveta.getByRole('button', { name: 'Corrigir os produtos ou enviar a nota' }).click();
-  await gaveta.getByLabel('Valor unit.').first().fill('9,00');
-  await expect(gaveta.locator('[data-teste="soma-produtos"]')).toContainText('confere');
-  await gaveta.getByRole('button', { name: 'Salvar produtos' }).click();
-  await expect(gaveta.getByText(/igual ao pagamento no Financeiro/)).toBeVisible();
+  await gaveta.getByRole('textbox', { name: 'Valor unitário', exact: true }).first().fill('9,00');
+  await expect(gaveta.locator('[data-teste="soma-produtos"]')).toContainText('Confere');
+  await gaveta.getByRole('button', { name: 'Salvar itens' }).click();
+  await expect(gaveta.locator('[data-teste="soma-produtos"]')).toContainText('Confere');
   await page.getByRole('button', { name: 'Continuar' }).click();
   await expect(gaveta.getByText('É o pagamento que a Júlia registrou')).toBeVisible();
   await page.getByRole('button', { name: 'Confirmar recebimento' }).click();

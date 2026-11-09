@@ -4,7 +4,7 @@
 /* Conferência: documento à esquerda, dados à direita; no celular, tudo em coluna e o documento recolhível. */
 .conferencia {
   display: grid;
-  grid-template-columns: minmax(280px, 0.8fr) minmax(0, 1.4fr);
+  grid-template-columns: minmax(260px, 0.66fr) minmax(0, 1.6fr);
   gap: var(--e-5);
   align-items: start;
 }
@@ -67,9 +67,9 @@
 /* Resumo da nota (fornecedor, número, totais) */
 .nota-cabeca {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
   gap: var(--e-3) var(--e-5);
-  padding: var(--e-4);
+  padding: var(--e-3) var(--e-4);
   border: 1px solid var(--borda);
   border-radius: var(--r-l);
   background: var(--superficie-2);
@@ -316,7 +316,9 @@
 }
 
 /* Alertas longos do item quebram linha no celular (a etiqueta padrão não quebra). */
-.item-compra .etiqueta {
+.item-compra .etiqueta,
+.item-lido .etiqueta {
+  max-width: 100%;
   white-space: normal;
   line-height: 1.35;
   padding-top: 3px;
@@ -925,4 +927,348 @@
 }
 .custos-explica {
   margin: var(--e-4) 0 0;
+}
+
+/* --- Refinamento de 09/11/2026 ------------------------------------------------------------------------------------ */
+
+/* Cabeçalho da conferência: fornecedor, data e total; o documento numa linha pequena. */
+.nota-cabeca__sub {
+  font-size: var(--t-xs);
+  font-weight: 400;
+  color: var(--texto-3);
+}
+.nota-cabeca__total {
+  font-size: var(--t-l);
+  font-weight: 650;
+}
+@media (max-width: 480px) {
+  .nota-cabeca {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .nota-cabeca > :first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Situação da conferência: uma linha discreta, sem faixa colorida. */
+.conferencia-status {
+  margin: 0;
+  font-size: var(--t-s);
+  color: var(--texto-2);
+}
+
+/* Seletor único de insumos: unidade cadastrada dentro do campo, estados dentro da lista. */
+.seletor-insumo .entrada-grupo .entrada {
+  padding-right: 44px;
+}
+.seletor-insumo__unidade {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 1px 6px;
+  border-radius: var(--r-s);
+  background: var(--afundado);
+  color: var(--texto-2);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  pointer-events: none;
+}
+.auto__estado {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-2);
+  align-items: center;
+  padding: 8px 10px;
+  color: var(--texto-3);
+  font-size: var(--t-s);
+}
+.auto__opcao--criar {
+  border-top: 1px solid var(--borda);
+  border-radius: 0 0 var(--r-m) var(--r-m);
+  margin-top: 4px;
+}
+.auto__opcao--criar .forte {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--marca-texto);
+}
+
+/* Linhas de itens (compra e ficha): cabeçalho único no computador; no celular, cada linha vira um cartão com rótulos. */
+.itens-tabela {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.itens-tabela__linha {
+  display: grid;
+  grid-template-columns: minmax(0, 2.6fr) minmax(76px, 0.8fr) minmax(76px, 0.7fr) minmax(104px, 1fr) minmax(88px, 0.9fr) 40px;
+  gap: var(--e-2);
+  align-items: start;
+}
+.itens-tabela--ficha .itens-tabela__linha {
+  grid-template-columns: minmax(0, 2.6fr) minmax(90px, 1fr) minmax(76px, 0.7fr) 40px;
+}
+.itens-tabela--ficha-avancada .itens-tabela__linha {
+  grid-template-columns: minmax(0, 2.4fr) minmax(90px, 1fr) minmax(76px, 0.7fr) minmax(70px, 0.7fr) auto 40px;
+}
+.itens-tabela__cabeca {
+  font-size: var(--t-xs);
+  color: var(--texto-3);
+  font-weight: 500;
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--borda);
+}
+.itens-tabela__cabeca .num {
+  text-align: right;
+}
+.itens-tabela__insumo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.itens-tabela__celula {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+/* O rótulo da célula só aparece no celular; no computador fica para leitores de tela (o cabeçalho mostra). */
+.itens-tabela__rotulo {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.itens-tabela__subtotal {
+  display: flex;
+  align-items: center;
+  min-height: var(--alvo-toque);
+}
+.itens-tabela__fixo {
+  display: flex;
+  align-items: center;
+}
+.itens-tabela__subtotal {
+  justify-content: flex-end;
+  font-weight: 600;
+}
+.itens-tabela__linha[data-invalida] .seletor-insumo .entrada {
+  border-color: var(--perigo);
+}
+@media (max-width: 640px) {
+  .itens-tabela__cabeca {
+    display: none;
+  }
+  .itens-tabela__linha,
+  .itens-tabela--ficha .itens-tabela__linha,
+  .itens-tabela--ficha-avancada .itens-tabela__linha {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    padding: var(--e-3);
+    border: 1px solid var(--borda);
+    border-radius: var(--r-l);
+  }
+  .itens-tabela__insumo {
+    grid-column: 1 / -1;
+  }
+  .itens-tabela__rotulo {
+    position: static;
+    width: auto;
+    height: auto;
+    clip: auto;
+    font-size: var(--t-xs);
+    color: var(--texto-3);
+    margin-bottom: 2px;
+  }
+  .itens-tabela__subtotal {
+    justify-content: flex-start;
+    min-height: 0;
+  }
+}
+
+/* Item lido da nota: mesma grade, valores do documento em texto. */
+.item-lido {
+  padding: var(--e-2) 0;
+  border-bottom: 1px solid var(--borda);
+  align-items: center;
+  grid-template-columns: minmax(0, 2.4fr) 72px 56px 96px 96px 156px;
+}
+.itens-tabela:has(.item-lido) > .itens-tabela__cabeca {
+  grid-template-columns: minmax(0, 2.4fr) 72px 56px 96px 96px 156px;
+}
+.item-lido > .itens-tabela__celula {
+  text-align: right;
+}
+.item-lido > .itens-tabela__celula:nth-of-type(3) {
+  text-align: left;
+}
+.item-lido[data-situacao='ignorado'],
+.item-lido[data-situacao='nao_estoque'] {
+  color: var(--texto-3);
+}
+.item-lido__nota {
+  font-size: var(--t-xs);
+  color: var(--texto-3);
+  letter-spacing: 0.01em;
+  overflow-wrap: anywhere;
+}
+.item-lido__conv {
+  font-size: var(--t-xs);
+  color: var(--texto-2);
+}
+.item-lido__conv--falta {
+  color: var(--atencao);
+  font-weight: 500;
+}
+.item-lido__fora {
+  font-size: var(--t-s);
+}
+.item-lido__acoes {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+}
+.item-lido__ok {
+  display: inline-flex;
+  color: var(--ok);
+  padding: 0 6px;
+}
+.item-lido__ok svg {
+  width: 18px;
+  height: 18px;
+}
+.item-lido__extra {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--e-2);
+  padding: var(--e-2) var(--e-3);
+  border-radius: var(--r-m);
+  background: var(--afundado);
+}
+@media (max-width: 640px) {
+  .item-lido {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .item-lido > .itens-tabela__celula,
+  .item-lido > .itens-tabela__celula:nth-of-type(3) {
+    text-align: left;
+  }
+  .item-lido__acoes {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+}
+
+/* Total dos itens × Financeiro: diferença só quando existe. */
+.conf-totais {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-2) var(--e-6);
+  align-items: baseline;
+  justify-content: flex-end;
+  margin: 0;
+  padding: var(--e-3) var(--e-4);
+  border: 1px solid var(--borda);
+  border-radius: var(--r-l);
+  background: var(--superficie-2);
+}
+.conf-totais > div {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+.conf-totais dt {
+  font-size: var(--t-xs);
+  color: var(--texto-3);
+}
+.conf-totais dd {
+  margin: 0;
+  font-weight: 600;
+}
+.conf-totais__dif dd {
+  color: var(--perigo);
+}
+.conf-totais__ok dd {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ok);
+  font-weight: 500;
+}
+.conf-totais[data-diverge] {
+  border-color: color-mix(in srgb, var(--perigo) 45%, var(--borda));
+}
+.conf-totais__aviso {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  margin: 0;
+  font-size: var(--t-s);
+  color: var(--perigo);
+}
+.conf-totais__aviso svg {
+  flex: none;
+  margin-top: 3px;
+}
+@media (max-width: 480px) {
+  .conf-totais {
+    justify-content: space-between;
+  }
+}
+
+/* Data da compra ao lado do título dos itens. */
+.campo--linha {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--e-2);
+}
+.campo--linha .campo__rotulo {
+  margin: 0;
+  white-space: nowrap;
+  font-size: var(--t-s);
+  color: var(--texto-2);
+}
+.campo--linha .entrada {
+  width: auto;
+}
+
+/* Ajustar estoque: entrada sem rota identificada, responsável à vista. */
+.ajuste-indisponivel {
+  display: flex;
+  gap: var(--e-3);
+  align-items: flex-start;
+  padding: var(--e-4);
+  border: 1px dashed var(--borda-forte);
+  border-radius: var(--r-l);
+}
+.ajuste-indisponivel > svg {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  color: var(--texto-3);
+}
+.ajuste-responsavel {
+  margin: 0;
+}
+
+/* Rodapé da tabela de Insumos: notas discretas. */
+.estoque-rodape {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-2) var(--e-5);
+  justify-content: space-between;
+}
+.estoque-rodape__nota {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }

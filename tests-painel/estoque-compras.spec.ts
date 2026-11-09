@@ -1,6 +1,6 @@
 // Regras de 31/10 (dono) na demonstração: o pagamento sem categoria é classificado na Revisão (a MESMA despesa) e
-// Compras confere os produtos de um pagamento com o seletor do cadastro, valor unitário e subtotal; produtos que não
-// somam o valor do pagamento ficam como rascunho e a confirmação é bloqueada (no painel e na API).
+// Compras confere os itens de um pagamento com o seletor único de insumos (pelo id), valor unitário e subtotal; itens que
+// não somam o valor do Financeiro ficam como rascunho e a confirmação é bloqueada (no painel e na API).
 // Cada teste usa um registro DIFERENTE da demonstração (o estado do servidor é compartilhado entre os testes).
 import { test, expect } from '@playwright/test';
 import { DEMO, entrarDemo } from './apoio';
@@ -38,19 +38,21 @@ test('revisão: filtro "Sem categoria" e classificação da mesma despesa, com d
 test('compras: produtos do cadastro com subtotal; R$ 222 contra um Pix de R$ 186,40 não confirma, corrigido confirma uma vez', async ({ page }) => {
   await page.goto(`${DEMO}/admin/estoque?aba=compras&compra=${PIX_HORTIFRUTI}`);
   const gaveta = page.getByRole('dialog');
-  await expect(gaveta.getByText('Produtos e quantidades ainda não informados.')).toBeVisible();
+  await expect(gaveta.locator('[data-teste="status-conferencia"]')).toHaveText('Itens ainda não informados.');
 
-  // Seletor pesquisável do cadastro de insumos (não é texto livre).
-  await gaveta.getByRole('combobox', { name: 'Produto 1' }).fill('ovo');
+  // Seletor único do cadastro de insumos (não é texto livre); sem faixa amarela de explicação.
+  await expect(gaveta.locator('.aviso--atencao')).toHaveCount(0);
+  await gaveta.getByRole('combobox', { name: 'Insumo 1' }).fill('ovo');
   await page.getByRole('option', { name: /Ovos/ }).click();
-  await gaveta.getByLabel('Qtd.').first().fill('100');
-  await gaveta.getByLabel('Valor unit.').first().fill('2,22');
+  await gaveta.getByLabel('Quantidade', { exact: true }).first().fill('100');
+  await gaveta.getByRole('textbox', { name: 'Valor unitário', exact: true }).first().fill('2,22');
   await expect(gaveta.getByLabel('Subtotal').first()).toHaveText(/222,00/);
-  await expect(gaveta.locator('[data-teste="soma-produtos"]')).toContainText('diferença de R$ 35,60');
+  await expect(gaveta.locator('[data-teste="soma-produtos"]')).toContainText('Registrado no Financeiro');
+  await expect(gaveta.locator('[data-teste="soma-produtos"]')).toContainText('R$ 35,60 a mais');
 
   // Salvar o rascunho é permitido; confirmar, não.
-  await gaveta.getByRole('button', { name: 'Salvar produtos' }).click();
-  await expect(gaveta.getByText('Os produtos não batem com o pagamento.')).toBeVisible();
+  await gaveta.getByRole('button', { name: 'Salvar itens' }).click();
+  await expect(gaveta.getByText(/Os itens não batem com o Financeiro./)).toBeVisible();
   // A gerência pode seguir, mas só confirma justificando a diferença (02/11); sem motivo, nada é enviado.
   await page.getByRole('button', { name: 'Continuar' }).click();
   await expect(gaveta.getByRole('group', { name: 'Diferença entre produtos e pagamento' })).toBeVisible();
@@ -65,12 +67,12 @@ test('compras: produtos do cadastro com subtotal; R$ 222 contra um Pix de R$ 186
   expect(recusa.status()).toBe(409);
 
   // Corrige: 2 × R$ 93,20 = R$ 186,40 (o valor do pagamento). Nasce a compra corrigida; a gaveta passa para ela.
-  await gaveta.getByRole('button', { name: 'Corrigir os produtos ou enviar a nota' }).click();
-  await gaveta.getByLabel('Qtd.').first().fill('2');
-  await gaveta.getByLabel('Valor unit.').first().fill('93,20');
-  await expect(gaveta.locator('[data-teste="soma-produtos"]')).toContainText('confere');
-  await gaveta.getByRole('button', { name: 'Salvar produtos' }).click();
-  await expect(gaveta.getByText(/igual ao pagamento no Financeiro/)).toBeVisible();
+  await gaveta.getByRole('button', { name: 'Corrigir itens ou enviar a nota' }).click();
+  await gaveta.getByLabel('Quantidade', { exact: true }).first().fill('2');
+  await gaveta.getByRole('textbox', { name: 'Valor unitário', exact: true }).first().fill('93,20');
+  await expect(gaveta.locator('[data-teste="soma-produtos"]')).toContainText('Confere');
+  await gaveta.getByRole('button', { name: 'Salvar itens' }).click();
+  await expect(gaveta.locator('[data-teste="soma-produtos"]')).toContainText('Confere');
   await page.getByRole('button', { name: 'Continuar' }).click();
   await page.getByRole('button', { name: 'Confirmar recebimento' }).click();
   await expect(gaveta.getByRole('heading', { name: 'Compra confirmada' })).toBeVisible();
@@ -81,6 +83,9 @@ test('compras (B3): nota parecida com um Pix que espera conferência mostra a di
   const PIX_PADARIA = 'e2000000-0000-4000-8000-000000000008'; // Pix de R$ 150,00 esperando conferência
   await page.goto(`${DEMO}/admin/estoque?aba=compras&compra=${NOTA_PADARIA}`);
   const gaveta = page.getByRole('dialog');
+  // A sugestão da leitura só vale confirmada por uma pessoa.
+  await expect(page.getByRole('button', { name: 'Continuar' })).toBeDisabled();
+  await gaveta.getByRole('button', { name: /^Confirmar Pão de fermentação natural/ }).click();
   await page.getByRole('button', { name: 'Continuar' }).click();
 
   const parecida = gaveta.getByRole('group', { name: 'Pagamento parecido: Pix Padaria Trigo de Ouro' });
@@ -110,6 +115,6 @@ test('compras (B3): nota parecida com um Pix que espera conferência mostra a di
   // O caminho certo: abrir a conferência do Pix e enviar a nota lá.
   await parecida.getByRole('button', { name: 'Abrir a conferência deste pagamento' }).click();
   await expect(page).toHaveURL(new RegExp(`compra=${PIX_PADARIA}`));
-  await expect(gaveta.getByText('Produtos e quantidades ainda não informados.')).toBeVisible();
-  await expect(gaveta.getByRole('region', { name: 'Enviar a nota fiscal (opcional)' })).toBeVisible();
+  await expect(gaveta.locator('[data-teste="status-conferencia"]')).toHaveText('Itens ainda não informados.');
+  await expect(gaveta.getByText('Ler a nota fiscal (opcional)')).toBeVisible();
 });
