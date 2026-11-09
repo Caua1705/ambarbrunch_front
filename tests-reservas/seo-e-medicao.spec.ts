@@ -30,7 +30,9 @@ test('home: dados estruturados do café (CafeOrCoffeeShop) com endereço, horár
   expect(cafe.alternateName).toContain('Âmbar Café');
   expect(cafe.url).toBe(`${OFICIAL}/`);
   expect(cafe.address).toMatchObject({ streetAddress: 'Rua Tavares Coutinho, 1580', addressLocality: 'Fortaleza', addressRegion: 'CE', postalCode: '60160-130', addressCountry: 'BR' });
-  expect(cafe.openingHoursSpecification).toEqual([expect.objectContaining({ dayOfWeek: expect.arrayContaining(['Monday', 'Sunday']), opens: '07:00', closes: '19:00' })]);
+  // terça a domingo, 07h–19h; segunda-feira fechado (fora da lista = fechado no schema.org)
+  expect(cafe.openingHoursSpecification).toEqual([expect.objectContaining({ dayOfWeek: ['Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'], opens: '07:00', closes: '19:00' })]);
+  expect(cafe.description).toContain('terça a domingo');
   expect(cafe.potentialAction.target.urlTemplate).toBe(`${OFICIAL}/reservar/`);
   expect(cafe.sameAs).toEqual(['https://www.instagram.com/ambarbrunch/']);
   for (const campo of ['image', 'logo']) expect((await request.get(new URL(cafe[campo]).pathname)).status(), campo).toBe(200);

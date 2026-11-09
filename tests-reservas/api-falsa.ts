@@ -11,11 +11,13 @@ import type { Page, Route } from '@playwright/test';
 export const API = 'http://reservas-api.teste.invalid';
 export const SITE = 'http://127.0.0.1:4423';
 export const ABERTURA = '2026-11-09';
+/** 09/11 (abertura no backend) é segunda-feira, dia em que o café fecha: a primeira data reservável pelo site é 10/11. */
+export const PRIMEIRA_RESERVAVEL = '2026-11-10';
 /** "Agora" dos testes: 28/10/2026 às 10h em Fortaleza (UTC−3). */
 export const AGORA = new Date('2026-10-28T10:00:00-03:00');
 export const DIA_EVENTO = '2026-11-14';
 export const DIA_LOTADO = '2026-11-12';
-export const DIA_PARCIAL = '2026-11-10';
+export const DIA_PARCIAL = '2026-11-13';
 
 const CORS = { 'access-control-allow-origin': SITE, 'access-control-allow-headers': 'content-type, idempotency-key, accept', 'access-control-allow-methods': 'GET, POST, OPTIONS' };
 

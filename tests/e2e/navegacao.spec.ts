@@ -276,6 +276,9 @@ test('rodapé absorve a Visite (2026-10-23): endereço 1580 no Meireles, horári
   await expect(rodape).toContainText('Rua Tavares Coutinho, 1580');
   await expect(rodape).toContainText('Meireles, Fortaleza - CE');
   await expect(rodape).toContainText('07h às 19h');
+  await expect(rodape).toContainText('Terça a domingo');
+  await expect(rodape).toContainText(/Segunda-feira\s*Fechado/);
+  await expect(rodape).not.toContainText('Todos os dias');
   await expect(rodape.locator('iframe, .selo')).toHaveCount(0);
   // o minimapa desenhado é o link “Como chegar” (sem mapa embutido de terceiros)
   await expect(maps.locator('svg .mapa__pino')).toHaveCount(1);

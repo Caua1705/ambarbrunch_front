@@ -8,8 +8,9 @@ export const visita = {
   endereco: 'Rua Tavares Coutinho, 1580',
   cidade: 'Meireles, Fortaleza - CE',
   mapaUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(enderecoBusca)}`,
-  horarios: [{ dias: 'Todos os dias', horas: '07h às 19h' }],
-  horarioCurto: 'todos os dias · 07h–19h',
+  // 2026-11-08: o café funciona de terça a domingo; segunda é fechado (responsável). O horário dos dias abertos não mudou.
+  horarios: [{ dias: 'Terça a domingo', horas: '07h às 19h' }, { dias: 'Segunda-feira', horas: 'Fechado' }],
+  horarioCurto: 'terça a domingo · 07h–19h · segunda fechado',
   // 2026-10-29: sem WhatsApp de atendimento no site (pedido do responsável). O número oficial fica só na política de
   // privacidade, como canal dos pedidos sobre dados pessoais (src/data/privacidade.ts).
   instagram: { handle: '@ambarbrunch', url: 'https://www.instagram.com/ambarbrunch/' },

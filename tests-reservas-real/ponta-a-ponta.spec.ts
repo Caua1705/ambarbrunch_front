@@ -43,6 +43,8 @@ test('a API real não oferece nada antes de 09/11 e o site mostra exatamente os 
     d.setUTCDate(d.getUTCDate() + i);
     const iso = d.toISOString().slice(0, 10);
     if ((amb.datasFechadas ?? []).includes(iso)) continue;
+    // segunda-feira: o café fecha e o site não deixa escolher (mesmo que a API ofereça)
+    if (d.getUTCDay() === 1) continue;
     const disp = await json<{ horarios: { hora: string; disponivel: boolean }[] }>(`/reservas/disponibilidade?data=${iso}&pessoas=2&ambiente=${amb.id}`);
     const livre = disp.corpo.horarios.find((h) => h.disponivel);
     if (livre) escolhido = { data: iso, hora: livre.hora, todas: disp.corpo.horarios.map((h) => h.hora) };

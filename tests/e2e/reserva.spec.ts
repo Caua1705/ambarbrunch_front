@@ -15,7 +15,7 @@ const irParaComanda = async (page: Page, url = '/') => {
 const abrirCalendario = async (page: Page) => {
   const campo = page.locator('#reservar .data-campo');
   if ((await campo.getAttribute('aria-expanded')) !== 'true') await campo.click();
-  await page.locator('.cal__dia[role="radio"]:not([disabled])').first().waitFor();
+  await page.locator('.cal__dia[role="radio"]:not([disabled]):not([aria-disabled="true"])').first().waitFor();
 };
 
 test.describe('modo indisponível (padrão)', () => {
@@ -54,7 +54,7 @@ test.describe('modo indisponível (padrão)', () => {
     await expect(campo).toHaveAttribute('aria-expanded', 'true');
     // calendário mensal: qualquer dia válido do mês; dias passados desabilitados; setas trocam o mês (janela de 60 dias)
     const dias = page.locator('[aria-labelledby="rf-l3"] [role="radio"]');
-    const validos = page.locator('[aria-labelledby="rf-l3"] [role="radio"]:not([disabled])');
+    const validos = page.locator('[aria-labelledby="rf-l3"] [role="radio"]:not([disabled]):not([aria-disabled="true"])');
     await expect(page.locator('[aria-labelledby="rf-l3"] [aria-checked="true"]')).toHaveCount(0);
     expect(await dias.count()).toBeGreaterThanOrEqual(28);
     await validos.last().click();
@@ -94,7 +94,7 @@ test.describe('modo simulado (só testes)', () => {
     // escolhe uma data que não seja segunda (a simulação não tem horários às segundas)
     // sem data, nenhum horário é buscado
     await expect(page.locator('#reservar .ticket')).toContainText('Escolha uma data para ver os horários.');
-    const datas = page.locator('[aria-labelledby="rf-l3"] [role="radio"]:not([disabled])');
+    const datas = page.locator('[aria-labelledby="rf-l3"] [role="radio"]:not([disabled]):not([aria-disabled="true"])');
     for (let i = 0; i < 3; i++) {
       await abrirCalendario(page);
       await datas.nth(i).click();
@@ -178,7 +178,7 @@ test.describe('modo simulado (só testes)', () => {
 });
 
 async function escolherHorario(page: Page) {
-  const datas = page.locator('[aria-labelledby="rf-l3"] [role="radio"]:not([disabled])');
+  const datas = page.locator('[aria-labelledby="rf-l3"] [role="radio"]:not([disabled]):not([aria-disabled="true"])');
   for (let i = 0; i < 3; i++) {
     await abrirCalendario(page);
     await datas.nth(i).click();

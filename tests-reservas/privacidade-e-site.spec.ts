@@ -1,7 +1,7 @@
 // No build de produção com as reservas ligadas (modo API): a política mostra os tratamentos reais sem se dizer aprovada,
 // o consentimento da comanda é obrigatório e leva a ela, e o Clube continua fora da home.
 import { test, expect } from '@playwright/test';
-import { apiFalsa, relogio, ABERTURA } from './api-falsa';
+import { apiFalsa, relogio, PRIMEIRA_RESERVAVEL } from './api-falsa';
 
 test('política aprovada (2026-11-v1): tratamentos reais, sem aviso provisório nem "não coleta dados"', async ({ page }) => {
   await page.goto('/privacidade/');
@@ -28,8 +28,8 @@ test('consentimento: obrigatório para continuar e com link para a política', a
   if (await campo.isVisible()) await campo.click();
   // a grade-esqueleto aparece antes da configuração: só conta os dias depois que os de verdade existem
   await expect(page.locator('.cal__dia[data-valor]').first()).toBeVisible();
-  for (let i = 0; i < 2 && !(await page.locator(`.cal__dia[data-valor="${ABERTURA}"]`).count()); i++) await page.getByRole('button', { name: 'Próximo mês' }).click();
-  await page.locator(`.cal__dia[data-valor="${ABERTURA}"]`).click();
+  for (let i = 0; i < 2 && !(await page.locator(`.cal__dia[data-valor="${PRIMEIRA_RESERVAVEL}"]`).count()); i++) await page.getByRole('button', { name: 'Próximo mês' }).click();
+  await page.locator(`.cal__dia[data-valor="${PRIMEIRA_RESERVAVEL}"]`).click();
   await page.getByRole('radio', { name: '09:00', exact: true }).click();
   await page.getByLabel('Nome').fill('Maria Teste');
   await page.getByLabel('WhatsApp ou telefone').fill('85987654321');

@@ -1,8 +1,9 @@
 // Reserva pública em modo API (como em produção), contra a API falsa no formato real do backend.
 // "Hoje" = 28/10/2026 em Fortaleza; abertura = 09/11/2026 (dias anteriores chegam em datasFechadas, como no backend, e o
-// site também os bloqueia sozinho).
+// site também os bloqueia sozinho). O café fecha às segundas (08/11/2026): 09/11 é segunda, então a primeira data
+// reservável é 10/11 (PRIMEIRA). A API falsa NÃO fecha as segundas — quem as bloqueia é o site.
 import { test, expect, type Page } from '@playwright/test';
-import { apiFalsa, relogio, API, ABERTURA, DIA_EVENTO, DIA_LOTADO, DIA_PARCIAL, type Cenario } from './api-falsa';
+import { apiFalsa, relogio, API, ABERTURA, PRIMEIRA_RESERVAVEL as PRIMEIRA, DIA_EVENTO, DIA_LOTADO, DIA_PARCIAL, type Cenario } from './api-falsa';
 
 const comanda = (page: Page) => page.locator('form.ticket');
 const dia = (page: Page, iso: string) => page.locator(`.cal__dia[data-valor="${iso}"]`);
@@ -46,66 +47,112 @@ async function preencherEConfirmar(page: Page, hora = '09:00') {
 }
 
 test.describe('datas: primeira data 09/11, janela de 60 dias e dias fechados', () => {
-  test('o calendário abre em novembro: 08/11 e antes bloqueados; 09/11 é a primeira data e mostra os horários da API', async ({ page }) => {
+  test('o calendário abre em novembro: 08/11 e antes bloqueados; 09/11 é segunda (fechado); 10/11 é a primeira data e mostra os horários da API', async ({ page }) => {
     const reg = await abrir(page);
     await abrirCalendario(page);
     // abre direto no mês da primeira data; outubro (hoje = 28/10) nem é alcançável
     await expect(page.locator('.cal__mes')).toHaveText(/novembro/i);
     await expect(page.getByRole('button', { name: 'Mês anterior' })).toBeDisabled();
     for (const d of ['2026-11-01', '2026-11-03', '2026-11-06', '2026-11-07', '2026-11-08']) await expect(dia(page, d), d).toBeDisabled();
-    await expect(dia(page, ABERTURA)).toBeEnabled();
-    await expect(dia(page, '2026-11-10')).toBeEnabled();
-    // o único dia focável pelo Tab é 09/11
-    await expect(page.locator('.cal__dia[tabindex="0"]')).toHaveAttribute('data-valor', ABERTURA);
-    await dia(page, ABERTURA).click();
+    await expect(dia(page, ABERTURA)).toHaveAttribute('aria-disabled', 'true');
+    await expect(dia(page, PRIMEIRA)).toBeEnabled();
+    await expect(dia(page, PRIMEIRA)).not.toHaveAttribute('aria-disabled', 'true');
+    // o único dia focável pelo Tab é 10/11
+    await expect(page.locator('.cal__dia[tabindex="0"]')).toHaveAttribute('data-valor', PRIMEIRA);
+    await dia(page, PRIMEIRA).click();
     const horas = page.getByRole('radiogroup', { name: /horário/i }).getByRole('radio');
     await expect(horas).toHaveCount(19);
     await expect(horas.first()).toHaveText('07:00');
     await expect(horas.last()).toHaveText('16:00');
-    // nenhum pedido de horários para datas antes da abertura
-    expect(reg.disponibilidades.every((q) => q.data >= ABERTURA)).toBe(true);
+    // nenhum pedido de horários para datas antes da abertura nem para a segunda
+    expect(reg.disponibilidades.every((q) => q.data >= PRIMEIRA)).toBe(true);
   });
 
   test('API mal configurada (abertura em 03/11): o site continua sem oferecer 03–08/11 nem pedir horários deles', async ({ page }) => {
     const reg = await abrir(page, { aberturaApi: '2026-11-03' });
     await abrirCalendario(page);
     for (const d of ['2026-11-03', '2026-11-05', '2026-11-08']) await expect(dia(page, d), d).toBeDisabled();
-    await expect(dia(page, ABERTURA)).toBeEnabled();
+    await expect(dia(page, PRIMEIRA)).toBeEnabled();
     // clique forçado num dia desabilitado (como quem mexe no DOM) não escolhe nada
     await dia(page, '2026-11-08').evaluate((b) => { (b as HTMLButtonElement).disabled = false; (b as HTMLButtonElement).click(); });
     await expect(page.getByText('Escolha uma data para ver os horários.')).toBeVisible();
     expect(reg.disponibilidades).toHaveLength(0);
   });
 
-  test('teclado: das setas a partir de 09/11 não se chega a 08/11 nem a 02/11', async ({ page }) => {
+  test('teclado: das setas a partir de 10/11 não se chega à segunda 09/11, a 08/11 nem a 03/11', async ({ page }) => {
     const reg = await abrir(page, { aberturaApi: '2026-11-03' });
     await abrirCalendario(page);
-    await dia(page, ABERTURA).focus();
+    await dia(page, PRIMEIRA).focus();
+    // ← pularia a segunda 09/11 e cairia em 08/11 (antes da abertura): nada muda
     await page.keyboard.press('ArrowLeft');
     await page.keyboard.press('ArrowUp');
     await expect(page.locator('.cal__dia[aria-checked="true"]')).toHaveCount(0);
     await page.keyboard.press('ArrowRight');
-    await expect(dia(page, '2026-11-10')).toHaveAttribute('aria-checked', 'true');
+    await expect(dia(page, '2026-11-11')).toHaveAttribute('aria-checked', 'true');
     // o foco anda para o dia escolhido no quadro seguinte
-    await expect(dia(page, '2026-11-10')).toBeFocused();
+    await expect(dia(page, '2026-11-11')).toBeFocused();
     await page.keyboard.press('ArrowLeft');
-    await expect(dia(page, ABERTURA)).toHaveAttribute('aria-checked', 'true');
-    await expect(dia(page, ABERTURA)).toBeFocused();
+    await expect(dia(page, PRIMEIRA)).toHaveAttribute('aria-checked', 'true');
+    await expect(dia(page, PRIMEIRA)).toBeFocused();
     await page.keyboard.press('ArrowLeft');
-    await expect(dia(page, ABERTURA)).toHaveAttribute('aria-checked', 'true');
-    expect(reg.disponibilidades.every((q) => q.data >= ABERTURA)).toBe(true);
+    await expect(dia(page, PRIMEIRA)).toHaveAttribute('aria-checked', 'true');
+    // ↓ de 10/11 vai a 17/11; ← pula a segunda 16/11 e cai no domingo 15/11; → pula de volta à terça 17/11
+    await page.keyboard.press('ArrowDown');
+    await expect(dia(page, '2026-11-17')).toHaveAttribute('aria-checked', 'true');
+    await expect(dia(page, '2026-11-17')).toBeFocused();
+    await page.keyboard.press('ArrowLeft');
+    await expect(dia(page, '2026-11-15')).toHaveAttribute('aria-checked', 'true');
+    await expect(dia(page, '2026-11-15')).toBeFocused();
+    await page.keyboard.press('ArrowRight');
+    await expect(dia(page, '2026-11-17')).toHaveAttribute('aria-checked', 'true');
+    expect(reg.disponibilidades.every((q) => q.data >= PRIMEIRA && q.data !== '2026-11-16')).toBe(true);
+  });
+
+  test('segunda-feira: riscada em todo o calendário mesmo com horários na API; tocar avisa, não escolhe e não pede horários', async ({ page }) => {
+    const reg = await abrir(page);
+    await abrirCalendario(page);
+    for (const d of ['2026-11-09', '2026-11-16', '2026-11-23', '2026-11-30']) {
+      await expect(dia(page, d), d).toHaveAttribute('aria-disabled', 'true');
+      await expect(dia(page, d), d).toHaveAttribute('aria-label', /segunda, \d+, fechado/);
+    }
+    // terça a domingo da mesma semana continuam livres (regras de sempre)
+    for (const d of ['2026-11-17', '2026-11-18', '2026-11-19', '2026-11-20', '2026-11-21', '2026-11-22']) await expect(dia(page, d), d).toBeEnabled();
+    // toque de verdade (o Playwright não clica em aria-disabled sem forçar; o navegador entrega o toque)
+    await dia(page, '2026-11-16').click({ force: true });
+    await expect(page.getByRole('alert')).toHaveText('Não funcionamos às segundas-feiras. Escolha uma data de terça a domingo.');
+    await expect(page.locator('.cal__dia[aria-checked="true"]')).toHaveCount(0);
+    await expect(page.locator('.data-campo__texto')).toHaveText('Escolher uma data');
+    // quem mexe no DOM (tira a marca) também não escolhe a segunda
+    await dia(page, '2026-11-23').evaluate((b) => { b.removeAttribute('aria-disabled'); (b as HTMLButtonElement).click(); });
+    await expect(page.locator('.cal__dia[aria-checked="true"]')).toHaveCount(0);
+    // escolher uma terça tira o aviso
+    await dia(page, '2026-11-17').click();
+    await expect(page.getByText('Não funcionamos às segundas-feiras.')).toHaveCount(0);
+    await expect(page.getByRole('radiogroup', { name: /horário/i }).getByRole('radio').first()).toBeVisible();
+    expect(reg.disponibilidades.some((q) => ['2026-11-09', '2026-11-16', '2026-11-23'].includes(q.data))).toBe(false);
+  });
+
+  test('reserva até o fim: nenhum envio leva segunda-feira (só terça a domingo chegam à API)', async ({ page }) => {
+    const reg = await abrir(page);
+    await escolherData(page, '2026-11-15');
+    await preencherEConfirmar(page);
+    await page.getByRole('button', { name: 'Confirmar reserva' }).click();
+    await expect(page).toHaveURL(/reserva-confirmada/);
+    expect(reg.envios).toHaveLength(1);
+    expect(reg.envios[0].corpo).toMatchObject({ data: '2026-11-15' });
+    expect(reg.envios.every((e) => new Date(`${e.corpo.data}T12:00:00Z`).getUTCDay() !== 1)).toBe(true);
   });
 
   test('data recusada por ser antes da abertura (422 antes_da_abertura): mensagem do backend no topo, nada confirmado', async ({ page }) => {
     await abrir(page, { envio: 'abertura' });
-    await escolherData(page, ABERTURA);
+    await escolherData(page, PRIMEIRA);
     await preencherEConfirmar(page);
     await page.getByRole('button', { name: 'Confirmar reserva' }).click();
     await expect(page.getByRole('alert')).toContainText('Reservas a partir de 09/11/2026.');
     await expect(page.getByText('Mesa reservada')).toHaveCount(0);
   });
 
-  test('10/11 com ocupação parcial (alguns horários esgotados) e 14/11 fechado por evento', async ({ page }) => {
+  test('13/11 com ocupação parcial (alguns horários esgotados) e 14/11 fechado por evento', async ({ page }) => {
     await abrir(page);
     await abrirCalendario(page);
     await irParaMes(page, DIA_PARCIAL);
@@ -152,7 +199,7 @@ test.describe('datas: primeira data 09/11, janela de 60 dias e dias fechados', (
     await expect(passo2).not.toContainText(/vão até|equipe|whatsapp|grupo/i);
     await expect(page.locator('a[href*="wa.me"]')).toHaveCount(0);
     // o calendário e os horários continuam: com 15 pessoas a reserva segue normalmente
-    await escolherData(page, ABERTURA);
+    await escolherData(page, PRIMEIRA);
     await expect(page.getByRole('radiogroup', { name: /horário/i }).getByRole('radio').first()).toBeVisible();
     await page.getByRole('button', { name: 'Menos uma pessoa' }).click();
     await expect(saida).toHaveText('14');
@@ -195,19 +242,19 @@ test.describe('tela estável ao escolher data e horário', () => {
   test('tocar num dia: o campo de data fica onde estava, o foco volta a ele e os horários chegam num pedido só', async ({ page }) => {
     const reg = await abrir(page);
     await abrirCalendario(page);
-    await dia(page, ABERTURA).scrollIntoViewIfNeeded();
+    await dia(page, PRIMEIRA).scrollIntoViewIfNeeded();
     const campo = page.locator('.data-campo:visible, .cal__grade:visible').first();
     const antes = (await campo.boundingBox())!.y;
-    await dia(page, ABERTURA).click();
+    await dia(page, PRIMEIRA).click();
     await expect(page.getByRole('radiogroup', { name: /horário/i }).getByRole('radio').first()).toBeVisible();
     expect(Math.abs((await campo.boundingBox())!.y - antes), 'o campo de data não pula').toBeLessThanOrEqual(1);
-    expect(reg.disponibilidades.filter((q) => q.data === ABERTURA)).toHaveLength(1);
+    expect(reg.disponibilidades.filter((q) => q.data === PRIMEIRA)).toHaveLength(1);
   });
 
   test('trocar a data com horários e dados na tela: a lista fica (apagada) até a nova chegar, sem esqueleto, e os dados não somem', async ({ page }) => {
     const reg = await abrir(page);
     let soltar = () => {};
-    await escolherData(page, ABERTURA);
+    await escolherData(page, PRIMEIRA);
     await page.getByRole('radio', { name: '09:00', exact: true }).click();
     await page.getByLabel('Nome').fill('Maria Teste');
     // a próxima consulta de horários fica pendurada até o teste soltar: dá para ver o estado intermediário
@@ -232,19 +279,19 @@ test.describe('tela estável ao escolher data e horário', () => {
 test.describe('envio: confirmação, clique duplo, erro e horário esgotado', () => {
   test('confirmação válida envia exatamente o que foi escolhido, com chave de idempotência', async ({ page }) => {
     const reg = await abrir(page);
-    await escolherData(page, ABERTURA);
+    await escolherData(page, PRIMEIRA);
     await preencherEConfirmar(page);
     await page.getByRole('button', { name: 'Confirmar reserva' }).click();
     await expect(page.getByText('Mesa reservada')).toBeVisible();
     await expect(page).toHaveURL(/\/reserva-confirmada\/$/);
     expect(reg.envios).toHaveLength(1);
-    expect(reg.envios[0].corpo).toMatchObject({ ambienteId: 'jardim', pessoas: 2, data: ABERTURA, hora: '09:00', nome: 'Maria Teste', telefone: '85987654321', consentimentoPrivacidade: true, origem: 'site' });
+    expect(reg.envios[0].corpo).toMatchObject({ ambienteId: 'jardim', pessoas: 2, data: PRIMEIRA, hora: '09:00', nome: 'Maria Teste', telefone: '85987654321', consentimentoPrivacidade: true, origem: 'site' });
     expect(reg.envios[0].chave?.length).toBeGreaterThanOrEqual(8);
   });
 
   test('clique duplo em "Confirmar reserva" envia um pedido só', async ({ page }) => {
     const reg = await abrir(page, { atrasoEnvio: 1200 });
-    await escolherData(page, ABERTURA);
+    await escolherData(page, PRIMEIRA);
     await preencherEConfirmar(page);
     await page.getByRole('button', { name: 'Confirmar reserva' }).dblclick();
     await expect(page.getByText('Mesa reservada')).toBeVisible();
@@ -254,7 +301,7 @@ test.describe('envio: confirmação, clique duplo, erro e horário esgotado', ()
   test('erro da API: nada é confirmado e a pessoa pode tentar de novo com os mesmos dados', async ({ page }) => {
     const c: Cenario = { envio: 'erro' };
     const reg = await abrir(page, c);
-    await escolherData(page, ABERTURA);
+    await escolherData(page, PRIMEIRA);
     await preencherEConfirmar(page);
     await page.getByRole('button', { name: 'Confirmar reserva' }).click();
     await expect(page.getByRole('alert')).toContainText('Não foi possível concluir');
@@ -268,7 +315,7 @@ test.describe('envio: confirmação, clique duplo, erro e horário esgotado', ()
 
   test('sem conexão no envio: avisa e nada é confirmado; com a conexão de volta, a mesma reserva segue', async ({ page }) => {
     const reg = await abrir(page);
-    await escolherData(page, ABERTURA);
+    await escolherData(page, PRIMEIRA);
     await preencherEConfirmar(page);
     await page.route(`${API}/reservas`, (r) => (r.request().method() === 'POST' ? r.abort('internetdisconnected') : r.fallback()));
     await page.getByRole('button', { name: 'Confirmar reserva' }).click();
@@ -282,7 +329,7 @@ test.describe('envio: confirmação, clique duplo, erro e horário esgotado', ()
 
   test('horário esgotado durante a confirmação: volta à escolha, avisa e recarrega os horários', async ({ page }) => {
     const reg = await abrir(page, { envio: 'esgotado' });
-    await escolherData(page, ABERTURA);
+    await escolherData(page, PRIMEIRA);
     await preencherEConfirmar(page);
     const pedidosAntes = reg.disponibilidades.length;
     await page.getByRole('button', { name: 'Confirmar reserva' }).click();
@@ -293,7 +340,7 @@ test.describe('envio: confirmação, clique duplo, erro e horário esgotado', ()
 
   test('data recusada pelo servidor (prazo/abertura): mostra a mensagem do backend e recarrega os horários', async ({ page }) => {
     const reg = await abrir(page, { envio: 'prazo' });
-    await escolherData(page, ABERTURA);
+    await escolherData(page, PRIMEIRA);
     await preencherEConfirmar(page);
     const pedidosAntes = reg.disponibilidades.length;
     await page.getByRole('button', { name: 'Confirmar reserva' }).click();
@@ -305,7 +352,7 @@ test.describe('envio: confirmação, clique duplo, erro e horário esgotado', ()
 
   test('reserva pendente (ambiente com aprovação): "pedido recebido", nunca "mesa reservada" nem "garantida"', async ({ page }) => {
     await abrir(page, { envio: 'pendente' });
-    await escolherData(page, ABERTURA);
+    await escolherData(page, PRIMEIRA);
     await preencherEConfirmar(page);
     await page.getByRole('button', { name: 'Confirmar reserva' }).click();
     await expect(page.locator('.ticket__title')).toHaveText('Pedido recebido');
@@ -319,7 +366,7 @@ test.describe('envio: confirmação, clique duplo, erro e horário esgotado', ()
 
   test('agenda: um botão só, “Adicionar à agenda”, que abre o Google Agenda preenchido (não baixa arquivo), só no toque', async ({ page, context }) => {
     await abrir(page);
-    await escolherData(page, ABERTURA);
+    await escolherData(page, PRIMEIRA);
     await preencherEConfirmar(page);
     await page.getByRole('button', { name: 'Confirmar reserva' }).click();
     await expect(page.getByText('Mesa reservada')).toBeVisible();
@@ -336,7 +383,7 @@ test.describe('envio: confirmação, clique duplo, erro e horário esgotado', ()
     expect(url.searchParams.get('action')).toBe('TEMPLATE');
     expect(url.searchParams.get('text')).toBe('Reserva no Âmbar Café');
     // 09:00 a 12:00 no horário do café: duracaoMin = 180 veio da resposta do backend (api-falsa: formato real)
-    expect(url.searchParams.get('dates')).toBe('20261109T090000/20261109T120000');
+    expect(url.searchParams.get('dates')).toBe('20261110T090000/20261110T120000');
     expect(url.searchParams.get('ctz')).toBe('America/Fortaleza');
     expect(url.searchParams.get('location')).toBe('Âmbar Café, Rua Tavares Coutinho, 1580, Meireles, Fortaleza - CE');
     expect(url.searchParams.get('details')).toBe('Jardim externo · 2 pessoas');
@@ -352,20 +399,20 @@ test.describe('envio: confirmação, clique duplo, erro e horário esgotado', ()
 
   test('confirmação não promete WhatsApp; nova reserva começa do zero e pede o aceite de novo', async ({ page }) => {
     await abrir(page);
-    await escolherData(page, ABERTURA);
+    await escolherData(page, PRIMEIRA);
     await preencherEConfirmar(page);
     await page.getByRole('button', { name: 'Confirmar reserva' }).click();
     await expect(page.getByText('Mesa reservada')).toBeVisible();
     expect((await page.locator('main').innerText()).toLowerCase()).not.toContain('whatsapp');
     await page.goto('/reservar/');
-    await escolherData(page, ABERTURA);
+    await escolherData(page, PRIMEIRA);
     await page.getByRole('radio', { name: '10:00', exact: true }).click();
     await expect(page.getByRole('checkbox')).not.toBeChecked();
   });
 
   test('429: mostra a mensagem do backend (alguns minutos) e nada é confirmado', async ({ page }) => {
     await abrir(page, { envio: 'limite' });
-    await escolherData(page, ABERTURA);
+    await escolherData(page, PRIMEIRA);
     await preencherEConfirmar(page);
     await page.getByRole('button', { name: 'Confirmar reserva' }).click();
     await expect(page.getByRole('alert')).toContainText('Muitas tentativas. Tente de novo em alguns minutos.');
@@ -375,7 +422,7 @@ test.describe('envio: confirmação, clique duplo, erro e horário esgotado', ()
   test('e-mail e aceite recusados pelo backend: mensagem em português no campo certo, dados mantidos', async ({ page }) => {
     const c: Cenario = { envio: 'email' };
     await abrir(page, c);
-    await escolherData(page, ABERTURA);
+    await escolherData(page, PRIMEIRA);
     await preencherEConfirmar(page);
     await page.getByRole('button', { name: 'Confirmar reserva' }).click();
     await expect(page.locator(`#rf-email-erro`)).toHaveText('Confira o e-mail.');
@@ -388,7 +435,7 @@ test.describe('envio: confirmação, clique duplo, erro e horário esgotado', ()
 
   test('sem conexão e "Editar" sem mudar nada: a nova confirmação usa a mesma chave (não duplica)', async ({ page }) => {
     const reg = await abrir(page);
-    await escolherData(page, ABERTURA);
+    await escolherData(page, PRIMEIRA);
     await preencherEConfirmar(page);
     let primeiraChave = '';
     await page.route(`${API}/reservas`, (r) => {
@@ -416,7 +463,7 @@ test('navegador sem AbortSignal.any/timeout (iOS < 17.4): horários carregam e a
     delete s.timeout;
   });
   await abrir(page);
-  await escolherData(page, ABERTURA);
+  await escolherData(page, PRIMEIRA);
   await expect(page.getByRole('radio', { name: '09:00', exact: true })).toBeVisible();
   await preencherEConfirmar(page);
   await page.getByRole('button', { name: 'Confirmar reserva' }).click();
@@ -437,8 +484,8 @@ test.describe('API fechada ou fora do ar: nada de horários por conta própria',
     c.fechada = false;
     await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
     await abrirCalendario(page);
-    await irParaMes(page, ABERTURA);
-    await expect(dia(page, ABERTURA)).toBeEnabled();
+    await irParaMes(page, PRIMEIRA);
+    await expect(dia(page, PRIMEIRA)).toBeEnabled();
   });
 
   test('erro ao carregar a configuração: aviso com "Tentar de novo", sem janela de datas inventada', async ({ page }) => {
@@ -449,13 +496,13 @@ test.describe('API fechada ou fora do ar: nada de horários por conta própria',
     c.configFalha = false;
     await comanda(page).getByRole('button', { name: 'Tentar de novo' }).click();
     await abrirCalendario(page);
-    await irParaMes(page, ABERTURA);
-    await expect(dia(page, ABERTURA)).toBeEnabled();
+    await irParaMes(page, PRIMEIRA);
+    await expect(dia(page, PRIMEIRA)).toBeEnabled();
   });
 
   test('reservas fechadas no meio do envio: nada é confirmado e a comanda mostra o estado fechado', async ({ page }) => {
     await abrir(page, { envio: 'fechada' });
-    await escolherData(page, ABERTURA);
+    await escolherData(page, PRIMEIRA);
     await preencherEConfirmar(page);
     await page.getByRole('button', { name: 'Confirmar reserva' }).click();
     await expect(comanda(page)).toContainText('As reservas pelo site não estão abertas no momento.');
@@ -470,7 +517,7 @@ test.describe('fuso de Fortaleza', () => {
     await apiFalsa(page);
     await page.goto('/reservar/');
     await abrirCalendario(page);
-    await expect(dia(page, ABERTURA)).toBeEnabled();
+    await expect(dia(page, PRIMEIRA)).toBeEnabled();
     await irParaMes(page, '2026-12-27');
     await expect(dia(page, '2026-12-27')).toBeEnabled();
     await expect(dia(page, '2026-12-28')).toBeDisabled();
@@ -479,14 +526,14 @@ test.describe('fuso de Fortaleza', () => {
 
 test.describe('fuso de Fortaleza a oeste', () => {
   test.use({ timezoneId: 'America/Manaus' });
-  test('Fortaleza já em 09/11 de madrugada com o navegador ainda em 08/11 (Manaus): 09/11 é hoje e reservável', async ({ page }) => {
-    await page.clock.setFixedTime(new Date('2026-11-09T00:30:00-03:00'));
-    await apiFalsa(page, { hoje: '2026-11-09' });
+  test('Fortaleza já em 10/11 de madrugada com o navegador ainda na segunda 09/11 (Manaus): 10/11 é hoje e reservável', async ({ page }) => {
+    await page.clock.setFixedTime(new Date('2026-11-10T00:30:00-03:00'));
+    await apiFalsa(page, { hoje: '2026-11-10' });
     await page.goto('/reservar/');
     await abrirCalendario(page);
-    await expect(page.locator('.cal__dia[data-hoje]')).toHaveAttribute('data-valor', ABERTURA);
-    await expect(dia(page, ABERTURA)).toBeEnabled();
-    await expect(dia(page, '2026-11-08')).toBeDisabled();
+    await expect(page.locator('.cal__dia[data-hoje]')).toHaveAttribute('data-valor', PRIMEIRA);
+    await expect(dia(page, PRIMEIRA)).toBeEnabled();
+    await expect(dia(page, ABERTURA)).toHaveAttribute('aria-disabled', 'true');
   });
 });
 
@@ -498,8 +545,8 @@ test('da home: o botão de reservar leva à comanda já com os ambientes da API'
   await expect(page.locator('#reservar')).toBeInViewport();
   await expect(comanda(page).getByRole('radio', { name: 'Salão principal' })).toBeVisible();
   await abrirCalendario(page);
-  await irParaMes(page, ABERTURA);
-  await expect(dia(page, ABERTURA)).toBeEnabled();
+  await irParaMes(page, PRIMEIRA);
+  await expect(dia(page, PRIMEIRA)).toBeEnabled();
 });
 
 for (const largura of [360, 375, 390, 430]) {
@@ -507,7 +554,7 @@ for (const largura of [360, 375, 390, 430]) {
     test.skip(!isMobile, 'larguras de celular');
     await page.setViewportSize({ width: largura, height: 844 });
     await abrir(page);
-    await escolherData(page, ABERTURA);
+    await escolherData(page, PRIMEIRA);
     await expect(page.getByRole('radiogroup', { name: /horário/i }).getByRole('radio').first()).toBeVisible();
     await page.getByRole('radio', { name: '09:00', exact: true }).click();
     await expect(page.getByLabel('Nome')).toBeVisible();
@@ -524,7 +571,7 @@ test('acessibilidade (axe): comanda com campos, erros de validação e confirma�
     expect(serias.map((v) => `${onde} ${v.id}: ${v.nodes.map((n) => n.target.join(' ')).slice(0, 3).join(' | ')}`)).toEqual([]);
   };
   await abrir(page);
-  await escolherData(page, ABERTURA);
+  await escolherData(page, PRIMEIRA);
   await page.getByRole('radio', { name: '09:00', exact: true }).click();
   await page.getByRole('button', { name: 'Continuar' }).click();
   await expect(page.locator('#rf-nome-erro')).not.toBeEmpty();
@@ -539,7 +586,7 @@ test('acessibilidade (axe): comanda com campos, erros de validação e confirma�
 test.describe('página de confirmação (/reserva-confirmada/)', () => {
   test('tela própria: só o cartão (sem landing, comanda, menu, botão fixo nem rodapé), no topo e sem o código da reserva', async ({ page }) => {
     await abrir(page);
-    await escolherData(page, ABERTURA);
+    await escolherData(page, PRIMEIRA);
     await preencherEConfirmar(page);
     await page.getByRole('button', { name: 'Confirmar reserva' }).click();
     await expect(page).toHaveURL(/\/reserva-confirmada\/$/);
@@ -554,7 +601,7 @@ test.describe('página de confirmação (/reserva-confirmada/)', () => {
     // o código fica no sistema, não na tela
     await expect(page.locator('body')).not.toContainText('AMB-7Q2K');
     const detalhes = page.locator('.ticket__review');
-    for (const t of ['Jardim externo', '2', 'segunda-feira, 9 de novembro', '09:00']) await expect(detalhes).toContainText(t);
+    for (const t of ['Jardim externo', '2', 'terça-feira, 10 de novembro', '09:00']) await expect(detalhes).toContainText(t);
     await expect(page.getByRole('link', { name: 'Voltar ao início', exact: true })).toHaveAttribute('href', '/');
     // nada pessoal na URL
     expect(page.url()).not.toMatch(/Maria|8598|nome|telefone|AMB-/);
@@ -565,7 +612,7 @@ test.describe('página de confirmação (/reserva-confirmada/)', () => {
     const reg = await apiFalsa(page);
     await page.goto('/privacidade/');
     await page.goto('/reservar/');
-    await escolherData(page, ABERTURA);
+    await escolherData(page, PRIMEIRA);
     await preencherEConfirmar(page);
     await page.getByRole('button', { name: 'Confirmar reserva' }).click();
     await expect(page).toHaveURL(/\/reserva-confirmada\/$/);
@@ -593,7 +640,7 @@ test.describe('página de confirmação (/reserva-confirmada/)', () => {
       test.skip(!isMobile, 'larguras de celular');
       await page.setViewportSize({ width: largura, height: 740 });
       await abrir(page);
-      await escolherData(page, ABERTURA);
+      await escolherData(page, PRIMEIRA);
       await preencherEConfirmar(page);
       await page.getByRole('button', { name: 'Confirmar reserva' }).click();
       await expect(page.getByRole('heading', { level: 1, name: 'Mesa reservada' })).toBeVisible();
@@ -613,7 +660,7 @@ test.describe('“Confira sua reserva”: só a comanda na tela, como a confirma
   for (const url of ['/', '/reservar/']) {
     test(`${url}: na revisão a landing some (não há o que ver rolando para cima); "Editar" traz tudo de volta com os dados`, async ({ page }) => {
       await abrir(page, {}, url);
-      await escolherData(page, ABERTURA);
+      await escolherData(page, PRIMEIRA);
       await preencherEConfirmar(page);
       await expect(page.locator('form.ticket .ticket__title')).toHaveText('Confira sua reserva');
       // no topo, só a barra do logo e o cartão
@@ -643,7 +690,7 @@ test.describe('“Confira sua reserva”: só a comanda na tela, como a confirma
   test('erro de envio: a falha aparece na mesma tela só da comanda; horário esgotado (409) volta ao formulário com a landing', async ({ page }) => {
     const c: Cenario = { envio: 'erro' };
     await abrir(page, c);
-    await escolherData(page, ABERTURA);
+    await escolherData(page, PRIMEIRA);
     await preencherEConfirmar(page);
     await page.getByRole('button', { name: 'Confirmar reserva' }).click();
     await expect(page.getByRole('alert')).toContainText('Não foi possível concluir');

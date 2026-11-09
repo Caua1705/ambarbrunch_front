@@ -1,6 +1,7 @@
 // Cliente HTTP da API de reservas do Âmbar (contrato.ts).
 // Só é usado com PUBLIC_RESERVAS_MODO=api e PUBLIC_RESERVAS_API_URL definidos no build.
 import { ErroReserva, type ReservasApi, type ReservaConfig, type Disponibilidade, type ReservaCriada } from './contrato';
+import { ehSegunda, MSG_SEGUNDA } from './datas';
 
 const TEMPO_LIMITE = 12_000;
 
@@ -66,6 +67,9 @@ export function criarApiHttp(base: string): ReservasApi {
     modo: 'api',
     config: () => pedir<ReservaConfig>(base, 'reservas/config'),
     disponibilidade: (q, sinal) => pedir<Disponibilidade>(base, `reservas/disponibilidade?${new URLSearchParams({ data: q.data, pessoas: String(q.pessoas), ambiente: q.ambienteId })}`, {}, sinal),
-    criar: (r, chave) => pedir<ReservaCriada>(base, 'reservas', { method: 'POST', body: JSON.stringify(r), headers: { 'Idempotency-Key': chave } }),
+    // Última trava do site: segunda-feira (o café fecha) não chega à API por nenhum caminho da comanda.
+    criar: (r, chave) => (ehSegunda(r.data)
+      ? Promise.reject(new ErroReserva('validacao', MSG_SEGUNDA, { data: MSG_SEGUNDA }, 'segunda_fechado'))
+      : pedir<ReservaCriada>(base, 'reservas', { method: 'POST', body: JSON.stringify(r), headers: { 'Idempotency-Key': chave } })),
   };
 }

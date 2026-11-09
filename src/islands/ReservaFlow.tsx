@@ -14,7 +14,7 @@ import { mascaraTel, telefoneNacional, uuid } from '../lib/telefone';
 import { FUSO_CAFE, linkGoogleAgenda, type ReservaAgenda } from '../lib/reservas/agenda';
 import { guardarConfirmacao, ROTA_CONFIRMADA } from '../lib/reservas/confirmacao';
 import { medirReserva } from '../lib/medicao/eventos';
-import { dataPermitida, hojeNoFuso, iso, PRIMEIRA_DATA } from '../lib/reservas/datas';
+import { dataPermitida, ehSegunda, hojeNoFuso, MSG_SEGUNDA, primeiraDataAberta } from '../lib/reservas/datas';
 import { NOME_MAX, validar, type DadosContato } from '../lib/reservas/validacao';
 import { Calendario } from '../components/reserva/Calendario';
 import { Escolha } from '../components/reserva/Escolha';
@@ -88,6 +88,8 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
   const [resultado, setResultado] = useState<ReservaCriada | null>(demo?.resultado ?? null);
   const [falha, setFalha] = useState<string>(demo?.falha ?? '');
   const [anuncio, setAnuncio] = useState('');
+  /** Aviso junto do calendário (toque numa segunda-feira; data salva que deixou de valer por ser segunda). */
+  const [avisoData, setAvisoData] = useState('');
   const [tentativa, setTentativa] = useState(0);
   const chave = useRef<string>(uuid());
   /** pedido (JSON) para o qual a chave atual foi criada */
@@ -156,7 +158,7 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
   // Datas só no navegador (o HTML estático foi gerado em outro dia). Nenhuma data vem escolhida (2026-10-22): o campo
   // começa em “Escolher uma data” e os horários só são buscados depois da escolha.
   // Os estados de demonstração (/design-system/) continuam com hoje marcado, para mostrar horários e revisão completos.
-  useEffect(() => { const d = hojeNoFuso(cfg.fusoHorario); setHoje(d); if (demo) setData(iso(d) > PRIMEIRA_DATA ? iso(d) : PRIMEIRA_DATA); }, [cfg.fusoHorario]);
+  useEffect(() => { const d = hojeNoFuso(cfg.fusoHorario); setHoje(d); if (demo) setData(primeiraDataAberta(d)); }, [cfg.fusoHorario]);
   // Ambiente pedido por um “reservar aqui” (mesmo antes de a ilha carregar).
   useEffect(() => {
     const w = window as unknown as { __ambarAmbiente?: string };
@@ -195,7 +197,9 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
   useEffect(() => {
     if (!data || !hoje || dataOk) return;
     setData(null); setHora(null); setHorarios({ estado: 'ocioso', lista: [] });
-    if (etapa === 'revisao' || etapa === 'falha') { setEtapa('escolha'); setFalha('Esta data não pode mais ser reservada. Escolha outra.'); }
+    const motivo = ehSegunda(data) ? MSG_SEGUNDA : 'Esta data não pode mais ser reservada. Escolha outra.';
+    if (ehSegunda(data)) setAvisoData(MSG_SEGUNDA);
+    if (etapa === 'revisao' || etapa === 'falha') { setEtapa('escolha'); setFalha(motivo); }
   }, [dataOk, data, hoje]);
   // Horários: buscados a cada mudança de ambiente, pessoas ou data. Requisições antigas são canceladas.
   useEffect(() => {
@@ -256,7 +260,7 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
     ev.preventDefault();
     if (!api || !pessoasOk) return;
     if (etapa === 'revisao' || etapa === 'falha') { enviar(); return; }
-    if (!dataOk) { setData(null); setHora(null); setAnuncio('Escolha uma data.'); return; }
+    if (!dataOk) { if (data && ehSegunda(data)) setAvisoData(MSG_SEGUNDA); setData(null); setHora(null); setAnuncio(data && ehSegunda(data) ? MSG_SEGUNDA : 'Escolha uma data.'); return; }
     if (!hora) { setAnuncio('Escolha um horário.'); passo4.current?.scrollIntoView({ block: 'center' }); return; }
     const e = validar(dados, cfg.exigeEmail);
     setErros(e);
@@ -280,7 +284,8 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
   });
 
   const enviar = async () => {
-    if (!api || !data || !hora || !dataOk || !pessoasOk || enviandoAgora.current) return;
+    // Segunda-feira nunca sai daqui, nem na demonstração (onde dataOk não confere a janela).
+    if (!api || !data || !hora || !dataOk || ehSegunda(data) || !pessoasOk || enviandoAgora.current) return;
     enviandoAgora.current = true;
     setEtapa('enviando');
     setAnuncio('Enviando a reserva…');
@@ -413,9 +418,11 @@ export default function ReservaFlow({ modo: modoPedido, apiUrl, ambientes, priva
               onKeyDown={(ev) => { if (ev.key === 'Escape' && calAberto) { ev.stopPropagation(); fecharCal(); } }}>
               {hoje && pronto
                 ? <Calendario id={`${px}-l3`} hoje={hoje} diasMax={cfg.antecedencia.diasMax} fechadas={fechadas} valor={data}
-                    aoEscolher={(v) => { setData(v); setFalha(''); }} aoConfirmar={fecharCal} />
+                    aoEscolher={(v) => { setData(v); setFalha(''); setAvisoData(''); }} aoConfirmar={fecharCal}
+                    aoRecusar={() => { setAvisoData(MSG_SEGUNDA); setAnuncio(MSG_SEGUNDA); }} />
                 : <div class="cal cal--esqueleto" aria-hidden="true"><div class="cal__grade">{Array.from({ length: 35 }, () => <span class="cal__dia chip--skeleton" />)}</div></div>}
             </div>
+            {avisoData && <p class="ticket__status ticket__status--data" data-tone="error" role="alert">{avisoData}</p>}
           </fieldset>
           {/* horários, dados e botão num bloco só: ao fechar o calendário, é ele que desliza (um elemento, uma camada) */}
           <div class="ticket__resto" ref={resto}>

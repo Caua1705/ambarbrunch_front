@@ -54,9 +54,11 @@
 .cal__dia[data-hoje]::after { content: ""; position: absolute; bottom: 5px; left: 50%; translate: -50% 0; width: 4px; height: 4px; border-radius: 50%; background: var(--caramel); }
 .cal__dia[aria-checked="true"] { background: var(--wine); border-color: var(--wine); color: var(--butter); box-shadow: var(--shadow-offset-xs); translate: -1px -1px; }
 .cal__dia[aria-checked="true"]::after { background: var(--butter); }
-.cal__dia:active:not(:disabled) { scale: .94; }
-.cal__dia:disabled { border-color: transparent; background: transparent; color: color-mix(in srgb, var(--text-muted) 55%, transparent); font-weight: 500; cursor: default; }
-@media (hover: hover) { .cal__dia:not(:disabled, [aria-checked="true"]):hover { border-color: var(--wine); color: var(--wine); } }
+.cal__dia:active:not(:disabled, [aria-disabled="true"]) { scale: .94; }
+.cal__dia:disabled, .cal__dia[aria-disabled="true"] { border-color: transparent; background: transparent; color: color-mix(in srgb, var(--text-muted) 55%, transparent); font-weight: 500; cursor: default; }
+/* segunda-feira: o café fecha — riscada, sem ser escolhida */
+.cal__dia[data-fechado] { text-decoration: line-through; }
+@media (hover: hover) { .cal__dia:not(:disabled, [aria-disabled="true"], [aria-checked="true"]):hover { border-color: var(--wine); color: var(--wine); } }
 .cal--esqueleto .cal__dia { border-color: var(--rule); }
 
 /* Campo de data (2026-10-22): no celular o calendário começa fechado — um campo de papel com ícone, “Escolher uma data”
