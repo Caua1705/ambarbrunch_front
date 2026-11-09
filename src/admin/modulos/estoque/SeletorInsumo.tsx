@@ -1,6 +1,7 @@
 // Seletor único de insumos do Estoque (combobox pesquisável), usado na conferência de Compras e nas Fichas técnicas.
-// A lista vem da base real (GET /admin/estoque/insumos, o mesmo cache da tabela de Insumos): busca por nome, escolha
-// sempre pelo id do cadastro — nunca texto livre — e a unidade cadastrada ao lado. Se o insumo não existe, quem pode
+// A lista vem da base real: GET /admin/estoque/insumos/opcoes (backend 0028; acha também pelos textos de nota já
+// confirmados) e, no backend anterior, GET /admin/estoque/insumos. Escolha sempre pelo id do cadastro — nunca texto
+// livre — e a unidade cadastrada ao lado. Se o insumo não existe, quem pode
 // cadastrar abre o cadastro rápido (NovoInsumo em modo rápido, montado uma vez em index.tsx) e volta ao fluxo com o item
 // novo já escolhido. Carregando, erro e busca vazia aparecem dentro da própria lista.
 import { createContext } from 'preact';
@@ -30,6 +31,11 @@ export const escolhidoDe = (i: Pick<Insumo, 'id' | 'nome' | 'unidade_base' | 'ti
 export type CadastrarInsumo = (nome: string, unidade?: UnidadeBase | null) => Promise<InsumoEscolhido | null>;
 export const CadastroRapido = createContext<CadastrarInsumo | null>(null);
 export const useCadastroRapido = () => useContext(CadastroRapido);
+
+/** O que a lista mostra: uma opção de GET /insumos/opcoes (0028) ou uma linha da listagem antiga. */
+type ItemSeletor = Pick<Insumo, 'id' | 'nome' | 'unidade_base' | 'tipo' | 'custo_medio' | 'ativo'> & { codigo?: string; achado_por?: 'nome' | 'alias' };
+/** Lembra, na página, que o backend publicado ainda não tem /insumos/opcoes (não repete o 404 a cada busca). */
+let rotaOpcoesAusente = false;
 
 /** Sem acento e sem caixa, para "acucar" achar "Açúcar". */
 const normal = (t: string) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
@@ -71,29 +77,45 @@ export function SeletorInsumo({ id, rotulo, valor, aoEscolher, tipo, excluir, pl
     return () => clearTimeout(t);
   }, [texto]);
 
-  // Mesmo cache da tabela de Insumos: abrir o seletor não busca de novo o que já está na tela. Com mais insumos do que a
-  // página traz, a busca vai ao backend.
-  const catalogo = useConsulta('estoque/insumos?catalogo', () => estoque.insumos({ limite: 200 }));
+  // Com o campo mostrando o insumo escolhido, abrir a lista mostra todos (não só o que tem o mesmo nome).
+  const termo = valor && texto === valor.nome ? '' : busca;
+  // 0028: GET /estoque/insumos/opcoes — acha pelo nome e pelos textos de nota já confirmados ("LEITE INT CX" → Leite
+  // integral). Backend anterior (404 de rota): a listagem de insumos, filtrada aqui pelo nome.
+  const [semRota, setSemRota] = useState(rotaOpcoesAusente);
+  const viaOpcoes = useConsulta(aberto && !semRota ? `estoque/insumos/opcoes?busca:${termo}` : null, () => estoque.opcoesInsumo(termo));
+  useEffect(() => {
+    if (viaOpcoes.erro?.tipo === 'nao_implantado') {
+      rotaOpcoesAusente = true;
+      setSemRota(true);
+    }
+  }, [viaOpcoes.erro]);
+  const catalogo = useConsulta(semRota ? 'estoque/insumos?catalogo' : null, () => estoque.insumos({ limite: 200 }));
   const incompleto = (catalogo.dados?.total ?? 0) > (catalogo.dados?.itens.length ?? 0);
-  const remoto = useConsulta(aberto && incompleto && busca ? `estoque/insumos?seletor:${busca}` : null, () => estoque.insumos({ busca, limite: 50 }));
-  const fonte = incompleto && busca ? remoto : catalogo;
+  const remoto = useConsulta(semRota && aberto && incompleto && termo ? `estoque/insumos?seletor:${termo}` : null, () => estoque.insumos({ busca: termo, limite: 50 }));
+  const antiga = incompleto && termo ? remoto : catalogo;
+  const consulta = semRota ? antiga : viaOpcoes;
+  const frescos: ItemSeletor[] | undefined = semRota ? antiga.dados?.itens : viaOpcoes.dados;
+  // Enquanto a próxima busca não chega, a lista anterior continua na tela (sem piscar "Carregando" a cada letra).
+  const anteriores = useRef<ItemSeletor[]>([]);
+  if (frescos) anteriores.current = frescos;
   // "Tentar de novo": o cache mantém o erro anterior até a resposta chegar; enquanto isso, a lista diz que está carregando.
   const [tentando, setTentando] = useState(false);
-  useEffect(() => setTentando(false), [fonte.dados, fonte.erro]);
+  useEffect(() => setTentando(false), [consulta.dados, consulta.erro]);
 
   const opcoes = useMemo(() => {
-    // Com o campo mostrando o insumo escolhido, abrir a lista mostra todos (não só o que tem o mesmo nome).
-    const t = valor && texto === valor.nome ? '' : normal(busca);
-    return (fonte.dados?.itens ?? [])
-      .filter((i) => i.ativo && (!tipo || i.tipo === tipo) && i.id !== excluir && (!t || normal(i.nome).includes(t) || normal(i.codigo).includes(t)))
-      .sort((a, b) => Number(!normal(a.nome).startsWith(t)) - Number(!normal(b.nome).startsWith(t)) || a.nome.localeCompare(b.nome, 'pt-BR'))
+    const t = normal(termo);
+    // As opções do backend já vêm filtradas pelo termo (inclusive pelo texto da nota); a listagem antiga, não.
+    return (frescos ?? anteriores.current)
+      .filter((i) => i.ativo && (!tipo || i.tipo === tipo) && i.id !== excluir && (!semRota || !t || normal(i.nome).includes(t) || normal(i.codigo ?? '').includes(t)))
+      .sort((a, b) => (semRota ? Number(!normal(a.nome).startsWith(t)) - Number(!normal(b.nome).startsWith(t)) || a.nome.localeCompare(b.nome, 'pt-BR') : 0))
       .slice(0, MAXIMO);
-  }, [fonte.dados, busca, tipo, excluir, valor?.id, texto]);
+  }, [frescos, termo, tipo, excluir, semRota]);
 
   const digitado = texto.trim();
-  // Cadastrar só quando não há um insumo com o mesmo nome (sem duplicar o cadastro).
-  const existeIgual = (fonte.dados?.itens ?? []).some((i) => normal(i.nome) === normal(digitado));
-  const podeCriar = !!cadastrar && !!digitado && !existeIgual && !(valor && texto === valor.nome);
+  // Cadastrar só quando não há um insumo com o mesmo nome (sem duplicar o cadastro) — e só com a busca deste texto
+  // já respondida.
+  const existeIgual = (frescos ?? []).some((i) => normal(i.nome) === normal(digitado));
+  const podeCriar = !!cadastrar && !!digitado && !!frescos && termo === digitado && !existeIgual && !(valor && texto === valor.nome);
   const total = opcoes.length + (podeCriar ? 1 : 0);
   useEffect(() => setAtivo(0), [busca]);
 
@@ -115,9 +137,12 @@ export function SeletorInsumo({ id, rotulo, valor, aoEscolher, tipo, excluir, pl
     } else if (podeCriar) void criar();
   }
 
-  const carregando = tentando || fonte.carregando || (fonte.atualizando && !opcoes.length);
-  const erro = fonte.erro && !fonte.dados && !tentando ? fonte.erro : null;
-  const detalhe = (i: Insumo) => [UNIDADE_CURTA[i.unidade_base], i.tipo === 'preparo' ? 'preparo' : null, mostrarCusto ? (i.custo_medio !== null ? custoBase(i.custo_medio, i.unidade_base) : 'sem preço') : null].filter(Boolean).join(' · ');
+  const carregando = tentando || (!frescos && !anteriores.current.length && !consulta.erro);
+  const erro = consulta.erro && !consulta.dados && !tentando && !(consulta === viaOpcoes && viaOpcoes.erro?.tipo === 'nao_implantado') ? consulta.erro : null;
+  const detalhe = (i: ItemSeletor) =>
+    [UNIDADE_CURTA[i.unidade_base], i.tipo === 'preparo' ? 'preparo' : null, i.achado_por === 'alias' ? 'pelo texto da nota' : null, mostrarCusto ? (i.custo_medio !== null ? custoBase(i.custo_medio, i.unidade_base) : 'sem preço') : null]
+      .filter(Boolean)
+      .join(' · ');
 
   return (
     <div class="auto seletor-insumo" data-escolhido={valor ? '' : undefined}>
@@ -177,7 +202,7 @@ export function SeletorInsumo({ id, rotulo, valor, aoEscolher, tipo, excluir, pl
           {erro ? (
             <li class="auto__estado" role="presentation">
               <span>Não foi possível carregar os insumos.</span>
-              <button type="button" class="link" onMouseDown={(e) => { e.preventDefault(); setTentando(true); fonte.recarregar(); }}><RotateCw size={13} aria-hidden="true" /> Tentar de novo</button>
+              <button type="button" class="link" onMouseDown={(e) => { e.preventDefault(); setTentando(true); consulta.recarregar(); }}><RotateCw size={13} aria-hidden="true" /> Tentar de novo</button>
             </li>
           ) : carregando ? (
             <li class="auto__estado" role="presentation">Carregando insumos…</li>

@@ -1272,3 +1272,67 @@
   align-items: center;
   gap: 6px;
 }
+
+/* --- Estoque sincronizado (0028, 09/11/2026) ---------------------------------------------------------------------- */
+
+/* Candidatos do motor de correspondência: opções clicáveis, nunca aplicadas sozinhas. */
+.item-lido__candidatos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+.item-lido__candidato {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  max-width: 100%;
+  padding: 3px 10px;
+  border: 1px solid var(--borda-controle);
+  border-radius: var(--r-pilula);
+  background: var(--superficie);
+  color: var(--texto);
+  font: inherit;
+  font-size: var(--t-xs);
+  cursor: pointer;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+.item-lido__candidato:hover {
+  background: var(--sobre-hover);
+}
+.item-lido__candidato:focus-visible {
+  outline: 2px solid var(--foco);
+  outline-offset: 1px;
+}
+.item-lido__candidato small {
+  color: var(--texto-3);
+}
+
+/* Insumos parecidos no cadastro: aviso discreto. */
+.cadastro-semelhantes {
+  margin: 0;
+  font-size: var(--t-s);
+}
+
+/* Vínculo com o cardápio do site na gaveta da ficha. */
+.ficha-vinculo-bloco {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e-2);
+}
+.ficha-vinculo-atual {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e-2);
+}
+.ficha-vinculo-atual .ficha-vinculo {
+  flex-wrap: wrap;
+  align-items: center;
+  font-size: var(--t-s);
+}
+.ficha-vinculo-sugestoes {
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: var(--t-s);
+}

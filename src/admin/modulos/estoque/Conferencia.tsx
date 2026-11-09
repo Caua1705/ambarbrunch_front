@@ -51,7 +51,8 @@ export function Conferencia({ id, perm, aoFechar, aoAbrir }: { id: string | null
   // A gerência pode confirmar uma nota que não fecha (com motivo) e produtos que não somam o pagamento (justificando a
   // diferença na confirmação); os itens precisam estar resolvidos. O backend confere as duas coisas de novo.
   const podeSeguir = !!c && aguardando && !sugeridas && (c.pode_confirmar || (perm.editar && c.pendencias.every((p) => p === 'conferencia_aritmetica' || p === 'total_diverge_do_financeiro') && c.itens.length > 0));
-  const pendenciasTexto = c ? [...(sugeridas ? [plural(sugeridas, 'sugestão a confirmar', 'sugestões a confirmar')] : []), ...c.pendencias.map(PENDENCIA)] : [];
+  // O backend (e78d36a) também manda item_N_sugestao_nao_confirmada: a contagem acima já diz o mesmo, sem repetir.
+  const pendenciasTexto = c ? [...(sugeridas ? [plural(sugeridas, 'sugestão a confirmar', 'sugestões a confirmar')] : []), ...c.pendencias.filter((p) => !/_sugestao_nao_confirmada$/.test(p)).map(PENDENCIA)] : [];
 
   // Ler de novo cria uma compra NOVA a partir do mesmo arquivo (a antiga é cancelada): a gaveta passa para ela.
   const reprocessar = () =>
@@ -471,6 +472,8 @@ function PreencherItens({ c, gerencia, aoAbrir, aoSalvar }: { c: CompraDetalhe; 
 }
 
 function ListaEntradas({ c }: { c: CompraDetalhe }) {
+  // "sugerido" fica de propósito: compras confirmadas antes de e78d36a deram entrada em sugestões, e o histórico mostra
+  // o que de fato entrou.
   const entraram = c.itens.filter((i) => (i.situacao === 'confirmado' || i.situacao === 'sugerido') && i.sugestao?.insumo_id);
   return (
     <ul class="lista" style={{ border: '1px solid var(--borda)', borderRadius: '12px' }}>

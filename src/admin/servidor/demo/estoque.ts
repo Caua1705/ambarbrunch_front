@@ -81,29 +81,82 @@ const insumos: InsumoDemo[] = BASE.map(([nome, categoria, unidade_base, saldo, c
   };
 });
 
+// Estoque ideal (0028): alguns já definidos; o resto null (não informado).
+insumos.forEach((i) => (i.estoque_ideal = i.nome === 'Café em grãos' ? '8000.0000' : i.nome === 'Leite integral' ? '60000.0000' : null));
+
 const insumoPorNome = (n: string) => insumos.find((x) => x.nome === n)!;
-/** Linha da lista (insumos.listar). */
+/** Linha da lista (insumos.listar). `falta_para_ideal` só com saldo confiável (a baixa desligada deixa null). */
 const linhaInsumo = ({ movimentos: _m, precos: _p, prazo_reposicao_dias: _r, ...i }: InsumoDemo): Insumo => {
   void _m; void _p; void _r;
-  return { ...i, abaixo_minimo: i.estoque_minimo !== null && Number(i.saldo) < Number(i.estoque_minimo) };
+  const ideal = i.estoque_ideal == null ? null : Number(i.estoque_ideal);
+  return {
+    ...i, estoque_ideal: i.estoque_ideal ?? null, abaixo_minimo: i.estoque_minimo !== null && Number(i.saldo) < Number(i.estoque_minimo),
+    falta_para_ideal: ideal !== null && i.saldo_confiavel && Number(i.saldo) < ideal ? d4(ideal - Number(i.saldo)) : null,
+  };
 };
 /** Cadastro (_insumo_saida): o que POST e PATCH devolvem. */
-const cadastroInsumo = (i: InsumoDemo): InsumoCadastro => ({ id: i.id, codigo: i.codigo, nome: i.nome, categoria: i.categoria, unidade_base: i.unidade_base, tipo: i.tipo, controle_preparo: i.controle_preparo, estoque_minimo: i.estoque_minimo, prazo_reposicao_dias: i.prazo_reposicao_dias, ativo: i.ativo, versao: i.versao });
+const cadastroInsumo = (i: InsumoDemo): InsumoCadastro => ({ id: i.id, codigo: i.codigo, nome: i.nome, categoria: i.categoria, unidade_base: i.unidade_base, tipo: i.tipo, controle_preparo: i.controle_preparo, estoque_minimo: i.estoque_minimo, estoque_ideal: i.estoque_ideal ?? null, prazo_reposicao_dias: i.prazo_reposicao_dias, ativo: i.ativo, versao: i.versao });
+/** Sem acento e sem caixa (textos.normalizar). */
+const normalizar = (t: string) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+/** Textos de nota já confirmados (aliases) → insumo: o combobox acha "LEITE UHT" em Leite integral. */
+const ALIASES: [string, string][] = [['leite uht integral cx 12x1l', 'Leite integral'], ['manteiga s/sal tablete 500g', 'Manteiga sem sal'], ['ovos brancos grandes bdj 30', 'Ovos']];
+/** Parecidos por palavras (correspondencia.semelhantes, simplificado): mesma unidade-base, ativos, sem o próprio nome. */
+function parecidos(nome: string, base: UnidadeBase | null) {
+  const palavras = normalizar(nome).split(' ').filter((p) => p.length > 3);
+  return insumos
+    .filter((i) => i.ativo && (!base || i.unidade_base === base) && normalizar(i.nome) !== normalizar(nome))
+    .map((i) => ({ i, n: palavras.filter((p) => normalizar(i.nome).includes(p)).length }))
+    .filter((x) => x.n > 0)
+    .map((x) => ({ i: x.i, score: Math.min(99, 60 + x.n * 20) }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5);
+}
+function conferirIdeal(minimo: string | null | undefined, ideal: string | null | undefined) {
+  if (ideal == null || minimo == null) return;
+  if (Number(ideal) < Number(minimo)) throw new ErroDemo(422, 'ideal_abaixo_do_minimo', 'O estoque ideal não pode ficar abaixo do mínimo.');
+}
 function acharInsumo(id: string) {
   const i = insumos.find((x) => x.id === id);
   if (!i) throw new ErroDemo(404, 'nao_encontrado', 'Insumo não encontrado.');
   return i;
 }
-function criarInsumoDemo(e: { nome: string; unidade_base: UnidadeBase; categoria?: string | null; tipo?: 'comprado' | 'preparo'; controle_preparo?: 'explodir' | 'lote' | null; estoque_minimo?: string | null }): InsumoDemo {
+function criarInsumoDemo(e: { nome: string; unidade_base: UnidadeBase; categoria?: string | null; tipo?: 'comprado' | 'preparo'; controle_preparo?: 'explodir' | 'lote' | null; estoque_minimo?: string | null; estoque_ideal?: string | null }): InsumoDemo {
   const tipo = e.tipo ?? 'comprado';
+  conferirIdeal(e.estoque_minimo, e.estoque_ideal);
   const novo: InsumoDemo = {
     id: uuid(), codigo: `INS-${String(insumos.length + 1).padStart(3, '0')}`, nome: e.nome.trim(), categoria: e.categoria?.trim() || null, unidade_base: e.unidade_base, tipo,
-    controle_preparo: tipo === 'preparo' ? e.controle_preparo ?? 'explodir' : null, estoque_minimo: e.estoque_minimo ? d4(Number(e.estoque_minimo)) : null, ativo: true, versao: 1,
+    controle_preparo: tipo === 'preparo' ? e.controle_preparo ?? 'explodir' : null, estoque_minimo: e.estoque_minimo ? d4(Number(e.estoque_minimo)) : null,
+    estoque_ideal: e.estoque_ideal != null && e.estoque_ideal !== '' ? d4(Number(e.estoque_ideal)) : null, ativo: true, versao: 1,
     saldo: '0.0000', custo_medio: null, ultimo_custo_compra: null, ultima_compra_em: null, ultima_contagem_em: null, cobertura_dias: null, saldo_confiavel: false,
     motivo_nao_confiavel: 'sem_movimento', abaixo_minimo: false, prazo_reposicao_dias: null, movimentos: [], precos: [],
   };
   insumos.push(novo);
   return novo;
+}
+/** operacoes.ajustar_saldo: contagem/correção; a primeira vira "abertura" e pode trazer o custo (0028). */
+function ajustarDemo(i: InsumoDemo, e: { quantidade: string; motivo: string; observacao?: string | null; custo_unitario?: string | null }) {
+  if (!['contagem_fisica', 'erro_de_registro', 'outro'].includes(e.motivo)) throw new ErroDemo(422, 'regra_violada', 'Motivo: contagem_fisica, erro_de_registro ou outro.');
+  const obs = String(e.observacao ?? '').trim();
+  if (e.motivo === 'outro' && obs.length < 5) throw new ErroDemo(422, 'regra_violada', 'Explique o ajuste (pelo menos 5 caracteres).');
+  const real = Number(e.quantidade);
+  if (!(real >= 0)) throw new ErroDemo(422, 'regra_violada', 'A quantidade real não pode ser negativa.');
+  const anterior = Number(i.saldo);
+  const abertura = !i.ultima_contagem_em;
+  const custo = e.custo_unitario != null && e.custo_unitario !== '' ? Number(e.custo_unitario) : null;
+  if (custo !== null) {
+    if (!abertura) throw new ErroDemo(409, 'custo_so_na_abertura', 'Custo só na primeira contagem do insumo.');
+    if (i.custo_medio !== null) throw new ErroDemo(409, 'custo_ja_conhecido', 'O insumo já tem custo médio de compras.');
+    if (!(real > anterior)) throw new ErroDemo(409, 'custo_sem_entrada', 'Custo só com entrada (quantidade maior que a registrada).');
+  }
+  const texto = custo !== null ? 'abertura · custo informado' : `${abertura ? 'abertura: ' : ''}${obs ? `${e.motivo}: ${obs}` : e.motivo}`;
+  const m = real !== anterior ? movimentar(i, 'ajuste_inventario', real - anterior, custo, texto) : null;
+  if (custo !== null) i.custo_medio = d6(custo);
+  i.ultima_contagem_em = new Date().toISOString();
+  if (['nunca_contado', 'ficou_negativo', 'sem_movimento'].includes(i.motivo_nao_confiavel ?? '')) i.motivo_nao_confiavel = 'baixa_desligada';
+  return {
+    insumo_id: i.id, saldo_anterior: d4(anterior), saldo_novo: d4(real), diferenca: d4(real - anterior), motivo: m?.motivo ?? texto,
+    movimento: m, registrado_por: GERENTE_DEMO, registrado_por_nome: NOME_GERENTE_DEMO, ocorreu_em: m?.ocorreu_em ?? new Date().toISOString(),
+  };
 }
 function movimentar(i: InsumoDemo, tipo: TipoMovimento, qtd: number, custo: number | null, motivo: string | null): MovimentoEstoque {
   const saldo = Number(i.saldo) + qtd;
@@ -245,6 +298,8 @@ function montarCompras() {
     pode_confirmar: true, versao: 2, criado_em: agoraMenos(100),
     etapas: ['recebida', 'processando', 'itens_extraidos', 'associacoes_sugeridas', 'aguardando_conferencia'].map((e, k) => ({ etapa: e, em: agoraMenos(100 - k) })),
   }));
+  // Pendências reais desde o início (como compras.pendencias): sugestão da leitura também espera uma pessoa.
+  compras.filter((c) => c.etapa === 'aguardando_conferencia' && c.itens.length).forEach(recalcular);
 }
 
 function recalcular(c: CompraDemo) {
@@ -252,6 +307,9 @@ function recalcular(c: CompraDemo) {
   if (c.etapa !== 'aguardando_conferencia') pend.push(`etapa_${c.etapa}`);
   c.itens.forEach((i) => {
     if (i.situacao === 'pendente') pend.push(`item_${i.ordem}_sem_insumo`);
+    // Backend e78d36a: sugestão automática não é confirmação — alguém confirma cada item.
+    if (i.situacao === 'sugerido') pend.push(`item_${i.ordem}_sugestao_nao_confirmada`);
+    i.aguarda_confirmacao = i.situacao === 'sugerido';
   });
   if (!c.itens.length) pend.push('sem_itens');
   if (c.itens.length && c.conferencia && !c.conferencia.ok && !c.divergencia_aceita) pend.push('conferencia_aritmetica');
@@ -394,7 +452,19 @@ interface ProdutoDemo {
   preco: number;
   qtd: number;
   ficha: FichaDemo | null;
+  /** Item do catálogo oficial ligado (0028); null = sem vínculo. */
+  catalogo?: string | null;
+  /** Está no cardápio da loja na Eyemobile (lido do /menus). */
+  cardapio?: boolean;
 }
+/** Parte do catálogo oficial do site (chaves reais, as mesmas das fotos do cardápio). */
+const CATALOGO_DEMO = [
+  { catalogo_item_id: 'croissants.classico', nome: 'Croissant Clássico', tipo: 'produto', categoria: 'Croissants' },
+  { catalogo_item_id: 'croissants.brie_e_geleia', nome: 'Croissant Brie e Geleia', tipo: 'produto', categoria: 'Croissants' },
+  { catalogo_item_id: 'sanduiches.brie_blueberry', nome: 'Sanduíche Brie Blueberry', tipo: 'produto', categoria: 'Sanduíches' },
+  { catalogo_item_id: 'sanduiches.ragu', nome: 'Sanduíche Ragù', tipo: 'produto', categoria: 'Sanduíches' },
+  { catalogo_item_id: 'brunches.american_brunch', nome: 'American Brunch', tipo: 'produto', categoria: 'Brunches' },
+];
 const fd = (versao: number, rendimento: number, itens: [string, number, number?, boolean?][], observacao: string | null = null): FichaDemo => ({ versao, rendimento, itens: itens.map(([insumo, quantidade, perda = 0, opcional = false]) => ({ insumo, quantidade, perda, opcional })), versoes: [], observacao, vigente_de: '' });
 const produtos: ProdutoDemo[] = [
   { eye_product_id: '4001', produto: 'Cappuccino', grupo: 'CAFÉS', preco: 14, qtd: 312, ficha: fd(2, 1, [['Café em grãos', 18], ['Leite integral', 150, 5], ['Canela em pó', 1, 0, true]]) },
@@ -407,7 +477,15 @@ const produtos: ProdutoDemo[] = [
   { eye_product_id: '6002', produto: 'Sanduíche de brie', grupo: 'SALGADOS', preco: 42, qtd: 61, ficha: null },
   { eye_product_id: '7001', produto: 'Cheesecake de morango', grupo: 'DOCES', preco: 26, qtd: 88, ficha: null },
   { eye_product_id: '7002', produto: 'Brownie', grupo: 'DOCES', preco: 16, qtd: 133, ficha: fd(1, 16, [['Chocolate 70%', 400], ['Manteiga sem sal', 250], ['Açúcar refinado', 300], ['Ovos', 5], ['Farinha de trigo', 120]]) },
+  // Novo no cardápio da loja, ainda sem venda: só aparece com incluir_sem_venda=true (0028).
+  { eye_product_id: '7003', produto: 'Croissant clássico', grupo: 'CROISSANTS', preco: 14, qtd: 0, ficha: null, cardapio: true },
 ];
+produtos.forEach((p) => {
+  p.catalogo ??= null;
+  p.cardapio ??= true;
+});
+/** As análises e o resumo contam só o que vendeu (como o backend: vendas do período). */
+const vendidos = () => produtos.filter((p) => p.qtd > 0);
 /** Fichas de preparo (alvo "preparo"), pelo id do insumo de tipo preparo. */
 const fichasPreparo = new Map<string, FichaDemo>([[insumoPorNome('Creme de cream cheese (preparo)').id, fd(1, 1100, [['Cream cheese', 1000], ['Açúcar refinado', 120], ['Manteiga sem sal', 50]])]]);
 function datarVersoes(f: FichaDemo) {
@@ -443,6 +521,9 @@ function fichaLista(p: ProdutoDemo, dias = 30): FichaLista {
   const qtd = Math.round((p.qtd * dias) / 30);
   return {
     eye_product_id: p.eye_product_id, produto: p.produto, grupo: p.grupo, preco_pdv: d2(p.preco), receita_periodo: d2(p.preco * qtd), quantidade_periodo: d4(qtd),
+    // 0028
+    preco_cardapio_pdv: p.cardapio ? d2(p.preco) : null, ultimo_preco_vendido: qtd > 0 ? d2(p.preco) : null, vendido_no_periodo: qtd > 0, no_cardapio_pdv: !!p.cardapio,
+    disponivel_pdv: p.cardapio ? true : null, ativo_pdv: true, origem_cadastro: qtd > 0 ? 'venda' : 'cardapio', catalogo_item_id: p.catalogo ?? null,
     ficha: p.ficha && c ? { versao: p.ficha.versao, custo_porcao_hoje: c.porcao === null ? null : d6(c.porcao), margem_hoje_pct: c.porcao === null ? null : ((1 - c.porcao / p.preco) * 100).toFixed(1), custo_incompleto: c.sem.length > 0 } : null,
   };
 }
@@ -498,7 +579,7 @@ function sugestaoContagem() {
 
 export function blocoEstoqueVisaoDemo() {
   montarCompras();
-  const fichas = produtos.map((p) => fichaLista(p));
+  const fichas = vendidos().map((p) => fichaLista(p));
   const receita = fichas.reduce((s, f) => s + Number(f.receita_periodo), 0);
   const coberta = fichas.filter((f) => f.ficha).reduce((s, f) => s + Number(f.receita_periodo), 0);
   return {
@@ -523,7 +604,7 @@ export const ROTAS_ESTOQUE: Rota[] = [
   ['GET', /^estoque\/resumo$/, GERENCIA, () => {
     montarCompras();
     const conferir = compras.filter((c) => c.etapa === 'aguardando_conferencia');
-    const fichas = produtos.map((p) => fichaLista(p));
+    const fichas = vendidos().map((p) => fichaLista(p));
     const receita = fichas.reduce((s, f) => s + Number(f.receita_periodo), 0);
     const coberta = fichas.filter((f) => f.ficha).reduce((s, f) => s + Number(f.receita_periodo), 0);
     const ativos = insumos.filter((i) => i.ativo);
@@ -555,12 +636,21 @@ export const ROTAS_ESTOQUE: Rota[] = [
       .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
     return pagina(l, query);
   }],
+  // 0028: quantidade e custo inicial gravados NA MESMA transação (abertura); `semelhantes` só avisa.
   ['POST', /^estoque\/insumos$/, GERENCIA, async ({ corpo }) => {
-    const e = await corpo<{ nome: string; unidade_base: UnidadeBase; categoria?: string | null; tipo?: 'comprado' | 'preparo'; controle_preparo?: 'explodir' | 'lote' | null; estoque_minimo?: string | null }>();
+    const e = await corpo<{ nome: string; unidade_base: UnidadeBase; categoria?: string | null; tipo?: 'comprado' | 'preparo'; controle_preparo?: 'explodir' | 'lote' | null; estoque_minimo?: string | null; estoque_ideal?: string | null; quantidade_inicial?: string | null; custo_unitario_inicial?: string | null }>();
     if (!e.nome?.trim()) throw new ErroDemo(422, 'regra_violada', 'Informe o nome.');
+    if (e.custo_unitario_inicial != null && !(Number(e.quantidade_inicial) > 0)) throw new ErroDemo(422, 'custo_sem_entrada', 'Custo inicial precisa de quantidade inicial maior que zero.');
     const igual = insumos.find((i) => i.nome.toLowerCase() === e.nome.trim().toLowerCase());
     if (igual) throw new ErroDemo(409, 'nome_ja_existe', `Já existe o insumo "${igual.nome}".`, { insumo_id: igual.id });
-    return resposta(201, cadastroInsumo(criarInsumoDemo(e)));
+    const semelhantes = parecidos(e.nome, e.unidade_base).map(({ i, score }) => ({ insumo_id: i.id, nome: i.nome, score }));
+    const novo = criarInsumoDemo(e);
+    let abertura = null;
+    if (e.quantidade_inicial != null) {
+      const r = ajustarDemo(novo, { quantidade: e.quantidade_inicial, motivo: 'contagem_fisica', observacao: 'quantidade inicial do cadastro', custo_unitario: e.custo_unitario_inicial });
+      abertura = { saldo_novo: r.saldo_novo, motivo: r.motivo, custo_unitario: r.movimento?.custo_unitario ?? null };
+    }
+    return resposta(201, { ...cadastroInsumo(novo), abertura, semelhantes });
   }],
   // UM objeto: o que o sistema sugeriria para a descrição (associacao.sugerir). Sem candidato: insumo_id null.
   ['GET', /^estoque\/insumos-sugestoes$/, GERENCIA, ({ query }): SugestaoInsumo => {
@@ -591,8 +681,12 @@ export const ROTAS_ESTOQUE: Rota[] = [
       const outro = insumos.find((x) => x.id !== i.id && x.nome.toLowerCase() === String(e.nome).trim().toLowerCase());
       if (outro) throw new ErroDemo(409, 'nome_ja_existe', `Já existe o insumo "${outro.nome}".`, { insumo_id: outro.id });
     }
-    // Como o backend: campos nulos são descartados (não apagam o valor).
+    // Como o backend: campos nulos são descartados (não apagam o valor) — menos o estoque ideal, em que null LIMPA (0028).
+    const minimo = e.estoque_minimo != null ? d4(Number(e.estoque_minimo)) : i.estoque_minimo;
+    if ('estoque_ideal' in e) conferirIdeal(minimo, e.estoque_ideal == null ? null : String(e.estoque_ideal));
+    else conferirIdeal(minimo, i.estoque_ideal);
     for (const k of ['nome', 'categoria', 'estoque_minimo', 'prazo_reposicao_dias', 'ativo', 'controle_preparo'] as const) if (e[k] !== undefined && e[k] !== null) (i as unknown as Record<string, unknown>)[k] = k === 'estoque_minimo' ? d4(Number(e[k])) : e[k];
+    if ('estoque_ideal' in e) i.estoque_ideal = e.estoque_ideal == null ? null : d4(Number(e.estoque_ideal));
     i.versao++;
     return cadastroInsumo(i);
   }],
@@ -613,24 +707,28 @@ export const ROTAS_ESTOQUE: Rota[] = [
     return resposta(201, movimentar(i, 'perda', -q, null, e.observacao ? `${e.motivo}: ${e.observacao}` : e.motivo));
   }],
   // Ajuste avulso (operacoes.ajustar_saldo): a primeira contagem vira "abertura"; devolve saldo anterior e novo.
+  // 0028: `custo_unitario` só na abertura, com entrada e sem custo médio de compras (valoriza; não é despesa).
   ['POST', /^estoque\/ajustes$/, GERENCIA, async ({ corpo }) => {
-    const e = await corpo<{ insumo_id: string; quantidade: string; motivo: string; observacao?: string | null }>();
-    if (!['contagem_fisica', 'erro_de_registro', 'outro'].includes(e.motivo)) throw new ErroDemo(422, 'regra_violada', 'Motivo: contagem_fisica, erro_de_registro ou outro.');
-    const obs = String(e.observacao ?? '').trim();
-    if (e.motivo === 'outro' && obs.length < 5) throw new ErroDemo(422, 'regra_violada', 'Explique o ajuste (pelo menos 5 caracteres).');
-    const real = Number(e.quantidade);
-    if (!(real >= 0)) throw new ErroDemo(422, 'regra_violada', 'A quantidade real não pode ser negativa.');
-    const i = acharInsumo(e.insumo_id);
-    const anterior = Number(i.saldo);
-    const abertura = !i.ultima_contagem_em;
-    const texto = `${abertura ? 'abertura: ' : ''}${obs ? `${e.motivo}: ${obs}` : e.motivo}`;
-    const m = real !== anterior ? movimentar(i, 'ajuste_inventario', real - anterior, null, texto) : null;
-    i.ultima_contagem_em = new Date().toISOString();
-    if (['nunca_contado', 'ficou_negativo', 'sem_movimento'].includes(i.motivo_nao_confiavel ?? '')) i.motivo_nao_confiavel = 'baixa_desligada';
-    return resposta(201, {
-      insumo_id: i.id, saldo_anterior: d4(anterior), saldo_novo: d4(real), diferenca: d4(real - anterior), motivo: m?.motivo ?? texto,
-      movimento: m, registrado_por: GERENTE_DEMO, registrado_por_nome: NOME_GERENTE_DEMO, ocorreu_em: m?.ocorreu_em ?? new Date().toISOString(),
-    });
+    const e = await corpo<{ insumo_id: string; quantidade: string; motivo: string; observacao?: string | null; custo_unitario?: string | null }>();
+    return resposta(201, ajustarDemo(acharInsumo(e.insumo_id), e));
+  }],
+  // Combobox (insumos.opcoes): começa-com primeiro, depois contém; acha também pelos textos de nota já confirmados.
+  ['GET', /^estoque\/insumos\/opcoes$/, GERENCIA, ({ query }) => {
+    const t = normalizar(query.get('busca') ?? '');
+    const limite = Math.min(50, Number(query.get('limite') ?? 20));
+    const inativos = query.get('incluir_inativos') === 'true';
+    const porAlias = new Set(ALIASES.filter(([texto]) => t && texto.includes(t)).map(([, nome]) => nome));
+    return insumos
+      .filter((i) => (i.ativo || inativos) && (!t || normalizar(i.nome).includes(t) || porAlias.has(i.nome)))
+      .map((i) => ({ i, comeca: normalizar(i.nome).startsWith(t) ? 0 : normalizar(i.nome).includes(t) ? 1 : 2 }))
+      .sort((a, b) => a.comeca - b.comeca || a.i.nome.localeCompare(b.i.nome, 'pt-BR'))
+      .slice(0, limite)
+      .map(({ i }) => ({ id: i.id, nome: i.nome, unidade_base: i.unidade_base, tipo: i.tipo, categoria: i.categoria, ativo: i.ativo, custo_medio: i.custo_medio, achado_por: !t || normalizar(i.nome).includes(t) ? 'nome' : 'alias' }));
+  }],
+  ['GET', /^estoque\/insumos\/semelhantes$/, GERENCIA, ({ query }) => {
+    const nome = query.get('nome') ?? '';
+    if (nome.trim().length < 2) throw new ErroDemo(422, 'regra_violada', 'Nome curto demais.');
+    return parecidos(nome, (query.get('unidade_base') as UnidadeBase) || null).map(({ i, score }) => ({ insumo_id: i.id, nome: i.nome, score }));
   }],
   // Contagem
   ['GET', /^estoque\/inventarios\/sugestao$/, GERENCIA, () => sugestaoContagem()],
@@ -748,8 +846,10 @@ export const ROTAS_ESTOQUE: Rota[] = [
       it.categoria_despesa = e.nao_estoque;
     } else {
       let ins: InsumoDemo | undefined;
+      // Backend e78d36a: confirmar exige o insumo explícito no corpo (a sugestão sozinha não vale).
+      if (!e.novo_insumo && !e.insumo_id) throw new ErroDemo(422, 'insumo_nao_informado', 'Escolha o insumo para confirmar o item.');
       if (e.novo_insumo) ins = insumos.find((i) => i.nome.toLowerCase() === e.novo_insumo!.nome.trim().toLowerCase()) ?? criarInsumoDemo(e.novo_insumo);
-      else ins = acharInsumo(String(e.insumo_id ?? it.sugestao?.insumo_id));
+      else ins = acharInsumo(String(e.insumo_id));
       const mesmo = it.sugestao?.insumo_id === ins.id;
       const q = Number(it.quantidade);
       let fator = e.fator !== undefined && e.fator !== null ? Number(e.fator) : e.quantidade_base ? Number(e.quantidade_base) / q : mesmo && it.sugestao?.fator ? Number(it.sugestao.fator) : null;
@@ -770,6 +870,17 @@ export const ROTAS_ESTOQUE: Rota[] = [
     c.versao++;
     recalcular(c);
     return saidaCompra(c);
+  }],
+  // Motor de correspondência (0028) para um item lido: candidatos por palavras do texto; nada é confirmado sozinho.
+  ['GET', new RegExp(`^estoque/compras/${U}/itens/${U}/candidatos$`), GERENCIA, ({ params }) => {
+    const c = acharCompra(params[0]);
+    const it = c.itens.find((x) => x.id === params[1]);
+    if (!it) throw new ErroDemo(404, 'nao_encontrado', 'Item não encontrado.');
+    const candidatos = parecidos(it.descricao, null)
+      .filter(({ i }) => i.tipo === 'comprado')
+      .map(({ i, score }) => ({ insumo_id: i.id, nome: i.nome, nome_original: null, unidade_base: i.unidade_base, nivel: 'texto', motivo: `nome_parecido (${(score / 100).toFixed(2)})`, score, status: score >= 88 ? 'sugerido' : 'revisar', fator: null, associacao_id: null, alertas: [] }));
+    const status = candidatos[0]?.status ?? 'sem_correspondencia';
+    return { descricao: it.descricao, normalizada: normalizar(it.descricao), status, revisao_humana: true, candidatos, item_id: it.id, situacao: it.situacao, insumo_escolhido: it.sugestao?.insumo_id ?? null };
   }],
   ['PUT', new RegExp(`^estoque/compras/${U}/manual$`), GERENCIA, async ({ params, corpo }) => {
     const c = acharCompra(params[0]);
@@ -932,10 +1043,48 @@ export const ROTAS_ESTOQUE: Rota[] = [
     return { url: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(desenharDocumento(c))}`, expira_em: new Date(Date.now() + 300_000).toISOString(), mime: mime === 'application/xml' ? 'application/xml' : 'image/svg+xml' };
   }],
   // Fichas técnicas
+  // Padrão: só os vendidos no período (como antes). incluir_sem_venda=true (0028): também os do cardápio da loja e os que
+  // já têm ficha.
   ['GET', /^estoque\/fichas$/, GERENCIA, ({ query }) => {
     const s = query.get('situacao') ?? 'todas';
     const dias = Number(query.get('dias') ?? 30);
-    return produtos.map((p) => fichaLista(p, dias)).filter((f) => s === 'todas' || (s === 'sem_ficha' ? !f.ficha : !!f.ficha)).sort((a, b) => Number(b.receita_periodo) - Number(a.receita_periodo));
+    const todos = query.get('incluir_sem_venda') === 'true';
+    return produtos
+      .filter((p) => p.qtd > 0 || (todos && (p.cardapio || !!p.ficha)))
+      .map((p) => fichaLista(p, dias))
+      .filter((f) => s === 'todas' || (s === 'sem_ficha' ? !f.ficha : !!f.ficha))
+      .sort((a, b) => Number(b.receita_periodo) - Number(a.receita_periodo) || a.produto.localeCompare(b.produto, 'pt-BR'));
+  }],
+  // Produto do PDV × catálogo oficial (vinculos.painel): vínculo por id ou até 3 sugestões por nome, nunca aplicadas.
+  ['GET', /^estoque\/vinculos-cardapio$/, GERENCIA, () => {
+    const ocupados = new Set(produtos.map((p) => p.catalogo).filter(Boolean));
+    return {
+      produtos: produtos.map((p) => {
+        const item = CATALOGO_DEMO.find((c) => c.catalogo_item_id === p.catalogo) ?? null;
+        const palavras = normalizar(p.produto).split(' ').filter((w) => w.length > 3);
+        return {
+          eye_product_id: p.eye_product_id, produto: p.produto, grupo: p.grupo, no_cardapio_pdv: !!p.cardapio, disponivel_pdv: p.cardapio ? true : null, ativo_pdv: true,
+          catalogo_item_id: p.catalogo, catalogo_item: item ? { nome: item.nome, tipo: item.tipo, categoria: item.categoria, imagem: null } : null, vinculado_em: p.catalogo ? agoraMenos(60 * 24) : null,
+          sugestoes: p.catalogo ? [] : CATALOGO_DEMO.filter((c) => !ocupados.has(c.catalogo_item_id) && palavras.some((w) => normalizar(c.nome).includes(w))).slice(0, 3).map((c) => ({ ...c, preco: null, score: 0.9, status: 'sugestao_nao_confirmada' as const })),
+        };
+      }),
+      catalogo_sem_produto: CATALOGO_DEMO.filter((c) => !ocupados.has(c.catalogo_item_id)),
+      vinculados: ocupados.size,
+      total_catalogo: CATALOGO_DEMO.length,
+    };
+  }],
+  ['PUT', /^estoque\/fichas\/produto\/([\w-]+)\/catalogo$/, GERENCIA, async ({ params, corpo }) => {
+    const p = produtos.find((x) => x.eye_product_id === params[0]);
+    if (!p) throw new ErroDemo(404, 'nao_encontrado', 'Produto não encontrado.');
+    const e = await corpo<{ catalogo_item_id?: string | null }>();
+    const alvo = e.catalogo_item_id ?? null;
+    if (alvo !== null) {
+      if (!CATALOGO_DEMO.some((c) => c.catalogo_item_id === alvo)) throw new ErroDemo(422, 'catalogo_item_inexistente', 'Este item não está no cardápio vigente.');
+      const outro = produtos.find((x) => x.catalogo === alvo && x.eye_product_id !== p.eye_product_id);
+      if (outro) throw new ErroDemo(409, 'catalogo_ja_vinculado', `Este item do cardápio já está ligado a "${outro.produto}".`);
+    }
+    p.catalogo = alvo;
+    return { eye_product_id: p.eye_product_id, catalogo_item_id: alvo, vinculado_em: alvo ? new Date().toISOString() : null };
   }],
   ['GET', /^estoque\/fichas\/(produto|preparo)\/([\w-]+)$/, GERENCIA, ({ params }): FichaDetalhe => {
     const { f } = acharFicha(params[0], params[1]);
@@ -960,7 +1109,7 @@ export const ROTAS_ESTOQUE: Rota[] = [
   // Análises
   ['GET', /^estoque\/analises\/produtos$/, GERENCIA, ({ query }) => {
     const ord = query.get('ordenar') ?? 'receita';
-    const l = produtos.map((p) => {
+    const l = vendidos().map((p) => {
       const f = fichaLista(p);
       const custo = f.ficha?.custo_porcao_hoje ? Number(f.ficha.custo_porcao_hoje) : null;
       const receita = p.preco * p.qtd * 0.97;
@@ -984,7 +1133,7 @@ export const ROTAS_ESTOQUE: Rota[] = [
     const de = query.get('de') ?? dia(-29);
     const ate = query.get('ate') ?? hojeFortaleza();
     const n = Math.round((Date.parse(ate) - Date.parse(de)) / 86_400_000) + 1;
-    const itens = produtos.map((p) => {
+    const itens = vendidos().map((p) => {
       const f = fichaLista(p);
       const custo = f.ficha?.custo_porcao_hoje ? Number(f.ficha.custo_porcao_hoje) : null;
       const completo = !!f.ficha && !f.ficha.custo_incompleto;

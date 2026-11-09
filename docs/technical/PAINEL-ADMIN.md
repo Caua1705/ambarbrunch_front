@@ -493,10 +493,33 @@ duplicados. As três abas continuam; o que mudou:
   rendimento/perda/opcional/observação em "Opções avançadas", textos repetidos removidos; produto pronto (água,
   refrigerante) segue como o item do estoque e 1 un. Cartões da Eyemobile e gaveta sem mudança.
 
-Depende do backend (continua identificado na tela, nada simulado): entrada avulsa de estoque; estoque ideal; custo
-inicial no cadastro; vínculo Eyemobile ↔ catálogo; produtos sem venda no período (ver a lista abaixo); confirmar compra
-com sugestões ainda "sugerido" é recusado só pelo painel — a API ainda aceita (proposta: `pendencias` incluir
-`item_N_sugerido` para o backend recusar também).
+Depende do backend (continua identificado na tela, nada simulado): entrada avulsa de estoque (não há rota; só
+`ajustes`, `perdas` e a conferência de Compras). Os demais itens desta lista foram resolvidos pela 0028 (abaixo).
+
+### Estoque sincronizado — integração com o backend 0028 (09/11/2026)
+
+Backend `giardini_back` c17ea15 + e78d36a (branch `estoque-sincronizacao-0028`, local; contrato
+`CONTRATO-PAINEL-FINANCEIRO-ESTOQUE.md` §12). Cada recurso liga sozinho quando o backend responde e cai no comportamento
+anterior com o backend publicado antes da 0028 (testado com o backend simulado sem as chaves/rotas):
+
+| Recurso | Rota / campo | Na tela | Backend anterior |
+|---|---|---|---|
+| Estoque ideal | `estoque_ideal` em POST/PATCH/listagem/detalhe; `falta_para_ideal` | Campo no cadastro e na edição (apagar manda `null`, que limpa); detalhe com "Estoque ideal" e "Falta para o ideal" (só quando o backend calcula — com a baixa desligada vem null) | Campo desligado: "Ainda não é salvo pelo sistema" |
+| Quantidade e custo inicial | `quantidade_inicial`, `custo_unitario_inicial` no POST (abertura na mesma transação, com `Idempotency-Key`); `custo_unitario` no POST /ajustes só na abertura | "Custo unitário inicial (R$/kg)" no cadastro; "Custo unitário" na correção de inventário quando é a 1ª contagem e não há custo de compras. Histórico: "Custo inicial informado". Não vira despesa | Sem campo de custo; a quantidade vira um POST /ajustes logo depois (resposta sem `abertura`) |
+| Parecidos | GET /insumos/semelhantes; `semelhantes` na resposta do POST | Aviso discreto no cadastro ("Parecido com o que já existe"), nunca bloqueio | — |
+| Combobox | GET /insumos/opcoes (acha também pelo texto de nota já confirmado: "pelo texto da nota") | SeletorInsumo | 404 de rota → listagem de insumos (como antes) |
+| Correspondência | GET /compras/{id}/itens/{item}/candidatos | Item lido pendente: "Pode ser:" com até 3 candidatos (status, %); escolher = PATCH do item com o `insumo_id` (e o fator do alias, se houver) | Sem candidatos; o seletor continua |
+| Produtos sem venda | GET /fichas?incluir_sem_venda=true | Fichas técnicas mostra o cardápio da loja: "Sem venda em 30 dias · no cardápio da loja". Custos e CMV continua só com os vendidos | O parâmetro é ignorado |
+| Vínculo com o catálogo | GET /vinculos-cardapio; PUT /fichas/produto/{id}/catalogo | Gaveta da ficha: sugestões por nome como botões "confirme" (nunca aplicadas), escolha no cardápio do site por categoria, Trocar/Desfazer; a foto da miniatura aparece pelo id. 409 `catalogo_ja_vinculado`/422 mostrados | Linha discreta, sem seleção |
+| Confirmação humana | `pendencias` com `item_N_sugestao_nao_confirmada` e `item_N_sem_confirmacao_humana`; 409 `pendencias`; PATCH sem `insumo_id` → 422 `insumo_nao_informado` | O botão "Confirmar" de cada item manda o `insumo_id`; o rodapé não repete a pendência; a API recusa a confirmação forçada (testado) | Só o painel bloqueava |
+
+Rotas conferidas uma a uma contra as fichas do contrato (38 chamadas do Estoque, nenhuma inexistente).
+
+Testes: demonstração 22 (Estoque + Compras, com o backend simulado no formato da 0028 e um teste do backend anterior),
+responsivo (Chromium e WebKit, inclusive as gavetas a 375 px), permissões/segurança/Visão Geral 35, Financeiro 30,
+Operação/Unidade 28 (+1 intermitente já conhecido, 3/3 isolado). Integração real (`tests-painel-real/estoque.spec.ts`,
+base isolada no Postgres `ambar-pg-estoque`, backend cd06c84): 12/12. `financeiro-estoque.spec.ts` (B3) não rodou: exige
+o seed de cenários do Financeiro.
 
 Testes do refinamento: `tests-painel/estoque.spec.ts` (15, incluindo ajuste com entrada identificada, nota lida com
 sugestões confirmadas uma a uma, estados do seletor e o ponta a ponta cadastrar → comprar com cadastro rápido → conferir →

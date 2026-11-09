@@ -8,6 +8,7 @@ import type {
   InsumoDetalhe, MovimentoEstoque, ResolucaoItem, ResumoEstoque, SugestaoInsumo, ProdutoAnalise, Ruptura, Reposicao, Cardapio,
   FornecedoresAnalise, CmvAnalise, SugestaoInventario, Inventario, InventarioResumo, ContagemItem, FechamentoInventario, UnidadeBase, EtapaCompra,
   CancelamentoEstoque, SituacaoCancelamento, DecisaoCancelamento, EscopoInventario, StatusInventario, AjusteSaldo, MotivoAjuste, MotivoDiferenca,
+  InsumoCriado, OpcaoInsumo, InsumoSemelhante, Correspondencia, VinculosCardapio,
 } from '../tipos/estoque';
 import type { VisaoGeral, RadarInsight } from '../tipos/visao-geral';
 
@@ -18,11 +19,27 @@ export const estoque = {
   // Insumos (catálogo e edição: estoque.editar; leitura e perda: estoque.visualizar)
   insumos: (q: FiltroInsumos = {}) => pedir<Pagina<Insumo>>('estoque/insumos', { query: { limite: 200, ...q } }),
   insumo: (id: string) => pedir<InsumoDetalhe>(`estoque/insumos/${id}`),
-  criarInsumo: (i: { nome: string; unidade_base: UnidadeBase; tipo?: 'comprado' | 'preparo'; controle_preparo?: 'explodir' | 'lote' | null; categoria?: string | null; estoque_minimo?: string | null; estoque_ideal?: string | null }) =>
-    pedir<InsumoCadastro>('estoque/insumos', { metodo: 'POST', corpo: i }),
-  /** Campos omitidos (ou null) não mudam: o backend descarta os nulos. */
-  alterarInsumo: (id: string, i: { versao: number; nome?: string; categoria?: string; estoque_minimo?: string; estoque_ideal?: string; controle_preparo?: 'explodir' | 'lote'; prazo_reposicao_dias?: number; ativo?: boolean }) =>
+  /** 0028: `quantidade_inicial` e `custo_unitario_inicial` gravam a abertura na MESMA transação (`abertura` na resposta);
+   *  custo sem quantidade > 0 → 422 `custo_sem_entrada`. O backend anterior ignora os dois (a resposta vem sem
+   *  `abertura`): quem chama confere a chave antes de achar que gravou. */
+  criarInsumo: (
+    i: { nome: string; unidade_base: UnidadeBase; tipo?: 'comprado' | 'preparo'; controle_preparo?: 'explodir' | 'lote' | null; categoria?: string | null; estoque_minimo?: string | null; estoque_ideal?: string | null; quantidade_inicial?: string; custo_unitario_inicial?: string },
+    chave = novaChave(),
+  ) => pedir<InsumoCriado>('estoque/insumos', { metodo: 'POST', corpo: i, idempotencia: chave }),
+  /** Campos omitidos não mudam; `estoque_ideal: null` LIMPA o ideal (0028). */
+  alterarInsumo: (id: string, i: { versao: number; nome?: string; categoria?: string; estoque_minimo?: string; estoque_ideal?: string | null; controle_preparo?: 'explodir' | 'lote'; prazo_reposicao_dias?: number; ativo?: boolean }) =>
     pedir<InsumoCadastro>(`estoque/insumos/${id}`, { metodo: 'PATCH', corpo: i }),
+  /** Combobox (0028): acha pelo nome e pelos textos de nota já confirmados. Backend anterior: 404 de rota. */
+  opcoesInsumo: (busca: string, limite = 50) => pedir<OpcaoInsumo[]>('estoque/insumos/opcoes', { query: { busca: busca || undefined, limite } }),
+  /** Antes de cadastrar: ativos que parecem o mesmo (só aviso, 0028). */
+  semelhantes: (nome: string, unidade_base: UnidadeBase) => pedir<InsumoSemelhante[]>('estoque/insumos/semelhantes', { query: { nome, unidade_base } }),
+  /** Motor de correspondência para um item lido (0028): candidatos ordenados; nada é confirmado sozinho. */
+  candidatosItem: (compraId: string, itemId: string) => pedir<Correspondencia>(`estoque/compras/${compraId}/itens/${itemId}/candidatos`),
+  /** Produto do PDV × catálogo oficial (0028). */
+  vinculosCardapio: () => pedir<VinculosCardapio>('estoque/vinculos-cardapio'),
+  /** Vínculo explícito (null desfaz). 422 catalogo_item_inexistente · 409 catalogo_ja_vinculado · 422 taxa_de_servico. */
+  vincularCatalogo: (eyeProductId: string, catalogo_item_id: string | null) =>
+    pedir<{ eye_product_id: string; catalogo_item_id: string | null; vinculado_em: string | null }>(`estoque/fichas/produto/${encodeURIComponent(eyeProductId)}/catalogo`, { metodo: 'PUT', corpo: { catalogo_item_id } }),
   movimentos: (id: string, antes_de?: number) => pedir<Cursor<MovimentoEstoque>>(`estoque/insumos/${id}/movimentos`, { query: { antes_de, limite: 30 } }),
   /** O que o sistema sugeriria para uma descrição da nota: UM objeto (insumo_id null = sem sugestão). */
   sugestaoInsumo: (texto: string, unidade_fiscal?: string, fornecedor_id?: string | null) =>
@@ -32,7 +49,7 @@ export const estoque = {
   registrarPerda: (p: { insumo_id: string; quantidade: string; motivo: 'vencido' | 'quebra' | 'preparo' | 'uso_interno' | 'outro'; observacao?: string; ocorreu_em?: string }, chave = novaChave()) =>
     pedir<MovimentoEstoque>('estoque/perdas', { metodo: 'POST', corpo: p, idempotencia: chave }),
   /** Ajuste avulso com motivo (backend 02/11): saldo anterior, novo, diferença e responsável. Backend anterior: 404. */
-  ajustar: (a: { insumo_id: string; quantidade: string; motivo: MotivoAjuste; observacao?: string }, chave = novaChave()) =>
+  ajustar: (a: { insumo_id: string; quantidade: string; motivo: MotivoAjuste; observacao?: string; custo_unitario?: string }, chave = novaChave()) =>
     pedir<AjusteSaldo>('estoque/ajustes', { metodo: 'POST', corpo: a, idempotencia: chave }),
   // Contagem (inventário): no máximo uma aberta por unidade; 409 inventario_aberto traz dados.inventario_id
   sugestaoInventario: () => pedir<SugestaoInventario[]>('estoque/inventarios/sugestao'),
@@ -69,7 +86,9 @@ export const estoque = {
   /** Lê de novo (falhou ou ficou sem itens): nasce uma compra NOVA (`id`), a antiga é cancelada. */
   reprocessar: (id: string) => pedir<{ id: string; etapa: EtapaCompra; substitui: string }>(`estoque/compras/${id}/reprocessar`, { metodo: 'POST' }),
   // Fichas técnicas (estoque.editar)
-  fichas: (situacao: 'sem_ficha' | 'com_ficha' | 'todas' = 'todas', dias = 30) => pedir<FichaLista[]>('estoque/fichas', { query: { situacao, dias } }),
+  /** `incluir_sem_venda` (0028): também os produtos do cardápio da loja e os que já têm ficha. O backend anterior ignora. */
+  fichas: (situacao: 'sem_ficha' | 'com_ficha' | 'todas' = 'todas', dias = 30, incluir_sem_venda = false) =>
+    pedir<FichaLista[]>('estoque/fichas', { query: { situacao, dias, ...(incluir_sem_venda ? { incluir_sem_venda: true } : {}) } }),
   ficha: (alvo: 'produto' | 'preparo', id: string) => pedir<FichaDetalhe>(`estoque/fichas/${alvo}/${id}`),
   salvarFicha: (alvo: 'produto' | 'preparo', id: string, f: { rendimento: string; itens: { insumo_id: string; quantidade: string; perda_percentual?: string; opcional?: boolean }[]; observacao?: string }) =>
     pedir<FichaSalva>(`estoque/fichas/${alvo}/${id}`, { metodo: 'PUT', corpo: f }),

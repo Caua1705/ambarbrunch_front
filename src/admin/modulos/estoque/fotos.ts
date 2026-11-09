@@ -1,6 +1,6 @@
 // Foto de um produto do catálogo oficial no painel: a mesma miniatura do cardápio do site, ligada pelo id estável do
 // catálogo (ex.: "sucos.antioxidant"), nunca pelo nome. Só aparece para produto da Eyemobile VINCULADO ao catálogo
-// (FichaLista.catalogo_item_id) — vínculo que o backend ainda não guarda (PAINEL-ADMIN.md §4h); sem ele, nada de foto.
+// (FichaLista.catalogo_item_id, backend 0028; a pessoa liga na gaveta da ficha); sem ele, nada de foto.
 import type { ImageMetadata } from 'astro';
 import { FOTOS_PRODUTO } from '../../../data/cardapio';
 

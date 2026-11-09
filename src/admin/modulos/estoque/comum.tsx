@@ -153,6 +153,11 @@ export const textoProblemas = (ps: { codigo: string; texto?: string }[] | undefi
 export const PENDENCIA: (p: string) => string = (p) => {
   const m = /^item_(\d+)_sem_insumo$/.exec(p);
   if (m) return `Item ${m[1]} sem insumo associado`;
+  // Backend e78d36a (0028): sugestão automática não é confirmação — cada item precisa de uma pessoa.
+  const s = /^item_(\d+)_sugestao_nao_confirmada$/.exec(p);
+  if (s) return `Item ${s[1]}: confirme a sugestão`;
+  const h = /^item_(\d+)_sem_confirmacao_humana$/.exec(p);
+  if (h) return `Item ${h[1]}: confirme o insumo de novo`;
   if (p === 'conferencia_aritmetica') return 'A soma da nota não fecha com o total';
   if (p === 'sem_itens') return 'Faltam os produtos e as quantidades';
   if (p === 'total_diverge_do_financeiro') return 'Os produtos não somam o valor do pagamento';
@@ -219,6 +224,28 @@ export const unidadesDaBase = (b: UnidadeBase) => UNIDADES_CADASTRO.filter((x) =
  *  o campo fica desligado — mandar um campo que o backend descarta seria fingir que salvou. */
 export const aceitaEstoqueIdeal = (i: object | null | undefined) => !!i && 'estoque_ideal' in i;
 
+/** O backend publicado já tem o Estoque sincronizado (0028: ideal, quantidade e custo inicial no cadastro, custo na
+ *  abertura)? Com insumos cadastrados, a chave `estoque_ideal` da listagem responde; com a base vazia, uma sonda leve em
+ *  GET /insumos/opcoes (404 de rota = backend anterior). null = ainda não se sabe (campos desligados até saber). */
+export function useEstoque0028(ativo = true): boolean | null {
+  const lista = useConsulta(ativo ? 'estoque/insumos?catalogo' : null, () => estoque.insumos({ limite: 200 }));
+  const primeiro = lista.dados?.itens[0];
+  const sonda = useConsulta(ativo && lista.dados && !primeiro ? 'estoque/insumos/opcoes?sonda' : null, () => estoque.opcoesInsumo('', 1));
+  if (primeiro) return aceitaEstoqueIdeal(primeiro);
+  if (sonda.dados) return true;
+  if (sonda.erro) return sonda.erro.tipo === 'nao_implantado' ? false : null;
+  return null;
+}
+
+/** Custo digitado por kg/L (ou g/ml/un) → custo por unidade-base, como o backend guarda (R$ 30,00/kg → 0.030000/g). */
+export function custoPorBase(texto: string, fator: 1 | 1000): string | null {
+  const t = texto.trim().replace(/[^\d,.]/g, '');
+  if (!t) return null;
+  const n = Number(t.includes(',') ? t.replace(/\./g, '').replace(',', '.') : t);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return (n / fator).toFixed(6);
+}
+
 /** Número na unidade de exibição, sem a unidade (ela tem coluna própria). */
 export function numeroEm(v: string | number | null | undefined, fator: 1 | 1000): string {
   if (v === null || v === undefined || v === '') return '—';
@@ -268,6 +295,8 @@ export const MOTIVO_SAIDA: Record<string, string> = {
 };
 export function textoMotivo(m: string | null): string | null {
   if (!m) return null;
+  // 0028: abertura valorada ("abertura · custo informado"): o custo de partida, não uma compra nem uma despesa.
+  if (m.startsWith('abertura · custo informado')) return 'Custo inicial informado';
   const partes = m.split(': ');
   // "abertura: contagem_fisica: obs": o motivo da pessoa vem depois da marca de abertura.
   if (partes[0] === 'abertura' && partes.length > 1) partes.shift();

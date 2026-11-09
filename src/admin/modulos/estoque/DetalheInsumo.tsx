@@ -6,15 +6,16 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { Pencil, Info, ChefHat, SlidersHorizontal } from 'lucide-preact';
 import { useConsulta } from '../../lib/consulta';
 import { estoque } from '../../lib/api/estoque';
-import { ErroApi } from '../../lib/api/cliente';
+import { ErroApi, novaChave } from '../../lib/api/cliente';
 import { custoBase, relativo, dataHora, plural } from '../../lib/formato';
 import { Gaveta, avisar } from '../../ui/camadas';
 import { Botao, Campo, Aviso } from '../../ui/base';
 import { Dados, Esqueleto } from '../../ui/estados';
+import { EntradaMoeda } from '../../ui/entradas';
 import type { Insumo, InsumoDetalhe, MovimentoEstoque, UnidadeBase } from '../../lib/tipos/estoque';
 import {
   UNIDADE, rotuloMovimento, ehUsoInterno, atualizarEstoque, situacaoEstoque, SituacaoEstoque, unidadeExibicao, numeroEm, paraBase, textoMotivo,
-  UNIDADES_CADASTRO, unidadeCadastro, unidadesDaBase, aceitaEstoqueIdeal, type UnidadeCadastro, type PermissoesEstoque,
+  UNIDADES_CADASTRO, unidadeCadastro, unidadesDaBase, aceitaEstoqueIdeal, useEstoque0028, custoPorBase, type UnidadeCadastro, type PermissoesEstoque,
 } from './comum';
 import { escolhidoDe, type InsumoEscolhido } from './SeletorInsumo';
 
@@ -126,6 +127,8 @@ function Resumo({ i, linha, inicioControle, movs, responsavel, aoMais }: {
         <dd class="num">{i.estoque_minimo === null ? <span class="fraco">Não definido</span> : `${numeroEm(i.estoque_minimo, u.fator)} ${u.rotulo}`}</dd>
         <dt>Estoque ideal</dt>
         <dd class="num">{!aceitaEstoqueIdeal(i) ? <span class="fraco">Ainda não salvo pelo sistema</span> : i.estoque_ideal == null ? <span class="fraco">Não definido</span> : `${numeroEm(i.estoque_ideal, u.fator)} ${u.rotulo}`}</dd>
+        {/* Só com saldo confiável o backend calcula o que falta (com a baixa desligada vem null: nada de número inventado). */}
+        {linha?.falta_para_ideal != null && <><dt>Falta para o ideal</dt><dd class="num">{numeroEm(linha.falta_para_ideal, u.fator)} {u.rotulo}</dd></>}
         <dt>Custo médio</dt>
         <dd class="num">{i.custo_medio === null ? <span class="fraco">Sem compra com preço</span> : custoBase(i.custo_medio, i.unidade_base)}</dd>
         <dt>Última compra</dt>
@@ -224,12 +227,12 @@ function EditarInsumo({ i, aoTerminar }: { i: InsumoDetalhe; aoTerminar: () => v
     setEnviando(true);
     setErro(null);
     try {
-      // Campo em branco não é enviado: o backend só muda o que chega.
+      // Campo em branco não é enviado: o backend só muda o que chega. O ideal apagado vai como null (0028: null limpa).
       await estoque.alterarInsumo(i.id, {
         versao: i.versao,
         nome: f.nome.trim(),
         estoque_minimo: minimo,
-        ...(ideal !== undefined ? { estoque_ideal: ideal } : {}),
+        ...(ideal !== undefined ? { estoque_ideal: ideal } : comIdeal && i.estoque_ideal != null ? { estoque_ideal: null } : {}),
         ...(prazo !== undefined ? { prazo_reposicao_dias: prazo } : {}),
         ...(i.tipo === 'preparo' ? { controle_preparo: f.controle } : {}),
         ativo: f.ativo,
@@ -253,7 +256,7 @@ function EditarInsumo({ i, aoTerminar }: { i: InsumoDetalhe; aoTerminar: () => v
         <Campo rotulo="Nome" class="inteiro" erro={erro?.campos.nome}>{(id) => <input id={id} class="entrada" maxLength={120} value={f.nome} onInput={(e) => setF({ ...f, nome: e.currentTarget.value })} />}</Campo>
         <Campo rotulo="Unidade das quantidades">{(id) => <SeletorUnidade id={id} base={i.unidade_base} valor={fator} aoMudar={setFator} />}</Campo>
         <Campo rotulo={`Estoque mínimo (${rotuloU})`} ajuda={AJUDA_MINIMO}>{(id, d) => <input id={id} class="entrada num" inputMode="decimal" aria-describedby={d} aria-required="true" value={f.minimo} onInput={(e) => setF({ ...f, minimo: e.currentTarget.value })} />}</Campo>
-        <CampoIdeal ativo={comIdeal} rotuloU={rotuloU} valor={f.ideal} aoMudar={(v) => setF({ ...f, ideal: v })} />
+        <CampoIdeal ativo={comIdeal} rotuloU={rotuloU} valor={f.ideal} aoMudar={(v) => setF({ ...f, ideal: v })} erro={erro?.campos.estoque_ideal} />
         <Campo rotulo="Prazo de entrega do fornecedor (dias)" opcional>{(id) => <input id={id} class="entrada num" type="number" min={0} max={90} value={f.prazo} onInput={(e) => setF({ ...f, prazo: e.currentTarget.value })} />}</Campo>
         {i.tipo === 'preparo' && (
           <Campo rotulo="Controle do preparo" ajuda="Sai a cada venda: os ingredientes saem quando o produto é vendido. Lote: saem quando a produção é registrada.">
@@ -281,15 +284,15 @@ const AJUDA_MINIMO = 'Abaixo dele, o insumo aparece como baixo.';
 
 /** Estoque ideal: ligado só quando o backend guarda o campo (aceitaEstoqueIdeal). Desligado, diz por quê — nunca finge
  *  que salvou. */
-function CampoIdeal({ ativo, rotuloU, valor, aoMudar }: { ativo: boolean; rotuloU: string; valor: string; aoMudar: (v: string) => void }) {
+function CampoIdeal({ ativo, rotuloU, valor, aoMudar, erro }: { ativo: boolean; rotuloU: string; valor: string; aoMudar: (v: string) => void; erro?: string | null }) {
   return (
-    <Campo rotulo={`Estoque ideal (${rotuloU})`} opcional ajuda={ativo ? undefined : 'Ainda não é salvo pelo sistema.'}>
+    <Campo rotulo={`Estoque ideal (${rotuloU})`} opcional erro={erro} ajuda={ativo ? 'Até onde repor depois de comprar.' : 'Ainda não é salvo pelo sistema.'}>
       {(id, d) => <input id={id} class="entrada num" inputMode="decimal" aria-describedby={d} value={ativo ? valor : ''} disabled={!ativo} onInput={(e) => aoMudar(e.currentTarget.value)} />}
     </Campo>
   );
 }
 
-const VAZIO_NOVO = { nome: '', unidade: 'kg' as UnidadeCadastro, inicial: '', minimo: '', ideal: '', tipo: 'comprado' as 'comprado' | 'preparo' };
+const VAZIO_NOVO = { nome: '', unidade: 'kg' as UnidadeCadastro, inicial: '', custo: '', minimo: '', ideal: '', tipo: 'comprado' as 'comprado' | 'preparo' };
 const UNIDADE_DA_BASE: Record<UnidadeBase, UnidadeCadastro> = { g: 'kg', ml: 'L', un: 'un' };
 
 /** Cadastro rápido aberto pelo seletor de insumos (Compras, Fichas): um insumo só, já com o nome digitado; ao cadastrar,
@@ -300,20 +303,24 @@ export interface PedidoCadastroRapido {
   aoConcluir: (i: InsumoEscolhido | null) => void;
 }
 
-/** Cadastro de insumo: nome, unidade (g, kg, ml, L ou un), tipo, quantidade inicial, mínimo (obrigatório: é ele que liga
- *  o alerta) e ideal. Em sequência: cadastrou, o formulário limpa (mantém a unidade) e volta ao nome; a lista "Cadastrados
- *  agora" abre cada um. A quantidade inicial vira a primeira conferência do insumo (POST /ajustes), registrada logo depois
- *  do cadastro. Tipo "preparo da casa" não muda depois (o backend não deixa): fica num campo discreto. No modo rápido
- *  (`rapido`), cadastra um só e devolve ao fluxo que pediu. O custo vem da primeira compra conferida (o backend ainda não
- *  aceita custo inicial). */
+/** Cadastro de insumo: nome, unidade (g, kg, ml, L ou un), tipo, quantidade inicial, custo unitário inicial, mínimo
+ *  (obrigatório: é ele que liga o alerta) e ideal. Em sequência: cadastrou, o formulário limpa (mantém a unidade) e volta
+ *  ao nome; a lista "Cadastrados agora" abre cada um. Backend 0028: quantidade e custo inicial vão no próprio POST e viram a
+ *  abertura NA MESMA transação (ou tudo, ou nada); o custo valoriza o estoque de partida e não vira despesa. Backend
+ *  anterior: sem custo inicial e a quantidade vira a primeira conferência logo depois (POST /ajustes). Insumos parecidos
+ *  aparecem como aviso (nunca bloqueio). Tipo "preparo da casa" não muda depois (o backend não deixa): campo discreto. No
+ *  modo rápido (`rapido`), cadastra um só e devolve ao fluxo que pediu. */
 export function NovoInsumo({ aberto, aoFechar, aoAbrir, rapido }: { aberto: boolean; aoFechar: () => void; aoAbrir: (id: string) => void; rapido?: PedidoCadastroRapido | null }) {
   const [f, setF] = useState(VAZIO_NOVO);
+  // Uma chave por cadastro: reenviar depois de uma falha de rede não cria (nem abre o estoque) duas vezes.
+  const chave = useRef(novaChave());
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<ErroApi | null>(null);
   const [feitos, setFeitos] = useState<{ id: string; nome: string; aviso?: boolean }[]>([]);
   const nome = useRef<HTMLInputElement>(null);
-  const catalogo = useConsulta(aberto ? 'estoque/insumos?catalogo' : null, () => estoque.insumos({ limite: 200 }));
-  const comIdeal = aceitaEstoqueIdeal(catalogo.dados?.itens[0]);
+  // Backend 0028: ideal, quantidade e custo inicial gravados no próprio cadastro (uma transação só).
+  const novo = useEstoque0028(aberto) === true;
+  const comIdeal = novo;
   useEffect(() => {
     if (aberto) {
       setErro(null);
@@ -323,6 +330,14 @@ export function NovoInsumo({ aberto, aoFechar, aoAbrir, rapido }: { aberto: bool
   }, [aberto, rapido]);
   const u = unidadeCadastro(f.unidade);
   const preparo = f.tipo === 'preparo';
+  // Antes de cadastrar, insumos que parecem o mesmo (0028): só aviso — a pessoa decide usar o existente ou criar.
+  const [nomeEspera, setNomeEspera] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setNomeEspera(f.nome.trim()), 400);
+    return () => clearTimeout(t);
+  }, [f.nome]);
+  const parecidos = useConsulta(aberto && novo && nomeEspera.length >= 3 ? `estoque/insumos/semelhantes?${u.base}:${nomeEspera}` : null, () => estoque.semelhantes(nomeEspera, u.base));
+  const semelhantes = (parecidos.dados ?? []).filter((s) => s.nome.toLowerCase() !== f.nome.trim().toLowerCase()).slice(0, 3);
   const fechar = () => {
     rapido?.aoConcluir(null);
     aoFechar();
@@ -350,24 +365,38 @@ export function NovoInsumo({ aberto, aoFechar, aoAbrir, rapido }: { aberto: bool
     if (falha) return setErro(new ErroApi('validacao', falha));
     if (!minimo.v) return setErro(new ErroApi('validacao', 'Informe o estoque mínimo: é ele que dispara o alerta.', 0, null, { estoque_minimo: 'Informe o mínimo (pode ser 0).' }));
     if (ideal.v && Number(ideal.v) < Number(minimo.v)) return setErro(new ErroApi('validacao', 'O ideal não pode ser menor que o mínimo.'));
+    const custo = novo && !rapido && f.custo.trim() ? custoPorBase(f.custo, u.fator) : null;
+    if (novo && !rapido && f.custo.trim()) {
+      if (custo === null) return setErro(new ErroApi('validacao', 'Custo unitário inválido.'));
+      if (!inicial.v || !(Number(inicial.v) > 0)) return setErro(new ErroApi('validacao', 'O custo inicial precisa de uma quantidade inicial maior que zero.', 0, null, { custo_unitario_inicial: 'Informe a quantidade inicial.' }));
+    }
     setEnviando(true);
     setErro(null);
     let criado: string | null = null;
     const nomeFeito = f.nome.trim();
     try {
-      const r = await estoque.criarInsumo({
-        nome: nomeFeito, unidade_base: u.base, tipo: f.tipo, controle_preparo: preparo ? 'explodir' : null,
-        estoque_minimo: minimo.v, ...(comIdeal && ideal.v ? { estoque_ideal: ideal.v } : {}),
-      });
+      const r = await estoque.criarInsumo(
+        {
+          nome: nomeFeito, unidade_base: u.base, tipo: f.tipo, controle_preparo: preparo ? 'explodir' : null,
+          estoque_minimo: minimo.v, ...(comIdeal && ideal.v ? { estoque_ideal: ideal.v } : {}),
+          // 0028: a abertura (e o custo) na MESMA transação do cadastro.
+          ...(novo && inicial.v ? { quantidade_inicial: inicial.v } : {}),
+          ...(novo && custo ? { custo_unitario_inicial: custo } : {}),
+        },
+        chave.current,
+      );
       criado = r.id;
+      chave.current = novaChave();
+      if (r.semelhantes?.length) avisar(`${r.nome} cadastrado. Parece com: ${r.semelhantes.map((s) => s.nome).join(', ')} — confira se não é o mesmo.`, 'info');
       if (rapido) {
         atualizarEstoque();
-        avisar(`${r.nome} cadastrado.`, 'ok');
+        if (!r.semelhantes?.length) avisar(`${r.nome} cadastrado.`, 'ok');
         rapido.aoConcluir({ id: r.id, nome: r.nome, unidade_base: r.unidade_base, tipo: r.tipo, custo_medio: null });
         aoFechar();
         return;
       }
-      if (inicial.v !== null && inicial.v !== undefined) await estoque.ajustar({ insumo_id: r.id, quantidade: inicial.v, motivo: 'contagem_fisica', observacao: 'Quantidade inicial no cadastro' });
+      // Backend anterior (sem `abertura` na resposta): a quantidade inicial vira a primeira conferência, logo depois.
+      if (inicial.v && !('abertura' in r)) await estoque.ajustar({ insumo_id: r.id, quantidade: inicial.v, motivo: 'contagem_fisica', observacao: 'Quantidade inicial no cadastro' });
       atualizarEstoque();
       proximo(r.id, nomeFeito);
     } catch (x) {
@@ -428,9 +457,26 @@ export function NovoInsumo({ aberto, aoFechar, aoAbrir, rapido }: { aberto: bool
             )}
           </Campo>
           {!rapido && <Campo rotulo={`Quantidade inicial (${u.valor})`} opcional ajuda="O que há agora; vira a primeira contagem.">{(id, d) => <input id={id} class="entrada num" inputMode="decimal" aria-describedby={d} value={f.inicial} onInput={(e) => setF({ ...f, inicial: e.currentTarget.value })} />}</Campo>}
+          {!rapido && novo && (
+            <Campo rotulo={`Custo unitário inicial (R$/${u.valor})`} opcional ajuda="Valoriza o estoque de partida; não vira despesa." erro={erro?.campos.custo_unitario_inicial}>
+              {(id, d) => <EntradaMoeda id={id} descr={d} valor={f.custo} aoMudar={(v) => setF({ ...f, custo: v })} />}
+            </Campo>
+          )}
           <Campo rotulo={`Estoque mínimo (${u.valor})`} ajuda={AJUDA_MINIMO} erro={erro?.campos.estoque_minimo}>{(id, d) => <input id={id} class="entrada num" inputMode="decimal" aria-describedby={d} aria-required="true" value={f.minimo} onInput={(e) => setF({ ...f, minimo: e.currentTarget.value })} />}</Campo>
-          <CampoIdeal ativo={comIdeal} rotuloU={u.valor} valor={f.ideal} aoMudar={(v) => setF({ ...f, ideal: v })} />
+          <CampoIdeal ativo={comIdeal} rotuloU={u.valor} valor={f.ideal} aoMudar={(v) => setF({ ...f, ideal: v })} erro={erro?.campos.estoque_ideal} />
         </div>
+        {semelhantes.length > 0 && (
+          <p class="fraco cadastro-semelhantes" data-teste="semelhantes" role="status">
+            Parecido com o que já existe:{' '}
+            {semelhantes.map((s, k) => (
+              <span key={s.insumo_id}>
+                {k > 0 && ', '}
+                <button type="button" class="link" onClick={() => (rapido ? usarExistente(s.insumo_id) : aoAbrir(s.insumo_id))}>{s.nome}</button>
+              </span>
+            ))}
+            {rapido ? ' — toque para usar.' : ' — confira antes de criar outro.'}
+          </p>
+        )}
         {feitos.length > 0 && (
           <section class="pilha pilha--p" aria-label="Cadastrados agora" aria-live="polite">
             <h3 class="secao-titulo">Cadastrados agora ({feitos.length})</h3>

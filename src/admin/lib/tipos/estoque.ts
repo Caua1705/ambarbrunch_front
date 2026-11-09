@@ -34,9 +34,78 @@ export interface InsumoCadastro {
   prazo_reposicao_dias: number | null;
   ativo: boolean;
   versao: number;
-  /** Quantidade ideal (até onde repor). AINDA NÃO EXISTE no backend (08/11/2026): o painel só liga o campo quando a
-   *  resposta trouxer a chave. Contrato pedido em docs/technical/PAINEL-ADMIN.md §4h. */
+  /** Quantidade ideal (até onde repor), na unidade-base. Backend 0028 (c17ea15): a chave vem sempre (null = não
+   *  informado); sem a chave (backend anterior), o painel deixa o campo desligado. */
   estoque_ideal?: Dec | null;
+}
+
+/** Resposta de POST /admin/estoque/insumos (0028): o cadastro, a abertura gravada na MESMA transação (quando houve
+ *  quantidade inicial) e insumos que parecem o mesmo (só aviso). Backend anterior: sem `abertura` nem `semelhantes`. */
+export interface InsumoCriado extends InsumoCadastro {
+  abertura?: { saldo_novo: Dec; motivo: string; custo_unitario: Dec | null } | null;
+  semelhantes?: InsumoSemelhante[];
+}
+/** GET /admin/estoque/insumos/semelhantes e `semelhantes` do cadastro. */
+export interface InsumoSemelhante {
+  insumo_id: Uuid;
+  nome: string;
+  unidade_base?: UnidadeBase;
+  score?: number;
+  [k: string]: unknown;
+}
+/** GET /admin/estoque/insumos/opcoes (combobox, 0028). */
+export interface OpcaoInsumo {
+  id: Uuid;
+  nome: string;
+  unidade_base: UnidadeBase;
+  tipo: 'comprado' | 'preparo';
+  categoria: string | null;
+  ativo: boolean;
+  custo_medio: Dec | null;
+  /** Achado pelo nome ou por um texto de nota já confirmado (alias). */
+  achado_por: 'nome' | 'alias';
+}
+/** Candidato do motor de correspondência (GET …/compras/{id}/itens/{item}/candidatos e /correspondencias). */
+export interface CandidatoCorrespondencia {
+  insumo_id: Uuid;
+  nome: string;
+  nome_original: string | null;
+  unidade_base: UnidadeBase;
+  nivel: string;
+  motivo: string;
+  score: number | null;
+  status: 'confirmado' | 'sugerido' | 'revisar';
+  fator: Dec | null;
+  associacao_id: Uuid | null;
+  alertas: string[];
+}
+export interface Correspondencia {
+  descricao: string;
+  normalizada: string;
+  status: 'confirmado' | 'sugerido' | 'revisar' | 'sem_correspondencia';
+  revisao_humana: boolean;
+  candidatos: CandidatoCorrespondencia[];
+  item_id?: Uuid;
+  situacao?: SituacaoItem;
+  insumo_escolhido?: Uuid | null;
+}
+/** GET /admin/estoque/vinculos-cardapio (0028): produto do PDV × catálogo oficial. */
+export interface VinculosCardapio {
+  produtos: {
+    eye_product_id: string;
+    produto: string;
+    grupo: string | null;
+    no_cardapio_pdv: boolean;
+    disponivel_pdv: boolean | null;
+    ativo_pdv: boolean | null;
+    catalogo_item_id: string | null;
+    catalogo_item: { nome: string; tipo: string; categoria: string; imagem: string | null } | null;
+    vinculado_em: Instante | null;
+    sugestoes: { catalogo_item_id: string; nome: string; tipo: string; categoria: string; preco: Dec | null; score: number; status: 'sugestao_nao_confirmada' }[];
+  }[];
+  catalogo_sem_produto: { catalogo_item_id: string; nome: string; tipo: string; categoria: string }[];
+  vinculados: number;
+  total_catalogo: number;
 }
 
 /** Linha de GET /admin/estoque/insumos (insumos.listar). */
@@ -50,6 +119,8 @@ export interface Insumo extends Omit<InsumoCadastro, 'prazo_reposicao_dias'> {
   saldo_confiavel: boolean;
   motivo_nao_confiavel: MotivoNaoConfiavel | null;
   abaixo_minimo: boolean;
+  /** Ideal − saldo (0028), só com saldo confiável e abaixo do ideal; com a baixa desligada vem null. */
+  falta_para_ideal?: Dec | null;
 }
 
 /** GET /admin/estoque/insumos/{id}. */
@@ -139,6 +210,10 @@ export interface ItemCompra {
     custo_unitario_base: Dec | null;
   } | null;
   alertas: string[];
+  /** Backend e78d36a (0028): sugestão automática esperando a pessoa (= situação "sugerido"), e quem confirmou e quando. */
+  aguarda_confirmacao?: boolean;
+  resolvido_por?: string | null;
+  resolvido_em?: Instante | null;
 }
 
 export interface CandidataDespesa {
@@ -302,10 +377,17 @@ export interface FichaLista {
   receita_periodo: Dec;
   quantidade_periodo: Dec;
   ficha: null | { versao: number; custo_porcao_hoje: Dec | null; margem_hoje_pct: Dec | null; custo_incompleto: boolean };
-  /** Produto do catálogo oficial (id estável, ex.: "sucos.antioxidant") ligado a este produto da Eyemobile. AINDA NÃO
-   *  EXISTE no backend (08/11/2026): sem a chave, o produto aparece "Não vinculado" e a seleção manual fica desligada.
-   *  Contrato pedido em docs/technical/PAINEL-ADMIN.md §4h. */
+  /** Produto do catálogo oficial (id estável, ex.: "sucos.antioxidant") ligado a este produto da Eyemobile (0028).
+   *  Sem a chave (backend anterior), o vínculo não é mostrado nem editável. */
   catalogo_item_id?: string | null;
+  // 0028, com incluir_sem_venda=true (ausentes no backend anterior):
+  vendido_no_periodo?: boolean;
+  no_cardapio_pdv?: boolean;
+  disponivel_pdv?: boolean | null;
+  ativo_pdv?: boolean | null;
+  origem_cadastro?: string | null;
+  preco_cardapio_pdv?: Dec | null;
+  ultimo_preco_vendido?: Dec | null;
 }
 
 export interface ItemFichaDetalhe {

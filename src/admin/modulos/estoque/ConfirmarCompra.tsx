@@ -107,7 +107,8 @@ export function ConfirmarCompra({ c, perm, form, aoConfirmar, aoEnviando, aoAbri
     }
   }
 
-  const entram = c.itens.filter((i) => i.situacao === 'confirmado' || i.situacao === 'sugerido').length;
+  // Só item confirmado por uma pessoa entra (backend e78d36a); sugestão nunca chega até aqui sem confirmação.
+  const entram = c.itens.filter((i) => i.situacao === 'confirmado').length;
   const despesas = c.itens.filter((i) => i.situacao === 'nao_estoque').length;
   const aguardandoNoErro = erro?.codigo === 'pagamento_aguarda_conferencia' && Array.isArray(erro.dados?.candidatas) ? (erro.dados!.candidatas as CandidataDespesa[]) : [];
 

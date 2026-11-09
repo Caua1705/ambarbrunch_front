@@ -98,7 +98,10 @@ test('Pix da Júlia: os produtos conferem o MESMO pagamento, nenhuma despesa nov
 
   const gaveta = page.getByRole('dialog');
   await expect(gaveta.locator('[data-teste="status-conferencia"]')).toHaveText('Itens ainda não informados.');
+  // O seletor usa GET /insumos/opcoes do backend 0028 (não a listagem antiga).
+  const opcoes = page.waitForRequest((r) => r.url().includes('/estoque/insumos/opcoes'));
   await gaveta.getByRole('combobox', { name: 'Insumo 1' }).fill('leite');
+  await opcoes;
   await page.getByRole('option', { name: /Leite integral/ }).click();
   await gaveta.getByRole('textbox', { name: 'Quantidade', exact: true }).nth(0).fill('10');
   await gaveta.getByRole('combobox', { name: 'Unidade', exact: true }).nth(0).selectOption('L');
@@ -302,7 +305,7 @@ test('isolamento: saldo é por unidade; o gerente do Café não lê a Noite', as
 test('fichas e custos sem vendas: nada inventado; CMV indisponível com o motivo', async ({ page }) => {
   await entrar(page, 'gerente');
   await page.goto(`${PAINEL}/admin/estoque?aba=fichas`);
-  await expect(page.getByText('Nenhum produto vendido nos últimos 30 dias')).toBeVisible();
+  await expect(page.getByText('Nenhum produto da Eyemobile ainda')).toBeVisible();
   await page.getByRole('group', { name: 'Fichas técnicas' }).getByRole('button', { name: 'Custos e CMV' }).click();
   await expect(page.getByText('Ainda não há fichas técnicas')).toBeVisible();
   await page.getByText('Relatórios avançados').click();
@@ -310,7 +313,7 @@ test('fichas e custos sem vendas: nada inventado; CMV indisponível com o motivo
   await expect(page.getByText(/Pode faltar|Reposição sugerida/)).toHaveCount(0);
 });
 
-test('cadastro em sequência com quantidade inicial: kg vira gramas no backend, mínimo salvo e a quantidade é a primeira conferência (abertura)', async ({ page }) => {
+test('cadastro em sequência (0028): quantidade, custo inicial e ideal no mesmo POST; kg vira gramas; a quantidade é a abertura', async ({ page }) => {
   await entrar(page, 'gerente');
   await page.goto(`${PAINEL}/admin/estoque`);
   await page.getByRole('button', { name: 'Novo insumo' }).click();
@@ -318,9 +321,13 @@ test('cadastro em sequência com quantidade inicial: kg vira gramas no backend, 
   await expect(novo.getByLabel('Categoria')).toHaveCount(0);
   await novo.getByLabel('Nome').fill('Farinha integral');
   await novo.getByLabel('Quantidade inicial (kg)').fill('3,25');
+  await novo.getByLabel('Custo unitário inicial (R$/kg)').fill('8,00');
   await novo.getByLabel('Estoque mínimo (kg)').fill('1');
-  // O backend real ainda não guarda o estoque ideal: o campo fica desligado.
-  await expect(novo.getByLabel('Estoque ideal (kg)')).toBeDisabled();
+  // Backend 0028: o estoque ideal é guardado.
+  await expect(novo.getByLabel('Estoque ideal (kg)')).toBeEnabled();
+  await novo.getByLabel('Estoque ideal (kg)').fill('5');
+  const ajustes: string[] = [];
+  page.on('request', (r) => r.method() === 'POST' && r.url().endsWith('/estoque/ajustes') && ajustes.push(r.url()));
   await novo.getByRole('button', { name: 'Cadastrar' }).click();
   const feitos = novo.getByRole('region', { name: 'Cadastrados agora' });
   await expect(feitos).toContainText('Farinha integral');
@@ -339,8 +346,28 @@ test('cadastro em sequência com quantidade inicial: kg vira gramas no backend, 
   const criado = l.itens.find((i: { nome: string }) => i.nome === 'Farinha integral');
   expect(criado).toMatchObject({ unidade_base: 'g', saldo: '3250.0000' });
   expect(Number(criado.estoque_minimo)).toBe(1000);
+  expect(Number(criado.estoque_ideal)).toBe(5000);
+  expect(Number(criado.custo_medio)).toBeCloseTo(0.008, 6);
   expect(criado.ultima_contagem_em).not.toBeNull();
+  // A abertura veio no próprio cadastro (mesma transação): nenhum POST /ajustes depois.
+  expect(ajustes).toHaveLength(0);
   const movs = await (await page.request.get(`${API}/estoque/insumos/${criado.id}/movimentos`)).json();
   expect(movs.itens[0]).toMatchObject({ tipo: 'ajuste_inventario', quantidade: '3250.0000', registrado_por_nome: 'Gabriela Integração' });
   expect(movs.itens[0].motivo).toMatch(/^abertura/);
+  // Valorar o estoque inicial não é despesa: nada no Financeiro com o nome do insumo.
+  const d = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
+  const lanc = await (await page.request.get(`${API}/financeiro/lancamentos?de=${d(-30)}&ate=${d(30)}&tipo=despesa&busca=${encodeURIComponent('Farinha integral')}`)).json();
+  expect(lanc.itens).toHaveLength(0);
+});
+
+test('contratos 0028 no backend real: opções do combobox, semelhantes, fichas sem venda, vínculos do cardápio', async ({ page }) => {
+  await entrar(page, 'gerente');
+  const opcoes = await (await page.request.get(`${API}/estoque/insumos/opcoes?busca=leite&limite=20`)).json();
+  expect(opcoes[0]).toMatchObject({ nome: 'Leite integral', unidade_base: 'ml', achado_por: 'nome' });
+  const semelhantes = await page.request.get(`${API}/estoque/insumos/semelhantes?nome=${encodeURIComponent('Leite integral UHT')}&unidade_base=ml`);
+  expect(semelhantes.ok()).toBe(true);
+  const fichas = await page.request.get(`${API}/estoque/fichas?situacao=todas&dias=30&incluir_sem_venda=true`);
+  expect(fichas.ok()).toBe(true);
+  const vinculos = await (await page.request.get(`${API}/estoque/vinculos-cardapio`)).json();
+  expect(vinculos).toHaveProperty('catalogo_sem_produto');
 });

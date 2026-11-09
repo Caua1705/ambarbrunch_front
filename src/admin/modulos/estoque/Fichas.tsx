@@ -7,11 +7,12 @@
 // os ingredientes com preço conhecido. Editar cria uma versão nova a partir de agora (as vendas passadas não mudam).
 // Só gerência (estoque.editar; o backend confere: 403).
 import { useEffect, useMemo, useState } from 'preact/hooks';
-import { Search, Lock, Pencil, Plus, Trash2, Info, FileText, History, UtensilsCrossed, Link2Off } from 'lucide-preact';
+import { Search, Lock, Pencil, Plus, Trash2, Info, FileText, History, UtensilsCrossed, Link2, Link2Off } from 'lucide-preact';
 import { useConsulta } from '../../lib/consulta';
 import { estoque } from '../../lib/api/estoque';
 import { moeda, pct, quantidade, dataCurta, num, decimal, custoBase, plural } from '../../lib/formato';
-import { Gaveta, useConfirmacao } from '../../ui/camadas';
+import { Gaveta, avisar, useConfirmacao } from '../../ui/camadas';
+import { ErroApi } from '../../lib/api/cliente';
 import { Botao, Campo, Situacao, Aviso } from '../../ui/base';
 import { Dados, Esqueleto, Vazio, Falha } from '../../ui/estados';
 import type { Dec } from '../../lib/tipos/comum';
@@ -30,7 +31,8 @@ export const SITUACAO_FICHA: Record<SituacaoFicha, { rotulo: string; tom: 'ok' |
   completa: { rotulo: 'Completa', tom: 'ok' },
 };
 /** Mais vendidos primeiro (quantidade em 30 dias; empate pela receita). */
-export const porVendas = (a: FichaLista, b: FichaLista) => num(b.quantidade_periodo)! - num(a.quantidade_periodo)! || num(b.receita_periodo)! - num(a.receita_periodo)!;
+export const porVendas = (a: FichaLista, b: FichaLista) =>
+  num(b.quantidade_periodo)! - num(a.quantidade_periodo)! || num(b.receita_periodo)! - num(a.receita_periodo)! || a.produto.localeCompare(b.produto, 'pt-BR');
 
 /** O que a gaveta da ficha precisa saber de quem a abriu (a lista de produtos ou o detalhe de um preparo). */
 export interface AlvoFicha {
@@ -55,12 +57,15 @@ export const alvoDoProduto = (f: FichaLista): AlvoFicha => ({
 });
 
 /** Lista de produtos com ficha (30 dias): a mesma consulta para o catálogo e para Custos e CMV. */
-export const useFichas = (pode: boolean) => useConsulta(pode ? 'estoque/fichas?30' : null, () => estoque.fichas('todas', 30));
+/** `semVenda` (0028): também os produtos do cardápio da loja e os que já têm ficha, mesmo sem venda — para cadastrar a
+ *  ficha antes de vender. Custos e CMV continua só com os vendidos (os números de lá não mudam). */
+export const useFichas = (pode: boolean, semVenda = false) =>
+  useConsulta(pode ? `estoque/fichas?30${semVenda ? ':todos' : ''}` : null, () => estoque.fichas('todas', 30, semVenda));
 
 export function Fichas({ pode, responsavel }: { pode: boolean; responsavel: (r: string | null | undefined, nome?: string | null) => string | null }) {
   const [busca, setBusca] = useState('');
   const [aberta, setAberta] = useState<AlvoFicha | null>(null);
-  const lista = useFichas(pode);
+  const lista = useFichas(pode, true);
 
   const todos = useMemo(() => [...(lista.dados ?? [])].sort(porVendas), [lista.dados]);
   const linhas = useMemo(() => {
@@ -87,7 +92,7 @@ export function Fichas({ pode, responsavel }: { pode: boolean; responsavel: (r: 
           ) : todos.length ? (
             <Vazio compacto titulo="Nenhum produto com essa busca" />
           ) : (
-            <Vazio icone={<UtensilsCrossed aria-hidden="true" />} titulo="Nenhum produto vendido nos últimos 30 dias">Os produtos aparecem aqui quando as vendas chegam da Eyemobile. Aí é só abrir cada um e cadastrar os ingredientes.</Vazio>
+            <Vazio icone={<UtensilsCrossed aria-hidden="true" />} titulo="Nenhum produto da Eyemobile ainda">Os produtos aparecem quando o cardápio da loja ou as vendas chegam da Eyemobile.</Vazio>
           )
         }
       </Dados>
@@ -104,7 +109,11 @@ function CartaoProduto({ f, aoAbrir }: { f: FichaLista; aoAbrir: () => void }) {
       {foto && <span class="produto-cartao__foto"><img src={foto.src} alt="" loading="lazy" decoding="async" width={320} height={320} /></span>}
       <span class="produto-cartao__corpo">
         <span class="produto-cartao__nome">{f.produto}</span>
-        <span class="produto-cartao__vendidos"><strong class="num">{decimal(f.quantidade_periodo, 0)}</strong> vendidos em 30 dias</span>
+        {f.vendido_no_periodo === false || num(f.quantidade_periodo) === 0 ? (
+          <span class="produto-cartao__vendidos fraco">Sem venda em 30 dias{f.no_cardapio_pdv ? ' · no cardápio da loja' : ''}</span>
+        ) : (
+          <span class="produto-cartao__vendidos"><strong class="num">{decimal(f.quantidade_periodo, 0)}</strong> vendidos em 30 dias</span>
+        )}
         <span class="produto-cartao__numeros">
           <span><span class="produto-cartao__rotulo">Preço de venda</span><strong class="num">{moeda(f.preco_pdv)}</strong></span>
           <span><span class="produto-cartao__rotulo">Custo calculado</span><strong class={`num${s === 'completa' ? '' : ' fraco'}`}>{s === 'completa' ? moeda(f.ficha!.custo_porcao_hoje) : '—'}</strong></span>
@@ -221,17 +230,97 @@ export function GavetaFicha({ alvo, aoFechar, responsavel }: { alvo: AlvoFicha |
   );
 }
 
-/** Vínculo do produto da Eyemobile com o catálogo oficial. Nunca deduzido por nome ou preço: só o id que o backend
- *  guardar. Enquanto o backend não guarda vínculo nenhum (08/11/2026), uma linha discreta aqui na gaveta (não em cada
- *  cartão) e nenhuma seleção manual — salvar um vínculo que o backend descarta seria fingir. */
+/** Vínculo do produto da Eyemobile com o catálogo oficial do site (0028). Nunca deduzido por nome ou preço: só o id que
+ *  a pessoa escolher e o backend guardar (PUT …/fichas/produto/{id}/catalogo, auditado). As sugestões por nome do backend
+ *  (`sugestao_nao_confirmada`) só aparecem como opção — nada é aplicado sozinho. O vínculo não muda preço, nome nem foto do
+ *  cardápio público. Backend anterior (sem a chave `catalogo_item_id`): uma linha discreta, sem seleção. */
 function Vinculo({ alvo }: { alvo: AlvoFicha }) {
-  const foto = fotoDoCatalogo(alvo.catalogo);
-  if (foto) return <img class="ficha-foto" src={foto.src} alt={foto.alt} width={320} height={320} />;
+  const suportado = alvo.catalogo !== undefined;
+  const painel = useConsulta(suportado ? 'estoque/vinculos-cardapio' : null, () => estoque.vinculosCardapio());
+  const [escolha, setEscolha] = useState('');
+  const [trocando, setTrocando] = useState(false);
+  const [ocupado, setOcupado] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const produto = painel.dados?.produtos.find((p) => p.eye_product_id === alvo.id);
+  // O que o backend diz agora (depois de vincular, a lista recarrega); antes de carregar, o que veio na lista de fichas.
+  const atual = produto ? produto.catalogo_item_id : alvo.catalogo ?? null;
+  const foto = fotoDoCatalogo(atual);
+  useEffect(() => {
+    setEscolha('');
+    setTrocando(false);
+    setErro(null);
+  }, [alvo.id]);
+
+  if (!suportado)
+    return (
+      <p class="ficha-vinculo fraco">
+        <Link2Off aria-hidden="true" size={14} />
+        <span>Sem vínculo com o cardápio do site: o sistema publicado ainda não guarda esse vínculo.</span>
+      </p>
+    );
+
+  async function vincular(catalogo: string | null) {
+    setOcupado(true);
+    setErro(null);
+    try {
+      await estoque.vincularCatalogo(alvo.id, catalogo);
+      avisar(catalogo ? 'Produto ligado ao cardápio do site.' : 'Vínculo desfeito.', 'ok');
+      setTrocando(false);
+      setEscolha('');
+      atualizarEstoque();
+    } catch (x) {
+      setErro(x instanceof ErroApi ? x.message : 'Não foi possível salvar o vínculo.');
+    } finally {
+      setOcupado(false);
+    }
+  }
+
+  const nomeAtual = produto?.catalogo_item?.nome ?? null;
+  const livres = painel.dados?.catalogo_sem_produto ?? [];
+  const porCategoria = livres.reduce<Record<string, typeof livres>>((m, i) => ((m[i.categoria] ??= []).push(i), m), {});
   return (
-    <p class="ficha-vinculo fraco">
-      <Link2Off aria-hidden="true" size={14} />
-      <span>{alvo.catalogo === undefined ? 'Ainda sem vínculo com o cardápio do site: a foto aparece quando o sistema guardar esse vínculo.' : 'Sem produto do cardápio do site ligado a este item da Eyemobile.'}</span>
-    </p>
+    <section class="ficha-vinculo-bloco" aria-label="Cardápio do site">
+      {atual && !trocando ? (
+        <div class="ficha-vinculo-atual">
+          {foto && <img class="ficha-foto" src={foto.src} alt={foto.alt} width={320} height={320} />}
+          <p class="ficha-vinculo">
+            <Link2 aria-hidden="true" size={14} />
+            <span>No cardápio do site: <strong>{nomeAtual ?? atual}</strong></span>
+            <button type="button" class="link" onClick={() => setTrocando(true)}>Trocar</button>
+            <button type="button" class="link" disabled={ocupado} onClick={() => vincular(null)}>Desfazer</button>
+          </p>
+        </div>
+      ) : painel.erro && !painel.dados ? (
+        <p class="ficha-vinculo fraco"><Link2Off aria-hidden="true" size={14} /><span>Não foi possível carregar o cardápio do site.</span> <button type="button" class="link" onClick={painel.recarregar}>Tentar de novo</button></p>
+      ) : !painel.dados ? (
+        <Esqueleto linhas={1} />
+      ) : (
+        <div class="pilha pilha--p">
+          <p class="ficha-vinculo fraco"><Link2Off aria-hidden="true" size={14} /><span>{atual ? 'Trocar o item do cardápio do site' : 'Sem vínculo com o cardápio do site'}</span></p>
+          {!!produto?.sugestoes.length && (
+            <div class="linha ficha-vinculo-sugestoes" role="group" aria-label="Sugestões do cardápio do site">
+              <span class="fraco">Sugestão (confirme):</span>
+              {produto.sugestoes.map((s) => (
+                <Botao key={s.catalogo_item_id} tamanho="p" disabled={ocupado} onClick={() => vincular(s.catalogo_item_id)}>{s.nome}</Botao>
+              ))}
+            </div>
+          )}
+          <div class="linha" style={{ gap: '8px' }}>
+            <select class="selecao" aria-label="Item do cardápio do site" value={escolha} onChange={(e) => setEscolha(e.currentTarget.value)} style={{ flex: '1 1 220px', width: 'auto' }}>
+              <option value="">Escolher no cardápio do site…</option>
+              {Object.entries(porCategoria).map(([cat, itens]) => (
+                <optgroup key={cat} label={cat}>
+                  {itens.map((i) => <option key={i.catalogo_item_id} value={i.catalogo_item_id}>{i.nome}</option>)}
+                </optgroup>
+              ))}
+            </select>
+            <Botao tamanho="p" variante="primario" disabled={!escolha} carregando={ocupado} onClick={() => vincular(escolha)}>Vincular</Botao>
+            {trocando && <Botao tamanho="p" variante="fantasma" onClick={() => setTrocando(false)}>Voltar</Botao>}
+          </div>
+        </div>
+      )}
+      {erro && <Aviso tom="perigo" icone={<Info aria-hidden="true" />}>{erro}</Aviso>}
+    </section>
   );
 }
 

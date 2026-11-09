@@ -15,8 +15,9 @@ import { hojeISO, dataHora } from '../../lib/formato';
 import type { Usuario } from '../../lib/sessao';
 import { Gaveta, avisar, useConfirmacao } from '../../ui/camadas';
 import { Botao, Campo, Aviso, Segmentado } from '../../ui/base';
+import { EntradaMoeda } from '../../ui/entradas';
 import type { AjusteSaldo, Insumo, MotivoAjuste } from '../../lib/tipos/estoque';
-import { atualizarEstoque, conferido, numeroEm, paraBase, textoMotivo, unidadeExibicao, unidadesDaBase, MOTIVO_SAIDA, type PermissoesEstoque } from './comum';
+import { atualizarEstoque, conferido, custoPorBase, numeroEm, paraBase, textoMotivo, unidadeExibicao, unidadesDaBase, useEstoque0028, MOTIVO_SAIDA, type PermissoesEstoque } from './comum';
 
 export type TipoAjuste = 'entrada' | 'perda' | 'correcao';
 const TIPOS: { valor: TipoAjuste; rotulo: string }[] = [
@@ -190,6 +191,7 @@ function Correcao({ alvo, eu, inicioControle, responsavel, aoTerminar, aoIrConta
   const [fator, setFator] = useState<1 | 1000>(() => unidadeExibicao(alvo.unidade_base, alvo.saldo, alvo.estoque_minimo).fator);
   const [motivo, setMotivo] = useState<MotivoAjuste>('contagem_fisica');
   const [obs, setObs] = useState('');
+  const [custo, setCusto] = useState('');
   const [erro, setErro] = useState<ErroApi | null>(null);
   const [feito, setFeito] = useState<AjusteSaldo | null>(null);
   const { confirmar, elemento } = useConfirmacao();
@@ -197,6 +199,9 @@ function Correcao({ alvo, eu, inicioControle, responsavel, aoTerminar, aoIrConta
   useEffect(() => setErro(null), [qtd]);
 
   const abertura = !conferido(alvo, inicioControle);
+  // 0028: custo unitário só na ABERTURA, com entrada, e sem custo médio de compras (valoriza o estoque de partida; não é
+  // despesa). Fora disso o backend recusa (409 custo_so_na_abertura · custo_ja_conhecido · custo_sem_entrada).
+  const comCusto = useEstoque0028() === true && abertura && alvo.custo_medio === null;
   const justificar = motivo !== 'contagem_fisica';
   const contado = paraBase(qtd, fator);
   const rotuloU = rotuloUnidade(alvo, fator);
@@ -209,6 +214,11 @@ function Correcao({ alvo, eu, inicioControle, responsavel, aoTerminar, aoIrConta
     if (contado === null) return setErro(new ErroApi('validacao', 'Informe a quantidade correta (pode ser 0).'));
     const texto = obs.trim();
     if (justificar && texto.length < 5) return setErro(new ErroApi('validacao', 'Explique a correção (pelo menos 5 caracteres).'));
+    const custoBase = comCusto && custo.trim() ? custoPorBase(custo, fator) : null;
+    if (comCusto && custo.trim()) {
+      if (custoBase === null) return setErro(new ErroApi('validacao', 'Custo unitário inválido.'));
+      if (!(Number(contado) > 0)) return setErro(new ErroApi('validacao', 'Custo só com quantidade maior que zero.'));
+    }
     setErro(null);
     confirmar({
       titulo: abertura ? 'Registrar a quantidade inicial?' : justificar ? 'Corrigir o saldo?' : 'Registrar a contagem?',
@@ -218,7 +228,7 @@ function Correcao({ alvo, eu, inicioControle, responsavel, aoTerminar, aoIrConta
       confirmar: abertura ? 'Registrar' : justificar ? 'Corrigir saldo' : 'Registrar contagem',
       acao: async () => {
         try {
-          const r = await estoque.ajustar({ insumo_id: alvo.id, quantidade: contado, motivo, observacao: texto || undefined }, chave.current);
+          const r = await estoque.ajustar({ insumo_id: alvo.id, quantidade: contado, motivo, observacao: texto || undefined, ...(custoBase ? { custo_unitario: custoBase } : {}) }, chave.current);
           setFeito(r);
           atualizarEstoque();
         } catch (x) {
@@ -269,6 +279,11 @@ function Correcao({ alvo, eu, inicioControle, responsavel, aoTerminar, aoIrConta
         aoFator={setFator}
         ajuda={abertura ? 'Primeira contagem: vira a quantidade inicial.' : undefined}
       />
+      {comCusto && (
+        <Campo rotulo={`Custo unitário (R$/${rotuloU})`} opcional ajuda="Valoriza o estoque de partida; não vira despesa.">
+          {(id, d) => <EntradaMoeda id={id} descr={d} valor={custo} aoMudar={setCusto} />}
+        </Campo>
+      )}
       {previa !== null && (
         <p class="ajuste-previa" role="status">
           Diferença: <strong class="num" data-sinal={previa < 0 ? '-' : '+'}>{textoPrevia}</strong>

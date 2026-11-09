@@ -54,11 +54,12 @@ test('insumos: três abas, situações reais, item nunca contado sem zero e avis
   await expect(linha(page, 'Açúcar refinado')).toContainText('R$ 4,90/kg');
   await expect(linha(page, 'Açúcar refinado')).toContainText('9 kg');
 
-  // Detalhes: a gaveta traz o ideal (identificado enquanto o sistema não salva) e a última conferência.
+  // Detalhes: a gaveta traz o ideal (0028) e a última conferência. "Falta para o ideal" só com saldo confiável — com a
+  // baixa desligada o backend manda null, e nada aparece (sem número inventado).
   await linha(page, 'Leite integral').getByRole('button', { name: 'Detalhes de Leite integral' }).click();
   const leite = page.getByRole('dialog', { name: 'Leite integral' });
-  await expect(leite.locator('.definicoes')).toContainText('Estoque ideal');
-  await expect(leite.locator('.definicoes')).toContainText('Ainda não salvo pelo sistema');
+  await expect(leite.locator('.definicoes')).toContainText('Estoque ideal60 L');
+  await expect(leite.locator('.definicoes')).not.toContainText('Falta para o ideal');
   await expect(leite.locator('.definicoes')).toContainText('Última conferência');
   await expect(leite.getByRole('button', { name: 'Ajustar estoque' })).toBeVisible();
   await expect(leite.getByRole('button', { name: 'Editar cadastro' })).toBeVisible();
@@ -70,7 +71,7 @@ test('insumos: três abas, situações reais, item nunca contado sem zero e avis
   await expect(page.locator('body')).not.toContainText('usuario:');
 });
 
-test('cadastro: um atrás do outro, sem textos longos; tipo discreto; mínimo obrigatório; kg vira gramas; ideal desligado até o backend guardar', async ({ page }) => {
+test('cadastro (0028): em sequência; quantidade, custo inicial e ideal num POST só; parecidos avisam; kg vira gramas', async ({ page }) => {
   await page.goto(`${DEMO}/admin/estoque`);
   await page.getByRole('button', { name: 'Novo insumo' }).click();
   const novo = page.getByRole('dialog', { name: 'Novo insumo' });
@@ -81,15 +82,25 @@ test('cadastro: um atrás do outro, sem textos longos; tipo discreto; mínimo ob
   await expect(novo).not.toContainText('O preço médio vem das compras');
   await expect(novo).not.toContainText('É um preparo feito aqui');
   await novo.getByLabel('Nome').fill('Açúcar mascavo');
+  // Insumo que parece o mesmo: só aviso (nunca bloqueia nem mescla).
+  await expect(novo.locator('[data-teste="semelhantes"]')).toContainText('Açúcar refinado');
   await expect(novo.getByLabel('Unidade', { exact: true })).toHaveValue('kg');
   await novo.getByLabel('Quantidade inicial (kg)').fill('2,5');
+  await novo.getByLabel('Custo unitário inicial (R$/kg)').fill('12,00');
   await expect(novo).toContainText('Abaixo dele, o insumo aparece como baixo.');
-  await expect(novo.getByLabel('Estoque ideal (kg)')).toBeDisabled();
-  await expect(novo).toContainText('Ainda não é salvo pelo sistema');
-  // Sem o mínimo, não cadastra (é ele que liga o alerta).
+  await expect(novo.getByLabel('Estoque ideal (kg)')).toBeEnabled();
+  await expect(novo).not.toContainText('Ainda não é salvo pelo sistema');
+  // Sem o mínimo, não cadastra (é ele que liga o alerta); ideal abaixo do mínimo também não.
   await novo.getByRole('button', { name: 'Cadastrar' }).click();
   await expect(novo.locator('.aviso').first()).toContainText('Informe o estoque mínimo');
   await novo.getByLabel('Estoque mínimo (kg)').fill('1');
+  await novo.getByLabel('Estoque ideal (kg)').fill('0,5');
+  await novo.getByRole('button', { name: 'Cadastrar' }).click();
+  await expect(novo.locator('.aviso').first()).toContainText('O ideal não pode ser menor que o mínimo');
+  await novo.getByLabel('Estoque ideal (kg)').fill('4');
+  // Uma chamada só: cadastro + abertura (+ custo) na mesma transação; nenhum POST /ajustes depois.
+  const chamadas: string[] = [];
+  page.on('request', (r) => r.method() === 'POST' && /\/estoque\/(insumos|ajustes)$/.test(new URL(r.url()).pathname) && chamadas.push(`${new URL(r.url()).pathname.split('/').pop()} ${r.postData()}`));
   await novo.getByRole('button', { name: 'Cadastrar' }).click();
   // Cadastrou: a gaveta continua aberta, limpa, com a mesma unidade e o cursor no nome, pronta para o próximo.
   const feitos = novo.getByRole('region', { name: 'Cadastrados agora' });
@@ -107,10 +118,61 @@ test('cadastro: um atrás do outro, sem textos longos; tipo discreto; mínimo ob
   await expect(insumo.locator('.insumo-saldo')).toContainText('2,5 kg');
   await expect(insumo.locator('.insumo-saldo')).toContainText('Normal');
   await expect(insumo.locator('.movimento').first()).toContainText('Contagem inicial');
+  await expect(insumo.locator('.movimento').first()).toContainText('Custo inicial informado');
+  await expect(insumo.locator('.definicoes')).toContainText('R$ 12,00/kg');
+  await expect(insumo.locator('.definicoes')).toContainText('Estoque ideal4 kg');
   const lista = await (await page.request.get(`${DEMO}/admin/api/estoque/insumos?limite=200`)).json();
   const criado = lista.itens.find((i: { nome: string }) => i.nome === 'Açúcar mascavo');
-  expect(criado).toMatchObject({ unidade_base: 'g', estoque_minimo: expect.stringMatching(/^1000(\.0+)?$/) });
+  expect(criado).toMatchObject({ unidade_base: 'g', estoque_minimo: expect.stringMatching(/^1000(\.0+)?$/), estoque_ideal: expect.stringMatching(/^4000(\.0+)?$/) });
   expect(Number(criado.saldo)).toBe(2500);
+  expect(Number(criado.custo_medio)).toBeCloseTo(0.012, 6);
+  expect(chamadas.filter((c) => c.startsWith('ajustes'))).toHaveLength(0);
+  const primeiro = JSON.parse(chamadas.find((c) => c.includes('Açúcar mascavo'))!.slice('insumos '.length));
+  expect(primeiro).toMatchObject({ quantidade_inicial: '2500', custo_unitario_inicial: '0.012000', estoque_ideal: '4000' });
+
+  // Editar: apagar o ideal manda null (0028: null limpa) — e o detalhe volta a "Não definido".
+  await insumo.getByRole('button', { name: 'Editar cadastro' }).click();
+  await insumo.getByLabel('Estoque ideal (kg)').fill('');
+  await insumo.getByRole('button', { name: 'Salvar' }).click();
+  await expect(insumo.locator('.definicoes')).toContainText('Estoque idealNão definido');
+});
+
+test('backend anterior (sem 0028): ideal desligado e identificado, quantidade inicial pela conferência logo depois', async ({ page }) => {
+  // Simula o backend publicado antes da 0028: sem a chave estoque_ideal e sem a rota /insumos/opcoes.
+  await page.route('**/admin/api/estoque/insumos?*', async (r) => {
+    const l = await (await r.fetch()).json();
+    await r.fulfill({ json: { ...l, itens: l.itens.map(({ estoque_ideal: _i, falta_para_ideal: _f, ...x }: Record<string, unknown>) => (void _i, void _f, x)) } });
+  });
+  await page.route('**/admin/api/estoque/insumos/opcoes*', (r) => r.fulfill({ status: 404, json: { detail: 'Not Found' } }));
+  await page.route('**/admin/api/estoque/insumos', async (r) => {
+    if (r.request().method() !== 'POST') return r.fallback();
+    const corpo = r.request().postDataJSON();
+    // O backend anterior ignora quantidade_inicial: nada de abertura na resposta.
+    const resp = await r.fetch({ postData: JSON.stringify({ ...corpo, quantidade_inicial: undefined, custo_unitario_inicial: undefined }) });
+    const { abertura: _a, semelhantes: _s, ...cad } = await resp.json();
+    void _a; void _s;
+    await r.fulfill({ status: resp.status(), json: cad });
+  });
+  await page.goto(`${DEMO}/admin/estoque`);
+  await page.getByRole('button', { name: 'Novo insumo' }).click();
+  const novo = page.getByRole('dialog', { name: 'Novo insumo' });
+  await expect(novo.getByLabel('Estoque ideal (kg)')).toBeDisabled();
+  await expect(novo).toContainText('Ainda não é salvo pelo sistema');
+  await expect(novo.getByLabel(/Custo unitário inicial/)).toHaveCount(0);
+  await novo.getByLabel('Nome').fill('Farinha de arroz');
+  await novo.getByLabel('Quantidade inicial (kg)').fill('1,5');
+  await novo.getByLabel('Estoque mínimo (kg)').fill('0,5');
+  const ajuste = page.waitForRequest((r) => r.method() === 'POST' && r.url().endsWith('/estoque/ajustes'));
+  await novo.getByRole('button', { name: 'Cadastrar' }).click();
+  expect((await ajuste).postDataJSON()).toMatchObject({ quantidade: '1500', motivo: 'contagem_fisica' });
+  await expect(novo.getByRole('region', { name: 'Cadastrados agora' })).toContainText('Farinha de arroz');
+  await novo.getByRole('button', { name: 'Concluir' }).click();
+  // O seletor cai na listagem de insumos (sem /opcoes) e continua achando pelo nome.
+  await page.goto(`${DEMO}/admin/estoque?aba=fichas`);
+  await page.getByRole('list', { name: 'Produtos da Eyemobile' }).getByRole('button', { name: /Roll de chocolate/ }).click();
+  await page.getByRole('button', { name: 'Cadastrar ficha' }).click();
+  await page.getByRole('combobox', { name: 'Ingrediente 1' }).fill('farinha de a');
+  await expect(page.getByRole('option', { name: /Farinha de arroz/ })).toBeVisible();
 });
 
 test('ajustar estoque: entrada identificada (sem rota, nada salvo); perda ou uso interno confirma antes, com motivo próprio e o responsável', async ({ page }) => {
@@ -280,6 +342,14 @@ test('conferência de nota lida: sugestão da leitura não passa sozinha — cad
   expect(total).toBeGreaterThan(0);
   await expect(gaveta.locator('[data-teste="status-conferencia"]')).toContainText(`${total === 1 ? '1 sugestão a confirmar' : `${total} sugestões a confirmar`}`);
   await expect(page.getByRole('button', { name: 'Continuar' })).toBeDisabled();
+  // O rodapé não repete a mesma coisa duas vezes (o backend também manda item_N_sugestao_nao_confirmada).
+  await expect(page.locator('[data-teste="pendencias-conferencia"]')).toHaveText(`${total} sugestões a confirmar`);
+  // E a API recusa também (backend e78d36a): não basta a tela.
+  const det = await (await page.request.get(`${DEMO}/admin/api/estoque/compras/e2000000-0000-4000-8000-000000000001`)).json();
+  expect(det.pendencias).toContain('item_1_sugestao_nao_confirmada');
+  const forcada = await page.request.post(`${DEMO}/admin/api/estoque/compras/e2000000-0000-4000-8000-000000000001/confirmar`, { headers: { 'X-Painel': '1', 'Content-Type': 'application/json', Origin: DEMO }, data: { versao: det.versao, despesa: {} } });
+  expect(forcada.status()).toBe(409);
+  expect((await forcada.json()).dados.pendencias).toContain('item_1_sugestao_nao_confirmada');
   // A linha mostra o insumo escolhido pelo id, com a unidade cadastrada.
   const primeira = sugeridos.first();
   await expect(primeira.getByRole('combobox')).not.toHaveValue('');
@@ -340,7 +410,59 @@ test('fichas técnicas: catálogo dos mais vendidos só com a busca, situação 
   await expect(cappuccino.locator('.ficha-numeros')).toContainText('R$ 14,00');
   await expect(cappuccino.locator('.ficha-numeros')).toContainText('Margem de contribuição parcial');
   await expect(cappuccino.locator('[data-teste="aviso-margem"]')).toContainText('Não é lucro líquido');
-  await expect(cappuccino.getByText(/Ainda sem vínculo com o cardápio do site/)).toBeVisible();
+  await expect(cappuccino.getByText('Sem vínculo com o cardápio do site')).toBeVisible();
+  await expect(cappuccino.getByLabel('Item do cardápio do site')).toBeVisible();
+});
+
+test('produtos sem venda (0028): o cardápio da loja aparece em Fichas para cadastrar antes de vender; Custos não muda', async ({ page }) => {
+  await page.goto(`${DEMO}/admin/estoque?aba=fichas`);
+  const produtos = page.getByRole('list', { name: 'Produtos da Eyemobile' });
+  const croissant = produtos.getByRole('button', { name: /Croissant clássico/ });
+  await expect(croissant).toContainText('Sem venda em 30 dias · no cardápio da loja');
+  await expect(croissant).toContainText('Sem ficha');
+  // Os mais vendidos continuam primeiro; o que não vendeu vai para o fim.
+  await expect(produtos.locator('.produto-cartao__nome').first()).toHaveText('Cinnamon roll tradicional');
+  await expect(produtos.locator('.produto-cartao__nome').last()).toHaveText('Croissant clássico');
+  const sem = await (await page.request.get(`${DEMO}/admin/api/estoque/fichas?situacao=todas&dias=30`)).json();
+  expect(sem.some((f: { produto: string }) => f.produto === 'Croissant clássico')).toBe(false);
+  const com = await (await page.request.get(`${DEMO}/admin/api/estoque/fichas?situacao=todas&dias=30&incluir_sem_venda=true`)).json();
+  expect(com.find((f: { produto: string }) => f.produto === 'Croissant clássico')).toMatchObject({ vendido_no_periodo: false, no_cardapio_pdv: true });
+});
+
+test('vínculo Eyemobile ↔ cardápio do site (0028): sugestão só aplicada com clique, por id; desfazer; duplicado recusado', async ({ page }) => {
+  await page.goto(`${DEMO}/admin/estoque?aba=fichas`);
+  const produtos = page.getByRole('list', { name: 'Produtos da Eyemobile' });
+  await produtos.getByRole('button', { name: /Croissant clássico/ }).click();
+  const gaveta = page.getByRole('dialog', { name: 'Croissant clássico' });
+  // A sugestão por nome aparece como opção, sem estar aplicada.
+  await expect(gaveta.getByText('Sem vínculo com o cardápio do site')).toBeVisible();
+  const sugestoes = gaveta.getByRole('group', { name: 'Sugestões do cardápio do site' });
+  await expect(sugestoes.getByRole('button', { name: 'Croissant Clássico' })).toBeVisible();
+  const antes = await (await page.request.get(`${DEMO}/admin/api/estoque/vinculos-cardapio`)).json();
+  expect(antes.produtos.find((p: { eye_product_id: string }) => p.eye_product_id === '7003').catalogo_item_id).toBeNull();
+  const put = page.waitForRequest((r) => r.method() === 'PUT' && r.url().endsWith('/estoque/fichas/produto/7003/catalogo'));
+  await sugestoes.getByRole('button', { name: 'Croissant Clássico' }).click();
+  expect((await put).postDataJSON()).toEqual({ catalogo_item_id: 'croissants.classico' });
+  await expect(page.getByText('Produto ligado ao cardápio do site.')).toBeVisible();
+  await expect(gaveta).toContainText('No cardápio do site: Croissant Clássico');
+  await expect(gaveta.locator('img.ficha-foto')).toHaveCount(1);
+  await page.keyboard.press('Escape');
+  // O cartão ganha a foto do cardápio pelo id.
+  await expect(produtos.getByRole('button', { name: /Croissant clássico/ }).locator('img')).toHaveCount(1);
+
+  // O mesmo item do cardápio em outro produto: o backend recusa (409), e a lista de escolha nem o oferece.
+  const dup = await page.request.put(`${DEMO}/admin/api/estoque/fichas/produto/5003/catalogo`, { headers: { 'X-Painel': '1', 'Content-Type': 'application/json', Origin: DEMO }, data: { catalogo_item_id: 'croissants.classico' } });
+  expect(dup.status()).toBe(409);
+  expect((await dup.json()).codigo).toBe('catalogo_ja_vinculado');
+  await produtos.getByRole('button', { name: /Roll de chocolate/ }).click();
+  const roll = page.getByRole('dialog', { name: 'Roll de chocolate' });
+  await expect(roll.getByLabel('Item do cardápio do site').locator('option', { hasText: 'Croissant Clássico' })).toHaveCount(0);
+  await roll.getByRole('button', { name: 'Fechar' }).click();
+
+  // Desfazer volta ao estado sem vínculo.
+  await produtos.getByRole('button', { name: /Croissant clássico/ }).click();
+  await gaveta.getByRole('button', { name: 'Desfazer' }).click();
+  await expect(gaveta.getByText('Sem vínculo com o cardápio do site')).toBeVisible();
 });
 
 test('editor de ficha: ingrediente só do estoque, quantidade em kg vira gramas, e a ficha nova passa a valer', async ({ page }) => {
@@ -414,7 +536,7 @@ test('vínculo com o catálogo: só pelo id estável que o backend mandar — a�
 test('seletor de insumos: carregando e erro dentro da lista, "Tentar de novo" recupera; só insumos ativos do cadastro', async ({ page }) => {
   // A base de insumos falha na primeira vez e demora na segunda: o seletor diz o que está acontecendo, sem lista vazia muda.
   let falhar = true;
-  await page.route('**/admin/api/estoque/insumos?*', async (r) => {
+  await page.route('**/admin/api/estoque/insumos/opcoes*', async (r) => {
     if (falhar) return r.fulfill({ status: 500, json: { detail: 'erro' } });
     await new Promise((ok) => setTimeout(ok, 600));
     return r.fallback();
@@ -432,7 +554,27 @@ test('seletor de insumos: carregando e erro dentro da lista, "Tentar de novo" re
   await expect(lista.getByRole('option', { name: /Leite integral/ })).toBeVisible();
   // A opção mostra a unidade cadastrada (e o preço médio, na ficha).
   await expect(lista.getByRole('option', { name: /Leite integral/ })).toContainText('ml');
+  // GET /insumos/opcoes (0028) acha também pelo texto de nota já confirmado.
+  await gaveta.getByRole('combobox', { name: 'Ingrediente 1' }).fill('leite uht');
+  await expect(lista.getByRole('option', { name: /Leite integral/ })).toContainText('pelo texto da nota');
   await page.keyboard.press('Escape');
+});
+
+test('correspondência (0028): candidatos do motor aparecem no item lido como opções; escolher é um clique, nada é aplicado sozinho', async ({ page }) => {
+  // Insumo que a nota do Mercadinho tem ("DETERGENTE NEUTRO 500ML") e o cadastro ainda não.
+  const criar = await page.request.post(`${DEMO}/admin/api/estoque/insumos`, { headers: { 'X-Painel': '1', 'Content-Type': 'application/json', Origin: DEMO }, data: { nome: 'Detergente neutro', unidade_base: 'un', estoque_minimo: '2' } });
+  expect(criar.status()).toBe(201);
+  await page.goto(`${DEMO}/admin/estoque?aba=compras&compra=e2000000-0000-4000-8000-000000000002`);
+  const itens = page.getByRole('list', { name: 'Itens lidos' });
+  const item = itens.locator('.item-lido', { hasText: 'DETERGENTE NEUTRO 500ML' });
+  const candidatos = item.getByRole('group', { name: /Correspondências para DETERGENTE/ });
+  await expect(candidatos.getByRole('button', { name: /Detergente neutro/ })).toBeVisible();
+  // Ainda pendente: o motor só sugere.
+  await expect(item).toHaveAttribute('data-situacao', 'pendente');
+  const patch = page.waitForRequest((r) => r.method() === 'PATCH' && r.url().includes('/itens/'));
+  await candidatos.getByRole('button', { name: /Detergente neutro/ }).click();
+  expect((await patch).postDataJSON()).toMatchObject({ insumo_id: (await criar.json()).id });
+  await expect(itens.locator('.item-lido', { hasText: 'DETERGENTE NEUTRO 500ML' })).toHaveAttribute('data-situacao', 'confirmado');
 });
 
 test('ponta a ponta: cadastrar insumo, escolhê-lo numa compra (e cadastrar outro pelo seletor), conferir e usar numa ficha', async ({ page }) => {

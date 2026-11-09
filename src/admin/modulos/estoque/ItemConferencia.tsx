@@ -17,6 +17,15 @@ import { ALERTA, UNIDADE_CURTA, atualizarEstoque } from './comum';
 import { SeletorInsumo, baseDaUnidadeCompra, type InsumoEscolhido } from './SeletorInsumo';
 
 const CONFIANCA = { alta: 'confiança alta', media: 'confiança média', baixa: 'confiança baixa', nenhuma: 'sem sugestão' } as const;
+/** Como o motor achou o candidato (nível da cascata), em português. */
+const MOTIVO_CANDIDATO: Record<string, string> = {
+  gtin: 'Mesmo código de barras (GTIN)',
+  codigo: 'Mesmo código do produto neste fornecedor',
+  codigo_fornecedor: 'Mesmo código do produto neste fornecedor',
+  alias_fornecedor: 'Texto já confirmado com este fornecedor',
+  alias: 'Texto já confirmado em outra compra',
+  texto: 'Nome parecido',
+};
 
 type Modo = 'ver' | 'trocar' | 'conversao' | 'nao_estoque';
 
@@ -60,6 +69,11 @@ export function ItemConferencia({ compraId, it, editavel, aoMudar }: { compraId:
   const fatorN = Number(fator.replace(',', '.'));
   const unidadeConv = pendente?.unidade ?? s?.unidade_base ?? null;
   const mostraSeletor = editavel && (!fora || modo === 'trocar');
+  // Motor de correspondência (0028): candidatos para o item que ainda precisa de alguém (GTIN, código, texto já
+  // confirmado, nome parecido). Cada um é só uma opção — escolher é um clique da pessoa, como no seletor. Backend
+  // anterior (404) ou falha: a lista some, o seletor continua.
+  const candidatos = useConsulta(editavel && it.situacao === 'pendente' ? `estoque/compras/${compraId}/itens/${it.id}/candidatos:${it.versao}` : null, () => estoque.candidatosItem(compraId, it.id));
+  const opcoesMotor = (candidatos.dados?.candidatos ?? []).filter((c) => c.insumo_id !== escolhido?.id).slice(0, 3);
 
   return (
     <li class="itens-tabela__linha item-lido" data-situacao={it.situacao}>
@@ -87,6 +101,24 @@ export function ItemConferencia({ compraId, it, editavel, aoMudar }: { compraId:
         )}
         {escolhido && !s?.fator && it.situacao === 'pendente' && <span class="item-lido__conv item-lido__conv--falta">Falta a conversão</span>}
         {it.situacao === 'sugerido' && s?.confianca && <span class="item-lido__conv">Sugestão da leitura ({CONFIANCA[s.confianca]}): confirme</span>}
+        {opcoesMotor.length > 0 && (
+          <span class="item-lido__candidatos" role="group" aria-label={`Correspondências para ${it.descricao}`} data-teste="candidatos">
+            <span class="item-lido__conv">{escolhido ? 'Ou é:' : 'Pode ser:'}</span>
+            {opcoesMotor.map((c) => (
+              <button
+                key={c.insumo_id}
+                type="button"
+                class="item-lido__candidato"
+                disabled={ocupado}
+                title={[MOTIVO_CANDIDATO[c.nivel] ?? c.motivo, c.alertas.map((a) => ALERTA[a] ?? a).join(' · ')].filter(Boolean).join(' — ')}
+                onClick={() => resolver({ insumo_id: c.insumo_id, ...(c.fator ? { fator: c.fator } : {}) }, `Item associado a ${c.nome}.`)}
+              >
+                {c.nome}
+                <small>{[c.status === 'confirmado' ? 'já confirmado antes' : c.status === 'revisar' ? 'revisar' : null, c.score != null ? `${Math.round(c.score)}%` : null].filter(Boolean).join(' · ')}</small>
+              </button>
+            ))}
+          </span>
+        )}
         {it.alertas.length > 0 && (
           <span class="linha" style={{ gap: '4px' }}>
             {it.alertas.map((a) => <Etiqueta key={a} tom="atencao">{ALERTA[a] ?? a}</Etiqueta>)}
