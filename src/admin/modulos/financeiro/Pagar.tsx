@@ -9,7 +9,7 @@ import { Gaveta } from '../../ui/camadas';
 import { Botao, Campo, Aviso } from '../../ui/base';
 import { EntradaMoeda, EnvioArquivo } from '../../ui/entradas';
 import type { FormaPagamento } from '../../lib/tipos/financeiro';
-import { FORMAS, atualizarFinanceiro, avisar, AVISO_ARQUIVO_REPETIDO } from './comum';
+import { FORMAS, atualizarFinanceiro, avisar, AVISO_ARQUIVO_REPETIDO, useContasPagadoras, rotuloConta } from './comum';
 
 export interface ContaParaPagar {
   parcela_id: string;
@@ -34,9 +34,13 @@ export function Pagar({ conta, aoFechar }: { conta: ContaParaPagar | null; aoFec
   const [enviandoArq, setEnviandoArq] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<ErroApi | null>(null);
+  // 0029: quem pagou. Começa na conta padrão (a empresarial do Âmbar); conta pessoal só quando foi assim.
+  const contas = useContasPagadoras();
+  const [pagador, setPagador] = useState('');
 
   useEffect(() => {
     if (!conta) return;
+    setPagador(contas.dados?.padrao_id ?? '');
     setValor(conta.valor_a_confirmar ? '' : brl(conta.saldo));
     setData(hojeISO());
     setForma('pix');
@@ -44,6 +48,9 @@ export function Pagar({ conta, aoFechar }: { conta: ContaParaPagar | null; aoFec
     setArquivo(null);
     setErro(null);
   }, [conta?.parcela_id]);
+  useEffect(() => {
+    if (conta && contas.dados?.padrao_id) setPagador((atual) => atual || contas.dados!.padrao_id!);
+  }, [conta?.parcela_id, contas.dados?.padrao_id]);
 
   if (!conta) return <Gaveta aberta={false} aoFechar={aoFechar} titulo="">{null}</Gaveta>;
   const v = paraDecimal(valor);
@@ -70,7 +77,7 @@ export function Pagar({ conta, aoFechar }: { conta: ContaParaPagar | null; aoFec
     setEnviando(true);
     setErro(null);
     try {
-      await financeiro.pagar(conta!.parcela_id, { pago_em: data, forma, valor: v, identificador_transacao: ident.trim() || null, arquivo_id: arquivo?.id ?? null });
+      await financeiro.pagar(conta!.parcela_id, { pago_em: data, forma, valor: v, identificador_transacao: ident.trim() || null, arquivo_id: arquivo?.id ?? null, conta_pagadora_id: pagador || null });
       atualizarFinanceiro();
       avisar(parcial ? 'Pagamento parcial registrado.' : 'Pagamento registrado.', 'ok');
       aoFechar();
@@ -123,6 +130,14 @@ export function Pagar({ conta, aoFechar }: { conta: ContaParaPagar | null; aoFec
             {(id) => (
               <select id={id} class="selecao" value={forma} onChange={(e) => setForma(e.currentTarget.value as FormaPagamento)}>
                 {FORMAS.map((f) => <option key={f.valor} value={f.valor}>{f.rotulo}</option>)}
+              </select>
+            )}
+          </Campo>
+          <Campo rotulo="Pago com a conta" ajuda={pagador ? undefined : 'Sem a conta, o pagamento fica em Pendências como “pagador não identificado”.'}>
+            {(id, d) => (
+              <select id={id} class="selecao" aria-describedby={d} value={pagador} onChange={(e) => setPagador(e.currentTarget.value)}>
+                <option value="">Não informar agora</option>
+                {(contas.dados?.itens ?? []).map((c) => <option key={c.id} value={c.id}>{rotuloConta(c)}{c.padrao ? ' — padrão' : ''}</option>)}
               </select>
             )}
           </Campo>

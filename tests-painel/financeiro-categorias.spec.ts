@@ -93,7 +93,7 @@ test('categoria nova: criada no banco, aparece nos seletores e vale para a Júli
 
   expect(await opcoesDaNovaDespesa(page)).toContain('Eventos');
   // E na Revisão (o seletor que a gerência usa para documentos da Júlia).
-  await page.goto(`${DEMO}/admin/financeiro?aba=pendencias`);
+  await page.goto(`${DEMO}/admin/financeiro?aba=pendencias&vista=revisao`);
   await page.getByRole('button', { name: /ENEL/ }).click();
   await expect(page.getByRole('dialog').getByRole('region', { name: 'Registrar como despesa' }).getByLabel('Categoria').locator('option', { hasText: 'Eventos' })).toHaveCount(1);
 });

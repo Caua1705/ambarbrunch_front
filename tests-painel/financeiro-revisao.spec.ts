@@ -10,7 +10,7 @@ const API = `${DEMO}/admin/api/financeiro`;
 const escrever = { 'X-Painel': '1', 'Content-Type': 'application/json', Origin: DEMO };
 
 async function abrirRevisao(page: Page) {
-  await page.goto(`${DEMO}/admin/financeiro?aba=pendencias`);
+  await page.goto(`${DEMO}/admin/financeiro?aba=pendencias&vista=revisao`);
   await expect(page.getByRole('heading', { name: /Documentos do grupo/ })).toBeVisible();
 }
 /** Abre o documento da fila pelo texto do item e devolve a gaveta. */
@@ -201,7 +201,7 @@ test('unidade errada: o documento e a despesa de teste vão para a unidade de te
 test('API falhando ou incompleta: a tela avisa e não quebra', async ({ page }) => {
   // 1) Fila fora do ar: mensagem de falha, abas continuam.
   await page.route('**/admin/api/financeiro/revisao?*', (r) => r.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ detail: 'O sistema do Âmbar está em manutenção.', codigo: 'indisponivel' }) }));
-  await page.goto(`${DEMO}/admin/financeiro?aba=pendencias`);
+  await page.goto(`${DEMO}/admin/financeiro?aba=pendencias&vista=revisao`);
   await expect(page.getByText('O sistema do Âmbar está em manutenção.')).toBeVisible();
   await expect(page.getByRole('tab', { name: /^Pendências/ })).toBeVisible();
   await page.unroute('**/admin/api/financeiro/revisao?*');

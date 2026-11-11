@@ -9,10 +9,10 @@ import { Gaveta } from '../../ui/camadas';
 import { Botao, Campo, Aviso, Segmentado } from '../../ui/base';
 import { EntradaMoeda, EnvioArquivo } from '../../ui/entradas';
 import type { DespesaEntrada, FormaPagamento } from '../../lib/tipos/financeiro';
-import { FORMAS, useCategorias, OpcoesCategoria, atualizarFinanceiro, avisar, AVISO_ARQUIVO_REPETIDO } from './comum';
+import { FORMAS, useCategorias, OpcoesCategoria, atualizarFinanceiro, avisar, AVISO_ARQUIVO_REPETIDO, useContasPagadoras, rotuloConta } from './comum';
 import { EscolherFornecedor, type FornecedorEscolhido } from './Fornecedores';
 
-type Situacao = 'paga' | 'a_pagar' | 'parcelada';
+export type Situacao = 'paga' | 'a_pagar' | 'parcelada';
 
 /** Mesmo dia `i` meses depois (31/01 → 28/02 → 31/03). */
 function mesmoDia(iso: string, i: number) {
@@ -23,7 +23,7 @@ function mesmoDia(iso: string, i: number) {
   return `${inicio.slice(0, 8)}${String(Math.min(d, ultimo)).padStart(2, '0')}`;
 }
 
-export function NovaDespesa({ aberta, aoFechar, aoCriar }: { aberta: boolean; aoFechar: () => void; aoCriar?: (id: string) => void }) {
+export function NovaDespesa({ aberta, aoFechar, aoCriar, situacaoInicial = 'paga' }: { aberta: boolean; aoFechar: () => void; aoCriar?: (id: string) => void; situacaoInicial?: Situacao }) {
   const cats = useCategorias();
   const [descricao, setDescricao] = useState('');
   const [valor, setValor] = useState('');
@@ -33,6 +33,9 @@ export function NovaDespesa({ aberta, aoFechar, aoCriar }: { aberta: boolean; ao
   const [forma, setForma] = useState<FormaPagamento>('pix');
   const [pagoEm, setPagoEm] = useState(hojeISO());
   const [ident, setIdent] = useState('');
+  // 0029: conta que pagou; começa na padrão (a empresarial do Âmbar).
+  const contasPag = useContasPagadoras();
+  const [pagador, setPagador] = useState('');
   const [vencimento, setVencimento] = useState(hojeISO());
   const [nParcelas, setNParcelas] = useState(2);
   const [parcelas, setParcelas] = useState<{ vencimento: string; valor: string }[]>([]);
@@ -54,10 +57,11 @@ export function NovaDespesa({ aberta, aoFechar, aoCriar }: { aberta: boolean; ao
     setValor('');
     setCategoria('');
     setData(hojeISO());
-    setSituacao('paga');
+    setSituacao(situacaoInicial);
     setForma('pix');
     setPagoEm(hojeISO());
     setIdent('');
+    setPagador(contasPag.dados?.padrao_id ?? '');
     setVencimento(hojeISO());
     setNParcelas(2);
     setParcelas([]);
@@ -69,6 +73,10 @@ export function NovaDespesa({ aberta, aoFechar, aoCriar }: { aberta: boolean; ao
     setErros({});
     chave.current = novaChave();
   }, [aberta]);
+  // A lista de contas pode chegar depois de abrir: aí a padrão entra (só se ninguém escolheu outra ainda).
+  useEffect(() => {
+    if (aberta && contasPag.dados?.padrao_id) setPagador((atual) => atual || contasPag.dados!.padrao_id!);
+  }, [aberta, contasPag.dados?.padrao_id]);
 
   // Parcelas iguais, a partir do vencimento escolhido, um mês de distância (centavos na última).
   useEffect(() => {
@@ -114,7 +122,7 @@ export function NovaDespesa({ aberta, aoFechar, aoCriar }: { aberta: boolean; ao
       fornecedor: forn ? ('id' in forn ? { id: forn.id } : { nome: forn.novo, documento: fornDoc.replace(/\D/g, '') || null }) : null,
       arquivo_id: arquivo?.id ?? null,
       // Sem `pagamento` nem `parcelas`, o backend cria uma conta a pagar que vence na competência.
-      pagamento: situacao === 'paga' ? { pago_em: pagoEm, forma, identificador_transacao: ident.trim() || null, arquivo_id: arquivo?.id ?? null } : null,
+      pagamento: situacao === 'paga' ? { pago_em: pagoEm, forma, identificador_transacao: ident.trim() || null, arquivo_id: arquivo?.id ?? null, conta_pagadora_id: pagador || null } : null,
       parcelas: situacao === 'a_pagar' ? [{ vencimento, valor: v! }] : situacao === 'parcelada' ? parcelas : null,
     };
     setEnviando(true);
@@ -185,13 +193,21 @@ export function NovaDespesa({ aberta, aoFechar, aoCriar }: { aberta: boolean; ao
                 </select>
               )}
             </Campo>
+            <Campo rotulo="Pago com a conta" class="inteiro" ajuda={pagador ? undefined : 'Sem a conta, a despesa fica em Pendências como “pagador não identificado”.'}>
+              {(id, d) => (
+                <select id={id} class="selecao" aria-describedby={d} value={pagador} onChange={(e) => setPagador(e.currentTarget.value)}>
+                  <option value="">Não informar agora</option>
+                  {(contasPag.dados?.itens ?? []).map((c) => <option key={c.id} value={c.id}>{rotuloConta(c)}{c.padrao ? ' — padrão' : ''}</option>)}
+                </select>
+              )}
+            </Campo>
             <Campo rotulo="Identificador da transação" opcional class="inteiro" ajuda="Código do Pix (E2E) ou autenticação. Ajuda a conciliar com o extrato.">
               {(id, d) => <input id={id} class="entrada" autocomplete="off" maxLength={120} aria-describedby={d} value={ident} onInput={(e) => setIdent(e.currentTarget.value)} />}
             </Campo>
           </div>
         )}
         {situacao === 'a_pagar' && (
-          <Campo rotulo="Vencimento" ajuda="Vira uma conta em Movimentações → A pagar.">
+          <Campo rotulo="Vencimento" ajuda="Vira uma conta em Contas a pagar.">
             {(id, d) => <input id={id} type="date" class="entrada" aria-describedby={d} value={vencimento} onChange={(e) => setVencimento(e.currentTarget.value)} />}
           </Campo>
         )}

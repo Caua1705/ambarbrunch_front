@@ -1,7 +1,7 @@
-// Movimentações: a área principal do Financeiro. Uma barra com a busca, o período, os filtros recolhidos e as ações
-// (Nova despesa em destaque, Outra receita) e, logo abaixo, os filtros simples Todas · Despesas · Outras receitas ·
-// A pagar. "A pagar" mostra as contas a pagar (Contas.tsx, com as recorrentes): obrigação de pagamento, nunca misturada
-// com o pagamento feito; nas outras vistas, contas vencidas ou que vencem hoje aparecem em destaque no topo. Cada
+// Movimentações: a área principal do Financeiro. Uma barra só: busca, período, UM botão de filtros (tipo, pagador,
+// categoria, origem, situação) e as ações (Nova despesa em destaque, Outra receita). Contas a pagar têm aba própria
+// (0029); aqui, contas vencidas ou que vencem hoje só aparecem num aviso no topo. Colunas: Data, Descrição, Categoria,
+// Valor, Pagador (conta de origem; "não identificado" leva a Pendências) e Situação. Cada
 // registro aparece uma vez: a despesa paga não se repete como pagamento (os pagamentos só em Filtros → Mostrar).
 // Vendas do PDV vêm da Eyemobile e ficam identificadas à parte; sem a integração, o painel diz "indisponível", nunca zero.
 // O painel executivo é a Visão Geral: aqui só uma linha de totais do período.
@@ -15,23 +15,22 @@ import { financeiro } from '../../lib/api/financeiro';
 import { moeda, dataCurta, hojeISO, inicioMes, fimMes, somarMeses, somarDias, plural } from '../../lib/formato';
 import { lerParam, gravarParams } from '../../lib/rotas';
 import { useConfirmacao, Suspenso, type PedidoConfirmacao } from '../../ui/camadas';
-import { Botao, Cartao, Segmentado, Aviso } from '../../ui/base';
+import { Botao, Cartao, Aviso } from '../../ui/base';
 import { Dados, EsqueletoTabela, Vazio } from '../../ui/estados';
 import { Tabela, type Coluna } from '../../ui/tabela';
 import type { Lancamento, ListaLancamentos, OutraReceitaSaida, ResumoFinanceiro, TipoLancamento } from '../../lib/tipos/financeiro';
-import { ORIGEM, TIPO_LANCAMENTO, SituacaoLancamento, useCadastroCategorias, nomeCategoria, temPermissao, atualizarFinanceiro, avisar } from './comum';
+import { ORIGEM, TIPO_LANCAMENTO, SituacaoLancamento, useCadastroCategorias, nomeCategoria, temPermissao, atualizarFinanceiro, avisar, useContasPagadoras } from './comum';
 import { NovaDespesa } from './NovaDespesa';
 import { NovaReceita } from './NovaReceita';
 import { DetalheDespesa } from './DetalheDespesa';
-import { Contas } from './Contas';
 
 type Periodo = 'mes' | 'anterior' | '30d' | 'personalizado';
 /** Filtros simples da área (?tipo=). */
-export type FiltroMovimentacoes = 'todas' | 'despesas' | 'receitas' | 'a-pagar';
+export type FiltroMovimentacoes = 'todas' | 'despesas' | 'receitas';
 /** Em "Todas": `principal` são receitas e despesas (a despesa paga aparece no backend também como pagamento). */
 type Mostrar = 'principal' | 'venda_dia' | 'pagamento' | 'tudo';
 
-const lerFiltro = (v: string | null): FiltroMovimentacoes => (v === 'despesas' || v === 'receitas' || v === 'a-pagar' ? v : 'todas');
+const lerFiltro = (v: string | null): FiltroMovimentacoes => (v === 'despesas' || v === 'receitas' ? v : 'todas');
 
 const diasEntre = (de: string, ate: string) => (Date.parse(`${ate}T12:00:00Z`) - Date.parse(`${de}T12:00:00Z`)) / 86_400_000;
 
@@ -71,6 +70,7 @@ export function Movimentacoes({ contexto }: { contexto: ContextoPainel }) {
   const [categoria, setCategoria] = useState('');
   const [origem, setOrigem] = useState('');
   const [situacao, setSituacao] = useState('');
+  const [pagador, setPagador] = useState(() => lerParam('pagador') ?? '');
   const [mostrar, setMostrar] = useState<Mostrar>('principal');
   const [busca, setBusca] = useState('');
   const [buscaAtiva, setBuscaAtiva] = useState('');
@@ -97,9 +97,8 @@ export function Movimentacoes({ contexto }: { contexto: ContextoPainel }) {
     return () => clearTimeout(t);
   }, [busca]);
 
-  const aPagar = filtro === 'a-pagar';
-  const filtrosAtivos = aPagar ? 0 : [mostrar !== 'principal', !!categoria, !!origem, !!situacao].filter(Boolean).length;
-  const limparFiltros = () => { setMostrar('principal'); setCategoria(''); setOrigem(''); setSituacao(''); };
+  const filtrosAtivos = [filtro !== 'todas', mostrar !== 'principal', !!categoria, !!origem, !!situacao, !!pagador].filter(Boolean).length;
+  const limparFiltros = () => { setFiltro('todas'); setMostrar('principal'); setCategoria(''); setOrigem(''); setSituacao(''); setPagador(''); };
   const mudarFiltro = (f: FiltroMovimentacoes) => {
     // "Mostrar" e as situações são de cada tipo: trocar de filtro não carrega uma combinação que não existe.
     setMostrar('principal');
@@ -107,11 +106,9 @@ export function Movimentacoes({ contexto }: { contexto: ContextoPainel }) {
     gravarParams({ situacao: null, vista: null });
     setFiltro(f);
   };
+  // Contas a pagar têm aba própria: o aviso leva até ela, já filtrada.
   const verContas = (situacaoConta: 'vencidas' | 'hoje') => {
-    setMostrar('principal');
-    setSituacao('');
-    gravarParams({ situacao: situacaoConta, vista: null });
-    setFiltro('a-pagar');
+    location.assign(`/admin/financeiro?aba=contas&situacao=${situacaoConta}`);
   };
 
   const contas = resumo.dados?.contas;
@@ -123,10 +120,9 @@ export function Movimentacoes({ contexto }: { contexto: ContextoPainel }) {
       <div class="barra-ferramentas">
         <div class="entrada-grupo barra-ferramentas__busca">
           <Search aria-hidden="true" />
-          <input class="entrada" type="search" placeholder={aPagar ? 'Buscar conta ou fornecedor' : 'Buscar descrição ou fornecedor'} aria-label="Buscar movimentação" maxLength={80} value={busca} onInput={(e) => setBusca(e.currentTarget.value)} />
+          <input class="entrada" type="search" placeholder="Buscar descrição ou fornecedor" aria-label="Buscar movimentação" maxLength={80} value={busca} onInput={(e) => setBusca(e.currentTarget.value)} />
         </div>
-        {!aPagar && (
-          <>
+        <>
             <select class="selecao selecao--auto" aria-label="Período" value={periodo} onChange={(e) => setPeriodo(e.currentTarget.value as Periodo)}>
               <option value="mes">Este mês</option>
               <option value="anterior">Mês anterior</option>
@@ -137,34 +133,23 @@ export function Movimentacoes({ contexto }: { contexto: ContextoPainel }) {
             <Botao variante="fantasma" icone={<SlidersHorizontal aria-hidden="true" />} aria-expanded={maisFiltros} aria-controls="mov-filtros" onClick={() => setMaisFiltros(!maisFiltros)}>
               Filtros{filtrosAtivos ? <span class="contador">{filtrosAtivos}</span> : null}
             </Botao>
-          </>
-        )}
+        </>
         <div class="barra-ferramentas__acoes">
           {lancar && <Botao icone={<HandCoins aria-hidden="true" />} onClick={() => setReceita(true)}>Outra receita</Botao>}
           {lancar && <Botao variante="primario" icone={<Plus aria-hidden="true" />} onClick={() => setNova(true)}>Nova despesa</Botao>}
         </div>
       </div>
 
-      {!aPagar && (maisFiltros || filtrosAtivos > 0) && (
+      {(maisFiltros || filtrosAtivos > 0) && (
         <Filtros
+          setFiltro={mudarFiltro} pagador={pagador} setPagador={setPagador}
           filtro={filtro} mostrar={mostrar} setMostrar={setMostrar} categoria={categoria} setCategoria={setCategoria}
           origem={origem} setOrigem={setOrigem} situacao={situacao} setSituacao={setSituacao} ativos={filtrosAtivos} limpar={limparFiltros}
         />
       )}
 
-      <Segmentado<FiltroMovimentacoes>
-        rotulo="Tipo de movimentação"
-        valor={filtro}
-        aoMudar={mudarFiltro}
-        opcoes={[
-          { valor: 'todas', rotulo: 'Todas' },
-          { valor: 'despesas', rotulo: 'Despesas' },
-          { valor: 'receitas', rotulo: 'Outras receitas' },
-          { valor: 'a-pagar', rotulo: <>A pagar{vencidas ? <span class="contador contador--perigo" aria-label={plural(vencidas, 'conta vencida', 'contas vencidas')}>{vencidas}</span> : null}</> },
-        ]}
-      />
 
-      {!aPagar && (vencidas > 0 || venceHoje > 0) && contas && (
+      {(vencidas > 0 || venceHoje > 0) && contas && (
         <Aviso tom="atencao" icone={<CalendarClock aria-hidden="true" />}>
           <strong>
             {[vencidas ? `${plural(vencidas, 'conta vencida', 'contas vencidas')} (${moeda(contas.vencidas.valor)})` : null, venceHoje ? `${plural(venceHoje, 'conta vence hoje', 'contas vencem hoje')} (${moeda(contas.hoje.valor)})` : null].filter(Boolean).join(' · ')}
@@ -173,10 +158,9 @@ export function Movimentacoes({ contexto }: { contexto: ContextoPainel }) {
         </Aviso>
       )}
 
-      {aPagar ? (
-        <Contas contexto={contexto} busca={buscaAtiva} abrirDespesa={setDespesa} />
-      ) : (
+      {(
         <ListaMovimentacoes
+          pagador={pagador}
           filtro={filtro} mostrar={mostrar} periodo={periodo} de={de} ate={ate} categoria={categoria} origem={origem} situacao={situacao}
           busca={buscaAtiva} lancar={lancar} resumo={resumo.dados ?? null} abrirDespesa={setDespesa} abrirReceita={abrirReceita} confirmar={confirmar}
           irPara={(d, a) => { setDe(d); setAte(a); setPeriodo('personalizado'); }}
@@ -202,14 +186,28 @@ function Datas({ periodo, de, ate, setDe, setAte }: { periodo: Periodo; de: stri
 }
 
 function Filtros(p: {
+  setFiltro: (v: FiltroMovimentacoes) => void; pagador: string; setPagador: (v: string) => void;
   filtro: FiltroMovimentacoes; mostrar: Mostrar; setMostrar: (v: Mostrar) => void; categoria: string; setCategoria: (v: string) => void;
   origem: string; setOrigem: (v: string) => void; situacao: string; setSituacao: (v: string) => void; ativos: number; limpar: () => void;
 }) {
   // Cadastro inteiro: lançamento antigo continua com categoria que não vale mais (aluguel, energia…) e precisa de nome e filtro.
   const cats = useCadastroCategorias();
   const opReceita = useConsulta(p.filtro === 'receitas' ? 'financeiro/outras-receitas/opcoes' : null, () => financeiro.opcoesReceita());
+  const contas = useContasPagadoras();
   return (
     <div class="filtros filtros--recolhiveis" id="mov-filtros">
+      <select class="selecao" aria-label="Tipo" value={p.filtro} onChange={(e) => p.setFiltro(e.currentTarget.value as FiltroMovimentacoes)}>
+        <option value="todas">Receitas e despesas</option>
+        <option value="despesas">Só despesas</option>
+        <option value="receitas">Só outras receitas</option>
+      </select>
+      {p.filtro !== 'receitas' && (
+        <select class="selecao" aria-label="Pagador" value={p.pagador} onChange={(e) => p.setPagador(e.currentTarget.value)}>
+          <option value="">Todos os pagadores</option>
+          <option value="nenhum">Pagador não identificado</option>
+          {(contas.dados?.itens ?? []).map((c) => <option key={c.id} value={c.id}>{c.apelido}</option>)}
+        </select>
+      )}
       {p.filtro === 'todas' && (
         <select class="selecao" aria-label="Mostrar" value={p.mostrar} onChange={(e) => p.setMostrar(e.currentTarget.value as Mostrar)}>
           <option value="principal">Receitas e despesas</option>
@@ -250,7 +248,8 @@ function Filtros(p: {
 }
 
 function ListaMovimentacoes(p: {
-  filtro: Exclude<FiltroMovimentacoes, 'a-pagar'>; mostrar: Mostrar; periodo: Periodo; de: string; ate: string; categoria: string; origem: string; situacao: string;
+  pagador: string;
+  filtro: FiltroMovimentacoes; mostrar: Mostrar; periodo: Periodo; de: string; ate: string; categoria: string; origem: string; situacao: string;
   busca: string; lancar: boolean; resumo: ResumoFinanceiro | null; abrirDespesa: (id: string) => void; abrirReceita: (id: string) => void; confirmar: (p: PedidoConfirmacao) => void;
   irPara: (de: string, ate: string) => void;
 }) {
@@ -260,7 +259,7 @@ function ListaMovimentacoes(p: {
   const [d1, d2] = intervalo(p.periodo, p.de, p.ate);
   const tipo: TipoLancamento | undefined = filtro === 'despesas' ? 'despesa' : filtro === 'receitas' ? 'outra_receita' : mostrar === 'venda_dia' || mostrar === 'pagamento' ? mostrar : undefined;
   const recebimento = p.situacao === 'rec:recebida' ? 'recebida' as const : p.situacao === 'rec:pendente' ? 'pendente' as const : undefined;
-  const q = { de: d1, ate: d2, tipo, categoria: p.categoria || undefined, origem: p.origem || undefined, status: recebimento ? undefined : p.situacao || undefined, recebimento, busca: p.busca || undefined };
+  const q = { de: d1, ate: d2, tipo, categoria: p.categoria || undefined, origem: p.origem || undefined, status: recebimento ? undefined : p.situacao || undefined, recebimento, busca: p.busca || undefined, pagador: p.filtro !== 'receitas' ? p.pagador || undefined : undefined };
   const lista = useConsulta(`financeiro/lancamentos?${JSON.stringify(q)}`, () => financeiro.lancamentos({ ...q, limite: 200 }));
   // Período vazio: o lançamento mais recente ANTES dele (mesmos filtros, até um ano), para o vazio dizer onde estão os
   // registros em vez de só R$ 0,00. As despesas da Júlia ficam na data do comprovante, que pode ser de outro mês.
@@ -295,11 +294,11 @@ function ListaMovimentacoes(p: {
       },
     },
     { id: 'categoria', titulo: 'Categoria', prioridade: 'media', ordenar: (l) => l.categoria ?? '', celula: (l) => (!l.categoria ? <span class="fraco">—</span> : l.tipo === 'outra_receita' ? (opReceita.dados?.categorias.find((c) => c.codigo === l.categoria)?.nome ?? l.categoria) : nomeCategoria(cats.dados, l.categoria)) },
-    { id: 'origem', titulo: 'Origem', prioridade: 'baixa', celula: (l) => <span class="fraco">{ORIGEM[l.origem] ?? l.origem}</span> },
     {
       id: 'valor', titulo: 'Valor', numero: true, ordenar: (l) => Number(l.valor) * l.sinal,
       celula: (l) => <span class="num forte" style={{ whiteSpace: 'nowrap', color: l.sinal > 0 ? 'var(--ok)' : undefined }}>{l.sinal > 0 ? '+' : '−'} {moeda(l.valor)}</span>,
     },
+    { id: 'pagador', titulo: 'Pagador', prioridade: 'media', ordenar: (l) => l.pagador ?? '', celula: (l) => <PagadorCelula l={l} /> },
     { id: 'situacao', titulo: 'Situação', prioridade: 'media', celula: (l) => <SituacaoLancamento status={l.status} tipo={l.tipo} /> },
     {
       id: 'acoes', titulo: '', prioridade: 'media',
@@ -369,4 +368,13 @@ function ListaMovimentacoes(p: {
       </Dados>
     </Cartao>
   );
+}
+
+/** Conta de origem: só despesa paga e pagamento têm pagador. Despesa a pagar, cancelada ou estornada: "—". */
+function PagadorCelula({ l }: { l: Lancamento }) {
+  if (l.tipo !== 'despesa' && l.tipo !== 'pagamento') return <span class="fraco">—</span>;
+  if (l.pagador) return <span>{l.pagador}</span>;
+  const semPagamento = l.tipo === 'despesa' && l.detalhes.tem_pagamento === false;
+  if (semPagamento || l.status === 'cancelada' || l.status === 'estornado') return <span class="fraco">—</span>;
+  return <span class="fin-falta">Não identificado</span>;
 }

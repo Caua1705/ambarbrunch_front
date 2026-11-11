@@ -12,8 +12,8 @@ import { Gaveta, type PedidoConfirmacao } from '../../ui/camadas';
 import { Botao, Campo, Aviso, Etiqueta, Situacao } from '../../ui/base';
 import { EntradaMoeda } from '../../ui/entradas';
 import { Dados, Esqueleto } from '../../ui/estados';
-import type { DespesaSaida } from '../../lib/tipos/financeiro';
-import { ORIGEM, MOTIVO_REVISAO, FORMAS, useCategorias, useNomeCategoria, OpcoesCategoria, atualizarFinanceiro, avisar, avisarFalha, usePermissao, useUnidades } from './comum';
+import type { DespesaSaida, Responsavel } from '../../lib/tipos/financeiro';
+import { ORIGEM, MOTIVO_REVISAO, FORMAS, useCategorias, useNomeCategoria, OpcoesCategoria, atualizarFinanceiro, avisar, avisarFalha, usePermissao, useUnidades, useContasPagadoras, rotuloConta, RESPONSAVEL } from './comum';
 import { Anexos } from './Anexos';
 import { Pagar, type ContaParaPagar } from './Pagar';
 
@@ -111,6 +111,8 @@ export function DetalheDespesa({ id, aoFechar, confirmar }: { id: string | null;
                   <dd>{nome(d.categoria_codigo)}</dd>
                   <dt>Fornecedor</dt>
                   <dd>{d.fornecedor ? `${d.fornecedor.nome}${d.fornecedor.documento ? ` · ${d.fornecedor.documento}` : ''}` : <span class="fraco">Não informado</span>}</dd>
+                  <dt>Responsável</dt>
+                  <dd><ResponsavelDespesa d={d} /></dd>
                   <dt>Origem</dt>
                   <dd>{ORIGEM[d.origem] ?? d.origem}{d.criado_por ? ` · ${d.criado_por}` : ''}</dd>
                   <dt>Lançada em</dt>
@@ -157,6 +159,7 @@ export function DetalheDespesa({ id, aoFechar, confirmar }: { id: string | null;
                             {pg.estornado_em ? <s>{moeda(pg.valor)}</s> : <span class="num">{moeda(pg.valor)}</span>} em {dataCurta(pg.pago_em)} · {FORMAS.find((f) => f.valor === pg.forma)?.rotulo ?? pg.forma}
                             <span class="fraco"> · {ORIGEM[pg.origem] ?? pg.origem}{pg.conciliacao === 'automatica' ? ' (conciliado automaticamente)' : ''}</span>
                             {pg.estornado_em && <span class="fraco"> · estornado: {pg.estorno_motivo}</span>}
+                            {!pg.estornado_em && <PagadorDoPagamento pagamentoId={pg.id} />}
                           </span>
                           {lancar && !pg.estornado_em && (
                             <Botao tamanho="p" variante="fantasma" icone={<Undo2 aria-hidden="true" />} onClick={() => confirmar({ titulo: `Estornar o pagamento de ${moeda(pg.valor)}?`, texto: 'A conta volta a ficar em aberto. Se o pagamento foi conciliado com o extrato, desfaça a conciliação antes.', confirmar: 'Estornar', perigo: true, motivo: { rotulo: 'Motivo do estorno' }, acao: async (m) => { await financeiro.estornarPagamento(pg.id, m); atualizarFinanceiro(); }, sucesso: 'Pagamento estornado.' })}>
@@ -327,5 +330,71 @@ function MudarUnidade({ d, aoTerminar }: { d: DespesaSaida; aoTerminar: (movida:
         <Botao variante="primario" type="submit" carregando={enviando}>Mudar unidade</Botao>
       </div>
     </form>
+  );
+}
+
+/** Quem deveria pagar (Âmbar, Roll, 50/50): muda os acertos, não o pagador. Só financeiro.ver_societario altera. */
+function ResponsavelDespesa({ d }: { d: DespesaSaida }) {
+  const societario = usePermissao('financeiro.ver_societario');
+  const [salvando, setSalvando] = useState(false);
+  const atual = d.responsavel ?? 'ambar';
+  if (!societario || d.status === 'cancelada') return <>{RESPONSAVEL[atual]}</>;
+  async function mudar(v: Responsavel) {
+    setSalvando(true);
+    try {
+      await financeiro.definirResponsavel(d.id, d.versao, v);
+      atualizarFinanceiro();
+    } catch (e) {
+      avisarFalha(e);
+    } finally {
+      setSalvando(false);
+    }
+  }
+  return (
+    <select class="selecao selecao--auto" aria-label="Responsável pela despesa" value={atual} disabled={salvando} onChange={(e) => mudar(e.currentTarget.value as Responsavel)}>
+      {Object.entries(RESPONSAVEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+    </select>
+  );
+}
+
+/** Conta que pagou. Sem pagador: escolher (financeiro.lancar). Já definido: só o administrador troca. */
+function PagadorDoPagamento({ pagamentoId }: { pagamentoId: string }) {
+  const lancar = usePermissao('financeiro.lancar');
+  const admin = usePermissao('financeiro.configurar');
+  const info = useConsulta(`financeiro/pagador:${pagamentoId}`, () => financeiro.pagador(pagamentoId));
+  const contas = useContasPagadoras();
+  const [editando, setEditando] = useState(false);
+  const [salvando, setSalvando] = useState(false);
+  const x = info.dados;
+  if (!x) return null;
+  const podeMudar = lancar && (!x.conta || admin);
+  async function escolher(conta: string) {
+    if (!conta) return;
+    setSalvando(true);
+    try {
+      await financeiro.definirPagador(pagamentoId, conta, x!.versao);
+      atualizarFinanceiro();
+      setEditando(false);
+    } catch (e) {
+      avisarFalha(e);
+    } finally {
+      setSalvando(false);
+    }
+  }
+  if (editando || (!x.conta && podeMudar)) {
+    return (
+      <span class="bloco-linha">
+        <select class="selecao selecao--auto" aria-label="Conta que pagou" disabled={salvando} value="" onChange={(e) => escolher(e.currentTarget.value)}>
+          <option value="">{x.conta ? 'Trocar a conta…' : 'Pagador não identificado — escolher'}</option>
+          {(contas.dados?.itens ?? []).map((c) => <option key={c.id} value={c.id}>{rotuloConta(c)}</option>)}
+        </select>
+      </span>
+    );
+  }
+  return (
+    <span class="bloco-linha fraco">
+      Pago por {x.conta ? rotuloConta(x.conta) : <span class="fin-falta">não identificado</span>}{x.metodo === 'automatico' ? ' (pelo comprovante)' : ''}
+      {podeMudar && x.conta && <> · <button type="button" class="link" onClick={() => setEditando(true)}>corrigir</button></>}
+    </span>
   );
 }

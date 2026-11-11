@@ -9,6 +9,8 @@ import type {
   RelatorioVendas, OutraReceitaEntrada, OutraReceitaSaida, OutraReceitaAlteracao, OpcoesReceita, TaxaPagamento, TaxaEntrada, RecorrenciaEntrada, Participacao,
   SimulacaoParticipacao, EstadoContaMes, DocumentoRevisao, CorrecaoDocumento, ResolucaoDocumento, AnexoDespesa,
   CategoriaEntrada, CategoriaAlteracao, CandidataRevisao, DespesaCandidata, FornecedorCadastro, FornecedorDetalhe,
+  ContaPagadora, ContaPagadoraCadastro, ContaPagadoraEntrada, ListaPendencias, Pendencia, PagadorPagamento, Acertos,
+  MovimentoAcerto, Responsavel, Tratamento,
 } from '../tipos/financeiro';
 
 const lista = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
@@ -59,7 +61,7 @@ export const financeiro = {
   resumo: () => pedir<ResumoFinanceiro>('financeiro/resumo'),
   revisao: async (semCategoria = false) =>
     normalizarFila(await pedir<Partial<FilaRevisao>>('financeiro/revisao', { query: { limite: 100, sem_categoria: semCategoria || undefined } })),
-  lancamentos: (q: { de: string; ate: string; tipo?: string; categoria?: string; origem?: string; status?: string; busca?: string; recebimento?: 'recebida' | 'pendente'; limite?: number; deslocamento?: number }) =>
+  lancamentos: (q: { de: string; ate: string; tipo?: string; categoria?: string; origem?: string; status?: string; busca?: string; recebimento?: 'recebida' | 'pendente'; pagador?: string; limite?: number; deslocamento?: number }) =>
     pedir<ListaLancamentos>('financeiro/lancamentos', { query: { limite: 100, ...q } }),
   /** Só as categorias VÁLIDAS na unidade do topo (a ponte manda ?unidade=): o que os seletores oferecem. */
   categorias: async () => lista<Categoria>(await pedir<Categoria[]>('financeiro/categorias')),
@@ -170,4 +172,40 @@ export const financeiro = {
     return pedir<{ id: string; mime: string; ja_existia: boolean }>('arquivos', { metodo: 'POST', formulario: f });
   },
   urlArquivo: (id: string) => pedir<{ url: string; expira_em: string; mime: string }>(`arquivos/${id}/url`),
+  // --- 0029: quem pagou, Pendências e acertos (api_pagadores.py; contrato §13) ---
+  /** Para escolher o pagador (financeiro.lancar): apelido, lado, finais da conta; `padrao_id` = a empresarial do Âmbar. */
+  contasPagadoras: async () => {
+    const r = await pedir<{ itens: ContaPagadora[]; padrao_id: string | null }>('financeiro/contas-pagadoras');
+    return { itens: lista<ContaPagadora>(r?.itens), padrao_id: r?.padrao_id ?? null };
+  },
+  /** Cadastro (financeiro.configurar): titular e documento mascarados, inclusive inativas. */
+  cadastroContasPagadoras: async () => lista<ContaPagadoraCadastro>((await pedir<{ itens: ContaPagadoraCadastro[] }>('financeiro/contas-pagadoras/cadastro'))?.itens),
+  criarContaPagadora: (c: ContaPagadoraEntrada) => pedir<ContaPagadoraCadastro>('financeiro/contas-pagadoras', { metodo: 'POST', corpo: c }),
+  alterarContaPagadora: (id: string, c: Partial<ContaPagadoraEntrada> & { versao: number; status?: 'ativa' | 'inativa' }) =>
+    pedir<ContaPagadoraCadastro>(`financeiro/contas-pagadoras/${id}`, { metodo: 'PATCH', corpo: c }),
+  /** Uma lista: despesas sem categoria e/ou sem pagador. */
+  pendencias: async (): Promise<ListaPendencias> => {
+    const r = await pedir<Partial<ListaPendencias>>('financeiro/pendencias', { query: { limite: 200 } });
+    const itens = lista<Pendencia>(r?.itens).map((i) => ({ ...i, falta: lista<Pendencia['falta'][number]>(i.falta) }));
+    return {
+      total: typeof r?.total === 'number' ? r.total : itens.length,
+      itens,
+      alertas: { documentos: r?.alertas?.documentos ?? 0, despesas_em_conferencia: r?.alertas?.despesas_em_conferencia ?? 0 },
+    };
+  },
+  /** Corrige a MESMA despesa. 409 conflito_versao quando outra pessoa mudou antes. */
+  resolverPendencia: (despesaId: string, c: { versao: number; categoria?: string | null; conta_id?: string | null }) =>
+    pedir<{ resolvida: boolean; item: Pendencia | null }>(`financeiro/pendencias/${despesaId}`, { metodo: 'POST', corpo: c }),
+  pagador: (pagamentoId: string) => pedir<PagadorPagamento>(`financeiro/pagamentos/${pagamentoId}/pagador`),
+  /** Trocar um pagador já definido: só financeiro.configurar (409 pagador_ja_definido para os outros). */
+  definirPagador: (pagamentoId: string, conta_id: string, versao?: number | null) =>
+    pedir<PagadorPagamento>(`financeiro/pagamentos/${pagamentoId}/pagador`, { metodo: 'PUT', corpo: { conta_id, versao: versao ?? null } }),
+  definirTratamento: (pagamentoId: string, t: { versao: number; tratamento: Exclude<Tratamento, 'nao_se_aplica'>; valor_reembolso?: string | null }) =>
+    pedir<PagadorPagamento>(`financeiro/pagamentos/${pagamentoId}/tratamento`, { metodo: 'PUT', corpo: t }),
+  definirResponsavel: (despesaId: string, versao: number, responsavel: Responsavel) =>
+    pedir<{ despesa_id: string; responsavel: Responsavel; versao: number }>(`financeiro/despesas/${despesaId}/responsavel`, { metodo: 'PUT', corpo: { versao, responsavel } }),
+  acertos: () => pedir<Acertos>('financeiro/acertos'),
+  registrarAcerto: (m: { sentido: MovimentoAcerto['sentido']; valor: string; data: string; descricao: string; conta_id?: string | null }) =>
+    pedir<MovimentoAcerto>('financeiro/acertos/movimentos', { metodo: 'POST', corpo: m }),
+  cancelarAcerto: (id: string, motivo: string) => pedir<MovimentoAcerto>(`financeiro/acertos/movimentos/${id}/cancelar`, { metodo: 'POST', corpo: { motivo } }),
 };

@@ -89,9 +89,9 @@ export function MotivosQualidade({ q }: { q: Qualidade }) {
 
 export const SITUACAO_CONTA: Record<SituacaoConta, { rotulo: string; tom: Tom; destaque?: boolean }> = {
   vencida: { rotulo: 'Vencida', tom: 'perigo', destaque: true },
-  vence_hoje: { rotulo: 'Vence hoje', tom: 'atencao', destaque: true },
-  parcial: { rotulo: 'Paga em parte', tom: 'info' },
-  a_vencer: { rotulo: 'A vencer', tom: 'neutro' },
+  vence_hoje: { rotulo: 'A pagar · hoje', tom: 'atencao', destaque: true },
+  parcial: { rotulo: 'Parcialmente paga', tom: 'info' },
+  a_vencer: { rotulo: 'A pagar', tom: 'neutro' },
   paga: { rotulo: 'Paga', tom: 'ok' },
 };
 
@@ -314,3 +314,26 @@ export const BASE_PARTICIPACAO: Record<string, string> = {
   resultado_operacional: 'Resultado operacional',
   resultado_gerencial: 'Resultado gerencial',
 };
+
+// --- 0029: quem pagou ---------------------------------------------------------------------------------------------------
+
+export const PARTE: Record<string, string> = { ambar: 'Âmbar', roll: 'Roll' };
+export const RESPONSAVEL: Record<string, string> = { ambar: 'Âmbar', roll: 'Roll', compartilhada: 'Compartilhada 50/50' };
+export const TRATAMENTO: Record<string, string> = {
+  a_definir: 'A definir',
+  reembolsar: 'Reembolsar',
+  aporte: 'Aporte de capital',
+  sem_reembolso: 'Sem reembolso',
+  nao_se_aplica: '—',
+};
+
+/** Contas que podem ser o pagador (sem titular nem documento), com a padrão (empresarial do Âmbar). */
+export function useContasPagadoras() {
+  return useConsulta('financeiro/contas-pagadoras', () => financeiro.contasPagadoras());
+}
+
+/** "Cauã · Âmbar (pessoal)" — sem dado pessoal. */
+export function rotuloConta(c: { apelido: string; parte: string; natureza: string } | null | undefined): string {
+  if (!c) return 'Não identificado';
+  return `${c.apelido} · ${PARTE[c.parte] ?? c.parte}${c.natureza === 'pessoal' ? ' (pessoal)' : ''}`;
+}

@@ -1,10 +1,10 @@
-// Contas a pagar (Movimentações → A pagar): o que tenho que pagar, quanto, quando vence, o que atrasou e o que já foi
+// Contas a pagar (aba própria desde a 0029; antes Movimentações → A pagar): o que tenho que pagar, quanto, quando vence, o que atrasou e o que já foi
 // pago. As contas fixas (recorrências) abrem pelo botão "Contas fixas" (?vista=recorrentes): conta prevista não é
 // pagamento feito, e nada aqui cria conta sozinho. A busca e o detalhe da despesa vêm de Movimentações.
 // Previsto (conta fixa) × devido (a conta do mês) × pago × saldo nunca se misturam. Conta de valor variável paga com o
 // valor real, sem mudar a conta fixa. Rotas: GET /contas-a-pagar, POST /parcelas/{id}/pagamentos.
 import { useEffect, useState } from 'preact/hooks';
-import { Banknote, Repeat, ArrowLeft } from 'lucide-preact';
+import { Banknote, Repeat, ArrowLeft, Search, Plus } from 'lucide-preact';
 import type { ContextoPainel } from '../../lib/sessao';
 import { useConsulta } from '../../lib/consulta';
 import { financeiro } from '../../lib/api/financeiro';
@@ -17,9 +17,30 @@ import type { ContaPagar, ListaContas } from '../../lib/tipos/financeiro';
 import { SITUACAO_CONTA, useNomeCategoria, temPermissao } from './comum';
 import { Pagar, type ContaParaPagar } from './Pagar';
 import { Recorrencias } from './ContasFixas';
+import { NovaDespesa } from './NovaDespesa';
 
 type Filtro = 'vencidas' | 'hoje' | 'proximas' | 'abertas' | 'pagas' | 'todas';
 const FILTROS: Filtro[] = ['vencidas', 'hoje', 'proximas', 'abertas', 'pagas', 'todas'];
+
+/** Aba Contas a pagar: a busca própria + a lista (situações: A pagar, Vencida, Parcialmente paga, Paga). */
+export function ContasAPagar({ contexto, abrirDespesa }: { contexto: ContextoPainel; abrirDespesa: (id: string) => void }) {
+  const [busca, setBusca] = useState('');
+  const [nova, setNova] = useState(false);
+  const lancar = temPermissao(contexto.usuario, 'financeiro.lancar');
+  return (
+    <>
+      <div class="barra-ferramentas">
+        <div class="entrada-grupo barra-ferramentas__busca">
+          <Search aria-hidden="true" />
+          <input class="entrada" type="search" placeholder="Buscar conta ou fornecedor" aria-label="Buscar conta a pagar" maxLength={80} value={busca} onInput={(e) => setBusca(e.currentTarget.value)} />
+        </div>
+        {lancar && <div class="barra-ferramentas__acoes"><Botao variante="primario" icone={<Plus aria-hidden="true" />} onClick={() => setNova(true)}>Nova conta</Botao></div>}
+      </div>
+      <Contas contexto={contexto} busca={busca} abrirDespesa={abrirDespesa} />
+      <NovaDespesa aberta={nova} situacaoInicial="a_pagar" aoFechar={() => setNova(false)} aoCriar={abrirDespesa} />
+    </>
+  );
+}
 
 interface PropsContas {
   contexto: ContextoPainel;
@@ -109,8 +130,8 @@ function ListaContasPagar({ contexto, busca, abrirDespesa, aoVerRecorrentes }: P
           opcoes={[
             { valor: 'abertas', rotulo: 'Em aberto' },
             { valor: 'vencidas', rotulo: <>Vencidas{n?.vencidas.qtd ? <span class="contador contador--perigo">{n.vencidas.qtd}</span> : null}</> },
-            ...(filtro === 'hoje' || n?.hoje.qtd ? [{ valor: 'hoje' as const, rotulo: <>Vencem hoje{n?.hoje.qtd ? <span class="contador contador--atencao">{n.hoje.qtd}</span> : null}</> }] : []),
-            { valor: 'proximas', rotulo: 'Próximos 7 dias' },
+            ...(filtro === 'hoje' ? [{ valor: 'hoje' as const, rotulo: 'Vencem hoje' }] : []),
+            ...(filtro === 'proximas' ? [{ valor: 'proximas' as const, rotulo: 'Próximos 7 dias' }] : []),
             { valor: 'pagas', rotulo: 'Pagas' },
             { valor: 'todas', rotulo: 'Todas' },
           ]}

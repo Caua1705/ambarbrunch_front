@@ -41,6 +41,8 @@ export interface ResumoFinanceiro {
   };
   contas: ContasResumo;
   revisao: { despesas: number; documentos: number };
+  /** 0029: contagem da aba Pendências (sem categoria e/ou sem pagador) e o que segue bloqueado em outro fluxo. */
+  pendencias?: { total: number; documentos: number; despesas_em_conferencia: number };
   sincronizacao: Sincronizacao | { configurada: false };
   conciliacao_mes_anterior: AvisoConciliacao | null;
   /** Unidade em uso (`identificacao` do backend). `teste`: unidade de ensaio. */
@@ -66,6 +68,10 @@ export interface Lancamento {
   tem_comprovante: boolean;
   compra_id: Uuid | null;
   despesa_id: Uuid | null;
+  /** 0029: conta que pagou (despesa: a do 1º pagamento; pagamento: a dele). null = não identificado. */
+  pagador_conta_id?: Uuid | null;
+  /** apelido da conta pagadora */
+  pagador?: string | null;
   /**
    * Varia com o tipo (consultas.py): venda_dia {vendas, taxa_servico, total_vendido, descontos, recebido_pdv};
    * despesa {motivos_revisao, valor_a_confirmar, versao}; pagamento {forma, parcela_id, parcela, conciliacao};
@@ -169,6 +175,8 @@ export interface DespesaSaida {
   recorrencia_id: Uuid | null;
   arquivo_id: Uuid | null;
   versao: number;
+  /** 0029: quem deveria pagar (Âmbar, Roll ou 50/50). Backend antigo não manda. */
+  responsavel?: Responsavel;
   criado_por: string | null;
   criado_em: Instante;
   confirmado_em: Instante | null;
@@ -189,7 +197,7 @@ export interface DespesaEntrada {
   fornecedor?: { id?: Uuid | null; documento?: string | null; nome?: string | null } | null;
   arquivo_id?: Uuid | null;
   parcelas?: { vencimento: Data; valor: Dec }[] | null;
-  pagamento?: { pago_em: Data; forma: FormaPagamento; identificador_transacao?: string | null; arquivo_id?: Uuid | null } | null;
+  pagamento?: { pago_em: Data; forma: FormaPagamento; identificador_transacao?: string | null; arquivo_id?: Uuid | null; conta_pagadora_id?: Uuid | null } | null;
 }
 
 export interface PagamentoEntrada {
@@ -198,6 +206,8 @@ export interface PagamentoEntrada {
   valor: Dec;
   identificador_transacao?: string | null;
   arquivo_id?: Uuid | null;
+  /** 0029: conta que pagou (o painel sugere a conta padrão). */
+  conta_pagadora_id?: Uuid | null;
 }
 
 export type GrupoCategoria = 'compras_estoque' | 'pessoal' | 'ocupacao' | 'operacional' | 'marketing' | 'impostos' | 'financeiro' | 'investimento' | 'retirada' | 'repasse' | 'pendente';
@@ -803,6 +813,8 @@ export interface MovimentoDetalhe extends MovimentoBancario {
 export interface Repasses {
   periodo: { de: Data; ate: Data };
   meios: { meio: string; vendido: Dec; liquidado_vinculado: Dec; diferenca_a_conferir: Dec; vendido_por_tipo?: Record<string, Dec> }[];
+  /** 0029 */
+  resumo?: ResumoRecebiveis;
   aviso: string;
 }
 
@@ -844,4 +856,159 @@ export interface FornecedorDetalhe {
   documento: string | null;
   despesas: DespesaSaida[];
   a_pagar: ListaContas;
+}
+
+// --- 0029: quem pagou, Pendências (categoria e pagador), acertos Âmbar × Roll ---------------------------------------
+// Backend: app/modulos/financeiro/api_pagadores.py. Contrato: CONTRATO-PAINEL-FINANCEIRO-ESTOQUE.md §13.
+
+export type ParteConta = 'ambar' | 'roll';
+export type NaturezaConta = 'pessoal' | 'empresarial';
+export type Responsavel = 'ambar' | 'roll' | 'compartilhada';
+export type Tratamento = 'nao_se_aplica' | 'a_definir' | 'reembolsar' | 'aporte' | 'sem_reembolso';
+
+/** Conta pagadora para listas e seleção (financeiro.lancar): sem titular nem documento. */
+export interface ContaPagadora {
+  id: Uuid;
+  apelido: string;
+  parte: ParteConta;
+  natureza: NaturezaConta;
+  instituicao: string;
+  /** "…1234" (só os finais) */
+  conta: string | null;
+  padrao: boolean;
+  status: 'ativa' | 'inativa';
+}
+
+/** Cadastro (financeiro.configurar): dados sempre mascarados. */
+export interface ContaPagadoraCadastro extends ContaPagadora {
+  titular_nome: string;
+  titular_tipo: 'pf' | 'pj';
+  /** CPF: "***.456.789-**"; CNPJ inteiro. */
+  documento: string | null;
+  codigo_banco: string | null;
+  agencia: string | null;
+  chave_pix: string | null;
+  versao: number;
+  atualizado_em: Instante;
+}
+
+export interface ContaPagadoraEntrada {
+  apelido: string;
+  instituicao: string;
+  parte: ParteConta;
+  natureza: NaturezaConta;
+  titular_nome: string;
+  documento?: string | null;
+  codigo_banco?: string | null;
+  agencia?: string | null;
+  conta?: string | null;
+  chave_pix?: string | null;
+  padrao?: boolean;
+}
+
+export type FaltaPendencia = 'categoria' | 'pagador';
+export interface Pendencia {
+  despesa_id: Uuid;
+  descricao: string;
+  valor: Dec;
+  /** data do pagamento (ou a competência, se ainda não paga) */
+  data: Data;
+  competencia: Data;
+  categoria: { codigo: string; nome: string } | null;
+  pagador: ContaPagadora | null;
+  /** Nome parecido no comprovante: só sugestão, nunca aplicada sozinha. */
+  sugestao_pagador: ContaPagadora | null;
+  falta: FaltaPendencia[];
+  status: 'em_revisao' | 'confirmada';
+  origem: string;
+  fornecedor: string | null;
+  tem_comprovante: boolean;
+  versao: number;
+}
+export interface ListaPendencias {
+  total: number;
+  itens: Pendencia[];
+  /** O que continua bloqueado em outro fluxo (Revisão de documentos / despesas em conferência). */
+  alertas: { documentos: number; despesas_em_conferencia: number };
+}
+
+export interface PagadorPagamento {
+  pagamento_id: Uuid;
+  conta: ContaPagadora | null;
+  sugestao?: ContaPagadora | null;
+  metodo: 'automatico' | 'manual' | 'nao_identificado';
+  tratamento: Tratamento;
+  valor_reembolso: Dec | null;
+  definido_por?: string | null;
+  definido_em?: Instante | null;
+  versao: number | null;
+}
+
+export interface SocioAcerto {
+  conta: ContaPagadora | null;
+  pago: Dec;
+  a_definir: Dec;
+  a_definir_quantidade: number;
+  reembolsar: Dec;
+  aporte: Dec;
+  sem_reembolso: Dec;
+  reembolsado: Dec;
+  a_reembolsar: Dec;
+}
+export interface MovimentoAcerto {
+  id: Uuid;
+  sentido: 'roll_para_ambar' | 'ambar_para_roll' | 'ambar_para_socio';
+  valor: Dec;
+  data: Data;
+  descricao: string;
+  conta: ContaPagadora | null;
+  criado_por: string | null;
+  criado_em: Instante;
+  cancelado_em: Instante | null;
+}
+export interface ItemAcerto {
+  pagamento_id: Uuid;
+  despesa_id: Uuid;
+  descricao: string;
+  pago_em: Data;
+  valor: Dec;
+  responsavel: Responsavel;
+  pagador: ContaPagadora | null;
+  adiantou_pelo_outro: Dec;
+  tratamento: Tratamento | null;
+  valor_reembolso: Dec | null;
+  versao: number | null;
+}
+export interface Acertos {
+  roll: {
+    ambar_adiantou_pela_roll: Dec;
+    roll_adiantou_pelo_ambar: Dec;
+    compensado_roll_para_ambar: Dec;
+    compensado_ambar_para_roll: Dec;
+    /** positivo: a Roll deve ao Âmbar; negativo: o Âmbar deve à Roll */
+    saldo: Dec;
+    situacao: 'roll_deve' | 'ambar_deve' | 'zerado';
+    valor: Dec;
+  };
+  socios: SocioAcerto[];
+  aportes: { registrados: Dec; por_pagamento_pessoal: Dec };
+  sem_pagador: { quantidade: number; valor: Dec };
+  itens: ItemAcerto[];
+  movimentos: MovimentoAcerto[];
+  /** false: há pagamentos sem pagador — o saldo não está completo. */
+  completo: boolean;
+}
+
+/** Resumo de cartão e Pix em GET /conciliacao/repasses (0029). Tudo o que é líquido é ESTIMADO. */
+export interface ResumoRecebiveis {
+  vendido: Dec;
+  liquido_estimado: Dec | null;
+  liquido_estimado_parcial: Dec;
+  recebido_confirmado: Dec;
+  ainda_no_prazo: Dec;
+  diferenca_a_conferir: Dec | null;
+  estimativa: true;
+  meios_sem_taxa: string[];
+  por_meio: Record<'credito' | 'debito' | 'pix', { vendido: Dec; liquido_estimado: Dec | null; ainda_no_prazo: Dec; sem_taxa: Dec }>;
+  aviso: string;
 }

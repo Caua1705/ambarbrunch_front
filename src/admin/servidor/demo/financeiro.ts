@@ -14,6 +14,7 @@ import type {
   MovimentoBancario, NivelConciliacao, ContaPagar, Lancamento, MesEvolucao, ResultadoMes, Qualidade,
   NivelQualidade, ItemFechamento, EstadoConciliacao, EstadoContaMes, FormaPagamento, TaxaPagamento, MeioPdv,
   AgrupamentoVendas, PeriodoVendas, SimulacaoParticipacao, MovimentoBancario as Mov, TipoDocumento,
+  ContaPagadoraCadastro, Pendencia, Responsavel, Tratamento, MovimentoAcerto,
 } from '../../lib/tipos/financeiro';
 import type { RadarInsight, VisaoGeral } from '../../lib/tipos/visao-geral';
 
@@ -384,6 +385,106 @@ function mov(conta: ContaBancaria, importacao: string, data: string, direcao: 'c
 // Cálculos -------------------------------------------------------------------------------------------------------------
 
 const vivas = () => E.despesas.filter((d) => d.status !== 'cancelada');
+
+// --- 0029 (demonstração): contas pagadoras fictícias, pagador de cada pagamento, responsável e acertos -----------------
+interface PagadorDemo { conta_id: string | null; metodo: 'automatico' | 'manual' | 'nao_identificado'; tratamento: Tratamento; valor_reembolso: string | null; versao: number }
+const PAG: { pronto: boolean; contas: ContaPagadoraCadastro[]; pagadores: Map<string, PagadorDemo>; responsavel: Map<string, Responsavel>; movimentos: MovimentoAcerto[] } =
+  { pronto: false, contas: [], pagadores: new Map(), responsavel: new Map(), movimentos: [] };
+function contaDemo(apelido: string, parte: 'ambar' | 'roll', natureza: 'pessoal' | 'empresarial', instituicao: string, finais: string, padrao = false): ContaPagadoraCadastro {
+  return { id: id(), apelido, parte, natureza, instituicao, conta: `…${finais}`, padrao, status: 'ativa', titular_nome: `${apelido} (fictício)`, titular_tipo: natureza === 'empresarial' ? 'pj' : 'pf', documento: natureza === 'empresarial' ? '00.000.000/0001-91' : '***.000.000-**', codigo_banco: null, agencia: '0001', chave_pix: null, versao: 1, atualizado_em: new Date().toISOString() };
+}
+const tratamentoInicial = (c: ContaPagadoraCadastro | undefined): Tratamento => (c && c.parte === 'ambar' && c.natureza === 'pessoal' ? 'a_definir' : 'nao_se_aplica');
+function montarPagadores() {
+  montar();
+  if (PAG.pronto) return;
+  PAG.pronto = true;
+  const empresa = contaDemo('Âmbar PJ', 'ambar', 'empresarial', 'Banco fictício', '0001', true);
+  const socio = contaDemo('Sócio Âmbar', 'ambar', 'pessoal', 'Banco fictício', '1111');
+  const roll = contaDemo('Sócio Roll', 'roll', 'pessoal', 'Banco fictício', '2222');
+  PAG.contas.push(empresa, socio, roll);
+  // Pagamentos do painel e das contas fixas: pela conta da empresa. Os da Júlia ficam sem pagador (vão às Pendências).
+  for (const d of E.despesas) for (const pa of d.parcelas) for (const pg of pa.pagamentos) {
+    if (pg.origem === 'julia') continue;
+    PAG.pagadores.set(pg.id, { conta_id: empresa.id, metodo: 'manual', tratamento: 'nao_se_aplica', valor_reembolso: null, versao: 1 });
+  }
+}
+const contaCurta = (c: ContaPagadoraCadastro | undefined | null) => (c ? { id: c.id, apelido: c.apelido, parte: c.parte, natureza: c.natureza, instituicao: c.instituicao, conta: c.conta, padrao: c.padrao, status: c.status } : null);
+const contaPorId = (i: string | null | undefined) => PAG.contas.find((c) => c.id === i);
+const pagamentosVivos = (d: DespesaSaida) => d.parcelas.flatMap((pa) => pa.pagamentos).filter((pg) => !pg.estornado_em);
+function pendenciaDe(d: DespesaSaida): Pendencia | null {
+  const vivos = pagamentosVivos(d);
+  const semPagador = vivos.filter((pg) => !PAG.pagadores.get(pg.id)?.conta_id);
+  const semCategoria = d.categoria_codigo === 'a_classificar';
+  if (!semCategoria && !semPagador.length) return null;
+  const comConta = vivos.map((pg) => PAG.pagadores.get(pg.id)?.conta_id).find(Boolean);
+  const cat = CATEGORIAS.find((c) => c.codigo === d.categoria_codigo);
+  return {
+    despesa_id: d.id, descricao: d.descricao, valor: d.valor, data: vivos[0]?.pago_em ?? d.competencia, competencia: d.competencia,
+    categoria: semCategoria ? null : { codigo: d.categoria_codigo, nome: cat?.nome ?? d.categoria_codigo },
+    pagador: semPagador.length ? null : contaCurta(contaPorId(comConta)), sugestao_pagador: null,
+    falta: [...(semCategoria ? ['categoria' as const] : []), ...(semPagador.length ? ['pagador' as const] : [])],
+    status: d.status === 'em_revisao' ? 'em_revisao' : 'confirmada', origem: d.origem, fornecedor: d.fornecedor?.nome ?? null, tem_comprovante: !!d.arquivo_id, versao: d.versao,
+  };
+}
+function pendenciasDemo(unidade: number) {
+  montarPagadores();
+  return vivas().filter((d) => d.unidade_negocio_id === unidade).map(pendenciaDe).filter((x): x is Pendencia => !!x).sort((a, b) => b.data.localeCompare(a.data));
+}
+function saidaPagador(pagamentoId: string) {
+  const x = PAG.pagadores.get(pagamentoId);
+  if (!x) return { pagamento_id: pagamentoId, conta: null, sugestao: null, metodo: 'nao_identificado', tratamento: 'nao_se_aplica', valor_reembolso: null, versao: null };
+  return { pagamento_id: pagamentoId, conta: contaCurta(contaPorId(x.conta_id)), sugestao: null, metodo: x.metodo, tratamento: x.tratamento, valor_reembolso: x.valor_reembolso, definido_por: 'demo', definido_em: new Date().toISOString(), versao: x.versao };
+}
+function definirPagadorDemo(pagamentoId: string, contaId: string, podeCorrigir: boolean) {
+  const conta = contaPorId(contaId);
+  if (!conta || conta.status !== 'ativa') throw new ErroDemo(422, 'conta_pagadora_invalida', 'Escolha uma das contas pagadoras cadastradas.');
+  const atual = PAG.pagadores.get(pagamentoId);
+  if (atual?.conta_id && atual.conta_id !== contaId && !podeCorrigir) throw new ErroDemo(409, 'pagador_ja_definido', 'O pagador já está definido; só um administrador corrige.');
+  PAG.pagadores.set(pagamentoId, { conta_id: contaId, metodo: 'manual', tratamento: tratamentoInicial(conta), valor_reembolso: null, versao: (atual?.versao ?? 0) + 1 });
+}
+function acertosDemo() {
+  montarPagadores();
+  const parteAmbar: Record<Responsavel, number> = { ambar: 1, roll: 0, compartilhada: 0.5 };
+  let rollDeve = 0;
+  let ambarDeve = 0;
+  let semQtd = 0;
+  let semValor = 0;
+  const socios = new Map<string, { conta: ReturnType<typeof contaCurta>; pago: number; a_definir: number; a_definir_quantidade: number; reembolsar: number; aporte: number; sem_reembolso: number; reembolsado: number }>();
+  const itens = [];
+  for (const d of vivas()) for (const pg of pagamentosVivos(d)) {
+    const x = PAG.pagadores.get(pg.id);
+    const conta = contaPorId(x?.conta_id);
+    if (!conta || !x) { semQtd += 1; semValor += Number(pg.valor); continue; }
+    const resp = PAG.responsavel.get(d.id) ?? 'ambar';
+    const v = Number(pg.valor);
+    const adiantou = conta.parte === 'ambar' ? v * (1 - parteAmbar[resp]) : v * parteAmbar[resp];
+    if (conta.parte === 'ambar') rollDeve += adiantou; else ambarDeve += adiantou;
+    const pessoal = conta.parte === 'ambar' && conta.natureza === 'pessoal';
+    if (pessoal) {
+      const so = socios.get(conta.id) ?? { conta: contaCurta(conta), pago: 0, a_definir: 0, a_definir_quantidade: 0, reembolsar: 0, aporte: 0, sem_reembolso: 0, reembolsado: 0 };
+      so.pago += v;
+      if (x.tratamento === 'reembolsar') so.reembolsar += Number(x.valor_reembolso ?? 0);
+      else if (x.tratamento === 'aporte') so.aporte += v;
+      else if (x.tratamento === 'sem_reembolso') so.sem_reembolso += v;
+      else { so.a_definir += v; so.a_definir_quantidade += 1; }
+      socios.set(conta.id, so);
+    }
+    if (adiantou || pessoal || resp !== 'ambar') itens.push({ pagamento_id: pg.id, despesa_id: d.id, descricao: d.descricao, pago_em: pg.pago_em, valor: pg.valor, responsavel: resp, pagador: contaCurta(conta), adiantou_pelo_outro: d2(adiantou), tratamento: pessoal ? x.tratamento : null, valor_reembolso: x.valor_reembolso, versao: x.versao });
+  }
+  const vivosMov = PAG.movimentos.filter((m) => !m.cancelado_em);
+  const soma = (sentido: string) => vivosMov.filter((m) => m.sentido === sentido).reduce((t, m) => t + Number(m.valor), 0);
+  for (const m of vivosMov.filter((m) => m.sentido === 'ambar_para_socio' && m.conta)) { const so = socios.get(m.conta!.id); if (so) so.reembolsado += Number(m.valor); }
+  const saldo = (rollDeve - soma('roll_para_ambar')) - (ambarDeve - soma('ambar_para_roll'));
+  return {
+    roll: { ambar_adiantou_pela_roll: d2(rollDeve), roll_adiantou_pelo_ambar: d2(ambarDeve), compensado_roll_para_ambar: d2(soma('roll_para_ambar')), compensado_ambar_para_roll: d2(soma('ambar_para_roll')), saldo: d2(saldo), situacao: saldo > 0.004 ? 'roll_deve' : saldo < -0.004 ? 'ambar_deve' : 'zerado', valor: d2(Math.abs(saldo)) },
+    socios: [...socios.values()].map((so) => ({ ...so, pago: d2(so.pago), a_definir: d2(so.a_definir), reembolsar: d2(so.reembolsar), aporte: d2(so.aporte), sem_reembolso: d2(so.sem_reembolso), reembolsado: d2(so.reembolsado), a_reembolsar: d2(so.reembolsar - so.reembolsado) })),
+    aportes: { registrados: d2(E.receitas.filter((r) => r.status === 'confirmada' && r.categoria === 'aporte_socio').reduce((t, r) => t + Number(r.valor), 0)), por_pagamento_pessoal: d2([...socios.values()].reduce((t, so) => t + so.aporte, 0)) },
+    sem_pagador: { quantidade: semQtd, valor: d2(semValor) },
+    itens: itens.slice(-200),
+    movimentos: PAG.movimentos.slice(-100),
+    completo: semQtd === 0,
+  };
+}
 /** B2 (api_admin._arquivo_livre): o arquivo já está numa despesa viva, num pagamento não estornado ou num documento da
  *  Júlia → 409 arquivo_ja_registrado. `excetoDespesa`: o boleto da própria conta pode ir no pagamento dela. */
 function exigirArquivoLivre(arquivoIds: (string | null | undefined)[], excetoDespesa?: string) {
@@ -479,6 +580,7 @@ function evolucaoMes(mes: string): MesEvolucao {
 }
 
 function resumoFinanceiro() {
+  montarPagadores();
   const hoje = hojeFortaleza();
   const mes = mesDe(hoje);
   const ini = `${mes}-01`;
@@ -493,6 +595,7 @@ function resumoFinanceiro() {
     mes: { inicio: ini, receita: d2(receitaPdv(ini, hoje)), receita_mes_anterior_ate_o_mesmo_dia: d2(receitaPdv(`${mesMais(mes, -1)}-01`, anteriorAte)), despesas_confirmadas: d2(desp.reduce((s, d) => s + Number(d.valor), 0)), pago: d2(pagamentosMes.reduce((s, p) => s + Number(p.valor), 0)), a_pagar: d2(contasAPagar().filter((c) => c.situacao === 'aberta' && mesDe(c.vencimento) === mes).reduce((s, c) => s + Number(c.saldo), 0)), resultado_parcial: r.disponivel ? r.resultado_gerencial : null, cmv_fonte: r.disponivel ? r.cmv.fonte : 'indisponivel', qualidade: r.qualidade },
     contas: resumoContas(),
     revisao: pendentesRevisao(),
+    pendencias: { total: pendenciasDemo(UNIDADES.ambar_cafe).length, documentos: pendentesRevisao().documentos, despesas_em_conferencia: vivas().filter((d) => d.status === 'em_revisao' && d.categoria_codigo !== 'a_classificar').length },
     sincronizacao: { ultimo_sucesso_em: new Date(Date.now() - 18 * 60_000).toISOString(), falhas_seguidas: 0, atrasada: false },
     conciliacao_mes_anterior: conc,
     unidade: { codigo: 'ambar_cafe', nome: 'Âmbar Café (demo)', teste: false },
@@ -854,14 +957,14 @@ export const ROTAS_FINANCEIRO: Rota[] = [
     return { despesas: { total: desp.length, itens: desp, sem_categoria_total: semCategoria.length }, documentos: { total: docs.length, itens: docs } };
   }],
   ['GET', R('financeiro/lancamentos'), GERENCIA, ({ query, papel }) => {
-    montar();
+    montarPagadores();
     const de = query.get('de') ?? '';
     const ate = query.get('ate') ?? '';
     const itens: Lancamento[] = [];
     for (const v of E.vendas.filter((x) => x.dia >= de && x.dia <= ate)) itens.push({ tipo: 'venda_dia', id: `1:${v.dia}`, data: v.dia, descricao: 'Vendas PDV', valor: d2(v.total), sinal: 1, categoria: null, origem: 'eyemobile', fornecedor_id: null, fornecedor: null, status: 'confirmada', tem_comprovante: false, compra_id: null, despesa_id: null, detalhes: { vendas: v.vendas, taxa_servico: d2(v.total * 0.08), total_vendido: d2(v.total * 1.035), descontos: d2(v.total * 0.03), recebido_pdv: d2(v.total * 1.08) } });
     const un = idUnidade(query);
-    for (const d of E.despesas.filter((x) => x.competencia >= de && x.competencia <= ate && x.unidade_negocio_id === un)) itens.push({ tipo: 'despesa', id: d.id, data: d.competencia, descricao: d.descricao, valor: d.valor, sinal: -1, categoria: d.categoria_codigo, origem: d.origem, fornecedor_id: d.fornecedor?.id ?? null, fornecedor: d.fornecedor?.nome ?? null, status: d.status, tem_comprovante: !!d.arquivo_id, compra_id: d.compra_id, despesa_id: d.id, detalhes: { motivos_revisao: d.motivos_revisao, valor_a_confirmar: d.valor_a_confirmar, versao: d.versao } });
-    for (const d of E.despesas.filter((x) => x.unidade_negocio_id === un)) for (const p of d.parcelas) for (const pg of p.pagamentos.filter((x) => x.pago_em >= de && x.pago_em <= ate)) itens.push({ tipo: 'pagamento', id: pg.id, data: pg.pago_em, descricao: d.descricao, valor: pg.valor, sinal: -1, categoria: d.categoria_codigo, origem: pg.origem, fornecedor_id: d.fornecedor?.id ?? null, fornecedor: d.fornecedor?.nome ?? null, status: pg.estornado_em ? 'estornado' : 'confirmado', tem_comprovante: !!pg.arquivo_id, compra_id: d.compra_id, despesa_id: d.id, detalhes: { forma: pg.forma, parcela_id: p.id, parcela: p.numero, conciliacao: pg.conciliacao } });
+    for (const d of E.despesas.filter((x) => x.competencia >= de && x.competencia <= ate && x.unidade_negocio_id === un)) itens.push({ tipo: 'despesa', id: d.id, data: d.competencia, descricao: d.descricao, valor: d.valor, sinal: -1, categoria: d.categoria_codigo, origem: d.origem, fornecedor_id: d.fornecedor?.id ?? null, fornecedor: d.fornecedor?.nome ?? null, status: d.status, tem_comprovante: !!d.arquivo_id, compra_id: d.compra_id, despesa_id: d.id, detalhes: { motivos_revisao: d.motivos_revisao, valor_a_confirmar: d.valor_a_confirmar, versao: d.versao, tem_pagamento: pagamentosVivos(d).length > 0 }, pagador_conta_id: (() => { const c = PAG.pagadores.get(pagamentosVivos(d)[0]?.id ?? '')?.conta_id ?? null; return c; })(), pagador: contaPorId(PAG.pagadores.get(pagamentosVivos(d)[0]?.id ?? '')?.conta_id)?.apelido ?? null });
+    for (const d of E.despesas.filter((x) => x.unidade_negocio_id === un)) for (const p of d.parcelas) for (const pg of p.pagamentos.filter((x) => x.pago_em >= de && x.pago_em <= ate)) itens.push({ tipo: 'pagamento', id: pg.id, data: pg.pago_em, descricao: d.descricao, valor: pg.valor, sinal: -1, categoria: d.categoria_codigo, origem: pg.origem, fornecedor_id: d.fornecedor?.id ?? null, fornecedor: d.fornecedor?.nome ?? null, status: pg.estornado_em ? 'estornado' : 'confirmado', tem_comprovante: !!pg.arquivo_id, compra_id: d.compra_id, despesa_id: d.id, detalhes: { forma: pg.forma, parcela_id: p.id, parcela: p.numero, conciliacao: pg.conciliacao }, pagador_conta_id: PAG.pagadores.get(pg.id)?.conta_id ?? null, pagador: contaPorId(PAG.pagadores.get(pg.id)?.conta_id)?.apelido ?? null });
     for (const r of E.receitas.filter((x) => x.competencia >= de && x.competencia <= ate)) itens.push({ tipo: 'outra_receita', id: r.id, data: r.competencia, descricao: r.descricao, valor: r.valor, sinal: 1, categoria: r.categoria, origem: 'painel', fornecedor_id: null, fornecedor: null, status: r.status, tem_comprovante: false, compra_id: null, despesa_id: null, detalhes: { recebido_em: r.recebido_em, forma_recebimento: r.forma_recebimento, origem: r.origem, observacao: r.observacao, versao: r.versao, operacional: receitaOperacional(r.categoria) } });
     const tipo = query.get('tipo');
     const cat = query.get('categoria');
@@ -869,14 +972,15 @@ export const ROTAS_FINANCEIRO: Rota[] = [
     const st = query.get('status');
     const b = query.get('busca')?.toLowerCase();
     const rec = query.get('recebimento');
-    const f = itens.filter((l) => (!rec || (l.tipo === 'outra_receita' && (rec === 'recebida') === !!l.detalhes.recebido_em)) && (!tipo || l.tipo === tipo) && (!cat || l.categoria === cat) && (!org || l.origem === org) && (!st || l.status === st) && (veSocietario(papel) || !ehRetirada(l.categoria)) && (!b || `${l.descricao} ${l.fornecedor ?? ''}`.toLowerCase().includes(b))).sort((a, b2) => b2.data.localeCompare(a.data));
+    const pagadorQ = query.get('pagador');
+    const f = itens.filter((l) => (!pagadorQ || ((l.tipo === 'despesa' || l.tipo === 'pagamento') && (pagadorQ === 'nenhum' ? !l.pagador_conta_id : l.pagador_conta_id === pagadorQ))) && (!rec || (l.tipo === 'outra_receita' && (rec === 'recebida') === !!l.detalhes.recebido_em)) && (!tipo || l.tipo === tipo) && (!cat || l.categoria === cat) && (!org || l.origem === org) && (!st || l.status === st) && (veSocietario(papel) || !ehRetirada(l.categoria)) && (!b || `${l.descricao} ${l.fornecedor ?? ''}`.toLowerCase().includes(b))).sort((a, b2) => b2.data.localeCompare(a.data));
     const soma = (fn: (l: Lancamento) => boolean) => d2(f.filter(fn).reduce((s, l) => s + Number(l.valor), 0));
     return { ...paginar(f, query), totais: { receita_pdv: soma((l) => l.tipo === 'venda_dia'), outras_receitas: soma((l) => l.tipo === 'outra_receita' && l.status === 'confirmada' && !!l.detalhes.operacional), entradas_fora_da_receita: soma((l) => l.tipo === 'outra_receita' && l.status === 'confirmada' && !l.detalhes.operacional), receitas_a_receber: soma((l) => l.tipo === 'outra_receita' && l.status === 'confirmada' && !l.detalhes.recebido_em), despesas_confirmadas: soma((l) => l.tipo === 'despesa' && l.status === 'confirmada'), despesas_em_revisao: soma((l) => l.tipo === 'despesa' && l.status === 'em_revisao'), pagamentos: soma((l) => l.tipo === 'pagamento' && l.status === 'confirmado') } };
   }],
   ['POST', R('financeiro/despesas'), GERENCIA, async ({ corpo, query }) => {
     montar();
     const un = unidadeDa(query);
-    const e = await corpo<{ descricao?: string; valor?: string; competencia?: string; categoria?: string; fornecedor?: { id?: string | null; nome?: string | null; documento?: string | null } | null; arquivo_id?: string | null; parcelas?: { vencimento: string; valor: string }[] | null; pagamento?: { pago_em: string; forma: FormaPagamento; arquivo_id?: string | null } | null }>();
+    const e = await corpo<{ descricao?: string; valor?: string; competencia?: string; categoria?: string; fornecedor?: { id?: string | null; nome?: string | null; documento?: string | null } | null; arquivo_id?: string | null; parcelas?: { vencimento: string; valor: string }[] | null; pagamento?: { pago_em: string; forma: FormaPagamento; arquivo_id?: string | null; conta_pagadora_id?: string | null } | null }>();
     if (!e.descricao || !e.valor || Number(e.valor) <= 0 || !e.competencia || !e.categoria) throw new ErroDemo(422, 'regra_violada', 'Preencha descrição, valor, data e categoria.');
     exigirCategoria(e.categoria, un);
     exigirArquivoLivre([e.arquivo_id, e.pagamento?.arquivo_id]);
@@ -890,6 +994,7 @@ export const ROTAS_FINANCEIRO: Rota[] = [
     const d = novaDespesa({ descricao: e.descricao, valor: Number(e.valor), competencia: e.competencia, categoria: e.categoria, fornecedor: forn, origem: 'painel', arquivo_id: e.arquivo_id ?? null, status: acima ? 'em_revisao' : 'confirmada', motivos: acima ? ['acima_do_limite'] : [], parcelas: e.pagamento ? [{ vencimento: e.competencia, valor: Number(e.valor), paga_em: e.pagamento.pago_em, forma: e.pagamento.forma }] : e.parcelas ? e.parcelas.map((p) => ({ vencimento: p.vencimento, valor: Number(p.valor) })) : [{ vencimento: e.competencia, valor: Number(e.valor) }] });
     d.criado_em = agora();
     d.unidade_negocio_id = UNIDADES[un];
+    if (e.pagamento?.conta_pagadora_id) { montarPagadores(); for (const pg of pagamentosVivos(d)) definirPagadorDemo(pg.id, e.pagamento.conta_pagadora_id, true); }
     return resposta(201, d);
   }],
   ['GET', R(`financeiro/despesas/${UUID}`), GERENCIA, ({ params }) => achaDespesa(params[0])],
@@ -1083,12 +1188,13 @@ export const ROTAS_FINANCEIRO: Rota[] = [
   }],
   ['POST', R(`financeiro/parcelas/${UUID}/pagamentos`), GERENCIA, async ({ params, corpo }) => {
     montar();
-    const e = await corpo<{ pago_em: string; forma: FormaPagamento; valor: string; identificador_transacao?: string | null; arquivo_id?: string | null }>();
+    const e = await corpo<{ pago_em: string; forma: FormaPagamento; valor: string; identificador_transacao?: string | null; arquivo_id?: string | null; conta_pagadora_id?: string | null }>();
     if (!e.valor || Number(e.valor) <= 0) throw new ErroDemo(422, 'regra_violada', 'Informe o valor.');
     if (e.pago_em > hojeFortaleza()) throw new ErroDemo(422, 'data_futura', 'A data do pagamento não pode ser no futuro.');
     exigirArquivoLivre([e.arquivo_id], E.despesas.find((d) => d.parcelas.some((p) => p.id === params[0]))?.id);
     const { p, pg } = pagarParcela(params[0], Number(e.valor), e.pago_em, e.forma, 'painel', e.identificador_transacao ?? null);
     pg.arquivo_id = e.arquivo_id ?? null;
+    if (e.conta_pagadora_id) { montarPagadores(); definirPagadorDemo(pg.id, e.conta_pagadora_id, true); }
     return resposta(201, p);
   }],
   ['POST', R(`financeiro/pagamentos/${UUID}/estornar`), GERENCIA, async ({ params, corpo }) => {
@@ -1464,6 +1570,20 @@ export const ROTAS_FINANCEIRO: Rota[] = [
         { meio: 'pix', vendido: d2(total * 0.24), liquidado_vinculado: '0.00', diferenca_a_conferir: d2(total * 0.24) },
         { meio: 'dinheiro', vendido: d2(total * 0.05), liquidado_vinculado: '0.00', diferenca_a_conferir: d2(total * 0.05) },
       ],
+      resumo: (() => {
+        const credito = cartao * 0.62;
+        const debito = cartao * 0.38;
+        const pix = total * 0.24;
+        const liquido = credito * (1 - 0.0319) + debito * (1 - 0.0129) + pix;
+        const recebido = Math.min(cartao, liquidado);
+        const noPrazo = credito * (1 - 0.0319) * 0.3;
+        return {
+          vendido: d2(credito + debito + pix), liquido_estimado: d2(liquido), liquido_estimado_parcial: d2(liquido), recebido_confirmado: d2(recebido), ainda_no_prazo: d2(noPrazo),
+          diferenca_a_conferir: d2(liquido - noPrazo - recebido), estimativa: true as const, meios_sem_taxa: [],
+          por_meio: { credito: { vendido: d2(credito), liquido_estimado: d2(credito * (1 - 0.0319)), ainda_no_prazo: d2(noPrazo), sem_taxa: '0.00' }, debito: { vendido: d2(debito), liquido_estimado: d2(debito * (1 - 0.0129)), ainda_no_prazo: '0.00', sem_taxa: '0.00' }, pix: { vendido: d2(pix), liquido_estimado: d2(pix), ainda_no_prazo: '0.00', sem_taxa: '0.00' } },
+          aviso: 'Demonstração: líquido estimado pela taxa contratada cadastrada; a Eyemobile não informa taxa nem data de liquidação por venda.',
+        };
+      })(),
       aviso: 'Liquidação vinculada não é receita: a receita é a venda do PDV. A diferença é para conferir (taxa, prazo D+1/D+30, antecipação ou o que ainda não caiu).',
     };
   }],
@@ -1485,5 +1605,93 @@ export const ROTAS_FINANCEIRO: Rota[] = [
     const a = E.arquivos.get(params[0]);
     if (!a) throw new ErroDemo(404, 'nao_encontrado', 'Documento não encontrado.');
     return { url: svgArquivo(a), expira_em: new Date(Date.now() + 5 * 60_000).toISOString(), mime: a.mime };
+  }],
+  // --- 0029: contas pagadoras, Pendências, pagador, responsável e acertos (demonstração) ---
+  ['GET', R('financeiro/contas-pagadoras'), GERENCIA, () => { montarPagadores(); const itens = PAG.contas.filter((c) => c.status === 'ativa').map(contaCurta); return { itens, padrao_id: PAG.contas.find((c) => c.padrao)?.id ?? null }; }],
+  ['GET', R('financeiro/contas-pagadoras/cadastro'), ADMIN, () => { montarPagadores(); return { itens: PAG.contas }; }],
+  ['POST', R('financeiro/contas-pagadoras'), ADMIN, async ({ corpo }) => {
+    montarPagadores();
+    const e = await corpo<{ apelido?: string; instituicao?: string; parte?: 'ambar' | 'roll'; natureza?: 'pessoal' | 'empresarial'; titular_nome?: string; conta?: string | null; padrao?: boolean }>();
+    if (!e.apelido?.trim() || !e.instituicao?.trim() || !e.titular_nome?.trim() || !e.parte || !e.natureza) throw new ErroDemo(422, 'regra_violada', 'Preencha apelido, banco, titular, lado e tipo.');
+    const c = contaDemo(e.apelido.trim(), e.parte, e.natureza, e.instituicao.trim(), (e.conta ?? '').replace(/\D/g, '').slice(-4) || '0000');
+    c.titular_nome = e.titular_nome.trim();
+    if (e.padrao && e.parte === 'ambar' && e.natureza === 'empresarial') { for (const o of PAG.contas) o.padrao = false; c.padrao = true; }
+    PAG.contas.push(c);
+    return resposta(201, c);
+  }],
+  ['PATCH', R(`financeiro/contas-pagadoras/${UUID}`), ADMIN, async ({ params, corpo }) => {
+    montarPagadores();
+    const c = contaPorId(params[0]);
+    if (!c) throw new ErroDemo(404, 'nao_encontrado', 'Conta pagadora não encontrada.');
+    const e = await corpo<{ versao?: number; apelido?: string; status?: 'ativa' | 'inativa'; padrao?: boolean }>();
+    if (e.versao !== c.versao) throw new ErroDemo(409, 'conflito_versao', 'A conta mudou desde que você abriu. Recarregue.');
+    if (e.apelido) c.apelido = e.apelido;
+    if (e.status) c.status = e.status;
+    if (e.padrao !== undefined) { if (e.padrao) for (const o of PAG.contas) o.padrao = false; c.padrao = e.padrao; }
+    c.versao += 1;
+    return c;
+  }],
+  ['GET', R('financeiro/pendencias'), GERENCIA, ({ query }) => {
+    const itens = pendenciasDemo(idUnidade(query));
+    return { total: itens.length, itens, alertas: { documentos: pendentesRevisao().documentos, despesas_em_conferencia: vivas().filter((d) => d.status === 'em_revisao' && d.categoria_codigo !== 'a_classificar').length } };
+  }],
+  ['POST', R(`financeiro/pendencias/${UUID}`), GERENCIA, async ({ params, corpo }) => {
+    montarPagadores();
+    const d = E.despesas.find((x) => x.id === params[0]);
+    if (!d) throw new ErroDemo(404, 'nao_encontrado', 'Despesa não encontrada.');
+    const e = await corpo<{ versao?: number; categoria?: string | null; conta_id?: string | null }>();
+    if (e.versao !== d.versao) throw new ErroDemo(409, 'conflito_versao', 'A despesa mudou desde que você abriu. Recarregue.');
+    if (!e.categoria && !e.conta_id) throw new ErroDemo(422, 'nada_a_corrigir', 'Escolha a categoria ou o pagador.');
+    if (e.categoria) {
+      if (e.categoria === 'a_classificar' || !CATEGORIAS.some((c) => c.codigo === e.categoria)) throw new ErroDemo(422, 'categoria_a_classificar', 'Escolha uma categoria válida.');
+      d.categoria_codigo = e.categoria;
+      if (d.status === 'em_revisao') { d.status = 'confirmada'; d.motivos_revisao = d.motivos_revisao.filter((m) => m !== 'categoria_a_classificar'); }
+      d.versao += 1;
+    }
+    if (e.conta_id) {
+      const vivos = pagamentosVivos(d);
+      if (!vivos.length) throw new ErroDemo(422, 'sem_pagamento', 'Despesa ainda não paga: não há pagador a definir.');
+      for (const pg of vivos) if (!PAG.pagadores.get(pg.id)?.conta_id) definirPagadorDemo(pg.id, e.conta_id, false);
+    }
+    const item = pendenciaDe(d);
+    return { resolvida: !item, item };
+  }],
+  ['GET', R(`financeiro/pagamentos/${UUID}/pagador`), GERENCIA, ({ params }) => { montarPagadores(); return saidaPagador(params[0]); }],
+  ['PUT', R(`financeiro/pagamentos/${UUID}/pagador`), GERENCIA, async ({ params, corpo, papel }) => {
+    montarPagadores();
+    const e = await corpo<{ conta_id?: string }>();
+    definirPagadorDemo(params[0], e.conta_id ?? '', papel === 'admin');
+    return saidaPagador(params[0]);
+  }],
+  ['PUT', R(`financeiro/pagamentos/${UUID}/tratamento`), ADMIN, async ({ params, corpo }) => {
+    montarPagadores();
+    const x = PAG.pagadores.get(params[0]);
+    if (!x?.conta_id) throw new ErroDemo(422, 'sem_pagador', 'Defina o pagador antes.');
+    if (tratamentoInicial(contaPorId(x.conta_id)) === 'nao_se_aplica') throw new ErroDemo(422, 'tratamento_nao_se_aplica', 'Só pagamento por conta pessoal de sócio do Âmbar tem reembolso.');
+    const e = await corpo<{ versao?: number; tratamento?: Tratamento; valor_reembolso?: string | null }>();
+    if (e.versao !== x.versao) throw new ErroDemo(409, 'conflito_versao', 'O pagador mudou desde que você abriu. Recarregue.');
+    x.tratamento = e.tratamento ?? 'a_definir';
+    x.valor_reembolso = x.tratamento === 'reembolsar' ? e.valor_reembolso ?? null : null;
+    x.versao += 1;
+    return saidaPagador(params[0]);
+  }],
+  ['PUT', R(`financeiro/despesas/${UUID}/responsavel`), ADMIN, async ({ params, corpo }) => {
+    montarPagadores();
+    const d = E.despesas.find((x) => x.id === params[0]);
+    if (!d) throw new ErroDemo(404, 'nao_encontrado', 'Despesa não encontrada.');
+    const e = await corpo<{ versao?: number; responsavel?: Responsavel }>();
+    if (e.versao !== d.versao) throw new ErroDemo(409, 'conflito_versao', 'A despesa mudou desde que você abriu. Recarregue.');
+    PAG.responsavel.set(d.id, e.responsavel ?? 'ambar');
+    d.versao += 1;
+    return { despesa_id: d.id, responsavel: PAG.responsavel.get(d.id), versao: d.versao };
+  }],
+  ['GET', R('financeiro/acertos'), ADMIN, () => acertosDemo()],
+  ['POST', R('financeiro/acertos/movimentos'), ADMIN, async ({ corpo }) => {
+    montarPagadores();
+    const e = await corpo<{ sentido?: MovimentoAcerto['sentido']; valor?: string; data?: string; descricao?: string; conta_id?: string | null }>();
+    if (!e.sentido || !e.valor || Number(e.valor) <= 0 || !e.data || !e.descricao?.trim()) throw new ErroDemo(422, 'regra_violada', 'Preencha tipo, valor, data e descrição.');
+    const m: MovimentoAcerto = { id: id(), sentido: e.sentido, valor: d2(Number(e.valor)), data: e.data, descricao: e.descricao.trim(), conta: e.sentido === 'ambar_para_socio' ? contaCurta(contaPorId(e.conta_id)) : null, criado_por: 'demo', criado_em: new Date().toISOString(), cancelado_em: null };
+    PAG.movimentos.push(m);
+    return resposta(201, m);
   }],
 ];

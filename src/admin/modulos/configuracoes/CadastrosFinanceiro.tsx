@@ -9,19 +9,21 @@ import { lerParam, gravarParams } from '../../lib/rotas';
 import { Cartao, Segmentado } from '../../ui/base';
 import { Categorias } from '../financeiro/Categorias';
 import { Fornecedores } from '../financeiro/Fornecedores';
+import { ContasPagadoras } from '../financeiro/ContasPagadoras';
 import { UsuarioFinanceiro, UnidadesFinanceiro, temPermissao } from '../financeiro/comum';
 import '../../estilos/financeiro.css';
 
-type Cadastro = 'categorias' | 'fornecedores';
+type Cadastro = 'categorias' | 'fornecedores' | 'contas';
 
 const ATALHOS = [
-  { href: '/admin/financeiro?tipo=a-pagar&vista=recorrentes', titulo: 'Contas fixas (recorrentes)', detalhe: 'Aluguel, internet, folha: ficam em Movimentações → A pagar' },
+  { href: '/admin/financeiro?aba=contas&vista=recorrentes', titulo: 'Contas fixas (recorrentes)', detalhe: 'Aluguel, internet, folha: ficam em Contas a pagar' },
   { href: '/admin/financeiro?aba=pendencias&vista=stone', titulo: 'Taxas contratadas da adquirente', detalhe: 'Crédito, débito e Pix, com vigência: em Pendências → Stone e recebíveis' },
-  { href: '/admin/financeiro?aba=pendencias&vista=banco', titulo: 'Contas bancárias e extratos', detalhe: 'Cadastrar a conta e importar o extrato: em Pendências → Banco' },
+  { href: '/admin/financeiro?aba=pendencias&vista=banco', titulo: 'Extratos (opcional)', detalhe: 'Importar OFX ou CSV para conferir: em Pendências → Banco' },
 ];
 
 export function CadastrosFinanceiro({ contexto }: { contexto: ContextoPainel }) {
-  const [cadastro, setCadastro] = useState<Cadastro>(() => (lerParam('cadastro') === 'fornecedores' ? 'fornecedores' : 'categorias'));
+  const configurar = temPermissao(contexto.usuario, 'financeiro.configurar');
+  const [cadastro, setCadastro] = useState<Cadastro>(() => { const c = lerParam('cadastro'); return c === 'fornecedores' || (c === 'contas' && configurar) ? c : 'categorias'; });
   useEffect(() => gravarParams({ cadastro: cadastro === 'categorias' ? null : cadastro }), [cadastro]);
   const lancar = temPermissao(contexto.usuario, 'financeiro.lancar');
 
@@ -33,9 +35,9 @@ export function CadastrosFinanceiro({ contexto }: { contexto: ContextoPainel }) 
             rotulo="Cadastros do Financeiro"
             valor={cadastro}
             aoMudar={setCadastro}
-            opcoes={[{ valor: 'categorias', rotulo: 'Categorias' }, { valor: 'fornecedores', rotulo: 'Fornecedores' }]}
+            opcoes={[{ valor: 'categorias', rotulo: 'Categorias' }, { valor: 'fornecedores', rotulo: 'Fornecedores' }, ...(configurar ? [{ valor: 'contas' as const, rotulo: 'Contas e pagadores' }] : [])]}
           />
-          {cadastro === 'categorias' ? <Categorias contexto={contexto} /> : <Fornecedores lancar={lancar} />}
+          {cadastro === 'categorias' ? <Categorias contexto={contexto} /> : cadastro === 'contas' ? <ContasPagadoras /> : <Fornecedores lancar={lancar} />}
           <Cartao titulo="No Financeiro" descricao="Cadastros usados no dia a dia, que ficam onde são usados" justo>
             <ul class="lista">
               {ATALHOS.map((l) => (

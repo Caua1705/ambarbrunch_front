@@ -1,14 +1,18 @@
-// Financeiro na demonstração (backend falso, nada real é lançado): as três abas (Movimentações, Pendências, Relatórios),
-// os endereços antigos abrindo a parte nova certa, os filtros simples de Movimentações, criar despesa e outra receita,
-// pagar uma conta sem duplicar registros, os contadores de Pendências, Relatórios em dois níveis, os cadastros em
-// Configurações e o que é só do Proprietário (participação da Roll) — a gerente não vê na tela e a rota responde 403.
+// Financeiro na demonstração (backend falso, nada real é lançado): as três abas (Movimentações, Contas a pagar,
+// Pendências — 0029), os endereços antigos abrindo a parte nova certa, o filtro único de Movimentações (com o pagador),
+// criar despesa e outra receita, pagar uma conta sem duplicar registros, Pendências com dois motivos corrigidas na mesma
+// despesa, Relatórios fora da navegação (o endereço antigo ainda abre), os cadastros em Configurações e o que é só do
+// Proprietário (participação da Roll, acertos, contas pagadoras) — a gerente não vê na tela e a rota responde 403.
 import { test, expect, type Page } from '@playwright/test';
 import { DEMO, entrarDemo } from './apoio';
 
 const API = `${DEMO}/admin/api/financeiro`;
 const aba = (page: Page, nome: RegExp) => page.getByRole('tablist', { name: 'Seções' }).getByRole('tab', { name: nome });
-const tipo = (page: Page) => page.getByRole('group', { name: 'Tipo de movimentação' });
-const pendencias = (page: Page) => page.getByRole('group', { name: 'Pendências' });
+const filtros = async (page: Page) => {
+  const botao = page.getByRole('button', { name: /^Filtros/ });
+  if ((await botao.getAttribute('aria-expanded')) !== 'true') await botao.click();
+};
+const listaPendencias = (page: Page) => page.getByRole('table', { name: 'Pendências: sem categoria ou sem pagador' });
 async function fecharDetalhe(page: Page, nome: string) {
   const detalhe = page.getByRole('dialog', { name: nome });
   await detalhe.getByRole('button', { name: 'Fechar' }).click();
@@ -23,38 +27,46 @@ test.beforeEach(async ({ page }) => {
 });
 test.afterEach(() => expect(erros).toEqual([]));
 
-test('três abas, sem segundo dashboard', async ({ page }) => {
+test('três abas, sem segundo dashboard e sem Relatórios na navegação', async ({ page }) => {
   await page.goto(`${DEMO}/admin/financeiro`);
   const abas = page.getByRole('tablist', { name: 'Seções' }).getByRole('tab');
   await expect(abas).toHaveCount(3);
-  for (const [i, nome] of [/^Movimentações/, /^Pendências/, /^Relatórios/].entries()) await expect(abas.nth(i)).toHaveText(nome);
+  for (const [i, nome] of [/^Movimentações/, /^Contas a pagar/, /^Pendências/].entries()) await expect(abas.nth(i)).toHaveText(nome);
   await expect(aba(page, /^Movimentações/)).toHaveAttribute('aria-selected', 'true');
   await expect(page.locator('.indicador')).toHaveCount(0);
-  for (const nome of ['Todas', 'Despesas', 'Outras receitas', /^A pagar/]) await expect(tipo(page).getByRole('button', { name: nome })).toBeVisible();
+  // Um único acesso a filtros: nada de seletor Todas/Despesas/Outras receitas/A pagar.
+  await expect(page.getByRole('group', { name: 'Tipo de movimentação' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^Filtros/ })).toHaveCount(1);
   await expect(page.getByRole('button', { name: 'Nova despesa' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Outra receita' })).toBeVisible();
+  const tabela = page.getByRole('table', { name: 'Movimentações do período' });
+  for (const coluna of ['Data', 'Descrição', 'Categoria', 'Valor', 'Pagador', 'Situação']) await expect(tabela.getByRole('columnheader', { name: coluna })).toBeVisible();
+  await expect(tabela.getByRole('columnheader', { name: 'Origem' })).toHaveCount(0);
 });
 
 test('endereços antigos caem na aba e na parte novas', async ({ page }) => {
-  const casos: [string, RegExp, (p: Page) => Promise<void>][] = [
-    ['aba=lancamentos', /^Movimentações/, async (p) => expect(tipo(p).getByRole('button', { name: 'Todas' })).toHaveAttribute('aria-pressed', 'true')],
-    ['aba=contas', /^Movimentações/, async (p) => expect(tipo(p).getByRole('button', { name: /^A pagar/ })).toHaveAttribute('aria-pressed', 'true')],
-    ['aba=contas&situacao=vencidas', /^Movimentações/, async (p) => expect(p.getByRole('group', { name: 'Situação das contas' }).getByRole('button', { name: /^Vencidas/ })).toHaveAttribute('aria-pressed', 'true')],
-    ['aba=contas-fixas', /^Movimentações/, async (p) => expect(p.getByRole('button', { name: 'Voltar às contas a pagar' })).toBeVisible()],
-    ['aba=revisao', /^Pendências/, async (p) => expect(pendencias(p).getByRole('button', { name: /^Revisão da Júlia/ })).toHaveAttribute('aria-pressed', 'true')],
-    ['aba=lancamentos&revisar=1', /^Pendências/, async (p) => expect(p.getByRole('heading', { name: /Documentos do grupo/ })).toBeVisible()],
-    ['aba=conciliacao', /^Pendências/, async (p) => expect(pendencias(p).getByRole('button', { name: /^Banco/ })).toHaveAttribute('aria-pressed', 'true')],
-    ['aba=conciliacao&vista=stone', /^Pendências/, async (p) => expect(p.getByRole('table', { name: 'Repasses por meio' })).toBeVisible()],
-    ['aba=conciliacao&vista=divergencias', /^Pendências/, async (p) => expect(pendencias(p).getByRole('button', { name: 'Divergências' })).toHaveAttribute('aria-pressed', 'true')],
-    ['aba=taxas', /^Pendências/, async (p) => expect(pendencias(p).getByRole('button', { name: 'Stone e recebíveis' })).toHaveAttribute('aria-pressed', 'true')],
-    ['aba=relatorios', /^Relatórios/, async (p) => expect(p.getByRole('navigation', { name: 'Relatórios' }).getByRole('button', { name: 'Resultado do mês' })).toHaveAttribute('aria-current', 'page')],
-    ['aba=resultado', /^Relatórios/, async (p) => expect(p.getByRole('navigation', { name: 'Relatórios' }).getByRole('button', { name: 'Resultado do mês' })).toHaveAttribute('aria-current', 'page')],
-    ['aba=resultado&vista=evolucao', /^Relatórios/, async (p) => expect(p.getByRole('navigation', { name: 'Relatórios' }).getByRole('button', { name: 'Evolução financeira' })).toHaveAttribute('aria-current', 'page')],
-    ['aba=vendas', /^Relatórios/, async (p) => expect(p.getByRole('navigation', { name: 'Relatórios' }).getByRole('button', { name: 'Vendas (Eyemobile)' })).toHaveAttribute('aria-current', 'page')],
+  const relatorio = (p: Page, nome: string) => expect(p.getByRole('navigation', { name: 'Relatórios' }).getByRole('button', { name: nome })).toHaveAttribute('aria-current', 'page');
+  const casos: [string, RegExp | null, (p: Page) => Promise<void>][] = [
+    ['aba=lancamentos', /^Movimentações/, async (p) => expect(p.getByRole('table', { name: 'Movimentações do período' })).toBeVisible()],
+    ['aba=contas', /^Contas a pagar/, async (p) => expect(p.getByRole('group', { name: 'Situação das contas' }).getByRole('button', { name: 'Em aberto' })).toHaveAttribute('aria-pressed', 'true')],
+    ['tipo=a-pagar', /^Contas a pagar/, async (p) => expect(p.getByRole('table', { name: 'Contas a pagar' })).toBeVisible()],
+    ['aba=contas&situacao=vencidas', /^Contas a pagar/, async (p) => expect(p.getByRole('group', { name: 'Situação das contas' }).getByRole('button', { name: /^Vencidas/ })).toHaveAttribute('aria-pressed', 'true')],
+    ['aba=contas-fixas', /^Contas a pagar/, async (p) => expect(p.getByRole('button', { name: 'Voltar às contas a pagar' })).toBeVisible()],
+    ['aba=revisao', /^Pendências/, async (p) => expect(p.getByRole('heading', { name: /Documentos do grupo/ })).toBeVisible()],
+    ['aba=lancamentos&revisar=1', /^Pendências/, async (p) => expect(listaPendencias(p)).toBeVisible()],
+    ['aba=conciliacao', /^Pendências/, async (p) => expect(p.getByRole('button', { name: 'Importar extrato' })).toBeVisible()],
+    ['aba=conciliacao&vista=stone', /^Pendências/, async (p) => expect(p.getByText('Vendido (Eyemobile)')).toBeVisible()],
+    ['aba=conciliacao&vista=divergencias', /^Pendências/, async (p) => expect(p.getByRole('heading', { name: 'Movimentações que precisam de decisão' })).toBeVisible()],
+    ['aba=taxas', /^Pendências/, async (p) => expect(p.getByText('Vendido (Eyemobile)')).toBeVisible()],
+    // Relatórios saiu da navegação, mas o endereço antigo (sino, Visão Geral, link salvo) ainda abre a mesma tela.
+    ['aba=relatorios', null, async (p) => relatorio(p, 'Resultado do mês')],
+    ['aba=resultado', null, async (p) => relatorio(p, 'Resultado do mês')],
+    ['aba=resultado&vista=evolucao', null, async (p) => relatorio(p, 'Evolução financeira')],
+    ['aba=vendas', null, async (p) => relatorio(p, 'Vendas (Eyemobile)')],
   ];
   for (const [antigo, nomeAba, conferir] of casos) {
     await page.goto(`${DEMO}/admin/financeiro?${antigo}`);
-    await expect(aba(page, nomeAba), antigo).toHaveAttribute('aria-selected', 'true');
+    if (nomeAba) await expect(aba(page, nomeAba), antigo).toHaveAttribute('aria-selected', 'true');
     await conferir(page);
   }
   // A aba nova fica na URL (recarregar abre o mesmo lugar).
@@ -70,41 +82,46 @@ test('endereços antigos caem na aba e na parte novas', async ({ page }) => {
   await expect(page.getByRole('table', { name: 'Fornecedores' })).toBeVisible();
 });
 
-test('Movimentações: os filtros simples pedem só o tipo escolhido e mostram só os totais que ele calcula', async ({ page }) => {
+test('Movimentações: um só botão de filtros (tipo e pagador) pede só o escolhido e mostra só os totais que ele calcula', async ({ page }) => {
   await page.goto(`${DEMO}/admin/financeiro`);
   const totais = page.getByLabel('Totais do período');
   await expect(totais).toContainText('Vendas do PDV (Eyemobile)');
   await expect(totais).toContainText('Pagamentos realizados');
   await expect(totais).toContainText('A pagar em aberto');
-  // o mesmo número que a vista A pagar mostra em "Falta pagar" (mesma consulta, nunca duas fontes)
-  const emAberto = (await totais.locator('span', { hasText: 'A pagar em aberto' }).locator('strong').textContent())!.trim();
-  await tipo(page).getByRole('button', { name: /^A pagar/ }).click();
-  await expect(page.locator('.fin-totais div', { hasText: 'Falta pagar' }).locator('strong')).toHaveText(emAberto);
-  await tipo(page).getByRole('button', { name: 'Todas' }).click();
 
-  const pedido = (t: string) => page.waitForRequest((r) => r.url().includes('/financeiro/lancamentos?') && new URL(r.url()).searchParams.get('tipo') === t);
-  const despesas = pedido('despesa');
-  await tipo(page).getByRole('button', { name: 'Despesas' }).click();
+  const pedido = (chave: string, valor: string) => page.waitForRequest((r) => r.url().includes('/financeiro/lancamentos?') && new URL(r.url()).searchParams.get(chave) === valor);
+  await filtros(page);
+  const despesas = pedido('tipo', 'despesa');
+  await page.getByLabel('Tipo').selectOption('despesas');
   await despesas;
   await expect(page).toHaveURL(/tipo=despesas/);
   await expect(totais).toContainText('Despesas confirmadas');
   await expect(totais).not.toContainText('Outras receitas');
 
-  const receitas = pedido('outra_receita');
-  await tipo(page).getByRole('button', { name: 'Outras receitas' }).click();
+  const semPagador = pedido('pagador', 'nenhum');
+  await page.getByLabel('Pagador').selectOption('nenhum');
+  await semPagador;
+  const tabela = page.getByRole('table', { name: 'Movimentações do período' });
+  await expect(tabela.locator('.fin-falta', { hasText: 'Não identificado' }).first()).toBeVisible();
+
+  const receitas = pedido('tipo', 'outra_receita');
+  await page.getByLabel('Tipo').selectOption('receitas');
   await receitas;
   await expect(totais).toContainText('Outras receitas');
   await expect(totais).not.toContainText('Despesas confirmadas');
+  await expect(page.getByLabel('Pagador')).toHaveCount(0);
 
-  await tipo(page).getByRole('button', { name: /^A pagar/ }).click();
+  // O "A pagar em aberto" de Movimentações é o mesmo "Falta pagar" da aba Contas a pagar.
+  await page.getByRole('button', { name: 'Limpar filtros' }).click();
+  const emAberto = (await totais.locator('span', { hasText: 'A pagar em aberto' }).locator('strong').textContent())!.trim();
+  await aba(page, /^Contas a pagar/).click();
+  await expect(page.locator('.fin-totais div', { hasText: 'Falta pagar' }).locator('strong')).toHaveText(emAberto);
   const contas = page.getByRole('table', { name: 'Contas a pagar' });
-  await expect(contas).toBeVisible();
   await expect(contas.getByRole('button', { name: 'Pagar' }).first()).toBeVisible();
-  // A busca da barra vale também para as contas.
   const primeira = (await contas.getByRole('row').nth(1).locator('.principal-celula').textContent())!.trim().split(' · ')[0];
-  await page.getByLabel('Buscar movimentação').fill('zzz-nada-com-isso');
+  await page.getByLabel('Buscar conta a pagar').fill('zzz-nada-com-isso');
   await expect(page.getByText('Nenhuma conta com essa busca')).toBeVisible();
-  await page.getByLabel('Buscar movimentação').fill(primeira.slice(0, 6));
+  await page.getByLabel('Buscar conta a pagar').fill(primeira.slice(0, 6));
   await expect(contas.getByRole('row', { name: new RegExp(primeira.slice(0, 6)) }).first()).toBeVisible();
 });
 
@@ -159,37 +176,42 @@ test('Nova despesa já paga aparece uma vez em Todas (o pagamento só com "Tudo"
   await page.getByLabel('Mostrar').selectOption('tudo');
   await expect(tabela.getByRole('row', { name: new RegExp(nome) })).toHaveCount(2); // a despesa e o pagamento, de propósito
   await page.getByLabel('Mostrar').selectOption('principal');
+  // Lançada no painel já sai com a conta padrão (a empresarial do Âmbar) como pagador.
+  await expect(tabela.getByRole('row', { name: new RegExp(nome) })).toContainText('Âmbar PJ');
 
-  await tipo(page).getByRole('button', { name: /^A pagar/ }).click();
+  await aba(page, /^Contas a pagar/).click();
+  await page.getByLabel('Buscar conta a pagar').fill(nome);
   await expect(page.getByText('Nenhuma conta com essa busca')).toBeVisible();
 });
 
-test('Conta a pagar: lançada, paga pela lista e o pagamento aparece em "Só pagamentos feitos"', async ({ page }) => {
+test('Conta a pagar: lançada na própria aba, paga pela lista e o pagamento aparece em "Só pagamentos feitos"', async ({ page }) => {
   const nome = `Conta a pagar ${Date.now()}`;
-  await page.goto(`${DEMO}/admin/financeiro?tipo=a-pagar`);
-  await page.getByRole('button', { name: 'Nova despesa' }).click();
+  await page.goto(`${DEMO}/admin/financeiro?aba=contas`);
+  await page.getByRole('button', { name: 'Nova conta' }).click();
   const gaveta = page.getByRole('dialog', { name: 'Nova despesa' });
+  await expect(gaveta.getByRole('group', { name: 'Situação do pagamento' }).getByRole('button', { name: 'A pagar' })).toHaveAttribute('aria-pressed', 'true');
   await gaveta.getByLabel('Descrição').fill(nome);
   await gaveta.getByLabel('Valor').fill('120,00');
   await gaveta.getByLabel('Categoria').selectOption({ label: 'Operacional' });
-  await gaveta.getByRole('group', { name: 'Situação do pagamento' }).getByRole('button', { name: 'A pagar' }).click();
   await gaveta.getByRole('button', { name: 'Lançar despesa' }).click();
   await expect(gaveta).toHaveCount(0);
   await fecharDetalhe(page, nome);
 
   const contas = page.getByRole('table', { name: 'Contas a pagar' });
-  await page.getByLabel('Buscar movimentação').fill(nome);
+  await page.getByLabel('Buscar conta a pagar').fill(nome);
   const linha = contas.getByRole('row', { name: new RegExp(nome) });
   await expect(linha).toHaveCount(1);
+  await expect(linha).toContainText('A pagar');
   await linha.getByRole('button', { name: 'Pagar' }).click();
   const pagar = page.getByRole('dialog', { name: 'Registrar pagamento' });
+  await expect(pagar.getByLabel('Pago com a conta')).toHaveValue(/.+/); // a conta padrão já vem escolhida
   await pagar.getByRole('button', { name: /^Registrar pagamento/ }).click();
   await expect(pagar).toHaveCount(0);
   await expect(linha).toHaveCount(0);
 
-  await tipo(page).getByRole('button', { name: 'Todas' }).click();
+  await aba(page, /^Movimentações/).click();
   await page.getByLabel('Buscar movimentação').fill(nome);
-  await page.getByRole('button', { name: /^Filtros/ }).click();
+  await filtros(page);
   await page.getByLabel('Mostrar').selectOption('pagamento');
   await expect(page.getByRole('table', { name: 'Movimentações do período' }).getByRole('row', { name: new RegExp(nome) })).toHaveCount(1);
 });
@@ -278,25 +300,79 @@ test('Outras receitas: valor igual a uma venda do PDV no mesmo dia só entra se 
   await expect(page.getByRole('row', { name: /Caixa do dia lançado à mão/ })).toHaveCount(0);
 });
 
-test('Pendências: Revisão e Conciliação num seletor só; a contagem é a do que está em aberto', async ({ page }) => {
+test('Pendências: uma lista só (sem categoria e/ou sem pagador), corrigida na MESMA despesa pelo modal', async ({ page }) => {
   const resumo = await (await page.request.get(`${API}/resumo`)).json();
-  const revisar = resumo.revisao.despesas + resumo.revisao.documentos;
+  const total = resumo.pendencias.total as number;
+  expect(total).toBeGreaterThan(0);
   await page.goto(`${DEMO}/admin/financeiro?aba=pendencias`);
-  await expect(aba(page, /^Pendências/)).toHaveText(revisar ? `Pendências${revisar}` : 'Pendências');
-  await expect(pendencias(page).getByRole('button', { name: /^Revisão da Júlia/ })).toHaveText(revisar ? `Revisão da Júlia${revisar}` : 'Revisão da Júlia');
-  // a fila da tela bate com o contador
-  const fila = await (await page.request.get(`${API}/revisao?limite=100`)).json();
-  expect(fila.despesas.total + fila.documentos.total).toBe(revisar);
+  await expect(aba(page, /^Pendências/)).toHaveText(`Pendências${total}`);
+  const lista = listaPendencias(page);
+  for (const coluna of ['Descrição', 'Data', 'Valor', 'Categoria', 'Pagador']) await expect(lista.getByRole('columnheader', { name: coluna })).toBeVisible();
+  // Sem os filtros antigos, sem "+1", sem botão Classificar.
+  await expect(page.getByRole('group', { name: 'Filtrar a revisão' })).toHaveCount(0);
+  await expect(lista.getByRole('button', { name: 'Classificar' })).toHaveCount(0);
+  await expect(lista.getByRole('row')).toHaveCount(total + 1);
 
-  await pendencias(page).getByRole('button', { name: /^Banco/ }).click();
+  // A primeira linha sem pagador: o modal escolhe a categoria (se faltar) e o pagador; salva na mesma despesa.
+  const antes = await (await page.request.get(`${API}/pendencias`)).json();
+  const alvo = antes.itens.find((i: { falta: string[] }) => i.falta.includes('pagador'));
+  await lista.getByRole('row', { name: new RegExp(alvo.descricao.slice(0, 12)) }).first().click();
+  const modal = page.getByRole('dialog', { name: alvo.descricao });
+  if (alvo.falta.includes('categoria')) await modal.getByLabel('Categoria').selectOption({ label: 'Operacional' });
+  const { padrao_id } = await (await page.request.get(`${API}/contas-pagadoras`)).json();
+  await modal.getByLabel('Pagador').selectOption(padrao_id);
+  await modal.getByRole('button', { name: 'Salvar' }).click();
+  await expect(page.getByText('Pendência resolvida.')).toBeVisible();
+  await expect(lista.getByRole('row')).toHaveCount(total);
+  const depois = await (await page.request.get(`${API}/despesas/${alvo.despesa_id}`)).json();
+  expect(depois.id).toBe(alvo.despesa_id);
+
+  // Banco e Stone ficam como conferências secundárias, com volta para a lista.
+  await page.getByRole('navigation', { name: 'Conferências' }).getByRole('button', { name: 'Stone e recebíveis' }).click();
+  await expect(page.getByText('Líquido estimado', { exact: true })).toBeVisible();
+  await expect(page.getByText('estimativa').first()).toBeVisible();
+  await page.getByRole('button', { name: 'Pendências', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Conferências' }).getByRole('button', { name: 'Banco' }).click();
   await expect(page.getByRole('button', { name: 'Importar extrato' })).toBeVisible();
-  await expect(page.getByText('O extrato confere o Financeiro: não cria receita nem despesa sozinho.')).toBeVisible();
-  await pendencias(page).getByRole('button', { name: 'Stone e recebíveis' }).click();
-  await expect(page.getByRole('table', { name: 'Repasses por meio' })).toBeVisible();
-  await pendencias(page).getByRole('button', { name: 'Divergências' }).click();
-  await expect(page.getByRole('heading', { name: 'Movimentações que precisam de decisão' })).toBeVisible();
-  // só três níveis: abas, partes e o conteúdo (nenhum seletor de Conciliação dentro de Pendências)
-  await expect(page.getByRole('group', { name: 'Conciliação' })).toHaveCount(0);
+  // Acertos são só do Proprietário.
+  await page.getByRole('button', { name: 'Pendências', exact: true }).click();
+  await expect(page.getByRole('navigation', { name: 'Conferências' }).getByRole('button', { name: /Acertos/ })).toHaveCount(0);
+  expect((await page.request.get(`${API}/acertos`)).status()).toBe(403);
+});
+
+test('Acertos Âmbar × Roll e contas pagadoras: só o Proprietário', async ({ page }) => {
+  await entrarDemo(page, 'admin');
+  await page.goto(`${DEMO}/admin/financeiro?aba=pendencias&vista=acertos`);
+  await expect(page.getByRole('heading', { name: 'Âmbar × Roll' })).toBeVisible();
+  await expect(page.locator('.fin-saldo')).toContainText(/quites|deve/);
+  await page.getByRole('button', { name: 'Registrar compensação' }).click();
+  const dialogo = page.getByRole('dialog', { name: 'Registrar acerto' });
+  await dialogo.getByLabel('Valor').fill('50,00');
+  await dialogo.getByLabel('Descrição').fill('Pix de acerto (demonstração)');
+  await dialogo.getByRole('button', { name: 'Registrar' }).click();
+  await expect(page.getByText('Acerto registrado.')).toBeVisible();
+  await expect(page.getByText(/Compensações e reembolsos registrados \(1\)/)).toBeVisible();
+
+  await page.goto(`${DEMO}/admin/configuracoes?secao=financeiro&cadastro=contas`);
+  const tabela = page.getByRole('table', { name: 'Contas pagadoras' });
+  await expect(tabela.getByRole('row', { name: /Âmbar PJ/ })).toContainText('padrão');
+  await expect(tabela).not.toContainText(/\d{3}\.\d{3}\.\d{3}-\d{2}/); // CPF nunca inteiro
+
+  await entrarDemo(page, 'gerente');
+  await page.goto(`${DEMO}/admin/configuracoes?secao=financeiro`);
+  await expect(page.getByRole('group', { name: 'Cadastros do Financeiro' }).getByRole('button', { name: 'Contas e pagadores' })).toHaveCount(0);
+  expect((await page.request.get(`${API}/contas-pagadoras/cadastro`)).status()).toBe(403);
+});
+
+test('Pendências no celular: lista compacta e modal sem rolagem horizontal', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`${DEMO}/admin/financeiro?aba=pendencias`);
+  const lista = listaPendencias(page);
+  await expect(lista).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+  await lista.getByRole('row').nth(1).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
 });
 
 test('Relatórios: os três principais primeiro, fechamento e vendas num grupo discreto, sem cadastros', async ({ page }) => {
@@ -334,8 +410,8 @@ test('Resultado: participação da Roll só para o Proprietário (simulação)',
   expect((await page.request.get(`${DEMO}/admin/api/financeiro/apuracoes/${mes}/participacao`)).status()).toBe(403);
 });
 
-test('Contas fixas em Movimentações → A pagar; taxas contratadas em Pendências → Stone, com nova vigência', async ({ page }) => {
-  await page.goto(`${DEMO}/admin/financeiro?tipo=a-pagar`);
+test('Contas fixas em Contas a pagar; taxas contratadas em Pendências → Stone, com nova vigência', async ({ page }) => {
+  await page.goto(`${DEMO}/admin/financeiro?aba=contas`);
   await page.getByRole('button', { name: 'Contas fixas' }).click();
   await expect(page).toHaveURL(/vista=recorrentes/);
   await expect(page.getByText('Aluguel da loja')).toBeVisible();
@@ -343,8 +419,8 @@ test('Contas fixas em Movimentações → A pagar; taxas contratadas em Pendênc
   await expect(page.getByRole('table', { name: 'Contas a pagar' })).toBeVisible();
 
   await page.goto(`${DEMO}/admin/financeiro?aba=pendencias&vista=stone`);
-  await expect(page.getByRole('table', { name: 'Repasses por meio' })).toBeVisible();
-  await page.getByRole('button', { name: 'Taxas contratadas (cadastro)' }).click();
+  await expect(page.getByText('Vendido (Eyemobile)')).toBeVisible();
+  await page.getByRole('button', { name: 'Taxas contratadas' }).click();
   const taxas = page.getByRole('table', { name: 'Taxas por meio de pagamento' });
   await expect(taxas.getByText('Em vigor').first()).toBeVisible();
   await page.getByRole('button', { name: 'Registrar taxa' }).click();
@@ -410,6 +486,6 @@ test('Configurações → Financeiro: Categorias e Fornecedores ali dentro, com 
   await cadastros.getByRole('button', { name: 'Fornecedores' }).click();
   await expect(page.getByRole('table', { name: 'Fornecedores' })).toBeVisible();
   await page.getByRole('link', { name: /Contas fixas \(recorrentes\)/ }).click();
-  await expect(aba(page, /^Movimentações/)).toHaveAttribute('aria-selected', 'true');
+  await expect(aba(page, /^Contas a pagar/)).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByText('Aluguel da loja')).toBeVisible();
 });

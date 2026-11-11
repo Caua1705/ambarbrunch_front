@@ -16,6 +16,8 @@ const PAGINAS = [
   '/admin?periodo=personalizado', '/admin/reservas?vista=mes', '/admin/financeiro?aba=conciliacao', '/admin/financeiro?aba=conciliacao&vista=stone',
   '/admin/financeiro?aba=conciliacao&vista=divergencias', '/admin/financeiro?aba=relatorios', '/admin/financeiro?aba=relatorios&relatorio=fornecedores',
   '/admin/financeiro?aba=contas&vista=recorrentes', '/admin/financeiro?tipo=a-pagar', '/admin/financeiro?tipo=despesas', '/admin/financeiro?aba=pendencias', '/admin/financeiro?aba=pendencias&vista=banco', '/admin/configuracoes?secao=financeiro', '/admin/configuracoes?secao=financeiro&cadastro=fornecedores', '/admin/configuracoes?secao=equipe', '/admin/configuracoes?secao=agenda',
+  // 0029: Pendências com dois motivos, acertos e o cadastro das contas pagadoras
+  '/admin/financeiro?aba=pendencias&vista=acertos', '/admin/financeiro?aba=pendencias&vista=stone', '/admin/configuracoes?secao=financeiro&cadastro=contas',
 ];
 
 for (const largura of [375, 390, 430, 768, 1024, 1366]) {

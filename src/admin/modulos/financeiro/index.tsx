@@ -1,7 +1,8 @@
-// Financeiro: três abas, cada uma com uma função — Movimentações (despesas, outras receitas, contas a pagar e
-// pagamentos: consultar e registrar), Pendências (Revisão da Júlia e Conciliação: banco, Stone/recebíveis,
-// divergências e importação de extrato) e Relatórios (resultado, despesas por categoria, evolução; fechamento e vendas
-// num grupo discreto). Cadastros (categorias, fornecedores) ficam em Configurações → Financeiro. O painel executivo é a
+// Financeiro (0029): três abas — Movimentações (despesas, outras receitas e pagamentos: consultar e registrar), Contas a
+// pagar (o que falta pagar, vencidas, parciais, pagas e as contas fixas) e Pendências (só despesa sem categoria e/ou
+// sem pagador; Banco, Stone, Acertos e os documentos da Júlia ficam como conferências secundárias dentro dela).
+// Relatórios saiu da navegação: os endereços antigos (?aba=relatorios, sino, Visão Geral) ainda abrem a mesma tela,
+// sem aba — nada do backend foi apagado. Cadastros (categorias, fornecedores) ficam em Configurações → Financeiro. O painel executivo é a
 // Visão Geral: aqui não há um segundo dashboard. Gerente e Proprietário; o que é só do Proprietário (participação,
 // fechar e reabrir) segue as permissões que o backend manda.
 import { useEffect, useState } from 'preact/hooks';
@@ -13,13 +14,16 @@ import { Raiz } from '../../ui/camadas';
 import { Abas } from '../../ui/base';
 import { Esqueleto } from '../../ui/estados';
 import { Movimentacoes } from './Movimentacoes';
+import { ContasAPagar } from './Contas';
+import { DetalheDespesa } from './DetalheDespesa';
+import { useConfirmacao } from '../../ui/camadas';
 import { Pendencias } from './Pendencias';
 import { Relatorios } from './Relatorios';
 import { UsuarioFinanceiro, UnidadesFinanceiro } from './comum';
 import '../../estilos/financeiro.css';
 
-export type Aba = 'movimentacoes' | 'pendencias' | 'relatorios';
-const ABAS: Aba[] = ['movimentacoes', 'pendencias', 'relatorios'];
+export type Aba = 'movimentacoes' | 'contas' | 'pendencias' | 'relatorios';
+const ABAS: Aba[] = ['movimentacoes', 'contas', 'pendencias', 'relatorios'];
 
 /** Cadastro que saiu do Financeiro: o endereço antigo leva à seção de Configurações que o mostra agora. */
 const CADASTROS = ['categorias', 'fornecedores'];
@@ -42,6 +46,11 @@ function abaDaUrl(): Aba {
   const vista = lerParam('vista');
   const relatorio = lerParam('relatorio');
 
+  // ?tipo=a-pagar era o filtro A pagar de Movimentações: hoje é a aba Contas a pagar.
+  if ((a === null || a === 'movimentacoes') && lerParam('tipo') === 'a-pagar') {
+    mudar({ tipo: null });
+    return 'contas';
+  }
   if (a === null || a === 'resumo') return 'movimentacoes';
   if (a === 'lancamentos') {
     // ?aba=lancamentos&revisar=1 era a Revisão; &vista=banco, o extrato.
@@ -54,15 +63,15 @@ function abaDaUrl(): Aba {
     return 'movimentacoes';
   }
   if (a === 'contas') {
-    mudar({ tipo: 'a-pagar', vista: vista === 'recorrentes' ? 'recorrentes' : null });
-    return 'movimentacoes';
+    mudar({ tipo: null, vista: vista === 'recorrentes' ? 'recorrentes' : null });
+    return 'contas';
   }
   if (a === 'contas-fixas' || a === 'configuracoes' || a === 'fixas') {
-    mudar({ tipo: 'a-pagar', vista: 'recorrentes' });
-    return 'movimentacoes';
+    mudar({ tipo: null, vista: 'recorrentes' });
+    return 'contas';
   }
   if (a === 'revisao') {
-    mudar({ vista: null });
+    mudar({ vista: 'revisao' });
     return 'pendencias';
   }
   if (a === 'conciliacao') {
@@ -104,10 +113,10 @@ function Conteudo({ contexto }: { contexto: ContextoPainel }) {
   const [aba, setAba] = useState<Aba>(abaDaUrl);
   useEffect(() => gravarParams({ aba: aba === 'movimentacoes' ? null : aba }), [aba]);
 
-  // Contagens nas abas, só do que está em aberto (as mesmas do sino, do mesmo backend): contas vencidas em
-  // Movimentações; despesas em revisão + comprovantes pendentes em Pendências.
+  // Contagens nas abas, só do que está em aberto: contas vencidas em Contas a pagar; em Pendências, as despesas sem
+  // categoria e/ou sem pagador (backend antigo, sem a contagem: despesas em revisão + documentos, como antes).
   const resumo = useConsulta('financeiro/resumo', () => financeiro.resumo());
-  const revisar = resumo.dados ? resumo.dados.revisao.despesas + resumo.dados.revisao.documentos : null;
+  const revisar = resumo.dados ? resumo.dados.pendencias?.total ?? resumo.dados.revisao.despesas + resumo.dados.revisao.documentos : null;
   const vencidas = resumo.dados ? resumo.dados.contas.vencidas.qtd : null;
 
   const ir = (a: Aba) => {
@@ -117,10 +126,12 @@ function Conteudo({ contexto }: { contexto: ContextoPainel }) {
   };
 
   const abas: { id: Aba; rotulo: string; contagem?: number | null }[] = [
-    { id: 'movimentacoes', rotulo: 'Movimentações', contagem: vencidas },
+    { id: 'movimentacoes', rotulo: 'Movimentações' },
+    { id: 'contas', rotulo: 'Contas a pagar', contagem: vencidas },
     { id: 'pendencias', rotulo: 'Pendências', contagem: revisar },
-    { id: 'relatorios', rotulo: 'Relatórios' },
   ];
+  const [despesa, setDespesa] = useState<string | null>(null);
+  const { confirmar, elemento: dialogo } = useConfirmacao();
 
   return (
     <UsuarioFinanceiro.Provider value={contexto.usuario}>
@@ -129,9 +140,12 @@ function Conteudo({ contexto }: { contexto: ContextoPainel }) {
           <Abas<Aba> atual={aba} aoMudar={ir} abas={abas} />
           <div role="tabpanel" id={`painel-${aba}`} aria-labelledby={`aba-${aba}`} class="pilha" style={{ gap: '20px' }}>
             {aba === 'movimentacoes' && <Movimentacoes contexto={contexto} />}
-            {aba === 'pendencias' && <Pendencias contexto={contexto} revisar={revisar} />}
+            {aba === 'contas' && <ContasAPagar contexto={contexto} abrirDespesa={setDespesa} />}
+            {aba === 'pendencias' && <Pendencias contexto={contexto} />}
             {aba === 'relatorios' && <Relatorios contexto={contexto} />}
           </div>
+          {aba === 'contas' && <DetalheDespesa id={despesa} aoFechar={() => setDespesa(null)} confirmar={confirmar} />}
+          {dialogo}
         </Raiz>
       </UnidadesFinanceiro.Provider>
     </UsuarioFinanceiro.Provider>

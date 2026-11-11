@@ -78,9 +78,9 @@ async function consultar(fontes: string[]): Promise<Resultado> {
       }),
       pedir<{ contas?: Record<'vencidas' | 'hoje', { qtd: number; valor: string }>; conciliacao_mes_anterior?: { texto: string } | null }>('financeiro/resumo').then((r) => {
         const v = r.contas?.vencidas;
-        if (v && v.qtd > 0) avisos.push({ id: 'vencidas', modulo: 'Financeiro', titulo: plural(v.qtd, 'conta vencida', 'contas vencidas'), detalhe: `${moeda(v.valor)} em aberto`, href: '/admin/financeiro?tipo=a-pagar&situacao=vencidas', prioridade: 0, quantidade: v.qtd });
+        if (v && v.qtd > 0) avisos.push({ id: 'vencidas', modulo: 'Financeiro', titulo: plural(v.qtd, 'conta vencida', 'contas vencidas'), detalhe: `${moeda(v.valor)} em aberto`, href: '/admin/financeiro?aba=contas&situacao=vencidas', prioridade: 0, quantidade: v.qtd });
         const h = r.contas?.hoje;
-        if (h && h.qtd > 0) avisos.push({ id: 'vence-hoje', modulo: 'Financeiro', titulo: plural(h.qtd, 'conta vence hoje', 'contas vencem hoje'), detalhe: moeda(h.valor), href: '/admin/financeiro?tipo=a-pagar&situacao=hoje', prioridade: 1, quantidade: h.qtd });
+        if (h && h.qtd > 0) avisos.push({ id: 'vence-hoje', modulo: 'Financeiro', titulo: plural(h.qtd, 'conta vence hoje', 'contas vencem hoje'), detalhe: moeda(h.valor), href: '/admin/financeiro?aba=contas&situacao=hoje', prioridade: 1, quantidade: h.qtd });
         if (r.conciliacao_mes_anterior) avisos.push({ id: 'conciliacao', modulo: 'Financeiro', titulo: 'Conciliação bancária do mês anterior incompleta', detalhe: r.conciliacao_mes_anterior.texto, href: '/admin/financeiro?aba=pendencias&vista=banco', prioridade: 3, quantidade: 1 });
       }),
     );

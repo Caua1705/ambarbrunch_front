@@ -87,7 +87,7 @@ test('B2: anexar um arquivo já registrado avisa antes e a despesa não é lanç
 
 test('Sem categoria: o filtro mostra o pagamento e a classificação muda a MESMA despesa', async ({ page }) => {
   await entrar(page, 'gerente');
-  await page.goto(`${PAINEL}/admin/financeiro?aba=pendencias`);
+  await page.goto(`${PAINEL}/admin/financeiro?aba=pendencias&vista=revisao`);
   await page.getByRole('group', { name: 'Filtrar a revisão' }).getByRole('button', { name: 'Sem categoria (1)' }).click();
   const item = page.locator('.fin-revisao-item', { hasText: 'R$ 37,00' });
   await expect(item.locator('.etiqueta', { hasText: 'Sem categoria' })).toBeVisible();
@@ -105,7 +105,7 @@ test('Sem categoria: o filtro mostra o pagamento e a classificação muda a MESM
 
 test('B1: comprovante com pagamento parecido já lançado — 409 sem motivo; a exceção com motivo registra uma vez', async ({ page }) => {
   await entrar(page, 'gerente');
-  await page.goto(`${PAINEL}/admin/financeiro?aba=pendencias`);
+  await page.goto(`${PAINEL}/admin/financeiro?aba=pendencias&vista=revisao`);
   await page.getByRole('button', { name: /pix do contador/ }).click();
   const gaveta = page.getByRole('dialog');
   await expect(gaveta.getByRole('region', { name: 'Pagamentos já lançados' })).toBeVisible();
