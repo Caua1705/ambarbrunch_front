@@ -2,10 +2,32 @@
 import { test, expect } from '@playwright/test';
 import { DEMO, entrarDemo } from './apoio';
 
-test('Atendente: abre direto em Reservas, menu só com Reservas e Atendimento, o resto recusado', async ({ page }) => {
+test('Atendente: abre no Modo Operação com Conversas, Reservas e Ponto; o ponto é o terminal oficial do tablet', async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 768 });
   await entrarDemo(page, 'operador');
   await page.goto(`${DEMO}/admin`);
-  await page.waitForURL(`${DEMO}/admin/reservas`);
+  await page.waitForURL(`${DEMO}/admin/operacao`);
+  const secoes = page.getByRole('navigation', { name: /Seções/ });
+  await expect(secoes.getByRole('link', { name: /Conversas/ })).toHaveAttribute('href', '/admin/atendimento');
+  await expect(secoes.getByRole('button', { name: /Reservas/ })).toHaveAttribute('aria-current', 'page');
+  await secoes.getByRole('button', { name: /Ponto/ }).click();
+  await expect(page).toHaveURL(/secao=ponto/);
+  const terminal = page.locator('iframe[title="Terminal de ponto"]');
+  await expect(terminal).toHaveAttribute('src', '/ponto');
+  await expect(terminal).toHaveAttribute('allow', 'camera');
+  await expect(page.getByText('O ponto é de quem aparece, não de quem está logado.')).toBeVisible();
+  // A câmera só é delegada nesta página (e no cadastro facial); o resto do painel continua sem câmera.
+  const politica = (await page.request.get(`${DEMO}/admin/operacao`)).headers()['permissions-policy'];
+  expect(politica).toContain('camera=(self)');
+  expect((await page.request.get(`${DEMO}/admin/reservas`)).headers()['permissions-policy']).toContain('camera=()');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  // Cadastro facial, registros e tablets ficam com o Proprietário (os 403 da API do ponto: tests/test_atendente_ponto.py no backend).
+  expect((await page.request.get(`${DEMO}/admin/api/usuarios`)).status()).toBe(403);
+});
+
+test('Atendente: no painel completo, menu só com Reservas e Atendimento, o resto recusado', async ({ page }) => {
+  await entrarDemo(page, 'operador');
+  await page.goto(`${DEMO}/admin/reservas`);
   const nav = page.getByRole('navigation', { name: 'Módulos' });
   await expect(nav.getByRole('listitem')).toHaveCount(2);
   await expect(nav.getByRole('link', { name: 'Reservas' })).toBeVisible();
@@ -74,4 +96,35 @@ test('Clube segue em pré-lançamento: sem convites e sem pontos inventados', as
   await expect(page.getByText('programa de pontos desligado')).toBeVisible();
   await page.goto(`${DEMO}/admin/clube?secao=vendas`);
   await expect(page.getByRole('button', { name: 'Convidar' })).toHaveCount(0);
+});
+
+test('Proprietário cria a conta do Atendente e define uma nova senha (senha nunca exibida)', async ({ page }) => {
+  await entrarDemo(page, 'admin');
+  await page.goto(`${DEMO}/admin/configuracoes?secao=equipe`);
+  await page.getByRole('button', { name: 'Nova conta' }).click();
+  const gaveta = page.getByRole('dialog', { name: /Nova conta/ });
+  await expect(gaveta.getByLabel('Perfil')).toHaveValue('operador');
+  await gaveta.getByLabel('Nome').fill('Tablet do salão');
+  await gaveta.getByLabel('E-mail').fill('tablet.salao@exemplo.com');
+  await gaveta.getByLabel('Senha inicial').fill('curta');
+  await gaveta.getByLabel('Repita a senha').fill('curta');
+  await gaveta.getByRole('button', { name: 'Criar conta' }).click();
+  await expect(gaveta.getByText('A senha precisa de pelo menos 10 caracteres.')).toBeVisible();
+  await expect(gaveta.getByLabel('Senha inicial')).toHaveAttribute('type', 'password');
+  await gaveta.getByLabel('Senha inicial').fill('senha-do-tablet-2026');
+  await gaveta.getByLabel('Repita a senha').fill('senha-do-tablet-2026');
+  await gaveta.getByRole('button', { name: 'Criar conta' }).click();
+  await expect(page.getByText(/Conta criada\. Atendente já pode entrar/)).toBeVisible();
+  const equipe = page.getByRole('table', { name: 'Equipe e acessos' });
+  const linha = equipe.getByRole('row', { name: /Tablet do salão/ });
+  await expect(linha).toContainText('Atendente');
+  await expect(page.locator('body')).not.toContainText('senha-do-tablet-2026');
+
+  await linha.getByRole('button', { name: 'Ações para Tablet do salão' }).click();
+  await page.getByRole('menuitem', { name: 'Definir nova senha' }).click();
+  const senha = page.getByRole('dialog', { name: /Definir nova senha/ });
+  await senha.getByLabel('Nova senha').fill('outra-senha-forte-2026');
+  await senha.getByLabel('Repita a senha').fill('outra-senha-forte-2026');
+  await senha.getByRole('button', { name: 'Salvar senha' }).click();
+  await expect(page.getByText('Senha definida. As sessões abertas desta conta foram encerradas.')).toBeVisible();
 });

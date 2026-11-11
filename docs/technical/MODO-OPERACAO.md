@@ -89,23 +89,36 @@ claro e escuro; axe sem violação séria/crítica nos dois temas. O backend fal
 monta um dia de movimento em volta de um instante (`POST /__controle?cenario=<ISO>`), com falha e sessão vencida sob
 demanda — nomes fictícios, só de teste.
 
-## O que falta para Atendimento e Ponto
+## Seções: Conversas | Reservas | Ponto (11/11/2026)
 
-A tela já tem o lugar delas (`src/admin/modulos/operacao/secoes.ts`): cada seção diz quando existe para a pessoa
-logada; a navegação entre seções aparece sozinha quando houver mais de uma.
+O Modo Operação é o painel do **Atendente**: depois do login ele cai aqui (`/admin` → `/admin/operacao`), e "Abrir o
+painel completo" leva a Reservas. As seções vêm de `src/admin/modulos/operacao/secoes.ts`; a escolhida fica na URL
+(`?secao=ponto`).
 
-**Atendimento (mensagens dos clientes)**
-1. Backend: publicar o módulo de Atendimento (migrações e rotas `/admin/atendimento*`) em produção.
-2. Frontend: testar o módulo de Atendimento do painel com dados reais e incluir `atendimento` em `PAINEL_MODULOS`.
-   Com isso a seção "Mensagens" aparece no Modo Operação e leva ao módulo do painel. Uma versão própria para o tablet
-   (lista de conversas com botões grandes) é o passo seguinte, sobre as mesmas rotas — nada de conversa inventada.
+- **Conversas**: atalho para o módulo Atendimento do painel (`/admin/atendimento`), com o módulo liberado em
+  `PAINEL_MODULOS`.
+- **Reservas**: a agenda acima.
+- **Ponto**: o terminal **oficial** (`/ponto`, `src/islands/Ponto.tsx`) embutido num iframe da mesma origem
+  (`TerminalPonto.tsx`, `allow="camera"`), com o botão "Reiniciar terminal". Aparece com o módulo `equipe` liberado e a
+  permissão `ponto.terminal` do backend (Atendente, Gerente e Proprietário). Nada foi reimplementado: câmera, desafio
+  de pose, rosto desconhecido, baixa confiança, repetição e "procure o gestor" são do próprio terminal.
 
-**Ponto dos funcionários (entrada, início e fim do intervalo, saída)**
-1. Backend: modelo e API de ponto (registro oficial de jornada), com permissão por perfil, unidade, horário do
-   servidor, auditoria e correção por gestor. Hoje **não existe** — por isso nenhum botão de ponto aparece.
-2. Reconhecimento facial (Python): decisão do backend. Antes de qualquer coleta: base legal e consentimento para dado
-   biométrico (LGPD, dado sensível), onde as imagens/modelos ficam, por quanto tempo, quem acessa, e alternativa sem
-   biometria. O navegador não faz reconhecimento nem guarda imagem; a câmera exigiria liberar `camera=(self)` na
-   `Permissions-Policy` do painel (hoje bloqueada) só nessa página.
-3. Frontend: com a API pronta, a seção `ponto` passa a ter `disponivel` verdadeiro (permissão do backend) e uma tela
-   com os quatro registros; a interface atual não precisa ser refeita.
+**De quem é o ponto:** quem fala com a API do ponto (`/quiosque/ponto/*`) é o **tablet pareado** pelo Proprietário
+(Equipe → Tablets, cookie HttpOnly do aparelho), e a marcação é do **funcionário identificado pelo rosto** no backend —
+nunca da conta logada. A sessão do Atendente sozinha não marca ponto (401 no quiosque) e não abre cadastro facial,
+registros, ajustes nem tablets (403). Sem o tablet pareado, o terminal pede o pareamento ao gestor.
+
+**Câmera:** o middleware libera `Permissions-Policy: camera=(self)` só em `/admin/operacao` (para delegar ao iframe) e
+no cadastro facial; o resto do painel continua `camera=()`. O CSP do painel já permite `frame-src 'self'`.
+
+**Conta do Atendente:** criada pelo Proprietário em Configurações → Equipe → **Nova conta** (perfil padrão Atendente);
+**Definir nova senha** no menu da pessoa encerra as sessões abertas dela. A senha só é enviada ao salvar e nunca é
+exibida. Backend: `POST /admin/usuarios` e `POST /admin/usuarios/{id}/senha` (ver
+`giardini_back/docs/equipe-ponto/ATENDENTE-TABLET.md`).
+
+**Limitações:** a prova de vida não é anti-fraude certificada; a identificação automática fica desligada em produção
+(`AMBAR_PONTO_IDENTIFICACAO_AUTOMATICA`) até a homologação no tablet e a autorização do dono — até lá o ponto segue pelo
+registro assistido. Pendências de LGPD (base legal, RIPD) em `giardini_back/docs/equipe-ponto/TRATAMENTO-DE-DADOS.md`.
+
+**Testes:** `tests-painel/permissoes.spec.ts` (Atendente cai no Modo Operação, seções, iframe `/ponto` com câmera,
+política de câmera só nesta página, 1024×768 sem rolagem horizontal; Nova conta e Definir nova senha).

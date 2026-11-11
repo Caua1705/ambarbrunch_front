@@ -71,6 +71,11 @@ const ACOES = {
 export type Acao = keyof typeof ACOES;
 
 export const podeVer = (papel: Papel, area: Area) => MODULOS[area].includes(papel);
-/** Primeira tela de cada perfil: o Atendente abre direto em Reservas. */
-export const inicioDo = (papel: Papel) => (podeVer(papel, 'visao-geral') ? '/admin' : '/admin/reservas');
+/** Primeira tela de cada perfil: o Atendente começa no Modo Operação (o painel do tablet: Conversas | Reservas | Ponto). */
+export const inicioDo = (papel: Papel) => (podeVer(papel, 'visao-geral') ? '/admin' : '/admin/operacao');
+/** "Abrir o painel completo" a partir do Modo Operação: Visão Geral, ou Reservas para o Atendente. */
+export const painelCompletoDo = (papel: Papel) => (podeVer(papel, 'visao-geral') ? '/admin' : '/admin/reservas');
+/** Terminal de ponto do tablet: `ponto.terminal` do backend (sem a lista: Atendente, Gerente e Proprietário). */
+export const podeTerminalPonto = (usuario: { papel: Papel; permissoes?: string[] }) =>
+  usuario.permissoes ? usuario.permissoes.includes('ponto.terminal') : true;
 export const pode = (papel: Papel, acao: Acao) => (ACOES[acao] as Papel[]).includes(papel);

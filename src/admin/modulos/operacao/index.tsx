@@ -1,20 +1,22 @@
-// Modo Operação: a tela do tablet fixo do café. Cabeçalho com hora de Fortaleza, quem está logado e sair; abaixo, a seção
-// em uso (hoje só Reservas). Mesma sessão, mesmas permissões e mesmas rotas reais do painel — nada paralelo.
+// Modo Operação: a tela do tablet fixo do café (o painel do Atendente). Cabeçalho com hora de Fortaleza, quem está logado
+// e sair; abaixo, a seção em uso: Conversas (o módulo Atendimento), Reservas ou Ponto (o terminal oficial embutido).
+// Mesma sessão, mesmas permissões e mesmas rotas reais do painel — nada paralelo.
 import { useEffect, useState } from 'preact/hooks';
-import { Sun, Moon, LogOut, LayoutDashboard, ChevronDown, CalendarCheck, MessagesSquare, ExternalLink } from 'lucide-preact';
+import { Sun, Moon, LogOut, LayoutDashboard, ChevronDown, CalendarCheck, MessagesSquare, ExternalLink, ScanFace } from 'lucide-preact';
 import type { ContextoPainel } from '../../lib/sessao';
 import { NOME_PAPEL } from '../../lib/sessao';
-import { inicioDo } from '../../lib/permissoes';
+import { painelCompletoDo } from '../../lib/permissoes';
 import { sair } from '../../layout/sair';
 import { Raiz, Suspenso } from '../../ui/camadas';
 import { Vazio } from '../../ui/estados';
 import { secoesDe, type IdSecao } from './secoes';
 import { Agenda } from './Agenda';
+import { TerminalPonto } from './TerminalPonto';
 
 const FUSO = 'America/Fortaleza';
 const horaFmt = new Intl.DateTimeFormat('pt-BR', { timeZone: FUSO, hour: '2-digit', minute: '2-digit' });
 const dataFmt = new Intl.DateTimeFormat('pt-BR', { timeZone: FUSO, weekday: 'long', day: 'numeric', month: 'long' });
-const ICONES: Record<IdSecao, typeof CalendarCheck> = { reservas: CalendarCheck, atendimento: MessagesSquare, ponto: CalendarCheck };
+const ICONES: Record<IdSecao, typeof CalendarCheck> = { reservas: CalendarCheck, atendimento: MessagesSquare, ponto: ScanFace };
 
 /** Relógio da tela: acorda a cada virada de minuto (e ao voltar para a aba). */
 function useAgora() {
@@ -52,7 +54,18 @@ function alternarTema() {
 export default function Operacao({ contexto }: { contexto: ContextoPainel }) {
   const agora = useAgora();
   const secoes = secoesDe(contexto);
-  const [secao] = useState<IdSecao>('reservas');
+  // Seção da URL (?secao=ponto vem do menu do painel); sem ela, Reservas (ou a primeira disponível).
+  const [secao, setSecao] = useState<IdSecao>(() => {
+    const pedida = new URLSearchParams(location.search).get('secao') as IdSecao | null;
+    const internas = secoes.filter((s) => !s.href);
+    return internas.find((s) => s.id === pedida)?.id ?? internas.find((s) => s.id === 'reservas')?.id ?? internas[0]?.id ?? 'reservas';
+  });
+  useEffect(() => {
+    const url = new URL(location.href);
+    if (secao === 'reservas') url.searchParams.delete('secao');
+    else url.searchParams.set('secao', secao);
+    history.replaceState(history.state, '', url);
+  }, [secao]);
   const [saindo, setSaindo] = useState(false);
   const { usuario, unidade } = contexto;
   const iniciais = usuario.nome.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]!.toUpperCase()).join('');
@@ -99,7 +112,7 @@ export default function Operacao({ contexto }: { contexto: ContextoPainel }) {
                   <span>{usuario.perfil ?? NOME_PAPEL[usuario.papel]} · {unidade?.nome ?? 'sem unidade'}</span>
                 </div>
                 <div class="suspenso__sep" />
-                <a class="suspenso__item" role="menuitem" href={inicioDo(usuario.papel)} onClick={fechar}>
+                <a class="suspenso__item" role="menuitem" href={painelCompletoDo(usuario.papel)} onClick={fechar}>
                   <LayoutDashboard aria-hidden="true" /> Abrir o painel completo
                 </a>
                 <button type="button" class="suspenso__item suspenso__item--perigo" role="menuitem" onClick={() => { fechar(); sairAgora(); }}>
@@ -124,9 +137,9 @@ export default function Operacao({ contexto }: { contexto: ContextoPainel }) {
                 <Icone aria-hidden="true" /> {s.rotulo} <ExternalLink class="op-secoes__fora" aria-hidden="true" />
               </a>
             ) : (
-              <span key={s.id} class="op-secoes__item" aria-current={s.id === secao ? 'page' : undefined}>
+              <button key={s.id} type="button" class="op-secoes__item" aria-current={s.id === secao ? 'page' : undefined} onClick={() => setSecao(s.id)}>
                 <Icone aria-hidden="true" /> {s.rotulo}
-              </span>
+              </button>
             );
           })}
         </nav>
@@ -137,6 +150,8 @@ export default function Operacao({ contexto }: { contexto: ContextoPainel }) {
           <Vazio titulo="Sua conta não tem unidade atribuída">Peça ao Proprietário para ligar sua conta ao Âmbar Café no painel.</Vazio>
         ) : secao === 'reservas' && secoes.some((s) => s.id === 'reservas') ? (
           <Agenda contexto={contexto} agora={agora} />
+        ) : secao === 'ponto' && secoes.some((s) => s.id === 'ponto') ? (
+          <TerminalPonto />
         ) : (
           <Vazio titulo="Nada para operar por aqui">Seu perfil não tem nenhuma área do Modo Operação liberada.</Vazio>
         )}

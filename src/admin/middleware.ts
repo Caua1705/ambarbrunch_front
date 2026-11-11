@@ -11,6 +11,8 @@ const PUBLICAS = new Set(['/admin/login', '/admin/api/sessao']);
 // Cadastro facial supervisionado: a única página do painel com câmera, e a única que fala direto com a API (os quadros não
 // passam pelo servidor do painel).
 const CADASTRO_FACIAL = '/admin/equipe/cadastro-facial';
+// Modo Operação: a seção Ponto embute o terminal oficial (/ponto, mesma origem) e precisa delegar a câmera ao iframe.
+const OPERACAO = '/admin/operacao';
 
 export const onRequest = defineMiddleware(async (ctx, next) => {
   const caminho = ctx.url.pathname.replace(/\/+$/, '') || '/';
@@ -20,7 +22,7 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
   const modo = modoPainel();
   ctx.locals.painelModo = modo;
   const https = ehHttps(ctx.request, ctx.url);
-  const seguro = (res: Response) => cabecalhos(res, modo, https, caminho === CADASTRO_FACIAL);
+  const seguro = (res: Response) => cabecalhos(res, modo, https, caminho === CADASTRO_FACIAL, caminho === OPERACAO);
 
   if (!PUBLICAS.has(caminho)) {
     const sessao = lerSessao(ctx.cookies);
@@ -92,7 +94,7 @@ function paginaForaDoAr() {
  * Cabeçalhos de segurança do painel. A CSP libera só os scripts inline que estão NESTA resposta (hash sha256 de cada um:
  * o tema antes da pintura e o carregador das ilhas do Astro) — nada de 'unsafe-inline' para scripts.
  */
-async function cabecalhos(res: Response, modo: string, https: boolean, cadastroFacial: boolean): Promise<Response> {
+async function cabecalhos(res: Response, modo: string, https: boolean, cadastroFacial: boolean, operacao = false): Promise<Response> {
   const headers = new Headers(res.headers);
   // https: o navegador não volta a tentar http neste host (sem includeSubDomains: não mexe em outros subdomínios)
   if (https) headers.set('Strict-Transport-Security', 'max-age=31536000');
@@ -103,7 +105,7 @@ async function cabecalhos(res: Response, modo: string, https: boolean, cadastroF
   headers.set('X-Frame-Options', 'DENY');
   headers.set('X-Content-Type-Options', 'nosniff');
   headers.set('Referrer-Policy', 'same-origin');
-  headers.set('Permissions-Policy', `camera=${cadastroFacial ? '(self)' : '()'}, microphone=(), geolocation=()`);
+  headers.set('Permissions-Policy', `camera=${cadastroFacial || operacao ? '(self)' : '()'}, microphone=(), geolocation=()`);
   if (modo === 'demo') headers.set('X-Painel-Modo', 'demonstracao');
   const tipo = headers.get('Content-Type') ?? '';
   if (!tipo.includes('text/html') || res.status === 304) return new Response(res.body, { status: res.status, statusText: res.statusText, headers });

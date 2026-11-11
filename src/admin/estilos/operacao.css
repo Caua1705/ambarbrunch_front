@@ -609,3 +609,33 @@ button.op-numero:hover {
     min-height: 0;
   }
 }
+
+/* Seção Ponto: o terminal oficial embutido ocupa a tela do tablet. */
+.op-ponto {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e-2);
+  min-height: 0;
+}
+.op-ponto__barra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e-2);
+}
+.op-ponto__barra p {
+  margin: 0;
+}
+.op-ponto__terminal {
+  width: 100%;
+  height: min(78vh, 820px);
+  min-height: 520px;
+  border: 1px solid var(--borda);
+  border-radius: var(--r-l);
+  background: var(--superficie);
+}
+button.op-secoes__item {
+  font: inherit;
+  cursor: pointer;
+}
