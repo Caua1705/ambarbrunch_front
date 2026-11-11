@@ -9,7 +9,7 @@ import type {
   RelatorioVendas, OutraReceitaEntrada, OutraReceitaSaida, OutraReceitaAlteracao, OpcoesReceita, TaxaPagamento, TaxaEntrada, RecorrenciaEntrada, Participacao,
   SimulacaoParticipacao, EstadoContaMes, DocumentoRevisao, CorrecaoDocumento, ResolucaoDocumento, AnexoDespesa,
   CategoriaEntrada, CategoriaAlteracao, CandidataRevisao, DespesaCandidata, FornecedorCadastro, FornecedorDetalhe,
-  ContaPagadora, ContaPagadoraCadastro, ContaPagadoraEntrada, ListaPendencias, Pendencia, PagadorPagamento, Acertos, RepassesConjunto, DespesaCorrecao, ItemDetalhe,
+  ContaPagadora, ContaPagadoraCadastro, ContaPagadoraEntrada, ListaPendencias, Pendencia, PagadorPagamento, Acertos, RepassesConjunto, Ressarcimentos, DespesaCorrecao, ItemDetalhe,
   MovimentoAcerto, Responsavel, Tratamento, ConfiguracaoFinanceira, ResponsavelNovo,
 } from '../tipos/financeiro';
 
@@ -61,7 +61,7 @@ export const financeiro = {
   resumo: () => pedir<ResumoFinanceiro>('financeiro/resumo'),
   revisao: async (semCategoria = false) =>
     normalizarFila(await pedir<Partial<FilaRevisao>>('financeiro/revisao', { query: { limite: 100, sem_categoria: semCategoria || undefined } })),
-  lancamentos: (q: { de: string; ate: string; tipo?: string; categoria?: string; origem?: string; status?: string; busca?: string; recebimento?: 'recebida' | 'pendente'; pagador?: string; lado?: string; grupo?: 'receitas' | 'despesas'; limite?: number; deslocamento?: number }) =>
+  lancamentos: (q: { de?: string; ate?: string; sem_data?: boolean; tipo?: string; categoria?: string; origem?: string; status?: string; busca?: string; recebimento?: 'recebida' | 'pendente'; pagador?: string; lado?: string; grupo?: 'receitas' | 'despesas'; limite?: number; deslocamento?: number }) =>
     pedir<ListaLancamentos>('financeiro/lancamentos', { query: { limite: 100, ...q } }),
   /** Só as categorias VÁLIDAS na unidade do topo (a ponte manda ?unidade=): o que os seletores oferecem. */
   categorias: async () => lista<Categoria>(await pedir<Categoria[]>('financeiro/categorias')),
@@ -208,6 +208,8 @@ export const financeiro = {
     pedir<{ despesa_id: string; responsavel: Responsavel; versao: number }>(`financeiro/despesas/${despesaId}/responsavel`, { metodo: 'PUT', corpo: { versao, responsavel } }),
   acertos: () => pedir<Acertos>('financeiro/acertos'),
   /** 0032: quanto o Conjunto (Master) ainda repassa ao Âmbar e à Roll, com o cálculo. */
+  /** Âmbar e Roll a receber da operação conjunta (views do histórico; só leitura). */
+  ressarcimentos: () => pedir<Ressarcimentos>('financeiro/repasses/historicos'),
   repassesConjunto: () => pedir<RepassesConjunto>('financeiro/repasses'),
   registrarRepasse: (m: { sentido: 'conjunto_para_ambar' | 'conjunto_para_roll' | 'ajuste_ambar' | 'ajuste_roll'; valor: string; data: string; descricao: string }) =>
     pedir<MovimentoAcerto>('financeiro/repasses/movimentos', { metodo: 'POST', corpo: m }),

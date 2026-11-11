@@ -25,12 +25,14 @@ import { NovaDespesa, EditarDespesa } from './NovaDespesa';
 import { NovaReceita } from './NovaReceita';
 import { DetalheDespesa } from './DetalheDespesa';
 
-type Periodo = 'mes' | 'anterior' | '30d' | 'personalizado';
+type Periodo = 'mes' | 'anterior' | '30d' | 'personalizado' | 'todo' | 'sem_data';
 export type VistaMovimentacoes = 'receitas' | 'despesas';
 
 /** Tipos de cada visão. Vendas do PDV (venda_dia) são RECEITA: nunca entram em Despesas, mesmo que um backend anterior
  * à 0031 (que ignora `grupo`) devolva tudo — foi assim que "Vendas PDV" apareceu em Despesas como "A pagar". */
-const TIPOS_DA_VISTA: Record<VistaMovimentacoes, string[]> = { receitas: ['venda_dia', 'outra_receita'], despesas: ['despesa'] };
+// Despesas = PAGAMENTOS realizados (cada um uma vez, pelo valor pago, na data do pagamento); a conta em aberto fica em
+// Contas a pagar. Receitas = o que já entrou.
+const TIPOS_DA_VISTA: Record<VistaMovimentacoes, string[]> = { receitas: ['venda_dia', 'outra_receita'], despesas: ['pagamento'] };
 
 const diasEntre = (de: string, ate: string) => (Date.parse(`${ate}T12:00:00Z`) - Date.parse(`${de}T12:00:00Z`)) / 86_400_000;
 
@@ -99,6 +101,8 @@ export function Movimentacoes({ contexto }: { contexto: ContextoPainel }) {
           <option value="mes">Este mês</option>
           <option value="anterior">Mês anterior</option>
           <option value="30d">Últimos 30 dias</option>
+          <option value="todo">Todo o período</option>
+          <option value="sem_data">Sem data</option>
           <option value="personalizado">Escolher datas…</option>
         </select>
         {periodo === 'personalizado' && <Datas periodo={periodo} de={de} ate={ate} setDe={setDe} setAte={setAte} />}
@@ -146,6 +150,10 @@ function Datas({ periodo, de, ate, setDe, setAte }: { periodo: Periodo; de: stri
 /** Situação de PAGAMENTO da despesa (a conta a pagar é a mesma despesa). Comprovante registrado (pagamento vivo)
  * = Paga, mesmo com categoria/pagador ainda por conferir: isso é pendência à parte (etiqueta), não muda o pagamento. */
 function SituacaoDespesa({ l }: { l: Lancamento }) {
+  if (l.tipo === 'pagamento') {
+    const paga = <Situacao tom="ok">Paga</Situacao>;
+    return l.detalhes.status_despesa === 'em_revisao' ? <span class="linha" style={{ gap: '6px', flexWrap: 'wrap' }}>{paga}<Etiqueta tom="atencao">pendência</Etiqueta></span> : paga;
+  }
   if (l.status === 'cancelada') return <Situacao tom="apagado">Cancelada</Situacao>;
   const pago = Number(l.detalhes.pago ?? 0);
   const valor = Number(l.valor);
@@ -160,8 +168,9 @@ function SituacaoDespesa({ l }: { l: Lancamento }) {
 
 /** Pagador com os mesmos nomes do Responsável (Âmbar, Roll, Conjunto); a conta (ex.: pessoal do Cauã) fica embaixo. */
 function PagadorCelula({ l }: { l: Lancamento }) {
-  const lado = l.pagador_lado ? PARTE[l.pagador_lado] : null;
-  if (lado) return <><span>{lado}</span>{l.pagador && <span class="sub">{l.pagador}</span>}</>;
+  // Empresa pagadora: Âmbar, Roll ou Âmbarxroll (a operação conjunta). Conta individual, se houver, embaixo.
+  const lado = l.pagador_lado ? (l.pagador_lado === 'conjunta' ? 'Âmbarxroll' : PARTE[l.pagador_lado]) : null;
+  if (lado) return <><span>{lado}</span>{l.pagador && l.pagador !== lado && <span class="sub">{l.pagador}</span>}</>;
   if (l.pagador) return <span>{l.pagador}</span>;
   if (l.detalhes.tem_pagamento === false || l.status === 'cancelada') return <span class="fraco">—</span>;
   return <span class="fin-falta">Não identificado</span>;
@@ -176,11 +185,12 @@ function Lista(p: {
   const cats = useCadastroCategorias();
   const opReceita = useConsulta('financeiro/outras-receitas/opcoes', () => financeiro.opcoesReceita());
   const [d1, d2] = intervalo(p.periodo, p.de, p.ate);
-  const q = { de: d1, ate: d2, grupo: vista, busca: p.busca || undefined };
+  const livre = p.periodo === 'todo' || p.periodo === 'sem_data';
+  const q = { ...(livre ? {} : { de: d1, ate: d2 }), ...(p.periodo === 'sem_data' ? { sem_data: true } : {}), grupo: vista, busca: p.busca || undefined };
   const lista = useConsulta(`financeiro/lancamentos?${JSON.stringify(q)}`, () => financeiro.lancamentos({ ...q, limite: 200 }));
   // Período vazio: o lançamento mais recente ANTES dele (até um ano), para o vazio dizer onde estão os registros.
   const qAntes = { ...q, de: somarDias(d1, -366), ate: somarDias(d1, -1) };
-  const anterior = useConsulta(lista.dados?.total === 0 ? `financeiro/lancamentos:anterior?${JSON.stringify(qAntes)}` : null,
+  const anterior = useConsulta(lista.dados?.total === 0 && !livre ? `financeiro/lancamentos:anterior?${JSON.stringify(qAntes)}` : null,
     () => financeiro.lancamentos({ ...qAntes, limite: 1 }));
   const ultimo = lista.dados?.total === 0 ? anterior.dados?.itens[0]?.data ?? null : null;
   const desde = ultimo && diasEntre(inicioMes(ultimo), d2) <= 366 ? inicioMes(ultimo) : ultimo;
@@ -189,11 +199,11 @@ function Lista(p: {
     id: 'acoes', titulo: '', prioridade: 'media',
     celula: (l) => {
       const correcao = lancar ? pedidoCorrecao(l) : null;
-      const editavel = lancar && l.tipo === 'despesa' && l.status !== 'cancelada';
+      const editavel = lancar && (l.tipo === 'despesa' || l.tipo === 'pagamento') && l.status !== 'cancelada' && !!l.despesa_id;
       if (!correcao && !editavel) return null;
       return (
         <span class="linha" style={{ gap: '2px', justifyContent: 'flex-end', flexWrap: 'nowrap' }}>
-          {editavel && <Botao tamanho="p" variante="fantasma" so_icone aria-label={`Editar ${l.descricao}`} icone={<Pencil aria-hidden="true" />} onClick={(e: Event) => { e.stopPropagation(); editarDespesa(l.id); }} />}
+          {editavel && <Botao tamanho="p" variante="fantasma" so_icone aria-label={`Editar ${l.descricao}`} icone={<Pencil aria-hidden="true" />} onClick={(e: Event) => { e.stopPropagation(); editarDespesa(l.despesa_id!); }} />}
           {correcao && (
             <Suspenso rotulo={`Ações para ${l.descricao}`} gatilho={(g) => <Botao tamanho="p" variante="fantasma" so_icone {...g} icone={<MoreHorizontal aria-hidden="true" />} />}>
               {(fechar) => <button class="suspenso__item" role="menuitem" style={{ color: 'var(--perigo)' }} onClick={() => { fechar(); confirmar(correcao); }}>{l.tipo === 'despesa' ? 'Cancelar despesa' : 'Cancelar receita'}</button>}
@@ -248,6 +258,12 @@ function Lista(p: {
 
   return (
     <Cartao justo>
+      {lista.dados && (
+        <div class="fin-totais">
+          <div><span>{vista === 'despesas' ? plural(lista.dados.totais.quantidade ?? lista.dados.total, 'pagamento realizado', 'pagamentos realizados') : plural(lista.dados.totais.quantidade ?? lista.dados.total, 'recebimento', 'recebimentos')}</span></div>
+          <div><span>{vista === 'despesas' ? 'Total pago' : 'Total recebido'}</span><strong class="num">{moeda(lista.dados.totais.valor ?? '0')}</strong></div>
+        </div>
+      )}
       <Dados consulta={lista} recurso="As movimentações" esqueleto={<EsqueletoTabela />}>
         {(r: ListaLancamentos) => (
           <>
@@ -260,6 +276,7 @@ function Lista(p: {
                 if (l.tipo === 'venda_dia') abrirDia(l);
                 else if (l.tipo === 'outra_receita') void abrirReceita(l.id);
                 else if (l.tipo === 'despesa') abrirDespesa(l.id);
+                else if (l.tipo === 'pagamento' && l.despesa_id) abrirDespesa(l.despesa_id);
               }}
               destaque={(l) => l.status === 'em_revisao'}
               apagada={(l) => l.status === 'cancelada'}

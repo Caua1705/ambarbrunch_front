@@ -12,7 +12,17 @@ import { Banknote, Search, Plus, Pencil } from 'lucide-preact';
 import type { ContextoPainel } from '../../lib/sessao';
 import { useConsulta } from '../../lib/consulta';
 import { financeiro } from '../../lib/api/financeiro';
-import { moeda, dataCurta, plural } from '../../lib/formato';
+import { moeda, dataCurta, plural, hojeISO, inicioMes, fimMes, somarMeses } from '../../lib/formato';
+
+/** Período pelo VENCIMENTO da parcela. Padrão: todo o período (nada vencido fica escondido). */
+type PeriodoContas = 'todo' | 'mes' | 'anterior' | 'proximo';
+function periodoContas(p: PeriodoContas): { de?: string; ate?: string } {
+  const mes = inicioMes(hojeISO());
+  if (p === 'mes') return { de: mes, ate: fimMes(mes) };
+  if (p === 'anterior') { const a = somarMeses(mes, -1); return { de: a, ate: fimMes(a) }; }
+  if (p === 'proximo') { const a = somarMeses(mes, 1); return { de: a, ate: fimMes(a) }; }
+  return {};
+}
 import { gravarParams } from '../../lib/rotas';
 import { Suspenso } from '../../ui/camadas';
 import { Botao, Cartao, Situacao } from '../../ui/base';
@@ -30,6 +40,7 @@ export const TIPO_CONTA: Record<string, string> = { avulsa: 'Avulsa', recorrente
 /** Aba Contas a pagar: busca, "+ Conta a pagar" (avulsa, parcelada ou recorrente) e a lista. */
 export function ContasAPagar({ contexto, abrirDespesa }: { contexto: ContextoPainel; abrirDespesa: (id: string) => void }) {
   const [busca, setBusca] = useState('');
+  const [periodo, setPeriodo] = useState<PeriodoContas>('todo');
   const [nova, setNova] = useState<TipoNova | null>(null);
   const lancar = temPermissao(contexto.usuario, 'financeiro.lancar');
   return (
@@ -39,6 +50,12 @@ export function ContasAPagar({ contexto, abrirDespesa }: { contexto: ContextoPai
           <Search aria-hidden="true" />
           <input class="entrada" type="search" placeholder="Buscar conta ou fornecedor" aria-label="Buscar conta a pagar" maxLength={80} value={busca} onInput={(e) => setBusca(e.currentTarget.value)} />
         </div>
+        <select class="selecao selecao--auto" aria-label="Período do vencimento" value={periodo} onChange={(e) => setPeriodo(e.currentTarget.value as PeriodoContas)}>
+          <option value="todo">Todo o período</option>
+          <option value="mes">Este mês</option>
+          <option value="anterior">Mês passado</option>
+          <option value="proximo">Próximo mês</option>
+        </select>
         {lancar && (
           <div class="barra-ferramentas__acoes">
             <Suspenso rotulo="Tipo da conta a pagar" gatilho={(g) => <Botao tamanho="p" variante="primario" icone={<Plus aria-hidden="true" />} {...g}>Conta a pagar</Botao>}>
@@ -53,7 +70,7 @@ export function ContasAPagar({ contexto, abrirDespesa }: { contexto: ContextoPai
           </div>
         )}
       </div>
-      <ListaContasPagar contexto={contexto} busca={busca} abrirDespesa={abrirDespesa} />
+      <ListaContasPagar contexto={contexto} busca={busca} periodo={periodo} abrirDespesa={abrirDespesa} />
       <NovaDespesa aberta={nova === 'avulsa' || nova === 'parcelada'} situacaoInicial={nova === 'parcelada' ? 'parcelada' : 'a_pagar'} aoFechar={() => setNova(null)} aoCriar={abrirDespesa} />
       <EditarRecorrencia alvo={nova === 'recorrente' ? 'nova' : null} aoFechar={() => setNova(null)} />
     </>
@@ -61,7 +78,7 @@ export function ContasAPagar({ contexto, abrirDespesa }: { contexto: ContextoPai
 }
 
 
-function ListaContasPagar({ contexto, busca, abrirDespesa }: { contexto: ContextoPainel; busca: string; abrirDespesa: (id: string) => void }) {
+function ListaContasPagar({ contexto, busca, periodo, abrirDespesa }: { contexto: ContextoPainel; busca: string; periodo: PeriodoContas; abrirDespesa: (id: string) => void }) {
   const lancar = temPermissao(contexto.usuario, 'financeiro.lancar');
   const [pagar, setPagar] = useState<ContaParaPagar | null>(null);
   const [editar, setEditar] = useState<string | null>(null);
@@ -70,7 +87,8 @@ function ListaContasPagar({ contexto, busca, abrirDespesa }: { contexto: Context
   useEffect(() => gravarParams({ situacao: null }), []);
 
   // SÓ o que falta pagar (em aberto e vencidas). Paga, a conta sai daqui e fica em Movimentações → Despesas.
-  const lista = useConsulta('financeiro/contas:{"situacao":"abertas"}', () => financeiro.contas({ situacao: 'abertas' }));
+  const q = { situacao: 'abertas', ...periodoContas(periodo) };
+  const lista = useConsulta(`financeiro/contas:${JSON.stringify(q)}`, () => financeiro.contas(q));
   const situacao = (c: ContaPagar) => (c.situacao_painel === 'vencida' ? 'vencida' : 'aberta');
 
   const colunas: Coluna<ContaPagar>[] = [
@@ -121,9 +139,11 @@ function ListaContasPagar({ contexto, busca, abrirDespesa }: { contexto: Context
               return (
                 <>
                   {r.itens.length > 0 && (
+                    // Acompanha período e busca. Sem busca: totais do servidor (todas as contas do período); com
+                    // busca: soma das linhas encontradas. "A pagar" = saldo (já desconta pagamentos parciais).
                     <div class="fin-totais">
-                      <div><span>{plural(r.total, 'conta em aberto', 'contas em aberto')}</span><strong class="num">{moeda(r.totais.valor)}</strong></div>
-                      <div><span>Falta pagar</span><strong class="num">{moeda(r.totais.saldo)}</strong></div>
+                      <div><span>{plural(termo ? linhas.length : r.total, 'conta pendente', 'contas pendentes')}</span></div>
+                      <div><span>Total a pagar</span><strong class="num">{moeda(termo ? (linhas.reduce((s, c) => s + Math.round(Number(c.saldo) * 100), 0) / 100).toFixed(2) : r.totais.saldo)}</strong></div>
                     </div>
                   )}
                   <Tabela

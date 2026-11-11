@@ -1,4 +1,4 @@
-// Financeiro: Movimentações | Contas a pagar | Contas recorrentes | Pendências | Repasses (Conjunto → Âmbar e Roll, só
+// Financeiro: Movimentações | Contas a pagar | Contas recorrentes | Repasses | Pendências (Conjunto → Âmbar e Roll, só
 // com financeiro.ver_societario; substitui os antigos Acertos). Movimentações (despesas, outras receitas e pagamentos: consultar e registrar), Contas a
 // pagar (o que falta pagar, vencidas, parciais, pagas e as contas fixas) e Pendências (só despesa sem categoria e/ou
 // sem pagador; Banco, Stone, Acertos e os documentos da Júlia ficam como conferências secundárias dentro dela).
@@ -145,8 +145,8 @@ function Conteudo({ contexto }: { contexto: ContextoPainel }) {
     { id: 'movimentacoes', rotulo: 'Movimentações' },
     { id: 'contas', rotulo: 'Contas a pagar', contagem: vencidas },
     { id: 'recorrentes', rotulo: 'Contas recorrentes' },
-    { id: 'pendencias', rotulo: 'Pendências', contagem: revisar },
     ...(societario ? [{ id: 'repasses' as const, rotulo: 'Repasses' }] : []),
+    { id: 'pendencias', rotulo: 'Pendências', contagem: revisar },
   ];
   const [despesa, setDespesa] = useState<string | null>(null);
   const { confirmar, elemento: dialogo } = useConfirmacao();
@@ -161,7 +161,7 @@ function Conteudo({ contexto }: { contexto: ContextoPainel }) {
             {aba === 'contas' && <ContasAPagar contexto={contexto} abrirDespesa={setDespesa} />}
             {aba === 'pendencias' && <Pendencias contexto={contexto} />}
             {aba === 'recorrentes' && <ContasRecorrentes contexto={contexto} />}
-            {aba === 'repasses' && societario && <Repasses configurar={temPermissao(contexto.usuario, 'financeiro.configurar')} />}
+            {aba === 'repasses' && societario && <Repasses />}
             {aba === 'relatorios' && <Relatorios contexto={contexto} />}
           </div>
           {aba === 'contas' && <DetalheDespesa id={despesa} aoFechar={() => setDespesa(null)} confirmar={confirmar} />}

@@ -101,7 +101,7 @@ export interface ListaLancamentos {
   total: number;
   itens: Lancamento[];
   /** `outras_receitas`: só as operacionais. `entradas_fora_da_receita` (empréstimo, aporte…) e `receitas_a_receber` vêm à parte. */
-  totais: { receita_pdv: Dec; outras_receitas: Dec; despesas_confirmadas: Dec; despesas_em_revisao: Dec; pagamentos: Dec; entradas_fora_da_receita?: Dec; receitas_a_receber?: Dec };
+  totais: { quantidade?: number; valor?: Dec; receita_pdv: Dec; outras_receitas: Dec; despesas_confirmadas: Dec; despesas_em_revisao: Dec; pagamentos: Dec; entradas_fora_da_receita?: Dec; receitas_a_receber?: Dec };
 }
 
 export type SituacaoConta = 'paga' | 'vencida' | 'vence_hoje' | 'parcial' | 'a_vencer';
@@ -1108,6 +1108,23 @@ export interface RepasseLado {
   pendente: Dec | null;
   itens: ItemRepasse[];
   itens_total: number;
+}
+/** Ressarcimento de um gasto adiantado (linha de v_repasses_historicos_detalhes). */
+export interface ItemRessarcimento {
+  descricao: string;
+  valor_original: Dec;
+  pagador_empresa: string;
+  responsavel: string;
+  percentual_ressarcimento: Dec;
+  valor_a_receber: Dec;
+  data_pagamento: Data | null;
+  despesa_id: Uuid;
+  pagamento_id: Uuid;
+}
+export interface Ressarcimentos {
+  disponivel: boolean;
+  empresas: Record<'ambar' | 'roll' | 'ambarxroll', { a_receber: Dec; pago: Dec; quantidade: number; itens: ItemRessarcimento[] }>;
+  total_a_receber: Dec;
 }
 export interface RepassesConjunto {
   ambar: RepasseLado;
