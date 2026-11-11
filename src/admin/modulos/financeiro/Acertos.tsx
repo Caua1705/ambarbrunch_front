@@ -15,11 +15,11 @@ import { EntradaMoeda } from '../../ui/entradas';
 import { Dados, Esqueleto, Vazio } from '../../ui/estados';
 import { Tabela, type Coluna } from '../../ui/tabela';
 import type { Acertos as DadosAcertos, ItemAcerto, MovimentoAcerto, Responsavel, Tratamento } from '../../lib/tipos/financeiro';
-import { RESPONSAVEL, TRATAMENTO, rotuloConta, useContasPagadoras, atualizarFinanceiro, avisar, avisarFalha } from './comum';
+import { RESPONSAVEL, TRATAMENTO, PARTE, rotuloConta, useContasPagadoras, atualizarFinanceiro, avisar, avisarFalha } from './comum';
 
 type Sentido = MovimentoAcerto['sentido'];
 const SENTIDO: Record<Sentido, string> = {
-  roll_para_ambar: 'Roll pagou ao Âmbar', ambar_para_roll: 'Âmbar pagou à Roll', ambar_para_socio: 'Âmbar reembolsou sócio',
+  roll_para_ambar: 'Roll pagou ao Âmbar', ambar_para_roll: 'Âmbar pagou à Roll', ambar_para_socio: 'Empresa reembolsou sócio',
 };
 
 export function Acertos() {
@@ -60,15 +60,30 @@ function Conteudo({ a, novo }: { a: DadosAcertos; novo: (s: Sentido) => void }) 
           <div><span>Já compensado</span><strong class="num">{moeda(String(Number(r.compensado_roll_para_ambar) + Number(r.compensado_ambar_para_roll)))}</strong></div>
         </div>
       </Cartao>
+      {a.empresa && (
+        <Cartao titulo="Pago pela empresa (Âmbar × Roll)" descricao="Dinheiro da empresa conjunta: não gera dívida entre os sócios.">
+          <div class="fin-valores">
+            <div><span>Total pago</span><strong class="num">{moeda(a.empresa.pago)}</strong></div>
+            <div><span>Despesas do Âmbar</span><strong class="num">{moeda(a.empresa.por_responsavel.ambar)}</strong></div>
+            <div><span>Despesas da Roll</span><strong class="num">{moeda(a.empresa.por_responsavel.roll)}</strong></div>
+            <div><span>Compartilhadas</span><strong class="num">{moeda(a.empresa.por_responsavel.compartilhada)}</strong></div>
+            {Number(a.empresa.assumido_de_socios) > 0 && <div><span>Assumido de sócios</span><strong class="num">{moeda(a.empresa.assumido_de_socios)}</strong><small>reembolso ou aporte</small></div>}
+          </div>
+        </Cartao>
+      )}
+      {!!a.decisoes_pendentes && (
+        <p class="fraco">{a.decisoes_pendentes} {a.decisoes_pendentes === 1 ? 'pagamento pessoal ainda' : 'pagamentos pessoais ainda'} sem decisão (reembolsar, aporte ou sem reembolso): por enquanto contam como adiantamento do lado.</p>
+      )}
       {a.socios.length > 0 && (
-        <Cartao titulo="Contas pessoais dos sócios do Âmbar" acoes={<Botao tamanho="p" icone={<Plus aria-hidden="true" />} onClick={() => novo('ambar_para_socio')}>Registrar reembolso</Botao>} justo>
+        <Cartao titulo="Contas pessoais dos sócios" acoes={<Botao tamanho="p" icone={<Plus aria-hidden="true" />} onClick={() => novo('ambar_para_socio')}>Registrar reembolso</Botao>} justo>
           <div class="tabela-rolagem">
             <table class="tabela" aria-label="Reembolsos por sócio">
-              <thead><tr><th>Conta</th><th class="num">Pago</th><th class="num">A definir</th><th class="num" data-prioridade="media">Aporte</th><th class="num">A reembolsar</th></tr></thead>
+              <thead><tr><th>Conta</th><th data-prioridade="media">Lado</th><th class="num">Pago</th><th class="num">A definir</th><th class="num" data-prioridade="media">Aporte</th><th class="num">A reembolsar</th></tr></thead>
               <tbody>
                 {a.socios.map((s) => (
                   <tr key={s.conta?.id ?? 'x'}>
                     <td>{s.conta?.apelido ?? '—'}</td>
+                    <td data-prioridade="media">{s.conta ? PARTE[s.conta.parte] : '—'}</td>
                     <td class="num">{moeda(s.pago)}</td>
                     <td class="num">{Number(s.a_definir) ? <span class="fin-falta">{moeda(s.a_definir)}</span> : '—'}</td>
                     <td class="num" data-prioridade="media">{Number(s.aporte) ? moeda(s.aporte) : '—'}</td>
@@ -173,7 +188,7 @@ function NovoMovimento({ sentido, aoFechar }: { sentido: Sentido | null; aoFecha
     if (sentido) { setS(sentido); setValor(''); setDescricao(''); setConta(''); setErro(null); setData(hojeISO()); }
   }, [sentido]);
   if (!sentido) return null;
-  const socios = (contas.dados?.itens ?? []).filter((c) => c.parte === 'ambar' && c.natureza === 'pessoal');
+  const socios = (contas.dados?.itens ?? []).filter((c) => c.natureza === 'pessoal' && c.parte !== 'conjunta');
 
   async function salvar() {
     const v = paraDecimal(valor);
@@ -209,7 +224,7 @@ function NovoMovimento({ sentido, aoFechar }: { sentido: Sentido | null; aoFecha
             {(id) => (
               <select id={id} class="selecao" value={conta} onChange={(e) => setConta(e.currentTarget.value)}>
                 <option value="">Escolha</option>
-                {socios.map((c) => <option key={c.id} value={c.id}>{c.apelido}</option>)}
+                {socios.map((c) => <option key={c.id} value={c.id}>{c.apelido} · {PARTE[c.parte]}</option>)}
               </select>
             )}
           </Campo>

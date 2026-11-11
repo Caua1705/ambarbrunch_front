@@ -61,7 +61,7 @@ export const financeiro = {
   resumo: () => pedir<ResumoFinanceiro>('financeiro/resumo'),
   revisao: async (semCategoria = false) =>
     normalizarFila(await pedir<Partial<FilaRevisao>>('financeiro/revisao', { query: { limite: 100, sem_categoria: semCategoria || undefined } })),
-  lancamentos: (q: { de: string; ate: string; tipo?: string; categoria?: string; origem?: string; status?: string; busca?: string; recebimento?: 'recebida' | 'pendente'; pagador?: string; limite?: number; deslocamento?: number }) =>
+  lancamentos: (q: { de: string; ate: string; tipo?: string; categoria?: string; origem?: string; status?: string; busca?: string; recebimento?: 'recebida' | 'pendente'; pagador?: string; lado?: string; limite?: number; deslocamento?: number }) =>
     pedir<ListaLancamentos>('financeiro/lancamentos', { query: { limite: 100, ...q } }),
   /** Só as categorias VÁLIDAS na unidade do topo (a ponte manda ?unidade=): o que os seletores oferecem. */
   categorias: async () => lista<Categoria>(await pedir<Categoria[]>('financeiro/categorias')),

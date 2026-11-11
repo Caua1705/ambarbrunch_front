@@ -1,6 +1,7 @@
-// Configurações → Financeiro → Contas e pagadores (0029), só o Proprietário (financeiro.configurar). As contas que a
-// Júlia usa para reconhecer QUEM PAGOU cada comprovante: conta empresarial do Âmbar (a padrão de novos pagamentos) e as
-// contas pessoais dos sócios do Âmbar e da Roll. Nada vem preenchido: o cadastro é feito aqui, com os dados reais.
+// Configurações → Financeiro → Contas e pagadores (0029; três lados desde a 0030), só o Proprietário. As contas que a
+// Júlia usa para reconhecer QUEM PAGOU cada comprovante, em três lados: Âmbar (Cauã, o pai, a Giardini antiga), Roll (Léo,
+// Adriana) e Âmbar × Roll (a conta empresarial da empresa conjunta, normalmente a padrão de novos pagamentos). O titular é
+// o nome como aparece nos comprovantes; o apelido é só para identificar na tela. Nada vem preenchido: o cadastro é feito aqui, com os dados reais.
 // O backend nunca guarda o CPF inteiro (só os 6 dígitos do meio, a mesma máscara do comprovante Pix), nem a chave Pix
 // nem o número inteiro da conta: depois de salvo, só aparece mascarado. Rotas: GET/POST/PATCH /contas-pagadoras.
 import { useEffect, useState } from 'preact/hooks';
@@ -28,7 +29,7 @@ export function ContasPagadoras() {
         </>
       ),
     },
-    { id: 'parte', titulo: 'Lado', celula: (c) => `${PARTE[c.parte]} · ${c.natureza === 'pessoal' ? 'pessoal' : 'empresarial'}` },
+    { id: 'parte', titulo: 'Lado', ordenar: (c) => c.parte, celula: (c) => <><strong>{PARTE[c.parte] ?? c.parte}</strong><span class="sub">{c.natureza === 'pessoal' ? 'Pessoal' : 'Empresarial'}</span></> },
     { id: 'banco', titulo: 'Banco', prioridade: 'media', celula: (c) => <>{c.instituicao}<span class="sub">{[c.agencia ? `ag. ${c.agencia}` : null, c.conta].filter(Boolean).join(' · ') || '—'}</span></> },
     { id: 'pix', titulo: 'Pix', prioridade: 'baixa', celula: (c) => c.chave_pix ?? <span class="fraco">—</span> },
   ];
@@ -52,7 +53,7 @@ export function ContasPagadoras() {
   );
 }
 
-const VAZIO: ContaPagadoraEntrada = { apelido: '', instituicao: '', parte: 'ambar', natureza: 'empresarial', titular_nome: '', documento: '', codigo_banco: '', agencia: '', conta: '', chave_pix: '', padrao: false };
+const VAZIO: ContaPagadoraEntrada = { apelido: '', instituicao: '', parte: 'ambar', natureza: 'pessoal', titular_nome: '', documento: '', codigo_banco: '', agencia: '', conta: '', chave_pix: '', padrao: false };
 
 function FormConta({ conta, aoFechar }: { conta: ContaPagadoraCadastro | 'nova' | null; aoFechar: () => void }) {
   const [f, setF] = useState<ContaPagadoraEntrada>(VAZIO);
@@ -70,7 +71,9 @@ function FormConta({ conta, aoFechar }: { conta: ContaPagadoraCadastro | 'nova' 
   }, [conta]);
   if (!conta) return null;
   const mudar = <K extends keyof ContaPagadoraEntrada>(k: K, v: ContaPagadoraEntrada[K]) => setF((x) => ({ ...x, [k]: v }));
-  const podePadrao = f.parte === 'ambar' && f.natureza === 'empresarial';
+  // Padrão: qualquer conta empresarial (normalmente a da empresa Âmbar × Roll). A conjunta é sempre empresarial.
+  const podePadrao = f.natureza === 'empresarial';
+  const mudarLado = (parte: ParteConta) => setF((x) => ({ ...x, parte, natureza: parte === 'conjunta' ? 'empresarial' : x.natureza }));
 
   async function salvar(e: Event) {
     e.preventDefault();
@@ -109,19 +112,19 @@ function FormConta({ conta, aoFechar }: { conta: ContaPagadoraCadastro | 'nova' 
           <Campo rotulo="Apelido" erro={erro?.campos.apelido}>{(id) => <input id={id} class="entrada" maxLength={60} value={f.apelido} onInput={(e) => mudar('apelido', e.currentTarget.value)} />}</Campo>
           <Campo rotulo="Lado">
             {(id) => (
-              <select id={id} class="selecao" value={f.parte} onChange={(e) => mudar('parte', e.currentTarget.value as ParteConta)}>
-                <option value="ambar">Âmbar</option><option value="roll">Roll</option>
+              <select id={id} class="selecao" value={f.parte} onChange={(e) => mudarLado(e.currentTarget.value as ParteConta)}>
+                <option value="ambar">Âmbar</option><option value="roll">Roll</option><option value="conjunta">Âmbar × Roll (empresa)</option>
               </select>
             )}
           </Campo>
           <Campo rotulo="Tipo de conta">
             {(id) => (
-              <select id={id} class="selecao" value={f.natureza} onChange={(e) => mudar('natureza', e.currentTarget.value as NaturezaConta)}>
-                <option value="empresarial">Empresarial (CNPJ)</option><option value="pessoal">Pessoal (CPF)</option>
+              <select id={id} class="selecao" value={f.natureza} disabled={f.parte === 'conjunta'} onChange={(e) => mudar('natureza', e.currentTarget.value as NaturezaConta)}>
+                <option value="pessoal">Pessoal (CPF)</option><option value="empresarial">Empresarial (CNPJ)</option>
               </select>
             )}
           </Campo>
-          <Campo rotulo="Titular" erro={erro?.campos.titular_nome}>{(id) => <input id={id} class="entrada" maxLength={120} autocomplete="off" value={f.titular_nome} onInput={(e) => mudar('titular_nome', e.currentTarget.value)} />}</Campo>
+          <Campo rotulo="Titular" ajuda="Nome ou razão social como aparece nos comprovantes." erro={erro?.campos.titular_nome}>{(id) => <input id={id} class="entrada" maxLength={120} autocomplete="off" value={f.titular_nome} onInput={(e) => mudar('titular_nome', e.currentTarget.value)} />}</Campo>
           <Campo rotulo={f.natureza === 'empresarial' ? 'CNPJ' : 'CPF'} opcional ajuda={existente?.documento ? `Atual: ${existente.documento}. Deixe vazio para manter.` : f.natureza === 'pessoal' ? 'Só os 6 dígitos do meio são guardados.' : undefined} erro={erro?.campos.documento}>
             {(id, d) => <input id={id} class="entrada" inputMode="numeric" autocomplete="off" maxLength={20} aria-describedby={d} value={f.documento ?? ''} onInput={(e) => mudar('documento', e.currentTarget.value)} />}
           </Campo>

@@ -19,7 +19,7 @@ import { Botao, Cartao, Aviso } from '../../ui/base';
 import { Dados, EsqueletoTabela, Vazio } from '../../ui/estados';
 import { Tabela, type Coluna } from '../../ui/tabela';
 import type { Lancamento, ListaLancamentos, OutraReceitaSaida, ResumoFinanceiro, TipoLancamento } from '../../lib/tipos/financeiro';
-import { ORIGEM, TIPO_LANCAMENTO, SituacaoLancamento, useCadastroCategorias, nomeCategoria, temPermissao, atualizarFinanceiro, avisar, useContasPagadoras } from './comum';
+import { ORIGEM, TIPO_LANCAMENTO, SituacaoLancamento, useCadastroCategorias, nomeCategoria, temPermissao, atualizarFinanceiro, avisar, useContasPagadoras, PARTE, LADOS } from './comum';
 import { NovaDespesa } from './NovaDespesa';
 import { NovaReceita } from './NovaReceita';
 import { DetalheDespesa } from './DetalheDespesa';
@@ -205,7 +205,13 @@ function Filtros(p: {
         <select class="selecao" aria-label="Pagador" value={p.pagador} onChange={(e) => p.setPagador(e.currentTarget.value)}>
           <option value="">Todos os pagadores</option>
           <option value="nenhum">Pagador não identificado</option>
-          {(contas.dados?.itens ?? []).map((c) => <option key={c.id} value={c.id}>{c.apelido}</option>)}
+          <optgroup label="Lado">
+            {LADOS.map((l) => <option key={l} value={`lado:${l}`}>Lado {PARTE[l]}</option>)}
+          </optgroup>
+          {LADOS.map((l) => {
+            const doLado = (contas.dados?.itens ?? []).filter((c) => c.parte === l);
+            return doLado.length ? <optgroup key={l} label={PARTE[l]}>{doLado.map((c) => <option key={c.id} value={c.id}>{c.apelido}</option>)}</optgroup> : null;
+          })}
         </select>
       )}
       {p.filtro === 'todas' && (
@@ -259,7 +265,7 @@ function ListaMovimentacoes(p: {
   const [d1, d2] = intervalo(p.periodo, p.de, p.ate);
   const tipo: TipoLancamento | undefined = filtro === 'despesas' ? 'despesa' : filtro === 'receitas' ? 'outra_receita' : mostrar === 'venda_dia' || mostrar === 'pagamento' ? mostrar : undefined;
   const recebimento = p.situacao === 'rec:recebida' ? 'recebida' as const : p.situacao === 'rec:pendente' ? 'pendente' as const : undefined;
-  const q = { de: d1, ate: d2, tipo, categoria: p.categoria || undefined, origem: p.origem || undefined, status: recebimento ? undefined : p.situacao || undefined, recebimento, busca: p.busca || undefined, pagador: p.filtro !== 'receitas' ? p.pagador || undefined : undefined };
+  const q = { de: d1, ate: d2, tipo, categoria: p.categoria || undefined, origem: p.origem || undefined, status: recebimento ? undefined : p.situacao || undefined, recebimento, busca: p.busca || undefined, ...filtroPagador(p.filtro !== 'receitas' ? p.pagador : '') };
   const lista = useConsulta(`financeiro/lancamentos?${JSON.stringify(q)}`, () => financeiro.lancamentos({ ...q, limite: 200 }));
   // Período vazio: o lançamento mais recente ANTES dele (mesmos filtros, até um ano), para o vazio dizer onde estão os
   // registros em vez de só R$ 0,00. As despesas da Júlia ficam na data do comprovante, que pode ser de outro mês.
@@ -368,6 +374,12 @@ function ListaMovimentacoes(p: {
       </Dados>
     </Cartao>
   );
+}
+
+/** O select do pagador escolhe uma conta, "nenhum" ou um lado inteiro ("lado:ambar"). */
+function filtroPagador(v: string): { pagador?: string; lado?: string } {
+  if (!v) return {};
+  return v.startsWith('lado:') ? { lado: v.slice(5) } : { pagador: v };
 }
 
 /** Conta de origem: só despesa paga e pagamento têm pagador. Despesa a pagar, cancelada ou estornada: "—". */

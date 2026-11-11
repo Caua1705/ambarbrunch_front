@@ -317,7 +317,8 @@ export const BASE_PARTICIPACAO: Record<string, string> = {
 
 // --- 0029: quem pagou ---------------------------------------------------------------------------------------------------
 
-export const PARTE: Record<string, string> = { ambar: 'Âmbar', roll: 'Roll' };
+export const PARTE: Record<string, string> = { ambar: 'Âmbar', roll: 'Roll', conjunta: 'Âmbar × Roll' };
+export const LADOS = ['ambar', 'roll', 'conjunta'] as const;
 export const RESPONSAVEL: Record<string, string> = { ambar: 'Âmbar', roll: 'Roll', compartilhada: 'Compartilhada 50/50' };
 export const TRATAMENTO: Record<string, string> = {
   a_definir: 'A definir',
@@ -335,5 +336,5 @@ export function useContasPagadoras() {
 /** "Cauã · Âmbar (pessoal)" — sem dado pessoal. */
 export function rotuloConta(c: { apelido: string; parte: string; natureza: string } | null | undefined): string {
   if (!c) return 'Não identificado';
-  return `${c.apelido} · ${PARTE[c.parte] ?? c.parte}${c.natureza === 'pessoal' ? ' (pessoal)' : ''}`;
+  return `${c.apelido} · ${PARTE[c.parte] ?? c.parte}${c.natureza === 'pessoal' ? ' (pessoal)' : c.parte === 'conjunta' ? ' (empresa)' : ''}`;
 }

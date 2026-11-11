@@ -861,7 +861,8 @@ export interface FornecedorDetalhe {
 // --- 0029: quem pagou, Pendências (categoria e pagador), acertos Âmbar × Roll ---------------------------------------
 // Backend: app/modulos/financeiro/api_pagadores.py. Contrato: CONTRATO-PAINEL-FINANCEIRO-ESTOQUE.md §13.
 
-export type ParteConta = 'ambar' | 'roll';
+/** 0030: conjunta = a empresa Âmbar × Roll (sempre empresarial). */
+export type ParteConta = 'ambar' | 'roll' | 'conjunta';
 export type NaturezaConta = 'pessoal' | 'empresarial';
 export type Responsavel = 'ambar' | 'roll' | 'compartilhada';
 export type Tratamento = 'nao_se_aplica' | 'a_definir' | 'reembolsar' | 'aporte' | 'sem_reembolso';
@@ -975,6 +976,8 @@ export interface ItemAcerto {
   responsavel: Responsavel;
   pagador: ContaPagadora | null;
   adiantou_pelo_outro: Dec;
+  /** Parte do pagamento pessoal que a empresa assumiu (reembolso ou aporte): fora do saldo entre sócios. */
+  assumido_pela_empresa?: Dec;
   tratamento: Tratamento | null;
   valor_reembolso: Dec | null;
   versao: number | null;
@@ -991,6 +994,10 @@ export interface Acertos {
     valor: Dec;
   };
   socios: SocioAcerto[];
+  /** 0030: pagamentos da conta conjunta (a própria empresa) — não geram dívida entre os sócios. */
+  empresa?: { pago: Dec; quantidade: number; por_responsavel: Record<Responsavel, Dec>; assumido_de_socios: Dec };
+  /** Pagamentos pessoais ainda "a definir" (contam como adiantamento do lado até a decisão). */
+  decisoes_pendentes?: number;
   aportes: { registrados: Dec; por_pagamento_pessoal: Dec };
   sem_pagador: { quantidade: number; valor: Dec };
   itens: ItemAcerto[];

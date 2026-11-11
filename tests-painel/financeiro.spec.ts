@@ -177,7 +177,7 @@ test('Nova despesa já paga aparece uma vez em Todas (o pagamento só com "Tudo"
   await expect(tabela.getByRole('row', { name: new RegExp(nome) })).toHaveCount(2); // a despesa e o pagamento, de propósito
   await page.getByLabel('Mostrar').selectOption('principal');
   // Lançada no painel já sai com a conta padrão (a empresarial do Âmbar) como pagador.
-  await expect(tabela.getByRole('row', { name: new RegExp(nome) })).toContainText('Âmbar PJ');
+  await expect(tabela.getByRole('row', { name: new RegExp(nome) })).toContainText('Âmbar — Empresa');
 
   await aba(page, /^Contas a pagar/).click();
   await page.getByLabel('Buscar conta a pagar').fill(nome);
@@ -343,7 +343,8 @@ test('Pendências: uma lista só (sem categoria e/ou sem pagador), corrigida na 
 test('Acertos Âmbar × Roll e contas pagadoras: só o Proprietário', async ({ page }) => {
   await entrarDemo(page, 'admin');
   await page.goto(`${DEMO}/admin/financeiro?aba=pendencias&vista=acertos`);
-  await expect(page.getByRole('heading', { name: 'Âmbar × Roll' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Âmbar × Roll', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Pago pela empresa (Âmbar × Roll)' })).toBeVisible();
   await expect(page.locator('.fin-saldo')).toContainText(/quites|deve/);
   await page.getByRole('button', { name: 'Registrar compensação' }).click();
   const dialogo = page.getByRole('dialog', { name: 'Registrar acerto' });
@@ -355,8 +356,18 @@ test('Acertos Âmbar × Roll e contas pagadoras: só o Proprietário', async ({ 
 
   await page.goto(`${DEMO}/admin/configuracoes?secao=financeiro&cadastro=contas`);
   const tabela = page.getByRole('table', { name: 'Contas pagadoras' });
-  await expect(tabela.getByRole('row', { name: /Âmbar PJ/ })).toContainText('padrão');
+  await expect(tabela.getByRole('row', { name: /Âmbar — Empresa/ })).toContainText('padrão');
   await expect(tabela).not.toContainText(/\d{3}\.\d{3}\.\d{3}-\d{2}/); // CPF nunca inteiro
+  // Três lados: a conta da empresa conjunta (Âmbar × Roll) é sempre empresarial.
+  await expect(tabela.getByRole('row', { name: /Âmbar — Empresa/ })).toContainText('Âmbar × Roll');
+  await page.getByRole('button', { name: 'Nova conta' }).click();
+  const form = page.getByRole('dialog', { name: 'Nova conta' });
+  await expect(form.getByLabel('Lado').locator('option')).toHaveText(['Âmbar', 'Roll', 'Âmbar × Roll (empresa)']);
+  await expect(form.getByLabel('Tipo de conta')).toHaveValue('pessoal');
+  await form.getByLabel('Lado').selectOption('conjunta');
+  await expect(form.getByLabel('Tipo de conta')).toHaveValue('empresarial');
+  await expect(form.getByLabel('Tipo de conta')).toBeDisabled();
+  await form.getByRole('button', { name: 'Cancelar' }).click();
 
   await entrarDemo(page, 'gerente');
   await page.goto(`${DEMO}/admin/configuracoes?secao=financeiro`);

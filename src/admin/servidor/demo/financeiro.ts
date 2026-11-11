@@ -390,15 +390,16 @@ const vivas = () => E.despesas.filter((d) => d.status !== 'cancelada');
 interface PagadorDemo { conta_id: string | null; metodo: 'automatico' | 'manual' | 'nao_identificado'; tratamento: Tratamento; valor_reembolso: string | null; versao: number }
 const PAG: { pronto: boolean; contas: ContaPagadoraCadastro[]; pagadores: Map<string, PagadorDemo>; responsavel: Map<string, Responsavel>; movimentos: MovimentoAcerto[] } =
   { pronto: false, contas: [], pagadores: new Map(), responsavel: new Map(), movimentos: [] };
-function contaDemo(apelido: string, parte: 'ambar' | 'roll', natureza: 'pessoal' | 'empresarial', instituicao: string, finais: string, padrao = false): ContaPagadoraCadastro {
+function contaDemo(apelido: string, parte: 'ambar' | 'roll' | 'conjunta', natureza: 'pessoal' | 'empresarial', instituicao: string, finais: string, padrao = false): ContaPagadoraCadastro {
   return { id: id(), apelido, parte, natureza, instituicao, conta: `…${finais}`, padrao, status: 'ativa', titular_nome: `${apelido} (fictício)`, titular_tipo: natureza === 'empresarial' ? 'pj' : 'pf', documento: natureza === 'empresarial' ? '00.000.000/0001-91' : '***.000.000-**', codigo_banco: null, agencia: '0001', chave_pix: null, versao: 1, atualizado_em: new Date().toISOString() };
 }
-const tratamentoInicial = (c: ContaPagadoraCadastro | undefined): Tratamento => (c && c.parte === 'ambar' && c.natureza === 'pessoal' ? 'a_definir' : 'nao_se_aplica');
+const tratamentoInicial = (c: ContaPagadoraCadastro | undefined): Tratamento => (c && c.parte !== 'conjunta' && c.natureza === 'pessoal' ? 'a_definir' : 'nao_se_aplica');
 function montarPagadores() {
   montar();
   if (PAG.pronto) return;
   PAG.pronto = true;
-  const empresa = contaDemo('Âmbar PJ', 'ambar', 'empresarial', 'Banco fictício', '0001', true);
+  const empresa = contaDemo('Âmbar — Empresa', 'conjunta', 'empresarial', 'Banco fictício', '0001', true);
+  PAG.contas.push(contaDemo('Giardini — Antiga', 'ambar', 'empresarial', 'Banco fictício', '3333'));
   const socio = contaDemo('Sócio Âmbar', 'ambar', 'pessoal', 'Banco fictício', '1111');
   const roll = contaDemo('Sócio Roll', 'roll', 'pessoal', 'Banco fictício', '2222');
   PAG.contas.push(empresa, socio, roll);
@@ -448,6 +449,8 @@ function acertosDemo() {
   let rollDeve = 0;
   let ambarDeve = 0;
   let semQtd = 0;
+  let empresaPago = 0;
+  const empresaPor: Record<Responsavel, number> = { ambar: 0, roll: 0, compartilhada: 0 };
   let semValor = 0;
   const socios = new Map<string, { conta: ReturnType<typeof contaCurta>; pago: number; a_definir: number; a_definir_quantidade: number; reembolsar: number; aporte: number; sem_reembolso: number; reembolsado: number }>();
   const itens = [];
@@ -457,9 +460,10 @@ function acertosDemo() {
     if (!conta || !x) { semQtd += 1; semValor += Number(pg.valor); continue; }
     const resp = PAG.responsavel.get(d.id) ?? 'ambar';
     const v = Number(pg.valor);
+    if (conta.parte === 'conjunta') { empresaPago += v; empresaPor[resp] += v; continue; }
     const adiantou = conta.parte === 'ambar' ? v * (1 - parteAmbar[resp]) : v * parteAmbar[resp];
     if (conta.parte === 'ambar') rollDeve += adiantou; else ambarDeve += adiantou;
-    const pessoal = conta.parte === 'ambar' && conta.natureza === 'pessoal';
+    const pessoal = conta.natureza === 'pessoal';
     if (pessoal) {
       const so = socios.get(conta.id) ?? { conta: contaCurta(conta), pago: 0, a_definir: 0, a_definir_quantidade: 0, reembolsar: 0, aporte: 0, sem_reembolso: 0, reembolsado: 0 };
       so.pago += v;
@@ -480,6 +484,8 @@ function acertosDemo() {
     socios: [...socios.values()].map((so) => ({ ...so, pago: d2(so.pago), a_definir: d2(so.a_definir), reembolsar: d2(so.reembolsar), aporte: d2(so.aporte), sem_reembolso: d2(so.sem_reembolso), reembolsado: d2(so.reembolsado), a_reembolsar: d2(so.reembolsar - so.reembolsado) })),
     aportes: { registrados: d2(E.receitas.filter((r) => r.status === 'confirmada' && r.categoria === 'aporte_socio').reduce((t, r) => t + Number(r.valor), 0)), por_pagamento_pessoal: d2([...socios.values()].reduce((t, so) => t + so.aporte, 0)) },
     sem_pagador: { quantidade: semQtd, valor: d2(semValor) },
+    empresa: { pago: d2(empresaPago), quantidade: 0, por_responsavel: { ambar: d2(empresaPor.ambar), roll: d2(empresaPor.roll), compartilhada: d2(empresaPor.compartilhada) }, assumido_de_socios: '0.00' },
+    decisoes_pendentes: [...socios.values()].reduce((t, so) => t + so.a_definir_quantidade, 0),
     itens: itens.slice(-200),
     movimentos: PAG.movimentos.slice(-100),
     completo: semQtd === 0,
@@ -973,7 +979,8 @@ export const ROTAS_FINANCEIRO: Rota[] = [
     const b = query.get('busca')?.toLowerCase();
     const rec = query.get('recebimento');
     const pagadorQ = query.get('pagador');
-    const f = itens.filter((l) => (!pagadorQ || ((l.tipo === 'despesa' || l.tipo === 'pagamento') && (pagadorQ === 'nenhum' ? !l.pagador_conta_id : l.pagador_conta_id === pagadorQ))) && (!rec || (l.tipo === 'outra_receita' && (rec === 'recebida') === !!l.detalhes.recebido_em)) && (!tipo || l.tipo === tipo) && (!cat || l.categoria === cat) && (!org || l.origem === org) && (!st || l.status === st) && (veSocietario(papel) || !ehRetirada(l.categoria)) && (!b || `${l.descricao} ${l.fornecedor ?? ''}`.toLowerCase().includes(b))).sort((a, b2) => b2.data.localeCompare(a.data));
+    const ladoQ = query.get('lado');
+    const f = itens.filter((l) => (!ladoQ || ((l.tipo === 'despesa' || l.tipo === 'pagamento') && contaPorId(l.pagador_conta_id)?.parte === ladoQ)) && (!pagadorQ || ((l.tipo === 'despesa' || l.tipo === 'pagamento') && (pagadorQ === 'nenhum' ? !l.pagador_conta_id : l.pagador_conta_id === pagadorQ))) && (!rec || (l.tipo === 'outra_receita' && (rec === 'recebida') === !!l.detalhes.recebido_em)) && (!tipo || l.tipo === tipo) && (!cat || l.categoria === cat) && (!org || l.origem === org) && (!st || l.status === st) && (veSocietario(papel) || !ehRetirada(l.categoria)) && (!b || `${l.descricao} ${l.fornecedor ?? ''}`.toLowerCase().includes(b))).sort((a, b2) => b2.data.localeCompare(a.data));
     const soma = (fn: (l: Lancamento) => boolean) => d2(f.filter(fn).reduce((s, l) => s + Number(l.valor), 0));
     return { ...paginar(f, query), totais: { receita_pdv: soma((l) => l.tipo === 'venda_dia'), outras_receitas: soma((l) => l.tipo === 'outra_receita' && l.status === 'confirmada' && !!l.detalhes.operacional), entradas_fora_da_receita: soma((l) => l.tipo === 'outra_receita' && l.status === 'confirmada' && !l.detalhes.operacional), receitas_a_receber: soma((l) => l.tipo === 'outra_receita' && l.status === 'confirmada' && !l.detalhes.recebido_em), despesas_confirmadas: soma((l) => l.tipo === 'despesa' && l.status === 'confirmada'), despesas_em_revisao: soma((l) => l.tipo === 'despesa' && l.status === 'em_revisao'), pagamentos: soma((l) => l.tipo === 'pagamento' && l.status === 'confirmado') } };
   }],
@@ -1611,11 +1618,12 @@ export const ROTAS_FINANCEIRO: Rota[] = [
   ['GET', R('financeiro/contas-pagadoras/cadastro'), ADMIN, () => { montarPagadores(); return { itens: PAG.contas }; }],
   ['POST', R('financeiro/contas-pagadoras'), ADMIN, async ({ corpo }) => {
     montarPagadores();
-    const e = await corpo<{ apelido?: string; instituicao?: string; parte?: 'ambar' | 'roll'; natureza?: 'pessoal' | 'empresarial'; titular_nome?: string; conta?: string | null; padrao?: boolean }>();
+    const e = await corpo<{ apelido?: string; instituicao?: string; parte?: 'ambar' | 'roll' | 'conjunta'; natureza?: 'pessoal' | 'empresarial'; titular_nome?: string; conta?: string | null; padrao?: boolean }>();
     if (!e.apelido?.trim() || !e.instituicao?.trim() || !e.titular_nome?.trim() || !e.parte || !e.natureza) throw new ErroDemo(422, 'regra_violada', 'Preencha apelido, banco, titular, lado e tipo.');
     const c = contaDemo(e.apelido.trim(), e.parte, e.natureza, e.instituicao.trim(), (e.conta ?? '').replace(/\D/g, '').slice(-4) || '0000');
     c.titular_nome = e.titular_nome.trim();
-    if (e.padrao && e.parte === 'ambar' && e.natureza === 'empresarial') { for (const o of PAG.contas) o.padrao = false; c.padrao = true; }
+    if (e.parte === 'conjunta' && e.natureza !== 'empresarial') throw new ErroDemo(422, 'conjunta_empresarial', 'A conta Âmbar × Roll é a empresarial da empresa conjunta.');
+    if (e.padrao && e.natureza === 'empresarial') { for (const o of PAG.contas) o.padrao = false; c.padrao = true; }
     PAG.contas.push(c);
     return resposta(201, c);
   }],

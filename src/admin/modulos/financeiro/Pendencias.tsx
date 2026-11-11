@@ -22,7 +22,7 @@ import type { Pendencia } from '../../lib/tipos/financeiro';
 import { Revisao } from './Revisao';
 import { Conciliacao, type VistaConciliacao } from './Conciliacao';
 import { Acertos } from './Acertos';
-import { temPermissao, useCategorias, OpcoesCategoria, useContasPagadoras, rotuloConta, atualizarFinanceiro, avisar } from './comum';
+import { temPermissao, useCategorias, OpcoesCategoria, useContasPagadoras, rotuloConta, atualizarFinanceiro, avisar, PARTE, LADOS } from './comum';
 
 export type VistaPendencias = 'lista' | 'revisao' | 'acertos' | VistaConciliacao;
 const VISTAS: VistaPendencias[] = ['lista', 'revisao', 'acertos', 'banco', 'stone', 'divergencias'];
@@ -82,7 +82,7 @@ function ListaPendencias({ ir, conciliar, societario }: { ir: (v: VistaPendencia
       id: 'pagador', titulo: 'Pagador',
       celula: (p) => (p.falta.includes('pagador')
         ? <span class="fin-falta">Não identificado</span>
-        : <span>{p.pagador?.apelido ?? '—'}</span>),
+        : <span>{p.pagador?.apelido ?? '—'}{p.pagador && <span class="sub">{PARTE[p.pagador.parte]}</span>}</span>),
     },
   ];
 
@@ -197,7 +197,10 @@ function CorrigirPendencia({ item, aoFechar }: { item: Pendencia | null; aoFecha
             ? (
               <select id={id} class="selecao" aria-describedby={d} value={conta} onChange={(e) => setConta(e.currentTarget.value)} disabled={!!semContas}>
                 <option value="">Não identificado</option>
-                {(contas.dados?.itens ?? []).map((c) => <option key={c.id} value={c.id}>{rotuloConta(c)}{c.conta ? ` ${c.conta}` : ''}</option>)}
+                {LADOS.map((l) => {
+                  const doLado = (contas.dados?.itens ?? []).filter((c) => c.parte === l);
+                  return doLado.length ? <optgroup key={l} label={PARTE[l]}>{doLado.map((c) => <option key={c.id} value={c.id}>{rotuloConta(c)}{c.conta ? ` ${c.conta}` : ''}</option>)}</optgroup> : null;
+                })}
               </select>
             )
             : <p id={id} class="campo__valor">{rotuloConta(item.pagador)}</p>)}
