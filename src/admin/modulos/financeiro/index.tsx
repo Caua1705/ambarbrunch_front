@@ -70,8 +70,8 @@ function abaDaUrl(): Aba {
     mudar({ vista: null });
     return 'movimentacoes';
   }
-  if (a === 'contas' && vista === 'recorrentes') {
-    mudar({ tipo: null, vista: null, aba: 'recorrentes' });
+  if (a === 'contas' && (vista === 'recorrentes' || lerParam('situacao') === 'recorrentes')) {
+    mudar({ tipo: null, vista: null, situacao: null, aba: 'recorrentes' });
     return 'recorrentes';
   }
   if (a === 'contas') {

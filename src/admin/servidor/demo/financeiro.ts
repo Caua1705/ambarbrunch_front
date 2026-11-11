@@ -994,7 +994,9 @@ export const ROTAS_FINANCEIRO: Rota[] = [
     montar();
     const un = unidadeDa(query);
     const e = await corpo<{ descricao?: string; valor?: string; competencia?: string; categoria?: string; fornecedor?: { id?: string | null; nome?: string | null; documento?: string | null } | null; arquivo_id?: string | null; parcelas?: { vencimento: string; valor: string }[] | null; pagamento?: { pago_em: string; forma: FormaPagamento; arquivo_id?: string | null; conta_pagadora_id?: string | null } | null; responsavel?: 'conjunto' | 'ambar' | 'roll' | null }>();
-    if (!e.descricao || !e.valor || Number(e.valor) <= 0 || !e.competencia || !e.categoria) throw new ErroDemo(422, 'regra_violada', 'Preencha descrição, valor, data e categoria.');
+    if (!e.descricao || !e.valor || Number(e.valor) <= 0 || !e.categoria) throw new ErroDemo(422, 'regra_violada', 'Preencha descrição, valor e categoria.');
+    // 0033: sem data, a demonstração usa a do pagamento/vencimento (só o simulador; o backend guarda sem data).
+    const competencia: string = e.competencia || (e.pagamento?.pago_em ?? e.parcelas?.[0]?.vencimento ?? hojeFortaleza());
     exigirCategoria(e.categoria, un);
     exigirArquivoLivre([e.arquivo_id, e.pagamento?.arquivo_id]);
     if (e.parcelas && Math.abs(e.parcelas.reduce((s, p) => s + Number(p.valor), 0) - Number(e.valor)) > 0.009) throw new ErroDemo(422, 'regra_violada', 'A soma das parcelas difere do valor.');
@@ -1004,7 +1006,7 @@ export const ROTAS_FINANCEIRO: Rota[] = [
     if (porId && porId.ativo === false) throw new ErroDemo(409, 'fornecedor_inativo', `${porId.nome} está desativado: reative no cadastro ou escolha outro.`);
     const forn = porId ?? (e.fornecedor?.nome ? fornecedor(e.fornecedor.nome, e.fornecedor.documento ?? null) : null);
     const acima = Number(e.valor) > 5000;
-    const d = novaDespesa({ descricao: e.descricao, valor: Number(e.valor), competencia: e.competencia, categoria: e.categoria, fornecedor: forn, origem: 'painel', arquivo_id: e.arquivo_id ?? null, status: acima ? 'em_revisao' : 'confirmada', motivos: acima ? ['acima_do_limite'] : [], parcelas: e.pagamento ? [{ vencimento: e.competencia, valor: Number(e.valor), paga_em: e.pagamento.pago_em, forma: e.pagamento.forma }] : e.parcelas ? e.parcelas.map((p) => ({ vencimento: p.vencimento, valor: Number(p.valor) })) : [{ vencimento: e.competencia, valor: Number(e.valor) }] });
+    const d = novaDespesa({ descricao: e.descricao, valor: Number(e.valor), competencia, categoria: e.categoria, fornecedor: forn, origem: 'painel', arquivo_id: e.arquivo_id ?? null, status: acima ? 'em_revisao' : 'confirmada', motivos: acima ? ['acima_do_limite'] : [], parcelas: e.pagamento ? [{ vencimento: competencia, valor: Number(e.valor), paga_em: e.pagamento.pago_em, forma: e.pagamento.forma }] : e.parcelas ? e.parcelas.map((p) => ({ vencimento: p.vencimento, valor: Number(p.valor) })) : [{ vencimento: competencia, valor: Number(e.valor) }] });
     d.criado_em = agora();
     d.unidade_negocio_id = UNIDADES[un];
     if (e.pagamento?.conta_pagadora_id) { montarPagadores(); for (const pg of pagamentosVivos(d)) definirPagadorDemo(pg.id, e.pagamento.conta_pagadora_id, true); }
@@ -1235,7 +1237,8 @@ export const ROTAS_FINANCEIRO: Rota[] = [
   ['POST', R('financeiro/outras-receitas'), GERENCIA, async ({ corpo, request }) => {
     montar();
     const e = await corpo<ReceitaCorpo>();
-    if (!e.descricao?.trim() || !e.valor || Number(e.valor) <= 0 || !e.competencia) throw new ErroDemo(422, 'regra_violada', 'Preencha descrição, valor e competência.');
+    if (!e.descricao?.trim() || !e.valor || Number(e.valor) <= 0) throw new ErroDemo(422, 'regra_violada', 'Preencha descrição e valor.');
+    if (!e.competencia) e.competencia = e.recebido_em ?? hojeFortaleza();
     const chave = request.headers.get('Idempotency-Key');
     const ja = chave ? E.receitas.find((x) => x.chave === chave) : undefined;
     if (ja) return resposta(201, saidaReceita(ja));

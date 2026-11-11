@@ -27,11 +27,11 @@ test.beforeEach(async ({ page }) => {
 });
 test.afterEach(() => expect(erros).toEqual([]));
 
-test('três abas; Movimentações em Receitas | Despesas, sem indicadores, sem Filtros, botões pequenos', async ({ page }) => {
+test('abas do Gerente (sem Repasses); Movimentações em Receitas | Despesas, sem indicadores, sem Filtros, botões pequenos', async ({ page }) => {
   await page.goto(`${DEMO}/admin/financeiro`);
   const abas = page.getByRole('tablist', { name: 'Seções' }).getByRole('tab');
-  await expect(abas).toHaveCount(3);
-  for (const [i, nome] of [/^Movimentações/, /^Contas a pagar/, /^Pendências/].entries()) await expect(abas.nth(i)).toHaveText(nome);
+  await expect(abas).toHaveCount(4);
+  for (const [i, nome] of [/^Movimentações/, /^Contas a pagar/, /^Contas recorrentes/, /^Pendências/].entries()) await expect(abas.nth(i)).toHaveText(nome);
   await expect(aba(page, /^Movimentações/)).toHaveAttribute('aria-selected', 'true');
   await expect(page.locator('.indicador')).toHaveCount(0);
   // Sem a faixa dos cinco indicadores e sem o botão Filtros.
@@ -167,7 +167,7 @@ test('Nova despesa já paga: Conjunto por padrão, aparece uma vez em Despesas c
 test('+ Conta a pagar (avulsa): aparece em Contas a pagar, é paga pela lista e a MESMA despesa fica Paga em Despesas', async ({ page }) => {
   const nome = `Conta a pagar ${Date.now()}`;
   await page.goto(`${DEMO}/admin/financeiro?aba=contas`);
-  await page.getByRole('button', { name: 'Conta a pagar' }).click();
+  await page.getByRole('button', { name: 'Tipo da conta a pagar' }).click();
   await page.getByRole('menuitem', { name: /^Avulsa/ }).click();
   const gaveta = page.getByRole('dialog', { name: 'Nova despesa' });
   await expect(gaveta.getByRole('group', { name: 'Situação do pagamento' }).getByRole('button', { name: 'A pagar' })).toHaveAttribute('aria-pressed', 'true');
@@ -182,8 +182,8 @@ test('+ Conta a pagar (avulsa): aparece em Contas a pagar, é paga pela lista e 
   await page.getByLabel('Buscar conta a pagar').fill(nome);
   const linha = contas.getByRole('row', { name: new RegExp(nome) });
   await expect(linha).toHaveCount(1);
-  await expect(linha).toContainText('Avulsa');
-  await expect(linha).toContainText('A pagar');
+  // Colunas: Vencimento, Descrição, Valor e Situação (Em aberto | Vencida).
+  await expect(linha).toContainText(/Em aberto|Vencida/);
   await linha.getByRole('button', { name: 'Pagar' }).click();
   const pagar = page.getByRole('dialog', { name: 'Registrar pagamento' });
   await expect(pagar.getByLabel('Pago com a conta')).toHaveValue(/.+/); // a conta padrão já vem escolhida
@@ -202,7 +202,7 @@ test('Contas a pagar: parcelada e recorrente pela mesma aba, sem o botão Contas
   await page.goto(`${DEMO}/admin/financeiro?aba=contas`);
   await expect(page.getByRole('button', { name: /Contas fixas/ })).toHaveCount(0);
   const nome = `Tablet ${Date.now()}`;
-  await page.getByRole('button', { name: 'Conta a pagar' }).click();
+  await page.getByRole('button', { name: 'Tipo da conta a pagar' }).click();
   await page.getByRole('menuitem', { name: /^Parcelada/ }).click();
   const gaveta = page.getByRole('dialog', { name: 'Nova despesa' });
   await expect(gaveta.getByRole('group', { name: 'Situação do pagamento' }).getByRole('button', { name: 'Parcelada' })).toHaveAttribute('aria-pressed', 'true');
@@ -214,11 +214,11 @@ test('Contas a pagar: parcelada e recorrente pela mesma aba, sem o botão Contas
   await fecharDetalhe(page, nome);
   await page.getByLabel('Buscar conta a pagar').fill(nome);
   const parcelas = page.getByRole('table', { name: 'Contas a pagar' }).getByRole('row', { name: new RegExp(nome) });
-  await expect(parcelas.first()).toContainText(/Parcelada · 1\/\d/);
+  expect(await parcelas.count()).toBeGreaterThan(1); // uma linha por parcela em aberto, uma despesa só
 
   await aba(page, /^Contas recorrentes/).click();
   await expect(page.getByText('Aluguel da loja')).toBeVisible();
-  await page.getByRole('button', { name: 'Conta a pagar' }).click();
+  await page.getByRole('button', { name: 'Tipo da conta a pagar' }).click();
   await page.getByRole('menuitem', { name: /^Recorrente/ }).click();
   const rec = page.getByRole('dialog', { name: 'Nova conta recorrente' });
   await expect(rec.getByLabel('Responsável')).toHaveValue('');
@@ -362,7 +362,7 @@ test('Repasses do Conjunto e contas pagadoras: só o Proprietário', async ({ pa
   await expect(page.getByLabel('Responsável padrão das despesas novas')).toHaveValue('conjunto');
   await page.getByRole('button', { name: 'Nova conta' }).click();
   const form = page.getByRole('dialog', { name: 'Nova conta' });
-  await expect(form.getByLabel('Grupo').locator('option')).toHaveText(['Âmbar', 'Roll', 'Conjunto (empresa Âmbar × Roll)']);
+  await expect(form.getByLabel('Grupo').locator('option')).toHaveText(['Âmbar', 'Roll', 'Conjunto (Master)']);
   await expect(form.getByLabel('Tipo de conta')).toHaveValue('pessoal');
   await form.getByLabel('Grupo').selectOption('conjunta');
   await expect(form.getByLabel('Tipo de conta')).toHaveValue('empresarial');
@@ -421,10 +421,11 @@ test('Resultado: participação da Roll só para o Proprietário (simulação)',
   expect((await page.request.get(`${DEMO}/admin/api/financeiro/apuracoes/${mes}/participacao`)).status()).toBe(403);
 });
 
-test('Recorrentes em Contas a pagar; taxas contratadas em Stone e recebíveis, com nova vigência', async ({ page }) => {
+test('Recorrentes em aba própria (link antigo também); taxas contratadas em Stone e recebíveis, com nova vigência', async ({ page }) => {
   await page.goto(`${DEMO}/admin/financeiro?aba=contas&situacao=recorrentes`);
+  await expect(aba(page, /^Contas recorrentes/)).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByText('Aluguel da loja')).toBeVisible();
-  await page.getByRole('group', { name: 'Situação das contas' }).getByRole('button', { name: 'Em aberto' }).click();
+  await aba(page, /^Contas a pagar/).click();
   await expect(page.getByRole('table', { name: 'Contas a pagar' })).toBeVisible();
 
   await page.goto(`${DEMO}/admin/financeiro?aba=pendencias&vista=stone`);
@@ -495,6 +496,6 @@ test('Configurações → Financeiro: Categorias e Fornecedores ali dentro, com 
   await cadastros.getByRole('button', { name: 'Fornecedores' }).click();
   await expect(page.getByRole('table', { name: 'Fornecedores' })).toBeVisible();
   await page.getByRole('link', { name: /Contas recorrentes/ }).click();
-  await expect(aba(page, /^Contas a pagar/)).toHaveAttribute('aria-selected', 'true');
+  await expect(aba(page, /^Contas recorrentes/)).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByText('Aluguel da loja')).toBeVisible();
 });

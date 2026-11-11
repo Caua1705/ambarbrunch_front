@@ -1,6 +1,6 @@
 // Configurações → Financeiro: os cadastros administrativos do Financeiro, os MESMOS componentes de antes (Categorias e
 // Fornecedores, com as rotas e permissões de sempre), escolhidos por ?cadastro=. O que é usado no dia a dia fica onde é
-// usado, com atalho daqui: contas recorrentes (Contas a pagar). As ferramentas administrativas que saíram de Pendências
+// usado, com atalho daqui: contas recorrentes (aba própria). As ferramentas administrativas que saíram de Pendências
 // (fase final) — documentos da Júlia que não viraram lançamento, Banco/extratos, Stone e recebíveis (taxas) e Acertos —
 // continuam no backend e abrem por estes atalhos, só para quem tem a permissão.
 import { useEffect, useState } from 'preact/hooks';
@@ -18,7 +18,7 @@ type Cadastro = 'categorias' | 'fornecedores' | 'contas';
 
 type Atalho = { href: string; titulo: string; detalhe: string; permissao?: 'financeiro.conciliar' | 'financeiro.ver_societario' };
 const ATALHOS: Atalho[] = [
-  { href: '/admin/financeiro?aba=contas&situacao=recorrentes', titulo: 'Contas recorrentes', detalhe: 'Aluguel, internet, sistemas: ficam em Contas a pagar → Recorrentes' },
+  { href: '/admin/financeiro?aba=recorrentes', titulo: 'Contas recorrentes', detalhe: 'Aluguel, internet, sistemas: aba Contas recorrentes do Financeiro' },
   { href: '/admin/financeiro?aba=pendencias&vista=revisao', titulo: 'Documentos da Júlia para conferir', detalhe: 'Comprovantes que não viraram lançamento (ilegível, sem data, possível duplicado)' },
   { href: '/admin/financeiro?aba=pendencias&vista=stone', titulo: 'Stone e recebíveis', detalhe: 'Vendido, líquido estimado e taxas contratadas da adquirente', permissao: 'financeiro.conciliar' },
   { href: '/admin/financeiro?aba=pendencias&vista=banco', titulo: 'Banco e extratos (opcional)', detalhe: 'Importar OFX ou CSV para conferir', permissao: 'financeiro.conciliar' },
