@@ -29,7 +29,7 @@ export function NovaDespesa({ aberta, aoFechar, aoCriar, situacaoInicial = 'paga
   const [descricao, setDescricao] = useState('');
   const [valor, setValor] = useState('');
   const [categoria, setCategoria] = useState('');
-  const [data, setData] = useState(hojeISO());
+  const [data, setData] = useState(''); // 0033: opcional, nunca preenchida com hoje
   const [situacao, setSituacao] = useState<Situacao>('paga');
   const [forma, setForma] = useState<FormaPagamento>('pix');
   const [pagoEm, setPagoEm] = useState(hojeISO());
@@ -60,7 +60,7 @@ export function NovaDespesa({ aberta, aoFechar, aoCriar, situacaoInicial = 'paga
     setDescricao('');
     setValor('');
     setCategoria('');
-    setData(hojeISO());
+    setData('');
     setSituacao(situacaoInicial);
     setForma('pix');
     setPagoEm(hojeISO());
@@ -111,7 +111,6 @@ export function NovaDespesa({ aberta, aoFechar, aoCriar, situacaoInicial = 'paga
     if (descricao.trim().length < 2) es.descricao = 'Descreva a despesa (ex.: Conta de energia de outubro).';
     if (!v || Number(v) <= 0) es.valor = 'Informe o valor.';
     if (!categoria) es.categoria = 'Escolha a categoria.';
-    if (!data) es.competencia = 'Informe a data.';
     if (situacao === 'paga' && !pagoEm) es.pago_em = 'Informe quando foi pago.';
     if (situacao === 'parcelada') {
       const soma = parcelas.reduce((s, p) => s + Number(p.valor), 0);
@@ -122,7 +121,7 @@ export function NovaDespesa({ aberta, aoFechar, aoCriar, situacaoInicial = 'paga
     const corpo: DespesaEntrada = {
       descricao: descricao.trim(),
       valor: v!,
-      competencia: data,
+      competencia: data || null,
       categoria,
       fornecedor: forn ? ('id' in forn ? { id: forn.id } : { nome: forn.novo, documento: fornDoc.replace(/\D/g, '') || null }) : null,
       arquivo_id: arquivo?.id ?? null,
@@ -170,7 +169,7 @@ export function NovaDespesa({ aberta, aoFechar, aoCriar, situacaoInicial = 'paga
           <Campo rotulo="Valor" erro={erros.valor}>
             {(id, d) => <EntradaMoeda id={id} descr={d} valor={valor} aoMudar={setValor} invalido={!!erros.valor} />}
           </Campo>
-          <Campo rotulo="Data" erro={erros.competencia} ajuda="Dia da despesa (competência).">
+          <Campo rotulo="Data (opcional)" erro={erros.competencia} ajuda="Dia da despesa (competência). Pode ser informada depois.">
             {(id, d) => <input id={id} type="date" class="entrada" aria-describedby={d} value={data} onChange={(e) => setData(e.currentTarget.value)} />}
           </Campo>
           <Campo rotulo="Categoria" class="inteiro" erro={erros.categoria}>

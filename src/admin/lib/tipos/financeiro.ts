@@ -53,6 +53,7 @@ export type TipoLancamento = 'venda_dia' | 'despesa' | 'pagamento' | 'outra_rece
 export interface Lancamento {
   tipo: TipoLancamento;
   id: string;
+  /** 0033: pode vir null (lançamento sem data); dataCurta mostra "—". */
   data: Data;
   descricao: string;
   /** 0030: lado da conta pagadora (ambar, roll, conjunta = Conjunto). */
@@ -168,6 +169,7 @@ export interface DespesaSaida {
   unidade_negocio_id: number;
   descricao: string;
   valor: Dec;
+  /** 0033: pode vir null (lançamento sem data); dataCurta mostra "—". */
   competencia: Data;
   categoria_codigo: string;
   grupo: string;
@@ -195,7 +197,8 @@ export interface DespesaSaida {
 export interface DespesaEntrada {
   descricao: string;
   valor: Dec;
-  competencia: Data;
+  /** 0033: opcional por enquanto. */
+  competencia: Data | null;
   categoria: string;
   /** `id`: fornecedor escolhido na busca (vale sozinho; desativado → 409 fornecedor_inativo). Sem ele, documento/nome
    *  resolvem ou criam o fornecedor. */
@@ -569,7 +572,8 @@ export interface OutraReceitaEntrada {
   operacao?: 'ambar' | 'roll' | null;
   descricao: string;
   valor: Dec;
-  competencia: Data;
+  /** 0033: opcional por enquanto. */
+  competencia: Data | null;
   /** Vazio = a receber. */
   recebido_em?: Data | null;
   arquivo_id?: Uuid | null;
@@ -592,6 +596,7 @@ export interface OutraReceitaSaida {
   id: Uuid;
   descricao: string;
   valor: Dec;
+  /** 0033: pode vir null (lançamento sem data); dataCurta mostra "—". */
   competencia: Data;
   recebido_em: Data | null;
   situacao_recebimento?: 'recebida' | 'pendente';

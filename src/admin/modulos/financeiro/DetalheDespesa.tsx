@@ -200,7 +200,7 @@ function Correcao({ d, aoTerminar }: { d: DespesaSaida; aoTerminar: () => void }
   const nome = useNomeCategoria();
   const [descricao, setDescricao] = useState(d.descricao);
   const [valor, setValor] = useState(brl(d.valor));
-  const [competencia, setCompetencia] = useState(d.competencia);
+  const [competencia, setCompetencia] = useState(d.competencia ?? '');
   const [categoria, setCategoria] = useState(d.categoria_codigo);
   const [motivo, setMotivo] = useState('');
   const [erro, setErro] = useState<ErroApi | null>(null);
@@ -214,7 +214,7 @@ function Correcao({ d, aoTerminar }: { d: DespesaSaida; aoTerminar: () => void }
     const c: { versao: number; motivo: string; descricao?: string; valor?: string; competencia?: string; categoria?: string } = { versao: d.versao, motivo: motivo.trim() };
     if (descricao.trim() !== d.descricao) c.descricao = descricao.trim();
     if (Number(v) !== Number(d.valor)) c.valor = v;
-    if (competencia !== d.competencia) c.competencia = competencia;
+    if (competencia && competencia !== d.competencia) c.competencia = competencia;
     if (categoria !== d.categoria_codigo) c.categoria = categoria;
     if (Object.keys(c).length === 2) return aoTerminar();
     setEnviando(true);

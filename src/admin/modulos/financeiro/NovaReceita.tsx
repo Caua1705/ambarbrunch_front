@@ -22,7 +22,7 @@ export function NovaReceita({ aberta, aoFechar, editar }: { aberta: boolean; aoF
   const opcoes = useConsulta(aberta ? 'financeiro/outras-receitas/opcoes' : null, () => financeiro.opcoesReceita());
   const [descricao, setDescricao] = useState('');
   const [valor, setValor] = useState('');
-  const [competencia, setCompetencia] = useState(hojeISO());
+  const [competencia, setCompetencia] = useState(''); // 0033: opcional
   const [categoria, setCategoria] = useState('outra_operacional');
   const [operacao, setOperacao] = useState<'' | 'ambar' | 'roll'>('');
   const [recebida, setRecebida] = useState<'sim' | 'nao'>('sim');
@@ -43,7 +43,7 @@ export function NovaReceita({ aberta, aoFechar, editar }: { aberta: boolean; aoF
     const r = editar;
     setDescricao(r?.descricao ?? '');
     setValor(r ? r.valor : '');
-    setCompetencia(r?.competencia ?? hojeISO());
+    setCompetencia(r?.competencia ?? '');
     setCategoria(r?.categoria ?? 'outra_operacional');
     setOperacao(r?.operacao ?? '');
     setRecebida(r && !r.recebido_em ? 'nao' : 'sim');
@@ -67,7 +67,6 @@ export function NovaReceita({ aberta, aoFechar, editar }: { aberta: boolean; aoF
     const es: Record<string, string> = {};
     if (!descricao.trim()) es.descricao = 'Descreva a receita (ex.: Locação do salão em 12/11).';
     if (!v || Number(v) <= 0) es.valor = 'Informe o valor.';
-    if (!competencia) es.competencia = 'Informe a data.';
     if (recebida === 'sim' && !recebidoEm) es.recebido_em = 'Informe quando foi recebida.';
     if (editar && motivo.trim().length < 3) es.motivo = 'Diga por que está corrigindo.';
     if (duplicidade && !ciente) es.ciente = 'Confirme que é outro dinheiro, ou cancele.';
@@ -76,7 +75,7 @@ export function NovaReceita({ aberta, aoFechar, editar }: { aberta: boolean; aoF
     setEnviando(true);
     try {
       const campos = {
-        descricao: descricao.trim(), valor: v!, competencia, categoria, operacao: operacao || null,
+        descricao: descricao.trim(), valor: v!, competencia: competencia || null, categoria, operacao: operacao || null,
         recebido_em: recebida === 'sim' ? recebidoEm : null,
         forma_recebimento: forma || null, origem: origem.trim() || null, observacao: observacao.trim() || null,
         ciente_duplicidade: duplicidade && ciente,
@@ -138,7 +137,7 @@ export function NovaReceita({ aberta, aoFechar, editar }: { aberta: boolean; aoF
           <Campo rotulo="Valor" erro={erros.valor}>
             {(id, d) => <EntradaMoeda id={id} descr={d} valor={valor} aoMudar={setValor} invalido={!!erros.valor} />}
           </Campo>
-          <Campo rotulo="Data" erro={erros.competencia} ajuda="Dia a que a receita pertence (competência).">
+          <Campo rotulo="Data (opcional)" erro={erros.competencia} ajuda="Dia a que a receita pertence (competência). Pode ser informada depois.">
             {(id, d) => <input id={id} type="date" class="entrada" aria-describedby={d} value={competencia} onChange={(e) => setCompetencia(e.currentTarget.value)} />}
           </Campo>
           <Campo rotulo="Operação" ajuda="De quem é a receita (repasses do Conjunto).">
