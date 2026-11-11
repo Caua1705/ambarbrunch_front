@@ -378,3 +378,28 @@
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: var(--e-3);
 }
+
+/* Detalhamento (0034): itens com base, acréscimos e descontos. Compacto; cabe no celular. */
+.fin-item {
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-p, 8px);
+  padding: var(--e-2, 8px);
+  display: grid;
+  gap: 6px;
+}
+.fin-item__linha {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 7.5rem auto;
+  gap: 6px;
+  align-items: center;
+}
+.fin-item__ajuste {
+  grid-template-columns: 1rem minmax(0, 1fr) 7.5rem auto;
+  padding-left: 8px;
+}
+.fin-item__rodape {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.fin-item__valor { text-align: right; }

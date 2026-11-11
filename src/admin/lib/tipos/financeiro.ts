@@ -165,6 +165,8 @@ export interface ParcelaSaida {
 }
 
 export interface DespesaSaida {
+  /** 0034: detalhamento (composição do valor). */
+  itens?: ItemDetalhe[];
   id: Uuid;
   unidade_negocio_id: number;
   descricao: string;
@@ -194,7 +196,32 @@ export interface DespesaSaida {
   historico?: { em: Instante; acao: string; ator: string | null; ator_tipo: string; dados: unknown }[];
 }
 
+/** 0034: item do detalhamento (total = base + acréscimos − descontos). */
+export interface ItemDetalhe {
+  descricao: string;
+  valor_base: Dec;
+  observacao?: string | null;
+  acrescimos?: { descricao: string; valor: Dec }[];
+  descontos?: { descricao: string; valor: Dec }[];
+  /** Só na leitura. */
+  total?: Dec;
+}
+/** 0034: edição genérica (PATCH /despesas/{id}). */
+export interface DespesaCorrecao {
+  versao: number;
+  motivo?: string;
+  descricao?: string;
+  valor?: Dec;
+  competencia?: Data;
+  categoria?: string;
+  responsavel?: ResponsavelNovo;
+  vencimento?: Data;
+  itens?: ItemDetalhe[];
+  confirmar?: boolean;
+  aplicar_proximas?: boolean;
+}
 export interface DespesaEntrada {
+  itens?: ItemDetalhe[] | null;
   descricao: string;
   valor: Dec;
   /** 0033: opcional por enquanto. */
@@ -263,6 +290,9 @@ export interface CategoriaAlteracao {
 }
 
 export interface Recorrencia {
+  itens?: ItemDetalhe[];
+  vencimento_dia_util?: boolean;
+  vencimento_mes_seguinte?: boolean;
   id: Uuid;
   descricao: string;
   categoria_codigo: string;
@@ -625,6 +655,9 @@ export interface TaxaPagamento {
 export type TaxaEntrada = Omit<TaxaPagamento, 'id'>;
 
 export interface RecorrenciaEntrada {
+  itens?: ItemDetalhe[] | null;
+  vencimento_dia_util?: boolean;
+  vencimento_mes_seguinte?: boolean;
   descricao: string;
   categoria: string;
   /** `id`: fornecedor escolhido na busca (vale sozinho; desativado → 409 fornecedor_inativo). Sem ele, documento/nome

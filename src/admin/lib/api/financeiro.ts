@@ -9,7 +9,7 @@ import type {
   RelatorioVendas, OutraReceitaEntrada, OutraReceitaSaida, OutraReceitaAlteracao, OpcoesReceita, TaxaPagamento, TaxaEntrada, RecorrenciaEntrada, Participacao,
   SimulacaoParticipacao, EstadoContaMes, DocumentoRevisao, CorrecaoDocumento, ResolucaoDocumento, AnexoDespesa,
   CategoriaEntrada, CategoriaAlteracao, CandidataRevisao, DespesaCandidata, FornecedorCadastro, FornecedorDetalhe,
-  ContaPagadora, ContaPagadoraCadastro, ContaPagadoraEntrada, ListaPendencias, Pendencia, PagadorPagamento, Acertos, RepassesConjunto,
+  ContaPagadora, ContaPagadoraCadastro, ContaPagadoraEntrada, ListaPendencias, Pendencia, PagadorPagamento, Acertos, RepassesConjunto, DespesaCorrecao, ItemDetalhe,
   MovimentoAcerto, Responsavel, Tratamento, ConfiguracaoFinanceira, ResponsavelNovo,
 } from '../tipos/financeiro';
 
@@ -81,7 +81,7 @@ export const financeiro = {
   fornecedor: (id: string) => pedir<FornecedorDetalhe>(`financeiro/fornecedores/${id}`),
   despesa: (id: string) => pedir<DespesaSaida>(`financeiro/despesas/${id}`),
   criarDespesa: (d: DespesaEntrada, chave = novaChave()) => pedir<DespesaSaida>('financeiro/despesas', { metodo: 'POST', corpo: d, idempotencia: chave }),
-  corrigirDespesa: (id: string, c: { versao: number; motivo: string; descricao?: string; valor?: string; competencia?: string; categoria?: string }) =>
+  corrigirDespesa: (id: string, c: DespesaCorrecao) =>
     pedir<DespesaSaida>(`financeiro/despesas/${id}`, { metodo: 'PATCH', corpo: c }),
   /** Classifica/confirma a MESMA despesa (nada é lançado de novo). Insumos/embalagens abrem a conferência em Estoque → Compras. */
   confirmarDespesa: (id: string, categoria?: string, descricao?: string) =>
@@ -112,7 +112,7 @@ export const financeiro = {
   pausarRecorrencia: (id: string, versao: number, pausar: boolean) => pedir<Recorrencia>(`financeiro/recorrencias/${id}`, { metodo: 'PATCH', corpo: { versao, pausar } }),
   recorrencias: (ativas = true) => pedir<Recorrencia[]>('financeiro/recorrencias', { query: { ativas } }),
   criarRecorrencia: (r: RecorrenciaEntrada) => pedir<Recorrencia>('financeiro/recorrencias', { metodo: 'POST', corpo: r }),
-  alterarRecorrencia: (id: string, r: { versao: number; aplicar_a_partir_de?: string; encerrar_em?: string; valor_previsto?: string; descricao?: string; dia_vencimento?: number; valor_variavel?: boolean }) =>
+  alterarRecorrencia: (id: string, r: { versao: number; aplicar_a_partir_de?: string; encerrar_em?: string; valor_previsto?: string; descricao?: string; dia_vencimento?: number; valor_variavel?: boolean; itens?: ItemDetalhe[] | null; vencimento_dia_util?: boolean; vencimento_mes_seguinte?: boolean }) =>
     pedir<Recorrencia>(`financeiro/recorrencias/${id}`, { metodo: 'PATCH', corpo: r }),
   taxas: () => pedir<TaxaPagamento[]>('financeiro/taxas-pagamento'),
   registrarTaxa: (t: TaxaEntrada) => pedir<TaxaEntrada>('financeiro/taxas-pagamento', { metodo: 'POST', corpo: t }),

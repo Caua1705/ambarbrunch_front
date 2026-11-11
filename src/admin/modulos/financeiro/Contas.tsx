@@ -8,7 +8,7 @@
 // Despesas: nada é contado duas vezes.
 // Rotas: GET /contas-a-pagar, POST /parcelas/{id}/pagamentos, POST /despesas, GET/POST/PATCH /recorrencias.
 import { useEffect, useState } from 'preact/hooks';
-import { Banknote, Search, Plus } from 'lucide-preact';
+import { Banknote, Search, Plus, Pencil } from 'lucide-preact';
 import type { ContextoPainel } from '../../lib/sessao';
 import { useConsulta } from '../../lib/consulta';
 import { financeiro } from '../../lib/api/financeiro';
@@ -22,7 +22,7 @@ import type { ContaPagar, ListaContas } from '../../lib/tipos/financeiro';
 import { useNomeCategoria, temPermissao } from './comum';
 import { Pagar, type ContaParaPagar } from './Pagar';
 import { EditarRecorrencia } from './ContasFixas';
-import { NovaDespesa } from './NovaDespesa';
+import { NovaDespesa, EditarDespesa } from './NovaDespesa';
 
 type TipoNova = 'avulsa' | 'parcelada' | 'recorrente';
 export const TIPO_CONTA: Record<string, string> = { avulsa: 'Avulsa', recorrente: 'Recorrente', parcelada: 'Parcelada' };
@@ -64,6 +64,7 @@ export function ContasAPagar({ contexto, abrirDespesa }: { contexto: ContextoPai
 function ListaContasPagar({ contexto, busca, abrirDespesa }: { contexto: ContextoPainel; busca: string; abrirDespesa: (id: string) => void }) {
   const lancar = temPermissao(contexto.usuario, 'financeiro.lancar');
   const [pagar, setPagar] = useState<ContaParaPagar | null>(null);
+  const [editar, setEditar] = useState<string | null>(null);
   const nome = useNomeCategoria();
   // Endereços antigos (?situacao=): os filtros saíram.
   useEffect(() => gravarParams({ situacao: null }), []);
@@ -98,9 +99,12 @@ function ListaContasPagar({ contexto, busca, abrirDespesa }: { contexto: Context
     {
       id: 'acoes', titulo: '',
       celula: (c) => (!lancar ? null : (
-        <Botao tamanho="p" variante={c.situacao_painel === 'vencida' || c.situacao_painel === 'vence_hoje' ? 'primario' : 'secundario'} icone={<Banknote aria-hidden="true" />} onClick={() => setPagar(c)}>
-          Pagar
-        </Botao>
+        <span class="linha" style={{ gap: '4px', justifyContent: 'flex-end', flexWrap: 'nowrap' }}>
+          <Botao tamanho="p" variante="fantasma" so_icone aria-label={`Editar ${c.descricao}`} icone={<Pencil aria-hidden="true" />} onClick={() => setEditar(c.despesa_id)} />
+          <Botao tamanho="p" variante={c.situacao_painel === 'vencida' || c.situacao_painel === 'vence_hoje' ? 'primario' : 'secundario'} icone={<Banknote aria-hidden="true" />} onClick={() => setPagar(c)}>
+            Pagar
+          </Botao>
+        </span>
       )),
     },
   ];
@@ -142,6 +146,7 @@ function ListaContasPagar({ contexto, busca, abrirDespesa }: { contexto: Context
       )}
 
       <Pagar conta={pagar} aoFechar={() => setPagar(null)} />
+      <EditarDespesa id={editar} aoFechar={() => setEditar(null)} />
     </>
   );
 }

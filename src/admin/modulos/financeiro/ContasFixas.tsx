@@ -14,6 +14,7 @@ import { Botao, Cartao, Segmentado, Etiqueta, Campo, Aviso, Situacao } from '../
 import { EntradaMoeda } from '../../ui/entradas';
 import { Dados, EsqueletoTabela, Vazio } from '../../ui/estados';
 import type { MeioPdv, Recorrencia, TaxaPagamento, ResponsavelNovo } from '../../lib/tipos/financeiro';
+import { EditorItens, paraForm, paraApi, totalItens, deCentavos, type ItemForm } from './Detalhamento';
 import { useCategorias, useNomeCategoria, OpcoesCategoria, atualizarFinanceiro, avisar, MEIO, RESPONSAVEL, RESPONSAVEIS_NOVOS } from './comum';
 
 const brl = (v: string) => Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -96,6 +97,11 @@ export function EditarRecorrencia({ alvo, aoFechar }: { alvo: Recorrencia | 'nov
   const [fim, setFim] = useState('');
   const [fornecedor, setFornecedor] = useState('');
   const [responsavel, setResponsavel] = useState<'' | ResponsavelNovo>('');
+  // 0034: itens-base (copiados para cada competência) e vencimento por dia útil / no mês seguinte.
+  const [detAtivo, setDetAtivo] = useState(false);
+  const [itens, setItens] = useState<ItemForm[]>([]);
+  const [diaUtil, setDiaUtil] = useState(false);
+  const [mesSeguinte, setMesSeguinte] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
   useEffect(() => {
@@ -110,12 +116,22 @@ export function EditarRecorrencia({ alvo, aoFechar }: { alvo: Recorrencia | 'nov
     setFim('');
     setFornecedor('');
     setResponsavel('');
+    setItens(paraForm(r?.itens));
+    setDetAtivo(!!r?.itens?.length);
+    setDiaUtil(r?.vencimento_dia_util ?? false);
+    setMesSeguinte(r?.vencimento_mes_seguinte ?? false);
     setErro(null);
   }, [alvo]);
+  // Com itens-base, o valor previsto é a soma deles.
+  useEffect(() => {
+    if (detAtivo && itens.length) setValor(brl(deCentavos(totalItens(itens))));
+  }, [detAtivo, itens]);
 
   async function salvar(e: Event) {
     e.preventDefault();
     const v = paraDecimal(valor);
+    const base = detAtivo && itens.length ? paraApi(itens) : { itens: [], erro: null };
+    if (base.erro) return setErro(base.erro);
     if (!descricao.trim() || !v || Number(v) <= 0 || !(dia >= 1 && dia <= 31) || (!r && !categoria)) return setErro('Preencha descrição, categoria, valor previsto e dia de vencimento (1 a 31).');
     if (!r && !(intervalo >= 1 && intervalo <= 12)) return setErro('O intervalo vai de 1 a 12 meses.');
     if (!r && fim && fim < `${aPartir}-01`) return setErro('O fim não pode ser antes do início.');
@@ -123,13 +139,13 @@ export function EditarRecorrencia({ alvo, aoFechar }: { alvo: Recorrencia | 'nov
     setErro(null);
     try {
       if (r) {
-        await financeiro.alterarRecorrencia(r.id, { versao: r.versao, aplicar_a_partir_de: `${aPartir}-01`, descricao: descricao.trim(), valor_previsto: v, dia_vencimento: dia, valor_variavel: variavel });
+        await financeiro.alterarRecorrencia(r.id, { versao: r.versao, aplicar_a_partir_de: `${aPartir}-01`, descricao: descricao.trim(), valor_previsto: v, dia_vencimento: dia, valor_variavel: variavel, itens: base.itens, vencimento_dia_util: diaUtil, vencimento_mes_seguinte: mesSeguinte });
         avisar(`Conta recorrente alterada a partir de ${mesAno(`${aPartir}-01`).toLowerCase()}.`, 'ok');
       } else {
         await financeiro.criarRecorrencia({
           descricao: descricao.trim(), categoria, valor_previsto: v, valor_variavel: variavel, dia_vencimento: dia, intervalo_meses: intervalo,
           inicio: `${aPartir}-01`, fim: fim || null, fornecedor: fornecedor.trim() ? { nome: fornecedor.trim() } : null,
-          responsavel: responsavel || null,
+          responsavel: responsavel || null, itens: base.itens, vencimento_dia_util: diaUtil, vencimento_mes_seguinte: mesSeguinte,
         });
         avisar('Conta recorrente cadastrada.', 'ok');
       }
@@ -162,7 +178,7 @@ export function EditarRecorrencia({ alvo, aoFechar }: { alvo: Recorrencia | 'nov
         )}
         <div class="grade-campos">
           <Campo rotulo="Valor previsto">{(id, d) => <EntradaMoeda id={id} descr={d} valor={valor} aoMudar={setValor} />}</Campo>
-          <Campo rotulo="Dia do vencimento">{(id) => <input id={id} type="number" min={1} max={31} class="entrada num" value={dia} onInput={(e) => setDia(Number(e.currentTarget.value))} />}</Campo>
+          <Campo rotulo={diaUtil ? 'Dia útil do vencimento (Nº)' : 'Dia do vencimento'}>{(id) => <input id={id} type="number" min={1} max={31} class="entrada num" value={dia} onInput={(e) => setDia(Number(e.currentTarget.value))} />}</Campo>
           <Campo rotulo={r ? 'Vale a partir de' : 'Primeiro mês'}>{(id) => <input id={id} type="month" class="entrada" value={aPartir} onChange={(e) => setAPartir(e.currentTarget.value)} />}</Campo>
           {!r && <Campo rotulo="A cada quantos meses">{(id) => <input id={id} type="number" min={1} max={12} class="entrada num" value={intervalo} onInput={(e) => setIntervalo(Number(e.currentTarget.value))} />}</Campo>}
           {!r && <Campo rotulo="Fim" opcional>{(id) => <input id={id} type="date" class="entrada" value={fim} onChange={(e) => setFim(e.currentTarget.value)} />}</Campo>}
@@ -178,6 +194,13 @@ export function EditarRecorrencia({ alvo, aoFechar }: { alvo: Recorrencia | 'nov
           )}
           {!r && <Campo rotulo="Fornecedor" opcional>{(id) => <input id={id} class="entrada" maxLength={160} autocomplete="off" value={fornecedor} onInput={(e) => setFornecedor(e.currentTarget.value)} />}</Campo>}
         </div>
+        <label class="marcar"><input type="checkbox" checked={diaUtil} onChange={(e) => setDiaUtil(e.currentTarget.checked)} /><span>Contar em dias úteis <span class="fraco">(ex.: 5º dia útil; fins de semana e feriados nacionais não contam)</span></span></label>
+        <label class="marcar"><input type="checkbox" checked={mesSeguinte} onChange={(e) => setMesSeguinte(e.currentTarget.checked)} /><span>Vence no mês seguinte ao da competência <span class="fraco">(ex.: folha de novembro paga em dezembro)</span></span></label>
+        <label class="marcar">
+          <input type="checkbox" checked={detAtivo} onChange={(e) => { setDetAtivo(e.currentTarget.checked); if (e.currentTarget.checked && !itens.length) setItens([{ descricao: '', base: '', observacao: '', acrescimos: [], descontos: [] }]); }} />
+          <span>Detalhamento-base <span class="fraco">(itens copiados para cada mês; comissões e descontos se ajustam na conta do mês)</span></span>
+        </label>
+        {detAtivo && <EditorItens itens={itens} aoMudar={setItens} semAjustes />}
         <label class="marcar">
           <input type="checkbox" checked={variavel} onChange={(e) => setVariavel(e.currentTarget.checked)} />
           <span>O valor muda todo mês <span class="fraco">(energia, água, folha, vale-transporte): a conta do mês nasce “a confirmar” e o valor real é informado ao pagar.</span></span>

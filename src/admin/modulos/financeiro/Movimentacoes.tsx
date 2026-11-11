@@ -9,7 +9,7 @@
 // Rotas: GET /admin/financeiro/lancamentos?grupo=receitas|despesas e /relatorios/vendas (detalhe do dia).
 import { Fragment } from 'preact';
 import { useEffect, useMemo, useState } from 'preact/hooks';
-import { Plus, Search, MoreHorizontal } from 'lucide-preact';
+import { Plus, Search, MoreHorizontal, Pencil } from 'lucide-preact';
 import type { ContextoPainel } from '../../lib/sessao';
 import { useConsulta } from '../../lib/consulta';
 import { financeiro } from '../../lib/api/financeiro';
@@ -21,7 +21,7 @@ import { Dados, Esqueleto, EsqueletoTabela, Vazio } from '../../ui/estados';
 import { Tabela, type Coluna } from '../../ui/tabela';
 import type { Lancamento, ListaLancamentos, OutraReceitaSaida } from '../../lib/tipos/financeiro';
 import { SituacaoLancamento, useCadastroCategorias, nomeCategoria, temPermissao, atualizarFinanceiro, avisar, RESPONSAVEL, MEIO, PARTE } from './comum';
-import { NovaDespesa } from './NovaDespesa';
+import { NovaDespesa, EditarDespesa } from './NovaDespesa';
 import { NovaReceita } from './NovaReceita';
 import { DetalheDespesa } from './DetalheDespesa';
 
@@ -69,6 +69,7 @@ export function Movimentacoes({ contexto }: { contexto: ContextoPainel }) {
   const [despesa, setDespesa] = useState<string | null>(lerParam('despesa'));
   const [receitaEditar, setReceitaEditar] = useState<OutraReceitaSaida | null>(null);
   const [dia, setDia] = useState<Lancamento | null>(null);
+  const [editar, setEditar] = useState<string | null>(null);
   const { confirmar, elemento: dialogo } = useConfirmacao();
 
   // Endereços antigos com filtros (?tipo=, ?situacao=): nada fica aplicado escondido.
@@ -118,7 +119,7 @@ export function Movimentacoes({ contexto }: { contexto: ContextoPainel }) {
 
       <Lista
         vista={vista} periodo={periodo} de={de} ate={ate} busca={buscaAtiva} lancar={lancar} confirmar={confirmar}
-        abrirDespesa={setDespesa} abrirReceita={abrirReceita} abrirDia={setDia}
+        abrirDespesa={setDespesa} abrirReceita={abrirReceita} abrirDia={setDia} editarDespesa={setEditar}
         irPara={(d, a) => { setDe(d); setAte(a); setPeriodo('personalizado'); }}
       />
 
@@ -126,6 +127,7 @@ export function Movimentacoes({ contexto }: { contexto: ContextoPainel }) {
       <NovaReceita aberta={receita || !!receitaEditar} editar={receitaEditar} aoFechar={() => { setReceita(false); setReceitaEditar(null); }} />
       <DetalheDespesa id={despesa} aoFechar={() => setDespesa(null)} confirmar={confirmar} />
       <VendasDoDia dia={dia} aoFechar={() => setDia(null)} />
+      <EditarDespesa id={editar} aoFechar={() => setEditar(null)} />
       {dialogo}
     </>
   );
@@ -168,9 +170,9 @@ function PagadorCelula({ l }: { l: Lancamento }) {
 function Lista(p: {
   vista: VistaMovimentacoes; periodo: Periodo; de: string; ate: string; busca: string; lancar: boolean;
   confirmar: (p: PedidoConfirmacao) => void; abrirDespesa: (id: string) => void; abrirReceita: (id: string) => void;
-  abrirDia: (l: Lancamento) => void; irPara: (de: string, ate: string) => void;
+  abrirDia: (l: Lancamento) => void; irPara: (de: string, ate: string) => void; editarDespesa: (id: string) => void;
 }) {
-  const { vista, lancar, confirmar, abrirDespesa, abrirReceita, abrirDia } = p;
+  const { vista, lancar, confirmar, abrirDespesa, abrirReceita, abrirDia, editarDespesa } = p;
   const cats = useCadastroCategorias();
   const opReceita = useConsulta('financeiro/outras-receitas/opcoes', () => financeiro.opcoesReceita());
   const [d1, d2] = intervalo(p.periodo, p.de, p.ate);
@@ -187,11 +189,17 @@ function Lista(p: {
     id: 'acoes', titulo: '', prioridade: 'media',
     celula: (l) => {
       const correcao = lancar ? pedidoCorrecao(l) : null;
-      if (!correcao) return null;
+      const editavel = lancar && l.tipo === 'despesa' && l.status !== 'cancelada';
+      if (!correcao && !editavel) return null;
       return (
-        <Suspenso rotulo={`Ações para ${l.descricao}`} gatilho={(g) => <Botao tamanho="p" variante="fantasma" so_icone {...g} icone={<MoreHorizontal aria-hidden="true" />} />}>
-          {(fechar) => <button class="suspenso__item" role="menuitem" style={{ color: 'var(--perigo)' }} onClick={() => { fechar(); confirmar(correcao); }}>{l.tipo === 'despesa' ? 'Cancelar despesa' : 'Cancelar receita'}</button>}
-        </Suspenso>
+        <span class="linha" style={{ gap: '2px', justifyContent: 'flex-end', flexWrap: 'nowrap' }}>
+          {editavel && <Botao tamanho="p" variante="fantasma" so_icone aria-label={`Editar ${l.descricao}`} icone={<Pencil aria-hidden="true" />} onClick={(e: Event) => { e.stopPropagation(); editarDespesa(l.id); }} />}
+          {correcao && (
+            <Suspenso rotulo={`Ações para ${l.descricao}`} gatilho={(g) => <Botao tamanho="p" variante="fantasma" so_icone {...g} icone={<MoreHorizontal aria-hidden="true" />} />}>
+              {(fechar) => <button class="suspenso__item" role="menuitem" style={{ color: 'var(--perigo)' }} onClick={() => { fechar(); confirmar(correcao); }}>{l.tipo === 'despesa' ? 'Cancelar despesa' : 'Cancelar receita'}</button>}
+            </Suspenso>
+          )}
+        </span>
       );
     },
   };
