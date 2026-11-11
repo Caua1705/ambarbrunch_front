@@ -11,11 +11,10 @@ import { custoBase, relativo, dataHora, plural } from '../../lib/formato';
 import { Gaveta, avisar } from '../../ui/camadas';
 import { Botao, Campo, Aviso } from '../../ui/base';
 import { Dados, Esqueleto } from '../../ui/estados';
-import { EntradaMoeda } from '../../ui/entradas';
 import type { Insumo, InsumoDetalhe, MovimentoEstoque, UnidadeBase } from '../../lib/tipos/estoque';
 import {
   UNIDADE, rotuloMovimento, ehUsoInterno, atualizarEstoque, situacaoEstoque, SituacaoEstoque, unidadeExibicao, numeroEm, paraBase, textoMotivo,
-  UNIDADES_CADASTRO, unidadeCadastro, unidadesDaBase, aceitaEstoqueIdeal, useEstoque0028, custoPorBase, type UnidadeCadastro, type PermissoesEstoque,
+  UNIDADES_CADASTRO, unidadeCadastro, unidadesDaBase, aceitaEstoqueIdeal, useEstoque0028, type UnidadeCadastro, type PermissoesEstoque,
 } from './comum';
 import { escolhidoDe, type InsumoEscolhido } from './SeletorInsumo';
 
@@ -292,7 +291,7 @@ function CampoIdeal({ ativo, rotuloU, valor, aoMudar, erro }: { ativo: boolean; 
   );
 }
 
-const VAZIO_NOVO = { nome: '', unidade: 'kg' as UnidadeCadastro, inicial: '', custo: '', minimo: '', ideal: '', tipo: 'comprado' as 'comprado' | 'preparo' };
+const VAZIO_NOVO = { nome: '', unidade: 'kg' as UnidadeCadastro, minimo: '', ideal: '', tipo: 'comprado' as 'comprado' | 'preparo' };
 const UNIDADE_DA_BASE: Record<UnidadeBase, UnidadeCadastro> = { g: 'kg', ml: 'L', un: 'un' };
 
 /** Cadastro rápido aberto pelo seletor de insumos (Compras, Fichas): um insumo só, já com o nome digitado; ao cadastrar,
@@ -303,11 +302,10 @@ export interface PedidoCadastroRapido {
   aoConcluir: (i: InsumoEscolhido | null) => void;
 }
 
-/** Cadastro de insumo: nome, unidade (g, kg, ml, L ou un), tipo, quantidade inicial, custo unitário inicial, mínimo
- *  (obrigatório: é ele que liga o alerta) e ideal. Em sequência: cadastrou, o formulário limpa (mantém a unidade) e volta
- *  ao nome; a lista "Cadastrados agora" abre cada um. Backend 0028: quantidade e custo inicial vão no próprio POST e viram a
- *  abertura NA MESMA transação (ou tudo, ou nada); o custo valoriza o estoque de partida e não vira despesa. Backend
- *  anterior: sem custo inicial e a quantidade vira a primeira conferência logo depois (POST /ajustes). Insumos parecidos
+/** Cadastro de insumo: nome, unidade (g, kg, ml, L ou un), tipo, mínimo (obrigatório: é ele que liga o alerta) e ideal.
+ *  Sem quantidade nem custo inicial (11/11/2026): a quantidade vem das entradas e contagens; o custo, das compras
+ *  conferidas — o cadastro não cria movimentação nem despesa. Em sequência: cadastrou, o formulário limpa (mantém a
+ *  unidade) e volta ao nome; a lista "Cadastrados agora" abre cada um. Insumos parecidos
  *  aparecem como aviso (nunca bloqueio). Tipo "preparo da casa" não muda depois (o backend não deixa): campo discreto. No
  *  modo rápido (`rapido`), cadastra um só e devolve ao fluxo que pediu. */
 export function NovoInsumo({ aberto, aoFechar, aoAbrir, rapido }: { aberto: boolean; aoFechar: () => void; aoAbrir: (id: string) => void; rapido?: PedidoCadastroRapido | null }) {
@@ -359,34 +357,23 @@ export function NovoInsumo({ aberto, aoFechar, aoAbrir, rapido }: { aberto: bool
       const v = paraBase(t, u.fator);
       return v === null ? { erro: `${rotulo} inválido.` } : { v };
     };
-    const inicial = conv(rapido ? '' : f.inicial, 'Quantidade inicial');
     const minimo = conv(f.minimo, 'Estoque mínimo');
     const ideal = comIdeal ? conv(f.ideal, 'Estoque ideal') : { v: null };
-    const falha = inicial.erro ?? minimo.erro ?? ideal.erro;
+    const falha = minimo.erro ?? ideal.erro;
     if (falha) return setErro(new ErroApi('validacao', falha));
     if (!minimo.v) return setErro(new ErroApi('validacao', 'Informe o estoque mínimo: é ele que dispara o alerta.', 0, null, { estoque_minimo: 'Informe o mínimo (pode ser 0).' }));
     if (ideal.v && Number(ideal.v) < Number(minimo.v)) return setErro(new ErroApi('validacao', 'O ideal não pode ser menor que o mínimo.'));
-    const custo = novo && !rapido && f.custo.trim() ? custoPorBase(f.custo, u.fator) : null;
-    if (novo && !rapido && f.custo.trim()) {
-      if (custo === null) return setErro(new ErroApi('validacao', 'Custo unitário inválido.'));
-      if (!inicial.v || !(Number(inicial.v) > 0)) return setErro(new ErroApi('validacao', 'O custo inicial precisa de uma quantidade inicial maior que zero.', 0, null, { custo_unitario_inicial: 'Informe a quantidade inicial.' }));
-    }
     setEnviando(true);
     setErro(null);
-    let criado: string | null = null;
     const nomeFeito = f.nome.trim();
     try {
       const r = await estoque.criarInsumo(
         {
           nome: nomeFeito, unidade_base: u.base, tipo: f.tipo, controle_preparo: preparo ? 'explodir' : null,
           estoque_minimo: minimo.v, ...(comIdeal && ideal.v ? { estoque_ideal: ideal.v } : {}),
-          // 0028: a abertura (e o custo) na MESMA transação do cadastro.
-          ...(novo && inicial.v ? { quantidade_inicial: inicial.v } : {}),
-          ...(novo && custo ? { custo_unitario_inicial: custo } : {}),
         },
         chave.current,
       );
-      criado = r.id;
       chave.current = novaChave();
       if (r.semelhantes?.length) avisar(`${r.nome} cadastrado. Parece com: ${r.semelhantes.map((s) => s.nome).join(', ')} — confira se não é o mesmo.`, 'info');
       if (rapido) {
@@ -396,17 +383,10 @@ export function NovoInsumo({ aberto, aoFechar, aoAbrir, rapido }: { aberto: bool
         aoFechar();
         return;
       }
-      // Backend anterior (sem `abertura` na resposta): a quantidade inicial vira a primeira conferência, logo depois.
-      if (inicial.v && !('abertura' in r)) await estoque.ajustar({ insumo_id: r.id, quantidade: inicial.v, motivo: 'contagem_fisica', observacao: 'Quantidade inicial no cadastro' });
       atualizarEstoque();
       proximo(r.id, nomeFeito);
     } catch (x) {
-      if (criado && !rapido) {
-        // Cadastrou, mas a quantidade inicial não entrou: o insumo existe; a pessoa registra pela gaveta dele.
-        atualizarEstoque();
-        avisar(`${nomeFeito} cadastrado, mas a quantidade inicial não foi registrada. Abra o insumo e use “Ajustar estoque”.`, 'erro');
-        proximo(criado, nomeFeito, true);
-      } else setErro(x instanceof ErroApi ? x : new ErroApi('servidor', 'Não foi possível cadastrar.'));
+      setErro(x instanceof ErroApi ? x : new ErroApi('servidor', 'Não foi possível cadastrar.'));
     } finally {
       setEnviando(false);
     }
@@ -457,12 +437,6 @@ export function NovoInsumo({ aberto, aoFechar, aoAbrir, rapido }: { aberto: bool
               </select>
             )}
           </Campo>
-          {!rapido && <Campo rotulo={`Quantidade inicial (${u.valor})`} opcional ajuda="O que há agora; vira a primeira contagem.">{(id, d) => <input id={id} class="entrada num" inputMode="decimal" aria-describedby={d} value={f.inicial} onInput={(e) => setF({ ...f, inicial: e.currentTarget.value })} />}</Campo>}
-          {!rapido && novo && (
-            <Campo rotulo={`Custo unitário inicial (R$/${u.valor})`} opcional ajuda="Valoriza o estoque de partida; não vira despesa." erro={erro?.campos.custo_unitario_inicial}>
-              {(id, d) => <EntradaMoeda id={id} descr={d} valor={f.custo} aoMudar={(v) => setF({ ...f, custo: v })} />}
-            </Campo>
-          )}
           <Campo rotulo={`Estoque mínimo (${u.valor})`} ajuda={AJUDA_MINIMO} erro={erro?.campos.estoque_minimo}>{(id, d) => <input id={id} class="entrada num" inputMode="decimal" aria-describedby={d} aria-required="true" value={f.minimo} onInput={(e) => setF({ ...f, minimo: e.currentTarget.value })} />}</Campo>
           <CampoIdeal ativo={comIdeal} rotuloU={u.valor} valor={f.ideal} aoMudar={(v) => setF({ ...f, ideal: v })} erro={erro?.campos.estoque_ideal} />
         </div>

@@ -15,6 +15,7 @@ import { Dados, EsqueletoTabela, Vazio } from '../../ui/estados';
 import { Tabela, type Coluna } from '../../ui/tabela';
 import { ROTULO_BIOMETRIA, TOM_BIOMETRIA, useFuncionariosAtivos, type PermissoesEquipe } from './comum';
 import { RegistroAssistido } from './Assistido';
+import { PontoFuncionario } from './PontoFuncionario';
 import { Escalas } from './Escalas';
 import { DiasHorarios, EditorSemana, explicarHorario, salvarHorario, textoHorario } from './DiasHorarios';
 import { nomeNoTablet, planoVazio, problemaDoPlano, resumoIntervalos, versaoAtual, type PlanoSemana } from './horario';
@@ -345,7 +346,7 @@ function Ficha({ id, perm, aoFechar }: { id: string | null; perm: PermissoesEqui
     <Gaveta
       aberta={!!id}
       aoFechar={aoFechar}
-      largura="media"
+      largura="larga"
       titulo={f?.nome_completo ?? 'Funcionário'}
       subtitulo={f ? `${f.cargo}${f.ativo ? '' : ' · Inativo'}` : undefined}
     >
@@ -361,6 +362,17 @@ function Ficha({ id, perm, aoFechar }: { id: string | null; perm: PermissoesEqui
               <Botao icone={<History aria-hidden="true" />} onClick={() => setHistorico(true)}>Histórico</Botao>
             </div>
 
+            {/* Ponto dia a dia: entrada, saída, horas e saldo. Abrir o dia mostra as marcações e permite corrigir. */}
+            <h3 class="secao-titulo">Ponto</h3>
+            <PontoFuncionario funcionarioId={f.id} perm={perm} />
+            {perm.ajustar && (
+              <div class="linha">
+                {f.ativo && <Botao tamanho="p" icone={<ClipboardCheck aria-hidden="true" />} onClick={() => setAssistido(true)}>Registro assistido</Botao>}
+                <a class="btn btn--p" href={`/admin/equipe?aba=registros&funcionario=${f.id}`}>Revisões e correções</a>
+              </div>
+            )}
+
+            <h3 class="secao-titulo">Dados</h3>
             <dl class="definicoes">
               <dt>Dias e horários</dt>
               <dd>{textoHorario(f, escalas.dados, hoje) ?? 'Sem horário definido'}{intervalo && <><br /><span class="fraco">Intervalo: {intervalo}</span></>}</dd>
@@ -380,12 +392,6 @@ function Ficha({ id, perm, aoFechar }: { id: string | null; perm: PermissoesEqui
               {perm.biometria && f.ativo && (f.biometria_estado === 'ativa' || f.biometria_estado === 'pendente') && !f.registro_supervisionado && (
                 <Botao tamanho="p" variante="perigo" icone={<ShieldOff aria-hidden="true" />} onClick={() => revogar(f)}>Revogar</Botao>
               )}
-            </div>
-
-            <h3 class="secao-titulo">Ponto</h3>
-            <div class="linha">
-              {perm.ajustar && f.ativo && <Botao icone={<ClipboardCheck aria-hidden="true" />} onClick={() => setAssistido(true)}>Registro assistido</Botao>}
-              <a class="btn" href={`/admin/equipe?aba=registros&funcionario=${f.id}`}>Ver registros de ponto</a>
             </div>
 
             {perm.gerenciar && (

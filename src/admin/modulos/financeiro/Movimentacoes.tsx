@@ -260,7 +260,7 @@ function Lista(p: {
     <Cartao justo>
       {lista.dados && (
         <div class="fin-totais">
-          <div><span>{vista === 'despesas' ? plural(lista.dados.totais.quantidade ?? lista.dados.total, 'pagamento realizado', 'pagamentos realizados') : plural(lista.dados.totais.quantidade ?? lista.dados.total, 'recebimento', 'recebimentos')}</span></div>
+          <div><span>{vista === 'despesas' ? 'Pagamentos realizados' : 'Recebimentos'}</span><strong class="num">{lista.dados.totais.quantidade ?? lista.dados.total}</strong></div>
           <div><span>{vista === 'despesas' ? 'Total pago' : 'Total recebido'}</span><strong class="num">{moeda(lista.dados.totais.valor ?? '0')}</strong></div>
         </div>
       )}

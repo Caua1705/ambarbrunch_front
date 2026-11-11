@@ -120,7 +120,8 @@ export const financeiro = {
   vendas: (de: string, ate: string, agrupar: AgrupamentoVendas) => pedir<RelatorioVendas>('financeiro/relatorios/vendas', { query: { de, ate, agrupar } }),
   evolucao: (meses = 12) => pedir<MesEvolucao[]>('financeiro/relatorios/evolucao', { query: { meses } }),
   resultado: (mes: string) => pedir<ResultadoMes>('financeiro/relatorios/resultado', { query: { mes } }),
-  porCategoria: (de: string, ate: string) => pedir<DespesasPorCategoria>('financeiro/relatorios/despesas-por-categoria', { query: { de, ate } }),
+  // base 'pagamentos': só o efetivamente pago no período (data real do pagamento); sem base: competência.
+  porCategoria: (de: string, ate: string, base?: 'pagamentos') => pedir<DespesasPorCategoria>('financeiro/relatorios/despesas-por-categoria', { query: { de, ate, base } }),
   fechamento: (mes: string) => pedir<Fechamento>(`financeiro/fechamento/${mes}`),
   // Banco e conciliação
   contasBancarias: () => pedir<ContaBancaria[]>('financeiro/contas-bancarias'),

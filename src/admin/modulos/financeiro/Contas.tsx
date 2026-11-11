@@ -12,7 +12,7 @@ import { Banknote, Search, Plus, Pencil } from 'lucide-preact';
 import type { ContextoPainel } from '../../lib/sessao';
 import { useConsulta } from '../../lib/consulta';
 import { financeiro } from '../../lib/api/financeiro';
-import { moeda, dataCurta, plural, hojeISO, inicioMes, fimMes, somarMeses } from '../../lib/formato';
+import { moeda, dataCurta, hojeISO, inicioMes, fimMes, somarMeses } from '../../lib/formato';
 
 /** Período pelo VENCIMENTO da parcela. Padrão: todo o período (nada vencido fica escondido). */
 type PeriodoContas = 'todo' | 'mes' | 'anterior' | 'proximo';
@@ -142,7 +142,7 @@ function ListaContasPagar({ contexto, busca, periodo, abrirDespesa }: { contexto
                     // Acompanha período e busca. Sem busca: totais do servidor (todas as contas do período); com
                     // busca: soma das linhas encontradas. "A pagar" = saldo (já desconta pagamentos parciais).
                     <div class="fin-totais">
-                      <div><span>{plural(termo ? linhas.length : r.total, 'conta pendente', 'contas pendentes')}</span></div>
+                      <div><span>Contas pendentes</span><strong class="num">{termo ? linhas.length : r.total}</strong></div>
                       <div><span>Total a pagar</span><strong class="num">{moeda(termo ? (linhas.reduce((s, c) => s + Math.round(Number(c.saldo) * 100), 0) / 100).toFixed(2) : r.totais.saldo)}</strong></div>
                     </div>
                   )}

@@ -430,3 +430,26 @@ html[data-equipe] .dialogo {
     height: 22px;
   }
 }
+
+/* Ponto do funcionário (ficha): trabalhadas e saldo acumulado do período, rótulo em cima e número embaixo. */
+.equipe-saldo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-2) var(--e-6);
+  padding: var(--e-3) var(--e-4);
+  border: 1px solid var(--borda);
+  border-radius: var(--r-m);
+  background: var(--superficie-2);
+}
+.equipe-saldo > div {
+  display: flex;
+  flex-direction: column;
+}
+.equipe-saldo span {
+  font-size: var(--t-xs);
+  color: var(--texto-3);
+}
+.equipe-saldo strong {
+  font-size: var(--t-l);
+  font-weight: 600;
+}

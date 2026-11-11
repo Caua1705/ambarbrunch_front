@@ -11,7 +11,7 @@
 // Eventos (backend com a 0023): etiqueta "Evento" na conversa e, acima da lista, o atalho "Eventos" com os que aguardam
 // contato — abre a visão compacta das oportunidades (gaveta), que leva de volta à conversa. Sem página nova no menu.
 import { useEffect, useState } from 'preact/hooks';
-import { Search, Inbox, MessageSquareOff, MessageSquarePlus, UtensilsCrossed, Megaphone, BookOpen, BotOff, CloudOff, AlertCircle, PartyPopper } from 'lucide-preact';
+import { Search, Inbox, MessageSquareOff, BookOpen, BotOff, CloudOff, AlertCircle, PartyPopper } from 'lucide-preact';
 import type { ContextoPainel } from '../../lib/sessao';
 import { useConsulta } from '../../lib/consulta';
 import { atendimento } from '../../lib/api/atendimento-clube';
@@ -30,15 +30,18 @@ import { Campanhas } from './Campanhas';
 import { Conhecimento } from './Conhecimento';
 import { Oportunidades } from './Evento';
 
-type Filtro = 'todas' | EstadoConversa;
+// Filtros compactos (11/11/2026): Todas | Pendentes (esperando a equipe) | Em atendimento (assistente ou equipe);
+// Encerradas fica num botão discreto ao lado. Os estados do backend não mudam.
+type Filtro = 'todas' | 'esperando' | 'atendimento' | 'encerrada';
 type Gestao = 'cardapio' | 'campanhas' | 'conhecimento' | null;
+const EM_ATENDIMENTO: EstadoConversa[] = ['automatico', 'em_atendimento'];
 
-/** Filtro da URL, aceitando os nomes antigos (links do sino e favoritos de antes dos quatro estados). */
+/** Filtro da URL, aceitando os nomes antigos (links do sino e favoritos de antes). */
 function filtroInicial(): Filtro {
   const f = lerParam('filtro');
-  const antigos: Record<string, Filtro> = { aguardando: 'esperando', robo: 'automatico', humano: 'em_atendimento' };
+  const antigos: Record<string, Filtro> = { aguardando: 'esperando', robo: 'atendimento', humano: 'atendimento', automatico: 'atendimento', em_atendimento: 'atendimento' };
   if (f && antigos[f]) return antigos[f];
-  return f && ['esperando', 'automatico', 'em_atendimento', 'encerrada'].includes(f) ? (f as Filtro) : 'todas';
+  return f && ['esperando', 'atendimento', 'encerrada'].includes(f) ? (f as Filtro) : 'todas';
 }
 
 export default function Atendimento({ contexto }: { contexto: ContextoPainel }) {
@@ -61,7 +64,8 @@ export default function Atendimento({ contexto }: { contexto: ContextoPainel }) 
   }, [busca]);
 
   const resumo = useConsulta('atendimento/resumo', () => atendimento.resumo(), { intervalo: 30_000 });
-  const q = { estado: filtro === 'todas' ? undefined : filtro, busca: buscaAplicada || undefined };
+  // "Em atendimento" junta dois estados: busca sem estado e filtra aqui (a lista do backend já vem ordenada).
+  const q = { estado: filtro === 'todas' || filtro === 'atendimento' ? undefined : filtro, busca: buscaAplicada || undefined } as { estado?: EstadoConversa; busca?: string };
   // Caixa de entrada: revalida a cada 15 s com a aba visível (mensagens chegam sem a tela saber).
   const lista = useConsulta(`atendimento/conversas?${JSON.stringify(q)}`, () => atendimento.conversas(q), { intervalo: 15_000 });
 
@@ -70,8 +74,6 @@ export default function Atendimento({ contexto }: { contexto: ContextoPainel }) 
   // Backend anterior à 0023 não manda `eventos` no resumo: nada de evento aparece (nem chamada a rota que não existe).
   const eventos = r?.eventos;
   const comEventos = !!eventos;
-  const aguardandoContato = eventos?.aguardando_contato ?? 0;
-  const eventosAbertos = eventos ? Object.values(eventos).reduce((s, n) => s + n, 0) : 0;
   const abrirConversa = (id: string) => {
     setNova(null);
     setVerEventos(false);
@@ -83,15 +85,6 @@ export default function Atendimento({ contexto }: { contexto: ContextoPainel }) 
       <div class="cartao caixa" data-aberta={aberta ? '1' : undefined}>
         <div class="caixa__lista">
           <div class="caixa__filtros">
-            <div class="caixa__acoes">
-              <Botao tamanho="p" variante="primario" icone={<MessageSquarePlus aria-hidden="true" />} onClick={() => setNova({})}>
-                Nova conversa
-              </Botao>
-              <Botao tamanho="p" variante="fantasma" so_icone aria-label="Cardápio" title="Cardápio e capacidades" icone={<UtensilsCrossed aria-hidden="true" />} onClick={() => setGestao('cardapio')} />
-              {veCampanhas
-                ? <Botao tamanho="p" variante="fantasma" so_icone aria-label="Campanhas" title="Campanhas" icone={<Megaphone aria-hidden="true" />} onClick={() => setGestao('campanhas')} />
-                : <Botao tamanho="p" variante="fantasma" so_icone aria-label="Base de conhecimento" title="Base de conhecimento" icone={<BookOpen aria-hidden="true" />} onClick={() => setGestao('conhecimento')} />}
-            </div>
             {config && !config.assistente_ativo && (
               <p class="caixa__aviso" role="note"><BotOff aria-hidden="true" /> Assistente virtual desligado: as conversas vão direto para a equipe.</p>
             )}
@@ -102,31 +95,24 @@ export default function Atendimento({ contexto }: { contexto: ContextoPainel }) 
               <Search aria-hidden="true" />
               <input class="entrada" type="search" placeholder="Nome ou telefone" aria-label="Buscar conversa" value={busca} onInput={(e) => setBusca(e.currentTarget.value)} />
             </div>
-            <Segmentado
-              rotulo="Filtrar conversas"
-              valor={filtro}
-              aoMudar={setFiltro}
-              opcoes={[
-                { valor: 'todas', rotulo: 'Todas' },
-                { valor: 'esperando', rotulo: <>Esperando{r?.por_estado?.esperando ? <span class="contador">{r.por_estado.esperando}</span> : null}</> },
-                { valor: 'automatico', rotulo: <span title="Com o assistente virtual">Assistente</span> },
-                { valor: 'em_atendimento', rotulo: <span title="Com alguém da equipe">Equipe</span> },
-                { valor: 'encerrada', rotulo: 'Encerradas' },
-              ]}
-            />
-            {r?.falhas_de_envio_24h || comEventos ? (
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <div style={{ flex: 1, minWidth: 0 }}><Segmentado
+                rotulo="Filtrar conversas"
+                valor={filtro === 'encerrada' ? ('' as Filtro) : filtro}
+                aoMudar={setFiltro}
+                opcoes={[
+                  { valor: 'todas', rotulo: 'Todas' },
+                  { valor: 'esperando', rotulo: <>Pendentes{r?.por_estado?.esperando ? <span class="contador">{r.por_estado.esperando}</span> : null}</> },
+                  { valor: 'atendimento', rotulo: <span title="Com o assistente virtual ou com alguém da equipe">Em atendimento</span> },
+                ]}
+              /></div>
+              <button type="button" style={{ background: "none", border: 0, padding: "4px 2px", font: "inherit", fontSize: "var(--t-s)", cursor: "pointer", whiteSpace: "nowrap", color: filtro === "encerrada" ? "var(--marca-texto)" : "var(--texto-3)", fontWeight: filtro === "encerrada" ? 600 : 400, textDecoration: filtro === "encerrada" ? "underline" : "none" }} class={`caixa__secundario${filtro === 'encerrada' ? ' caixa__secundario--ativo' : ''}`} aria-pressed={filtro === 'encerrada'} onClick={() => setFiltro(filtro === 'encerrada' ? 'todas' : 'encerrada')}>
+                Encerradas
+              </button>
+              {!veCampanhas && <Botao tamanho="p" variante="fantasma" so_icone aria-label="Base de conhecimento" title="Base de conhecimento" icone={<BookOpen aria-hidden="true" />} onClick={() => setGestao("conhecimento")} />}
+            </div>
+            {r?.falhas_de_envio_24h ? (
               <div class="caixa__extras">
-                {comEventos && (
-                  <button
-                    type="button"
-                    class={`pilula ${aguardandoContato ? 'pilula--atencao' : 'pilula--neutra'}`}
-                    onClick={() => setVerEventos(true)}
-                    title={aguardandoContato ? plural(aguardandoContato, 'evento aguardando contato da equipe', 'eventos aguardando contato da equipe') : plural(eventosAbertos, 'evento em andamento', 'eventos em andamento')}
-                  >
-                    <PartyPopper aria-hidden="true" /> Eventos
-                    {aguardandoContato ? <span class="contador">{aguardandoContato}<span class="sr"> aguardando contato</span></span> : eventosAbertos ? <span class="fraco">· {eventosAbertos}</span> : null}
-                  </button>
-                )}
                 {r?.falhas_de_envio_24h ? (
                   <button type="button" class="pilula pilula--perigo" onClick={() => setVerFalhas(true)}>
                     <MessageSquareOff aria-hidden="true" /> {plural(r.falhas_de_envio_24h, 'falha de envio', 'falhas de envio')} (24 h)
@@ -136,8 +122,9 @@ export default function Atendimento({ contexto }: { contexto: ContextoPainel }) 
             ) : null}
           </div>
           <Dados consulta={lista} recurso="A caixa de entrada" compacto esqueleto={<div style={{ padding: '16px' }}><Esqueleto linhas={6} altura={36} /></div>}>
-            {(conversas) =>
-              conversas.length ? (
+            {(todas) => {
+              const conversas = filtro === 'atendimento' ? todas.filter((c) => EM_ATENDIMENTO.includes(c.estado)) : todas;
+              return conversas.length ? (
                 <ul class="lista" aria-label="Conversas">
                   {conversas.map((c) => (
                     <li key={c.id}>
@@ -149,8 +136,8 @@ export default function Atendimento({ contexto }: { contexto: ContextoPainel }) 
                 <Vazio compacto icone={<Inbox aria-hidden="true" />} titulo={buscaAplicada ? 'Nenhuma conversa encontrada' : filtro === 'esperando' ? 'Ninguém esperando a equipe' : 'Nenhuma conversa aqui'}>
                   {filtro === 'esperando' && !buscaAplicada ? 'Quando o assistente encaminhar alguém, a conversa aparece aqui.' : undefined}
                 </Vazio>
-              )
-            }
+              );
+            }}
           </Dados>
         </div>
         <div class="caixa__conversa">
@@ -211,7 +198,6 @@ function ItemConversa({ c, ativa, evento, aoAbrir }: { c: ConversaResumo; ativa:
           <Situacao tom={estado.tom}>{c.estado === 'em_atendimento' && c.atendente_nome ? c.atendente_nome : estado.rotulo}</Situacao>
           {/* Evento esperando a equipe é a prioridade comercial: a etiqueta ganha o tom de atenção. */}
           {evento && <Etiqueta tom={esperando ? 'atencao' : 'neutro'} icone={<PartyPopper aria-hidden="true" />}>Evento</Etiqueta>}
-          {c.inativa && <Etiqueta tom="perigo">Parada há 30+ min</Etiqueta>}
         </span>
       </span>
       {pendentes > 0 && (

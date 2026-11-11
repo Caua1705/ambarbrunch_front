@@ -3,8 +3,9 @@
 .fin-totais {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--e-1) var(--e-6);
-  padding: var(--e-3) var(--e-5);
+  align-items: flex-start;
+  gap: var(--e-2) var(--e-6);
+  padding: var(--e-4) var(--e-5);
   border-bottom: 1px solid var(--borda);
   background: var(--superficie-2);
 }
@@ -20,8 +21,13 @@
   color: var(--texto-3);
 }
 .fin-totais strong {
-  font-size: var(--t-m);
+  font-size: var(--t-l);
   font-weight: 600;
+  line-height: 1.25;
+  margin-top: 2px;
+}
+.fin-totais > div {
+  min-width: 140px;
 }
 .fin-valores {
   display: grid;
@@ -438,4 +444,10 @@
   background: var(--superficie-2);
   border-top: 1px solid var(--borda);
   border-bottom: 0;
+}
+
+/* Contas recorrentes: linhas compactas (a linha inteira abre o detalhe). */
+.fin-painel .tabela[aria-label='Contas recorrentes'] td {
+  padding-top: 8px;
+  padding-bottom: 8px;
 }

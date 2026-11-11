@@ -211,11 +211,6 @@ export function Conversa({ id, meuId, assistenteAtivo, eventos, podeMudarStatus,
                 >
                   {c.followup_desligado ? <Bell aria-hidden="true" /> : <BellOff aria-hidden="true" />} {c.followup_desligado ? 'Ligar follow-up' : 'Desligar follow-up'}
                 </button>
-                {eventos && !evento?.aberta && (
-                  <button type="button" class="suspenso__item" role="menuitem" onClick={() => { fechar(); setRegistrar(true); }}>
-                    <PartyPopper aria-hidden="true" /> Registrar evento
-                  </button>
-                )}
               </>
             )}
           </Suspenso>

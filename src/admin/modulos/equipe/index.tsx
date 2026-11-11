@@ -1,5 +1,5 @@
-// Equipe em três abas: Hoje, Funcionários (com dias e horários na ficha; escalas compartilhadas e semana em ?vista=escalas)
-// e Registros (batidas, o que precisa de revisão e as correções feitas). Tablets e Auditoria moram em Configurações →
+// Equipe em duas abas: Hoje e Funcionários (ponto dia a dia e dias e horários na ficha; escalas em ?vista=escalas).
+// Registros (revisão e correções) segue em ?aba=registros, fora da navegação. Tablets e Auditoria moram em Configurações →
 // Ponto. Endereços antigos continuam valendo (abaDaUrl). O painel só esconde o que daria 403: quem decide é o backend. Com o
 // módulo desligado no backend, a área mostra isso de forma honesta, sem dados de exemplo.
 import '../../estilos/equipe.css';
@@ -42,7 +42,6 @@ export default function Equipe({ contexto }: { contexto: ContextoPainel }) {
   const abas: { id: Aba; rotulo: string; contagem?: number | null }[] = [
     { id: 'hoje', rotulo: 'Hoje' },
     { id: 'funcionarios', rotulo: 'Funcionários' },
-    { id: 'registros', rotulo: 'Registros', contagem: filas.total },
   ];
   const [aba, setAba] = useState<Aba | null>(null);
   // Tocar na aba (mesmo a atual) volta à vista principal dela: o painel remonta.
@@ -82,7 +81,7 @@ export default function Equipe({ contexto }: { contexto: ContextoPainel }) {
   return (
     <Raiz>
       <div class="pilha">
-        {aba ? <Abas abas={abas} atual={aba} aoMudar={(a) => mudarAba(a)} /> : <Esqueleto linhas={1} altura={36} />}
+        {aba ? <Abas abas={abas} atual={aba === 'registros' ? 'funcionarios' : aba} aoMudar={(a) => mudarAba(a)} /> : <Esqueleto linhas={1} altura={36} />}
         {aba && (
           <div key={volta} role="tabpanel" id={`painel-${aba}`} aria-labelledby={`aba-${aba}`}>
             {aba === 'hoje' && <Hoje consulta={painel} perm={perm} aoCadastrar={() => mudarAba('funcionarios')} aoRevisar={() => mudarAba('registros', 'revisar')} aRevisar={filas.total} />}

@@ -117,6 +117,8 @@ function Executiva({ produtos }: { produtos: boolean }) {
   const vendasAnt = useConsulta(`financeiro/relatorios/vendas:${ant.de}:${ant.ate}`, () => financeiro.vendas(ant.de, ant.ate, 'dia'));
   const categorias = useConsulta(`financeiro/relatorios/despesas-por-categoria:${p.de}:${p.ate}`, () => financeiro.porCategoria(p.de, p.ate));
   const categoriasAnt = useConsulta(`financeiro/relatorios/despesas-por-categoria:${ant.de}:${ant.ate}`, () => financeiro.porCategoria(ant.de, ant.ate));
+  // Gráfico "Despesas por categoria": pelo caixa (só pagamentos feitos no período). O KPI acima segue na competência.
+  const categoriasPagas = useConsulta(`financeiro/relatorios/despesas-por-categoria:pagamentos:${p.de}:${p.ate}`, () => financeiro.porCategoria(p.de, p.ate, 'pagamentos'));
   const resultado = useConsulta(mes ? `financeiro/relatorios/resultado:${mes}` : null, () => financeiro.resultado(mes!));
   const vendasGrafico = useConsulta(`financeiro/relatorios/vendas:${janela.de}:${janela.ate}:${agrupar}`, () => financeiro.vendas(janela.de, janela.ate, agrupar));
   const despesasGrafico = useConsulta(`financeiro/lancamentos?grafico:${janela.de}:${janela.ate}`, () => despesasDoPeriodo(janela.de, janela.ate));
@@ -236,8 +238,8 @@ function Executiva({ produtos }: { produtos: boolean }) {
           </Cartao>
         )}
 
-        <Cartao titulo="Despesas por categoria" descricao={`Confirmadas, ${naPeriodo}`} acoes={<a class="btn btn--p btn--fantasma" href="/admin/financeiro?tipo=despesas">Movimentações</a>}>
-          <Dados consulta={categorias} recurso="O relatório de despesas" esqueleto={<Esqueleto linhas={5} />} compacto>
+        <Cartao titulo="Despesas por categoria" descricao={`Pagas, ${naPeriodo}`} acoes={<a class="btn btn--p btn--fantasma" href="/admin/financeiro?tipo=despesas">Movimentações</a>}>
+          <Dados consulta={categoriasPagas} recurso="O relatório de despesas" esqueleto={<Esqueleto linhas={5} />} compacto>
             {(c) =>
               c.itens.length ? (
                 <Ranking
@@ -250,7 +252,7 @@ function Executiva({ produtos }: { produtos: boolean }) {
                     .map((x) => ({ nome: x.nome, valor: num(x.valor) ?? 0, texto: moeda(x.valor), detalhe: x.pct !== null ? `${decimal(x.pct, 1)}%` : undefined }))}
                 />
               ) : (
-                <Vazio compacto titulo="Nenhuma despesa confirmada no período" />
+                <Vazio compacto titulo="Nenhum pagamento de despesa no período" />
               )
             }
           </Dados>
