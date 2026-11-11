@@ -317,9 +317,17 @@ export const BASE_PARTICIPACAO: Record<string, string> = {
 
 // --- 0029: quem pagou ---------------------------------------------------------------------------------------------------
 
-export const PARTE: Record<string, string> = { ambar: 'Âmbar', roll: 'Roll', conjunta: 'Âmbar × Roll' };
+/** Grupos financeiros (o valor interno da conta conjunta continua 'conjunta'). */
+export const PARTE: Record<string, string> = { ambar: 'Âmbar', roll: 'Roll', conjunta: 'Conjunto' };
 export const LADOS = ['ambar', 'roll', 'conjunta'] as const;
-export const RESPONSAVEL: Record<string, string> = { ambar: 'Âmbar', roll: 'Roll', compartilhada: 'Compartilhada 50/50' };
+export const RESPONSAVEL: Record<string, string> = { conjunto: 'Conjunto', ambar: 'Âmbar', roll: 'Roll', compartilhada: '50/50 (antigo)' };
+/** Responsáveis oferecidos em lançamento novo (o legado 50/50 só aparece onde já existe). */
+export const RESPONSAVEIS_NOVOS = ['conjunto', 'ambar', 'roll'] as const;
+
+/** Configuração do Financeiro da unidade (responsável padrão das despesas novas). */
+export function useConfiguracaoFinanceira() {
+  return useConsulta('financeiro/configuracao', () => financeiro.configuracao());
+}
 export const TRATAMENTO: Record<string, string> = {
   a_definir: 'A definir',
   reembolsar: 'Reembolsar',
@@ -336,5 +344,5 @@ export function useContasPagadoras() {
 /** "Cauã · Âmbar (pessoal)" — sem dado pessoal. */
 export function rotuloConta(c: { apelido: string; parte: string; natureza: string } | null | undefined): string {
   if (!c) return 'Não identificado';
-  return `${c.apelido} · ${PARTE[c.parte] ?? c.parte}${c.natureza === 'pessoal' ? ' (pessoal)' : c.parte === 'conjunta' ? ' (empresa)' : ''}`;
+  return `${c.apelido} · ${PARTE[c.parte] ?? c.parte}${c.natureza === 'pessoal' ? ' (pessoal)' : ''}`;
 }

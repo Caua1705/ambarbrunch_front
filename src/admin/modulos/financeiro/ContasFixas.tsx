@@ -13,8 +13,8 @@ import { Gaveta } from '../../ui/camadas';
 import { Botao, Cartao, Segmentado, Etiqueta, Campo, Aviso, Situacao } from '../../ui/base';
 import { EntradaMoeda } from '../../ui/entradas';
 import { Dados, EsqueletoTabela, Vazio } from '../../ui/estados';
-import type { MeioPdv, Recorrencia, TaxaPagamento } from '../../lib/tipos/financeiro';
-import { useCategorias, useNomeCategoria, OpcoesCategoria, atualizarFinanceiro, avisar, MEIO } from './comum';
+import type { MeioPdv, Recorrencia, TaxaPagamento, ResponsavelNovo } from '../../lib/tipos/financeiro';
+import { useCategorias, useNomeCategoria, OpcoesCategoria, atualizarFinanceiro, avisar, MEIO, RESPONSAVEL, RESPONSAVEIS_NOVOS } from './comum';
 
 const brl = (v: string) => Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -29,13 +29,13 @@ export function Recorrencias({ lancar }: { lancar: boolean }) {
   return (
     <>
       <Cartao
-        titulo={<span class="linha"><Repeat size={16} aria-hidden="true" /> Contas fixas</span>}
-        descricao="Cadastradas uma vez; a conta de cada mês aparece sozinha em Movimentações → A pagar"
+        titulo={<span class="linha"><Repeat size={16} aria-hidden="true" /> Contas recorrentes</span>}
+        descricao="Cadastradas uma vez; a conta de cada mês aparece sozinha em Contas a pagar"
         justo
         acoes={
           <>
-            <Segmentado<'ativas' | 'todas'> rotulo="Mostrar contas fixas" valor={ver} aoMudar={setVer} opcoes={[{ valor: 'ativas', rotulo: 'Ativas' }, { valor: 'todas', rotulo: 'Todas' }]} />
-            {lancar && <Botao tamanho="p" icone={<Plus aria-hidden="true" />} onClick={() => setEditar('nova')}>Nova conta fixa</Botao>}
+            <Segmentado<'ativas' | 'todas'> rotulo="Mostrar contas recorrentes" valor={ver} aoMudar={setVer} opcoes={[{ valor: 'ativas', rotulo: 'Ativas' }, { valor: 'todas', rotulo: 'Todas' }]} />
+            {lancar && <Botao tamanho="p" icone={<Plus aria-hidden="true" />} onClick={() => setEditar('nova')}>Recorrente</Botao>}
           </>
         }
       >
@@ -69,12 +69,12 @@ export function Recorrencias({ lancar }: { lancar: boolean }) {
                 ))}
               </ul>
             ) : (
-              <Vazio compacto icone={<Repeat aria-hidden="true" />} titulo={ver === 'ativas' ? 'Nenhuma conta fixa ativa' : 'Nenhuma conta fixa'}>Aluguel, internet, folha: cadastre uma vez e a conta de cada mês aparece em Movimentações → A pagar.</Vazio>
+              <Vazio compacto icone={<Repeat aria-hidden="true" />} titulo={ver === 'ativas' ? 'Nenhuma conta recorrente ativa' : 'Nenhuma conta recorrente'}>Aluguel, internet, sistemas: cadastre uma vez e a conta de cada mês aparece em Contas a pagar.</Vazio>
             )
           }
         </Dados>
         <div class="cartao__rodape">
-          Valor da conta do mês diferente do previsto (energia, vale-transporte)? Em Movimentações → A pagar, pague pelo botão <strong>Pagar</strong> informando o valor real — a conta fixa não muda.
+          Valor da conta do mês diferente do previsto (energia, vale-transporte)? Em Contas a pagar, pague pelo botão <strong>Pagar</strong> informando o valor real — a recorrente não muda.
         </div>
       </Cartao>
       <EditarRecorrencia alvo={editar} aoFechar={() => setEditar(null)} />
@@ -83,7 +83,7 @@ export function Recorrencias({ lancar }: { lancar: boolean }) {
   );
 }
 
-function EditarRecorrencia({ alvo, aoFechar }: { alvo: Recorrencia | 'nova' | null; aoFechar: () => void }) {
+export function EditarRecorrencia({ alvo, aoFechar }: { alvo: Recorrencia | 'nova' | null; aoFechar: () => void }) {
   const cats = useCategorias();
   const r = alvo && alvo !== 'nova' ? alvo : null;
   const [descricao, setDescricao] = useState('');
@@ -95,6 +95,7 @@ function EditarRecorrencia({ alvo, aoFechar }: { alvo: Recorrencia | 'nova' | nu
   const [aPartir, setAPartir] = useState(hojeISO().slice(0, 7));
   const [fim, setFim] = useState('');
   const [fornecedor, setFornecedor] = useState('');
+  const [responsavel, setResponsavel] = useState<'' | ResponsavelNovo>('');
   const [erro, setErro] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
   useEffect(() => {
@@ -108,6 +109,7 @@ function EditarRecorrencia({ alvo, aoFechar }: { alvo: Recorrencia | 'nova' | nu
     setAPartir((r?.proximas[0]?.competencia ?? hojeISO()).slice(0, 7));
     setFim('');
     setFornecedor('');
+    setResponsavel('');
     setErro(null);
   }, [alvo]);
 
@@ -122,13 +124,14 @@ function EditarRecorrencia({ alvo, aoFechar }: { alvo: Recorrencia | 'nova' | nu
     try {
       if (r) {
         await financeiro.alterarRecorrencia(r.id, { versao: r.versao, aplicar_a_partir_de: `${aPartir}-01`, descricao: descricao.trim(), valor_previsto: v, dia_vencimento: dia, valor_variavel: variavel });
-        avisar(`Conta fixa alterada a partir de ${mesAno(`${aPartir}-01`).toLowerCase()}.`, 'ok');
+        avisar(`Conta recorrente alterada a partir de ${mesAno(`${aPartir}-01`).toLowerCase()}.`, 'ok');
       } else {
         await financeiro.criarRecorrencia({
           descricao: descricao.trim(), categoria, valor_previsto: v, valor_variavel: variavel, dia_vencimento: dia, intervalo_meses: intervalo,
           inicio: `${aPartir}-01`, fim: fim || null, fornecedor: fornecedor.trim() ? { nome: fornecedor.trim() } : null,
+          responsavel: responsavel || null,
         });
-        avisar('Conta fixa cadastrada.', 'ok');
+        avisar('Conta recorrente cadastrada.', 'ok');
       }
       atualizarFinanceiro();
       aoFechar();
@@ -141,7 +144,7 @@ function EditarRecorrencia({ alvo, aoFechar }: { alvo: Recorrencia | 'nova' | nu
   }
 
   return (
-    <Gaveta aberta={!!alvo} aoFechar={aoFechar} titulo={r ? 'Alterar conta fixa' : 'Nova conta fixa'} subtitulo={r?.descricao}
+    <Gaveta aberta={!!alvo} aoFechar={aoFechar} titulo={r ? 'Alterar conta recorrente' : 'Nova conta recorrente'} subtitulo={r?.descricao}
       rodape={<><Botao onClick={aoFechar} disabled={ocupado}>Cancelar</Botao><Botao variante="primario" type="submit" form="form-recorrencia" carregando={ocupado}>Salvar</Botao></>}>
       <form id="form-recorrencia" class="pilha" onSubmit={salvar} noValidate>
         {r && <Aviso tom="info" icone={<Info aria-hidden="true" />}>A mudança vale a partir do mês escolhido. Contas já pagas não mudam.</Aviso>}
@@ -163,6 +166,16 @@ function EditarRecorrencia({ alvo, aoFechar }: { alvo: Recorrencia | 'nova' | nu
           <Campo rotulo={r ? 'Vale a partir de' : 'Primeiro mês'}>{(id) => <input id={id} type="month" class="entrada" value={aPartir} onChange={(e) => setAPartir(e.currentTarget.value)} />}</Campo>
           {!r && <Campo rotulo="A cada quantos meses">{(id) => <input id={id} type="number" min={1} max={12} class="entrada num" value={intervalo} onInput={(e) => setIntervalo(Number(e.currentTarget.value))} />}</Campo>}
           {!r && <Campo rotulo="Fim" opcional>{(id) => <input id={id} type="date" class="entrada" value={fim} onChange={(e) => setFim(e.currentTarget.value)} />}</Campo>}
+          {!r && (
+            <Campo rotulo="Responsável" ajuda="Vazio: o responsável padrão (Conjunto) na conta de cada mês.">
+              {(id, d) => (
+                <select id={id} class="selecao" aria-describedby={d} value={responsavel} onChange={(e) => setResponsavel(e.currentTarget.value as '' | ResponsavelNovo)}>
+                  <option value="">Padrão</option>
+                  {RESPONSAVEIS_NOVOS.map((k) => <option key={k} value={k}>{RESPONSAVEL[k]}</option>)}
+                </select>
+              )}
+            </Campo>
+          )}
           {!r && <Campo rotulo="Fornecedor" opcional>{(id) => <input id={id} class="entrada" maxLength={160} autocomplete="off" value={fornecedor} onInput={(e) => setFornecedor(e.currentTarget.value)} />}</Campo>}
         </div>
         <label class="marcar">

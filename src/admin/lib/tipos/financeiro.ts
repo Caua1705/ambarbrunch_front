@@ -103,6 +103,9 @@ export interface ListaLancamentos {
 
 export type SituacaoConta = 'paga' | 'vencida' | 'vence_hoje' | 'parcial' | 'a_vencer';
 export interface ContaPagar {
+  /** 0031: avulsa, recorrente (conta fixa) ou parcelada. */
+  tipo_conta?: 'avulsa' | 'recorrente' | 'parcelada';
+  parcelas_total?: number;
   parcela_id: Uuid;
   despesa_id: Uuid;
   unidade_negocio_id: number;
@@ -198,6 +201,8 @@ export interface DespesaEntrada {
   arquivo_id?: Uuid | null;
   parcelas?: { vencimento: Data; valor: Dec }[] | null;
   pagamento?: { pago_em: Data; forma: FormaPagamento; identificador_transacao?: string | null; arquivo_id?: Uuid | null; conta_pagadora_id?: Uuid | null } | null;
+  /** 0031: omitido = o responsável padrão da unidade (Conjunto). */
+  responsavel?: ResponsavelNovo | null;
 }
 
 export interface PagamentoEntrada {
@@ -622,6 +627,8 @@ export interface RecorrenciaEntrada {
   inicio: Data;
   fim?: Data | null;
   antecedencia_dias?: number;
+  /** 0031: responsável das despesas geradas; omitido = o padrão da unidade. */
+  responsavel?: ResponsavelNovo | null;
 }
 
 // Participação (GET /apuracoes/{mes}/participacao — só com financeiro.ver_societario) ------------------------------------
@@ -864,7 +871,17 @@ export interface FornecedorDetalhe {
 /** 0030: conjunta = a empresa Âmbar × Roll (sempre empresarial). */
 export type ParteConta = 'ambar' | 'roll' | 'conjunta';
 export type NaturezaConta = 'pessoal' | 'empresarial';
-export type Responsavel = 'ambar' | 'roll' | 'compartilhada';
+/** 0031: conjunto = a operação compartilhada Âmbar × Roll (padrão); compartilhada = legado 50/50. */
+export type Responsavel = 'conjunto' | 'ambar' | 'roll' | 'compartilhada';
+export type ResponsavelNovo = 'conjunto' | 'ambar' | 'roll';
+export interface ConfiguracaoFinanceira {
+  responsavel_padrao: ResponsavelNovo;
+  /** 0 = ainda sem configuração gravada (vale o padrão inicial, conjunto). */
+  versao: number;
+  atualizado_por: string | null;
+  atualizado_em: Instante | null;
+  responsaveis: ResponsavelNovo[];
+}
 export type Tratamento = 'nao_se_aplica' | 'a_definir' | 'reembolsar' | 'aporte' | 'sem_reembolso';
 
 /** Conta pagadora para listas e seleção (financeiro.lancar): sem titular nem documento. */
@@ -925,6 +942,8 @@ export interface Pendencia {
   fornecedor: string | null;
   tem_comprovante: boolean;
   versao: number;
+  /** 0031: editável no modal; nunca é motivo de pendência. */
+  responsavel?: Responsavel;
 }
 export interface ListaPendencias {
   total: number;

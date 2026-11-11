@@ -13,7 +13,7 @@ import { Botao, Campo, Aviso, Etiqueta, Situacao } from '../../ui/base';
 import { EntradaMoeda } from '../../ui/entradas';
 import { Dados, Esqueleto } from '../../ui/estados';
 import type { DespesaSaida, Responsavel } from '../../lib/tipos/financeiro';
-import { ORIGEM, MOTIVO_REVISAO, FORMAS, useCategorias, useNomeCategoria, OpcoesCategoria, atualizarFinanceiro, avisar, avisarFalha, usePermissao, useUnidades, useContasPagadoras, rotuloConta, RESPONSAVEL } from './comum';
+import { ORIGEM, MOTIVO_REVISAO, FORMAS, useCategorias, useNomeCategoria, OpcoesCategoria, atualizarFinanceiro, avisar, avisarFalha, usePermissao, useUnidades, useContasPagadoras, rotuloConta, RESPONSAVEL, RESPONSAVEIS_NOVOS } from './comum';
 import { Anexos } from './Anexos';
 import { Pagar, type ContaParaPagar } from './Pagar';
 
@@ -333,12 +333,12 @@ function MudarUnidade({ d, aoTerminar }: { d: DespesaSaida; aoTerminar: (movida:
   );
 }
 
-/** Quem deveria pagar (Âmbar, Roll, 50/50): muda os acertos, não o pagador. Só financeiro.ver_societario altera. */
+/** A quem pertence a despesa (Conjunto, Âmbar, Roll): não é quem pagou. Editável por quem lança (auditado). */
 function ResponsavelDespesa({ d }: { d: DespesaSaida }) {
-  const societario = usePermissao('financeiro.ver_societario');
+  const lancar = usePermissao('financeiro.lancar');
   const [salvando, setSalvando] = useState(false);
   const atual = d.responsavel ?? 'ambar';
-  if (!societario || d.status === 'cancelada') return <>{RESPONSAVEL[atual]}</>;
+  if (!lancar || d.status === 'cancelada') return <>{RESPONSAVEL[atual]}</>;
   async function mudar(v: Responsavel) {
     setSalvando(true);
     try {
@@ -352,7 +352,8 @@ function ResponsavelDespesa({ d }: { d: DespesaSaida }) {
   }
   return (
     <select class="selecao selecao--auto" aria-label="Responsável pela despesa" value={atual} disabled={salvando} onChange={(e) => mudar(e.currentTarget.value as Responsavel)}>
-      {Object.entries(RESPONSAVEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+      {RESPONSAVEIS_NOVOS.map((k) => <option key={k} value={k}>{RESPONSAVEL[k]}</option>)}
+      {atual === 'compartilhada' && <option value="compartilhada">{RESPONSAVEL.compartilhada}</option>}
     </select>
   );
 }

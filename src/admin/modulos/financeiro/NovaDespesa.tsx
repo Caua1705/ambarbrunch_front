@@ -9,7 +9,8 @@ import { Gaveta } from '../../ui/camadas';
 import { Botao, Campo, Aviso, Segmentado } from '../../ui/base';
 import { EntradaMoeda, EnvioArquivo } from '../../ui/entradas';
 import type { DespesaEntrada, FormaPagamento } from '../../lib/tipos/financeiro';
-import { FORMAS, useCategorias, OpcoesCategoria, atualizarFinanceiro, avisar, AVISO_ARQUIVO_REPETIDO, useContasPagadoras, rotuloConta } from './comum';
+import { FORMAS, useCategorias, OpcoesCategoria, atualizarFinanceiro, avisar, AVISO_ARQUIVO_REPETIDO, useContasPagadoras, rotuloConta, useConfiguracaoFinanceira, RESPONSAVEL, RESPONSAVEIS_NOVOS } from './comum';
+import type { ResponsavelNovo } from '../../lib/tipos/financeiro';
 import { EscolherFornecedor, type FornecedorEscolhido } from './Fornecedores';
 
 export type Situacao = 'paga' | 'a_pagar' | 'parcelada';
@@ -36,6 +37,9 @@ export function NovaDespesa({ aberta, aoFechar, aoCriar, situacaoInicial = 'paga
   // 0029: conta que pagou; começa na padrão (a empresarial do Âmbar).
   const contasPag = useContasPagadoras();
   const [pagador, setPagador] = useState('');
+  // 0031: a quem pertence a despesa; começa no responsável padrão da unidade (Conjunto).
+  const config = useConfiguracaoFinanceira();
+  const [responsavel, setResponsavel] = useState<ResponsavelNovo>('conjunto');
   const [vencimento, setVencimento] = useState(hojeISO());
   const [nParcelas, setNParcelas] = useState(2);
   const [parcelas, setParcelas] = useState<{ vencimento: string; valor: string }[]>([]);
@@ -62,6 +66,7 @@ export function NovaDespesa({ aberta, aoFechar, aoCriar, situacaoInicial = 'paga
     setPagoEm(hojeISO());
     setIdent('');
     setPagador(contasPag.dados?.padrao_id ?? '');
+    setResponsavel(config.dados?.responsavel_padrao ?? 'conjunto');
     setVencimento(hojeISO());
     setNParcelas(2);
     setParcelas([]);
@@ -122,6 +127,7 @@ export function NovaDespesa({ aberta, aoFechar, aoCriar, situacaoInicial = 'paga
       fornecedor: forn ? ('id' in forn ? { id: forn.id } : { nome: forn.novo, documento: fornDoc.replace(/\D/g, '') || null }) : null,
       arquivo_id: arquivo?.id ?? null,
       // Sem `pagamento` nem `parcelas`, o backend cria uma conta a pagar que vence na competência.
+      responsavel,
       pagamento: situacao === 'paga' ? { pago_em: pagoEm, forma, identificador_transacao: ident.trim() || null, arquivo_id: arquivo?.id ?? null, conta_pagadora_id: pagador || null } : null,
       parcelas: situacao === 'a_pagar' ? [{ vencimento, valor: v! }] : situacao === 'parcelada' ? parcelas : null,
     };
@@ -179,6 +185,13 @@ export function NovaDespesa({ aberta, aoFechar, aoCriar, situacaoInicial = 'paga
 
         <div class="campo">
           <span class="campo__rotulo" id="rotulo-situacao">Situação</span>
+          <Campo rotulo="Responsável" ajuda="A quem pertence a despesa (não é quem pagou).">
+            {(id, d) => (
+              <select id={id} class="selecao" aria-describedby={d} value={responsavel} onChange={(e) => setResponsavel(e.currentTarget.value as ResponsavelNovo)}>
+                {RESPONSAVEIS_NOVOS.map((k) => <option key={k} value={k}>{RESPONSAVEL[k]}{k === (config.dados?.responsavel_padrao ?? 'conjunto') ? ' (padrão)' : ''}</option>)}
+              </select>
+            )}
+          </Campo>
           <Segmentado<Situacao> rotulo="Situação do pagamento" valor={situacao} aoMudar={setSituacao} opcoes={[{ valor: 'paga', rotulo: 'Já foi paga' }, { valor: 'a_pagar', rotulo: 'A pagar' }, { valor: 'parcelada', rotulo: 'Parcelada' }]} />
         </div>
         {situacao === 'paga' && (

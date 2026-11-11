@@ -1,4 +1,4 @@
-// Configurações → Financeiro → Contas e pagadores (0029; três lados desde a 0030), só o Proprietário. As contas que a
+// Configurações → Financeiro → Contas e pagadores (0029; três grupos desde a 0030; responsável padrão na 0031), só o Proprietário. As contas que a
 // Júlia usa para reconhecer QUEM PAGOU cada comprovante, em três lados: Âmbar (Cauã, o pai, a Giardini antiga), Roll (Léo,
 // Adriana) e Âmbar × Roll (a conta empresarial da empresa conjunta, normalmente a padrão de novos pagamentos). O titular é
 // o nome como aparece nos comprovantes; o apelido é só para identificar na tela. Nada vem preenchido: o cadastro é feito aqui, com os dados reais.
@@ -14,7 +14,44 @@ import { Botao, Cartao, Campo, Aviso, Etiqueta } from '../../ui/base';
 import { Dados, EsqueletoTabela, Vazio } from '../../ui/estados';
 import { Tabela, type Coluna } from '../../ui/tabela';
 import type { ContaPagadoraCadastro, ContaPagadoraEntrada, NaturezaConta, ParteConta } from '../../lib/tipos/financeiro';
-import { PARTE, atualizarFinanceiro, avisar } from './comum';
+import { PARTE, LADOS, RESPONSAVEL, RESPONSAVEIS_NOVOS, atualizarFinanceiro, avisar, avisarFalha, useConfiguracaoFinanceira } from './comum';
+import type { ResponsavelNovo } from '../../lib/tipos/financeiro';
+
+const GRUPO_DESCRICAO: Record<string, string> = {
+  ambar: 'Cauã, Marcelo e a conta antiga Giardini',
+  roll: 'Leonardo e Adriana',
+  conjunta: 'a operação compartilhada (conta empresarial)',
+};
+
+/** Responsável padrão das despesas novas (só Proprietário muda; não altera despesas antigas). */
+function ResponsavelPadrao() {
+  const config = useConfiguracaoFinanceira();
+  const [salvando, setSalvando] = useState(false);
+  async function mudar(v: ResponsavelNovo) {
+    if (!config.dados) return;
+    setSalvando(true);
+    try {
+      await financeiro.alterarConfiguracao(config.dados.versao, v);
+      atualizarFinanceiro();
+      avisar('Responsável padrão alterado. Vale só para despesas novas.', 'ok');
+    } catch (e) {
+      avisarFalha(e);
+    } finally {
+      setSalvando(false);
+    }
+  }
+  return (
+    <Cartao titulo="Responsável padrão" descricao="A quem pertencem as despesas novas quando ninguém informa (inclusive as da Júlia). Despesas antigas não mudam; cada uma pode ser editada depois.">
+      <Campo rotulo="Responsável padrão das despesas novas">
+        {(id) => (
+          <select id={id} class="selecao selecao--auto" disabled={!config.dados || salvando} value={config.dados?.responsavel_padrao ?? 'conjunto'} onChange={(e) => mudar(e.currentTarget.value as ResponsavelNovo)}>
+            {RESPONSAVEIS_NOVOS.map((k) => <option key={k} value={k}>{RESPONSAVEL[k]}</option>)}
+          </select>
+        )}
+      </Campo>
+    </Cartao>
+  );
+}
 
 export function ContasPagadoras() {
   const lista = useConsulta('financeiro/contas-pagadoras/cadastro', () => financeiro.cadastroContasPagadoras());
@@ -29,7 +66,7 @@ export function ContasPagadoras() {
         </>
       ),
     },
-    { id: 'parte', titulo: 'Lado', ordenar: (c) => c.parte, celula: (c) => <><strong>{PARTE[c.parte] ?? c.parte}</strong><span class="sub">{c.natureza === 'pessoal' ? 'Pessoal' : 'Empresarial'}</span></> },
+    { id: 'parte', titulo: 'Tipo', ordenar: (c) => c.natureza, celula: (c) => (c.natureza === 'pessoal' ? 'Pessoal' : 'Empresarial') },
     { id: 'banco', titulo: 'Banco', prioridade: 'media', celula: (c) => <>{c.instituicao}<span class="sub">{[c.agencia ? `ag. ${c.agencia}` : null, c.conta].filter(Boolean).join(' · ') || '—'}</span></> },
     { id: 'pix', titulo: 'Pix', prioridade: 'baixa', celula: (c) => c.chave_pix ?? <span class="fraco">—</span> },
   ];
@@ -42,12 +79,21 @@ export function ContasPagadoras() {
         justo
       >
         <Dados consulta={lista} recurso="As contas" esqueleto={<EsqueletoTabela linhas={3} />}>
-          {(itens) => (
-            <Tabela rotulo="Contas pagadoras" colunas={colunas} linhas={itens} chave={(c) => c.id} aoAbrir={setEditar}
-              vazio={<Vazio compacto titulo="Nenhuma conta cadastrada">Cadastre a conta empresarial do Âmbar (padrão) e as contas pessoais que já pagaram despesas.</Vazio>} />
-          )}
+          {(itens) => (itens.length ? (
+            // Três grupos financeiros, cada um com os seus pagadores (associação simples pagador → grupo).
+            <div class="fin-grupos">
+              {LADOS.map((lado) => (
+                <section key={lado} class="fin-grupo" aria-labelledby={`grupo-${lado}`}>
+                  <h3 class="secao-titulo" id={`grupo-${lado}`}>{PARTE[lado]} <span class="fraco">· {GRUPO_DESCRICAO[lado]}</span></h3>
+                  <Tabela rotulo={`Pagadores do grupo ${PARTE[lado]}`} colunas={colunas} linhas={itens.filter((c) => c.parte === lado)} chave={(c) => c.id} aoAbrir={setEditar}
+                    vazio={<Vazio compacto titulo="Nenhum pagador neste grupo" />} />
+                </section>
+              ))}
+            </div>
+          ) : <Vazio compacto titulo="Nenhuma conta cadastrada">Cadastre a conta da empresa conjunta (Stone, a padrão) e as contas que já pagaram despesas.</Vazio>)}
         </Dados>
       </Cartao>
+      <ResponsavelPadrao />
       <FormConta conta={editar} aoFechar={() => setEditar(null)} />
     </>
   );
@@ -110,10 +156,10 @@ function FormConta({ conta, aoFechar }: { conta: ContaPagadoraCadastro | 'nova' 
         {erro && <Aviso tom="perigo" icone={<Info aria-hidden="true" />}>{erro.message}</Aviso>}
         <div class="grade-campos">
           <Campo rotulo="Apelido" erro={erro?.campos.apelido}>{(id) => <input id={id} class="entrada" maxLength={60} value={f.apelido} onInput={(e) => mudar('apelido', e.currentTarget.value)} />}</Campo>
-          <Campo rotulo="Lado">
+          <Campo rotulo="Grupo">
             {(id) => (
               <select id={id} class="selecao" value={f.parte} onChange={(e) => mudarLado(e.currentTarget.value as ParteConta)}>
-                <option value="ambar">Âmbar</option><option value="roll">Roll</option><option value="conjunta">Âmbar × Roll (empresa)</option>
+                <option value="ambar">Âmbar</option><option value="roll">Roll</option><option value="conjunta">Conjunto (empresa Âmbar × Roll)</option>
               </select>
             )}
           </Campo>

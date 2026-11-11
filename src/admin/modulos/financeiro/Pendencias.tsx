@@ -2,12 +2,12 @@
 // linha por despesa (Descrição, Data, Valor, Categoria, Pagador), só o que falta destacado. Clicar abre um modal simples
 // que corrige a MESMA despesa (POST /admin/financeiro/pendencias/{id}); com os dois campos certos, ela sai da lista.
 //
-// O que não é pendência operacional continua bloqueado no fluxo próprio e aparece só como uma linha discreta de alerta:
-// documentos da Júlia que não viraram lançamento (ilegível, sem data, possível duplicado, conta compatível) e despesas
-// em conferência por outro motivo (acima do limite) — abrem a Revisão de sempre (Revisao.tsx, regras intactas).
-// Banco, Stone e recebíveis e Acertos Âmbar × Roll ficam como ferramentas secundárias (?vista=), sem aba nova.
+// O que não é pendência operacional continua bloqueado no fluxo próprio, FORA desta lista (fase final): documentos da
+// Júlia que não viraram lançamento, Banco, Stone e recebíveis e Acertos continuam no backend e abrem por endereço
+// (?vista=revisao|banco|stone|acertos) e pelos atalhos administrativos de Configurações → Financeiro. O responsável
+// aparece no modal para ajuste, mas nunca é motivo de pendência.
 import { useEffect, useState } from 'preact/hooks';
-import { AlertTriangle, ArrowLeft, CircleCheck, Check } from 'lucide-preact';
+import { ArrowLeft, CircleCheck, Check } from 'lucide-preact';
 import type { ContextoPainel } from '../../lib/sessao';
 import { useConsulta } from '../../lib/consulta';
 import { financeiro } from '../../lib/api/financeiro';
@@ -18,11 +18,11 @@ import { Dialogo } from '../../ui/camadas';
 import { Botao, Cartao, Campo, Aviso } from '../../ui/base';
 import { Dados, EsqueletoTabela, Vazio } from '../../ui/estados';
 import { Tabela, type Coluna } from '../../ui/tabela';
-import type { Pendencia } from '../../lib/tipos/financeiro';
+import type { Pendencia, ResponsavelNovo } from '../../lib/tipos/financeiro';
 import { Revisao } from './Revisao';
 import { Conciliacao, type VistaConciliacao } from './Conciliacao';
 import { Acertos } from './Acertos';
-import { temPermissao, useCategorias, OpcoesCategoria, useContasPagadoras, rotuloConta, atualizarFinanceiro, avisar, PARTE, LADOS } from './comum';
+import { temPermissao, useCategorias, OpcoesCategoria, useContasPagadoras, rotuloConta, atualizarFinanceiro, avisar, PARTE, LADOS, RESPONSAVEL, RESPONSAVEIS_NOVOS } from './comum';
 
 export type VistaPendencias = 'lista' | 'revisao' | 'acertos' | VistaConciliacao;
 const VISTAS: VistaPendencias[] = ['lista', 'revisao', 'acertos', 'banco', 'stone', 'divergencias'];
@@ -58,10 +58,10 @@ export function Pendencias({ contexto }: { contexto: ContextoPainel; revisar?: n
       </>
     );
   }
-  return <ListaPendencias ir={ir} conciliar={conciliar} societario={societario} />;
+  return <ListaPendencias />;
 }
 
-function ListaPendencias({ ir, conciliar, societario }: { ir: (v: VistaPendencias) => void; conciliar: boolean; societario: boolean }) {
+function ListaPendencias() {
   const lista = useConsulta('financeiro/pendencias', () => financeiro.pendencias());
   const [aberta, setAberta] = useState<Pendencia | null>(null);
 
@@ -91,15 +91,6 @@ function ListaPendencias({ ir, conciliar, societario }: { ir: (v: VistaPendencia
       <Dados consulta={lista} recurso="As pendências" esqueleto={<Cartao justo><EsqueletoTabela linhas={4} /></Cartao>}>
         {(r) => (
           <>
-            {(r.alertas.documentos > 0 || r.alertas.despesas_em_conferencia > 0) && (
-              <Aviso tom="atencao" icone={<AlertTriangle aria-hidden="true" />}>
-                {[
-                  r.alertas.documentos ? `${r.alertas.documentos} ${r.alertas.documentos === 1 ? 'documento da Júlia não virou lançamento' : 'documentos da Júlia não viraram lançamento'}` : null,
-                  r.alertas.despesas_em_conferencia ? `${r.alertas.despesas_em_conferencia} ${r.alertas.despesas_em_conferencia === 1 ? 'despesa em conferência' : 'despesas em conferência'}` : null,
-                ].filter(Boolean).join(' · ')}{' '}
-                <button type="button" class="link" onClick={() => ir('revisao')}>Conferir</button>
-              </Aviso>
-            )}
             <Cartao justo>
               <Tabela
                 rotulo="Pendências: sem categoria ou sem pagador"
@@ -114,12 +105,6 @@ function ListaPendencias({ ir, conciliar, societario }: { ir: (v: VistaPendencia
           </>
         )}
       </Dados>
-      <nav class="fin-secundarias" aria-label="Conferências">
-        {conciliar && <button type="button" class="link" onClick={() => ir('banco')}>Banco</button>}
-        {conciliar && <button type="button" class="link" onClick={() => ir('stone')}>Stone e recebíveis</button>}
-        {societario && <button type="button" class="link" onClick={() => ir('acertos')}>Acertos Âmbar × Roll</button>}
-        <button type="button" class="link" onClick={() => ir('revisao')}>Documentos da Júlia</button>
-      </nav>
       <CorrigirPendencia item={aberta} aoFechar={() => setAberta(null)} />
     </>
   );
@@ -130,6 +115,7 @@ function CorrigirPendencia({ item, aoFechar }: { item: Pendencia | null; aoFecha
   const contas = useContasPagadoras();
   const [categoria, setCategoria] = useState('');
   const [conta, setConta] = useState('');
+  const [responsavel, setResponsavel] = useState<ResponsavelNovo | ''>('');
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -138,6 +124,7 @@ function CorrigirPendencia({ item, aoFechar }: { item: Pendencia | null; aoFecha
     setCategoria(item.categoria?.codigo ?? '');
     // Sugestão (nome parecido) vem pré-selecionada, mas só vale quando a pessoa salva.
     setConta(item.pagador?.id ?? item.sugestao_pagador?.id ?? '');
+    setResponsavel(item.responsavel && item.responsavel !== 'compartilhada' ? item.responsavel : '');
     setErro(null);
   }, [item?.despesa_id, item?.versao]);
 
@@ -148,10 +135,11 @@ function CorrigirPendencia({ item, aoFechar }: { item: Pendencia | null; aoFecha
 
   async function salvar() {
     if (!item) return;
-    const corpo: { versao: number; categoria?: string; conta_id?: string } = { versao: item.versao };
+    const corpo: { versao: number; categoria?: string; conta_id?: string; responsavel?: ResponsavelNovo } = { versao: item.versao };
     if (faltaCategoria && categoria) corpo.categoria = categoria;
     if (faltaPagador && conta) corpo.conta_id = conta;
-    if (!corpo.categoria && !corpo.conta_id) return setErro('Escolha a categoria ou o pagador.');
+    if (responsavel && responsavel !== item.responsavel) corpo.responsavel = responsavel;
+    if (!corpo.categoria && !corpo.conta_id && !corpo.responsavel) return setErro('Escolha a categoria ou o pagador.');
     setSalvando(true);
     setErro(null);
     try {
@@ -204,6 +192,14 @@ function CorrigirPendencia({ item, aoFechar }: { item: Pendencia | null; aoFecha
               </select>
             )
             : <p id={id} class="campo__valor">{rotuloConta(item.pagador)}</p>)}
+        </Campo>
+        <Campo rotulo="Responsável" ajuda="A quem pertence a despesa. Não é pendência: só ajuste se precisar.">
+          {(id, d) => (
+            <select id={id} class="selecao" aria-describedby={d} value={responsavel} onChange={(e) => setResponsavel(e.currentTarget.value as ResponsavelNovo)}>
+              {!responsavel && <option value="">{item.responsavel ? RESPONSAVEL[item.responsavel] : '—'}</option>}
+              {RESPONSAVEIS_NOVOS.map((k) => <option key={k} value={k}>{RESPONSAVEL[k]}</option>)}
+            </select>
+          )}
         </Campo>
         {semContas && <Aviso tom="info">Nenhuma conta pagadora cadastrada. O Proprietário cadastra em Configurações → Financeiro → Contas e pagadores.</Aviso>}
         {erro && <Aviso tom="perigo">{erro}</Aviso>}

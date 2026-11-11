@@ -359,3 +359,15 @@
     margin: var(--e-2);
   }
 }
+
+/* 0031 — Contas e pagadores agrupados pelos três grupos financeiros. */
+.fin-grupos {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e-4);
+  padding: var(--e-3) 0;
+}
+.fin-grupo > .secao-titulo {
+  padding: 0 var(--e-4);
+  margin: 0 0 var(--e-2);
+}

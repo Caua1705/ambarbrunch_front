@@ -1,7 +1,8 @@
 // Configurações → Financeiro: os cadastros administrativos do Financeiro, os MESMOS componentes de antes (Categorias e
 // Fornecedores, com as rotas e permissões de sempre), escolhidos por ?cadastro=. O que é usado no dia a dia fica onde é
-// usado, com atalho daqui: contas fixas (Movimentações → A pagar), taxas da adquirente (Pendências → Stone e
-// recebíveis) e contas bancárias (Pendências → Banco, onde a importação de extrato cadastra a conta).
+// usado, com atalho daqui: contas recorrentes (Contas a pagar). As ferramentas administrativas que saíram de Pendências
+// (fase final) — documentos da Júlia que não viraram lançamento, Banco/extratos, Stone e recebíveis (taxas) e Acertos —
+// continuam no backend e abrem por estes atalhos, só para quem tem a permissão.
 import { useEffect, useState } from 'preact/hooks';
 import { ChevronRight } from 'lucide-preact';
 import type { ContextoPainel } from '../../lib/sessao';
@@ -15,10 +16,13 @@ import '../../estilos/financeiro.css';
 
 type Cadastro = 'categorias' | 'fornecedores' | 'contas';
 
-const ATALHOS = [
-  { href: '/admin/financeiro?aba=contas&vista=recorrentes', titulo: 'Contas fixas (recorrentes)', detalhe: 'Aluguel, internet, folha: ficam em Contas a pagar' },
-  { href: '/admin/financeiro?aba=pendencias&vista=stone', titulo: 'Taxas contratadas da adquirente', detalhe: 'Crédito, débito e Pix, com vigência: em Pendências → Stone e recebíveis' },
-  { href: '/admin/financeiro?aba=pendencias&vista=banco', titulo: 'Extratos (opcional)', detalhe: 'Importar OFX ou CSV para conferir: em Pendências → Banco' },
+type Atalho = { href: string; titulo: string; detalhe: string; permissao?: 'financeiro.conciliar' | 'financeiro.ver_societario' };
+const ATALHOS: Atalho[] = [
+  { href: '/admin/financeiro?aba=contas&situacao=recorrentes', titulo: 'Contas recorrentes', detalhe: 'Aluguel, internet, sistemas: ficam em Contas a pagar → Recorrentes' },
+  { href: '/admin/financeiro?aba=pendencias&vista=revisao', titulo: 'Documentos da Júlia para conferir', detalhe: 'Comprovantes que não viraram lançamento (ilegível, sem data, possível duplicado)' },
+  { href: '/admin/financeiro?aba=pendencias&vista=stone', titulo: 'Stone e recebíveis', detalhe: 'Vendido, líquido estimado e taxas contratadas da adquirente', permissao: 'financeiro.conciliar' },
+  { href: '/admin/financeiro?aba=pendencias&vista=banco', titulo: 'Banco e extratos (opcional)', detalhe: 'Importar OFX ou CSV para conferir', permissao: 'financeiro.conciliar' },
+  { href: '/admin/financeiro?aba=pendencias&vista=acertos', titulo: 'Acertos Âmbar × Roll', detalhe: 'Adiantamentos, reembolsos e compensações entre os grupos', permissao: 'financeiro.ver_societario' },
 ];
 
 export function CadastrosFinanceiro({ contexto }: { contexto: ContextoPainel }) {
@@ -38,9 +42,9 @@ export function CadastrosFinanceiro({ contexto }: { contexto: ContextoPainel }) 
             opcoes={[{ valor: 'categorias', rotulo: 'Categorias' }, { valor: 'fornecedores', rotulo: 'Fornecedores' }, ...(configurar ? [{ valor: 'contas' as const, rotulo: 'Contas e pagadores' }] : [])]}
           />
           {cadastro === 'categorias' ? <Categorias contexto={contexto} /> : cadastro === 'contas' ? <ContasPagadoras /> : <Fornecedores lancar={lancar} />}
-          <Cartao titulo="No Financeiro" descricao="Cadastros usados no dia a dia, que ficam onde são usados" justo>
+          <Cartao titulo="Ferramentas do Financeiro" descricao="O que fica fora das três abas, para conferências e administração" justo>
             <ul class="lista">
-              {ATALHOS.map((l) => (
+              {ATALHOS.filter((l) => !l.permissao || temPermissao(contexto.usuario, l.permissao)).map((l) => (
                 <li key={l.href}>
                   <a class="lista__item" href={l.href}>
                     <span class="lista__texto"><strong>{l.titulo}</strong><span>{l.detalhe}</span></span>
