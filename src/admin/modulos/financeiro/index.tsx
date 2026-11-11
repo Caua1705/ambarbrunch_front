@@ -1,4 +1,4 @@
-// Financeiro (0029): três abas — Movimentações (despesas, outras receitas e pagamentos: consultar e registrar), Contas a
+// Financeiro: quatro abas — Acertos (Âmbar × Roll e reembolsos pessoais, só com financeiro.ver_societario) e Movimentações (despesas, outras receitas e pagamentos: consultar e registrar), Contas a
 // pagar (o que falta pagar, vencidas, parciais, pagas e as contas fixas) e Pendências (só despesa sem categoria e/ou
 // sem pagador; Banco, Stone, Acertos e os documentos da Júlia ficam como conferências secundárias dentro dela).
 // Relatórios saiu da navegação: os endereços antigos (?aba=relatorios, sino, Visão Geral) ainda abrem a mesma tela,
@@ -19,11 +19,12 @@ import { DetalheDespesa } from './DetalheDespesa';
 import { useConfirmacao } from '../../ui/camadas';
 import { Pendencias } from './Pendencias';
 import { Relatorios } from './Relatorios';
-import { UsuarioFinanceiro, UnidadesFinanceiro } from './comum';
+import { Acertos } from './Acertos';
+import { UsuarioFinanceiro, UnidadesFinanceiro, temPermissao } from './comum';
 import '../../estilos/financeiro.css';
 
-export type Aba = 'movimentacoes' | 'contas' | 'pendencias' | 'relatorios';
-const ABAS: Aba[] = ['movimentacoes', 'contas', 'pendencias', 'relatorios'];
+export type Aba = 'movimentacoes' | 'contas' | 'pendencias' | 'acertos' | 'relatorios';
+const ABAS: Aba[] = ['movimentacoes', 'contas', 'pendencias', 'acertos', 'relatorios'];
 
 /** Cadastro que saiu do Financeiro: o endereço antigo leva à seção de Configurações que o mostra agora. */
 const CADASTROS = ['categorias', 'fornecedores'];
@@ -52,6 +53,11 @@ function abaDaUrl(): Aba {
     return 'contas';
   }
   if (a === null || a === 'resumo') return 'movimentacoes';
+  // Acertos saiu de Pendências (?aba=pendencias&vista=acertos) e virou aba.
+  if (a === 'pendencias' && vista === 'acertos') {
+    mudar({ vista: null });
+    return 'acertos';
+  }
   if (a === 'lancamentos') {
     // ?aba=lancamentos&revisar=1 era a Revisão; &vista=banco, o extrato.
     if (lerParam('revisar') === '1') {
@@ -110,7 +116,11 @@ export default function Financeiro({ contexto }: { contexto: ContextoPainel }) {
 }
 
 function Conteudo({ contexto }: { contexto: ContextoPainel }) {
-  const [aba, setAba] = useState<Aba>(abaDaUrl);
+  const societario = temPermissao(contexto.usuario, 'financeiro.ver_societario');
+  const [aba, setAba] = useState<Aba>(() => {
+    const a = abaDaUrl();
+    return a === 'acertos' && !societario ? 'movimentacoes' : a;
+  });
   useEffect(() => gravarParams({ aba: aba === 'movimentacoes' ? null : aba }), [aba]);
 
   // Contagens nas abas, só do que está em aberto: contas vencidas em Contas a pagar; em Pendências, as despesas sem
@@ -129,6 +139,7 @@ function Conteudo({ contexto }: { contexto: ContextoPainel }) {
     { id: 'movimentacoes', rotulo: 'Movimentações' },
     { id: 'contas', rotulo: 'Contas a pagar', contagem: vencidas },
     { id: 'pendencias', rotulo: 'Pendências', contagem: revisar },
+    ...(societario ? [{ id: 'acertos' as const, rotulo: 'Acertos' }] : []),
   ];
   const [despesa, setDespesa] = useState<string | null>(null);
   const { confirmar, elemento: dialogo } = useConfirmacao();
@@ -142,6 +153,7 @@ function Conteudo({ contexto }: { contexto: ContextoPainel }) {
             {aba === 'movimentacoes' && <Movimentacoes contexto={contexto} />}
             {aba === 'contas' && <ContasAPagar contexto={contexto} abrirDespesa={setDespesa} />}
             {aba === 'pendencias' && <Pendencias contexto={contexto} />}
+            {aba === 'acertos' && societario && <Acertos />}
             {aba === 'relatorios' && <Relatorios contexto={contexto} />}
           </div>
           {aba === 'contas' && <DetalheDespesa id={despesa} aoFechar={() => setDespesa(null)} confirmar={confirmar} />}

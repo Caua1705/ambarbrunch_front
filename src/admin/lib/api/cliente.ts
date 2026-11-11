@@ -116,7 +116,9 @@ export async function converterErro(res: Response): Promise<ErroApi> {
   if (s === 403) return new ErroApi('permissao', detalhe ?? 'Seu perfil não tem acesso a isso.', s, codigo);
   if (s === 404) {
     if (!codigo && detalhe === 'Not Found') return new ErroApi('nao_implantado', 'Este recurso ainda não está disponível no sistema do Âmbar.', s, null);
-    return new ErroApi('nao_encontrado', detalhe ?? 'Não encontrado. Pode ter sido removido.', s, codigo);
+    // A API sempre explica o 404 ("Despesa não encontrada."); 404 sem explicação não veio dela (proxy sem o backend).
+    if (!detalhe) return new ErroApi('servidor', 'O sistema do Âmbar não respondeu como esperado. Tente de novo em instantes.', s, codigo);
+    return new ErroApi('nao_encontrado', detalhe, s, codigo);
   }
   if (s === 409) {
     const msg = codigo === 'conflito_versao' ? 'Alguém alterou isto enquanto você editava. Os dados foram recarregados: confira e tente de novo.' : detalhe ?? 'Esta ação conflita com o estado atual. Recarregue e confira.';

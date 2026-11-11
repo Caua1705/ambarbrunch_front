@@ -2,9 +2,10 @@
 // três tipos de obrigação ficam aqui, sem outra aba: AVULSA (despesa única), RECORRENTE (conta fixa: aluguel,
 // internet, sistemas — a obrigação de cada mês nasce sozinha) e PARCELADA (compra em parcelas). O botão
 // "+ Conta a pagar" usa a MESMA estrutura das despesas (avulsa e parcelada = despesa a pagar; recorrente = conta fixa
-// que gera a despesa de cada mês): nunca uma obrigação e uma despesa separadas para o mesmo gasto. As contas fixas
-// são administradas na visão "Recorrentes" (o antigo botão "Contas fixas" saiu). Paga, a conta continua no
-// histórico (Pagas) e é a mesma despesa de Movimentações → Despesas: nada é contado duas vezes.
+// que gera a despesa de cada mês): nunca uma obrigação e uma despesa separadas para o mesmo gasto. Sem filtros: uma
+// lista só, com todas as contas em aberto (vencidas primeiro) e as pagas dos últimos meses; as contas recorrentes são
+// administradas no bloco recolhível "Contas recorrentes". Paga, a conta é a mesma despesa de Movimentações →
+// Despesas: nada é contado duas vezes.
 // Rotas: GET /contas-a-pagar, POST /parcelas/{id}/pagamentos, POST /despesas, GET/POST/PATCH /recorrencias.
 import { useEffect, useState } from 'preact/hooks';
 import { Banknote, Search, Plus } from 'lucide-preact';
@@ -14,7 +15,7 @@ import { financeiro } from '../../lib/api/financeiro';
 import { moeda, dataCurta, num, hojeISO, inicioMes, somarMeses, plural } from '../../lib/formato';
 import { lerParam, gravarParams } from '../../lib/rotas';
 import { Suspenso } from '../../ui/camadas';
-import { Botao, Cartao, Segmentado, Situacao, Etiqueta } from '../../ui/base';
+import { Botao, Cartao, Situacao, Etiqueta } from '../../ui/base';
 import { Dados, EsqueletoTabela, Vazio } from '../../ui/estados';
 import { Tabela, type Coluna } from '../../ui/tabela';
 import type { ContaPagar, ListaContas } from '../../lib/tipos/financeiro';
@@ -23,8 +24,6 @@ import { Pagar, type ContaParaPagar } from './Pagar';
 import { Recorrencias, EditarRecorrencia } from './ContasFixas';
 import { NovaDespesa } from './NovaDespesa';
 
-type Filtro = 'vencidas' | 'hoje' | 'proximas' | 'abertas' | 'recorrentes' | 'pagas' | 'todas';
-const FILTROS: Filtro[] = ['vencidas', 'hoje', 'proximas', 'abertas', 'recorrentes', 'pagas', 'todas'];
 type TipoNova = 'avulsa' | 'parcelada' | 'recorrente';
 export const TIPO_CONTA: Record<string, string> = { avulsa: 'Avulsa', recorrente: 'Recorrente', parcelada: 'Parcelada' };
 
@@ -61,25 +60,21 @@ export function ContasAPagar({ contexto, abrirDespesa }: { contexto: ContextoPai
   );
 }
 
-function filtroInicial(): Filtro {
-  // Endereços antigos: ?vista=recorrentes (o antigo "Contas fixas") abre a visão Recorrentes.
-  if (lerParam('vista') === 'recorrentes') return 'recorrentes';
-  const s = lerParam('situacao') as Filtro | null;
-  return s && FILTROS.includes(s) ? s : 'abertas';
-}
 
 function ListaContasPagar({ contexto, busca, abrirDespesa }: { contexto: ContextoPainel; busca: string; abrirDespesa: (id: string) => void }) {
   const lancar = temPermissao(contexto.usuario, 'financeiro.lancar');
-  const [filtro, setFiltro] = useState<Filtro>(filtroInicial);
   const [pagar, setPagar] = useState<ContaParaPagar | null>(null);
+  // Endereços antigos (?situacao=, ?vista=recorrentes): os filtros saíram; o antigo "Recorrentes" abre o bloco delas.
+  const [recorrentesAbertas] = useState(() => lerParam('vista') === 'recorrentes');
   const nome = useNomeCategoria();
-  useEffect(() => gravarParams({ situacao: filtro === 'abertas' ? null : filtro, vista: null }), [filtro]);
+  useEffect(() => gravarParams({ situacao: null, vista: null }), []);
 
-  // Pagas e todas: dos últimos meses (a lista completa não cabe numa tela).
-  const q = filtro === 'pagas' || filtro === 'todas' ? { situacao: filtro, de: somarMeses(inicioMes(hojeISO()), -2) } : { situacao: filtro };
-  const lista = useConsulta(filtro === 'recorrentes' ? null : `financeiro/contas:${JSON.stringify(q)}`, () => financeiro.contas(q));
-  const resumo = useConsulta('financeiro/resumo', () => financeiro.resumo());
-  const n = resumo.dados?.contas;
+  // Uma lista só: TODAS as contas em aberto e as pagas dos últimos meses (a lista completa de pagas não cabe numa tela).
+  const qPagas = { situacao: 'pagas' as const, de: somarMeses(inicioMes(hojeISO()), -2) };
+  const abertas = useConsulta('financeiro/contas:{"situacao":"abertas"}', () => financeiro.contas({ situacao: 'abertas' }));
+  const pagas = useConsulta(`financeiro/contas:${JSON.stringify(qPagas)}`, () => financeiro.contas(qPagas));
+  const lista = abertas;
+  // Ordem: em aberto por vencimento (vencidas primeiro, como o backend devolve) e, depois, as pagas mais recentes.
 
   const colunas: Coluna<ContaPagar>[] = [
     { id: 'vencimento', titulo: 'Vencimento', prioridade: 'media', ordenar: (c) => c.vencimento, largura: '108px', celula: (c) => <span class="num" style={{ whiteSpace: 'nowrap' }}>{dataCurta(c.vencimento)}</span> },
@@ -126,32 +121,19 @@ function ListaContasPagar({ contexto, busca, abrirDespesa }: { contexto: Context
 
   return (
     <>
-      <Segmentado<Filtro>
-        rotulo="Situação das contas"
-        valor={filtro}
-        aoMudar={setFiltro}
-        opcoes={[
-          { valor: 'abertas', rotulo: 'Em aberto' },
-          { valor: 'vencidas', rotulo: <>Vencidas{n?.vencidas.qtd ? <span class="contador contador--perigo">{n.vencidas.qtd}</span> : null}</> },
-          ...(filtro === 'hoje' ? [{ valor: 'hoje' as const, rotulo: 'Vencem hoje' }] : []),
-          ...(filtro === 'proximas' ? [{ valor: 'proximas' as const, rotulo: 'Próximos 7 dias' }] : []),
-          { valor: 'recorrentes', rotulo: 'Recorrentes' },
-          { valor: 'pagas', rotulo: 'Pagas' },
-          { valor: 'todas', rotulo: 'Todas' },
-        ]}
-      />
-      {filtro === 'recorrentes' ? <Recorrencias lancar={lancar} /> : (
+      {(
         <Cartao justo>
           <Dados consulta={lista} recurso="As contas a pagar" esqueleto={<EsqueletoTabela />}>
             {(r: ListaContas) => {
               const termo = busca.trim().toLocaleLowerCase('pt-BR');
-              const linhas = termo ? r.itens.filter((c) => `${c.descricao} ${c.fornecedor ?? ''}`.toLocaleLowerCase('pt-BR').includes(termo)) : r.itens;
+              const todas = [...r.itens, ...(pagas.dados?.itens ?? [])];
+              const linhas = termo ? todas.filter((c) => `${c.descricao} ${c.fornecedor ?? ''}`.toLocaleLowerCase('pt-BR').includes(termo)) : todas;
               return (
                 <>
                   {r.itens.length > 0 && (
                     <div class="fin-totais">
-                      <div><span>{plural(r.total, 'conta', 'contas')}</span><strong class="num">{moeda(r.totais.valor)}</strong></div>
-                      {filtro !== 'pagas' && <div><span>Falta pagar</span><strong class="num">{moeda(r.totais.saldo)}</strong></div>}
+                      <div><span>{plural(r.total, 'conta em aberto', 'contas em aberto')}</span><strong class="num">{moeda(r.totais.valor)}</strong></div>
+                      <div><span>Falta pagar</span><strong class="num">{moeda(r.totais.saldo)}</strong></div>
                     </div>
                   )}
                   <Tabela
@@ -161,18 +143,21 @@ function ListaContasPagar({ contexto, busca, abrirDespesa }: { contexto: Context
                     chave={(c) => c.parcela_id}
                     aoAbrir={(c) => abrirDespesa(c.despesa_id)}
                     destaque={(c) => c.situacao_painel === 'vencida' || c.situacao_painel === 'vence_hoje'}
-                    ordemInicial={{ coluna: 'vencimento', desc: filtro === 'pagas' }}
                     vazio={termo
                       ? <Vazio compacto titulo="Nenhuma conta com essa busca">Procure pela descrição ou pelo fornecedor.</Vazio>
-                      : <Vazio compacto titulo={filtro === 'vencidas' ? 'Nenhuma conta vencida' : filtro === 'hoje' ? 'Nada vence hoje' : 'Nenhuma conta aqui'}>{filtro === 'pagas' ? 'Pagamentos dos últimos meses aparecem aqui.' : 'Contas novas entram por “+ Conta a pagar”, pelas compras ou pelas recorrentes.'}</Vazio>}
+                      : <Vazio compacto titulo="Nenhuma conta a pagar">Contas novas entram por “+ Conta a pagar”, pelas compras ou pelas recorrentes.</Vazio>}
                   />
-                  {r.total > r.itens.length && <p class="fraco" style={{ padding: '10px 20px' }}>Mostrando {r.itens.length} de {r.total}.</p>}
+                  {r.total > r.itens.length && <p class="fraco" style={{ padding: '10px 20px' }}>Mostrando {r.itens.length} de {r.total} em aberto.</p>}
                 </>
               );
             }}
           </Dados>
         </Cartao>
       )}
+      <details class="fin-detalhes" open={recorrentesAbertas}>
+        <summary>Contas recorrentes</summary>
+        <Recorrencias lancar={lancar} />
+      </details>
 
       <Pagar conta={pagar} aoFechar={() => setPagar(null)} />
     </>

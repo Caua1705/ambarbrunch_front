@@ -3,8 +3,8 @@
 // que corrige a MESMA despesa (POST /admin/financeiro/pendencias/{id}); com os dois campos certos, ela sai da lista.
 //
 // O que não é pendência operacional continua bloqueado no fluxo próprio, FORA desta lista (fase final): documentos da
-// Júlia que não viraram lançamento, Banco, Stone e recebíveis e Acertos continuam no backend e abrem por endereço
-// (?vista=revisao|banco|stone|acertos) e pelos atalhos administrativos de Configurações → Financeiro. O responsável
+// Júlia que não viraram lançamento, Banco, Stone e recebíveis continuam no backend e abrem por endereço
+// (?vista=revisao|banco|stone; Acertos virou aba própria) e pelos atalhos administrativos de Configurações → Financeiro. O responsável
 // aparece no modal para ajuste, mas nunca é motivo de pendência.
 import { useEffect, useState } from 'preact/hooks';
 import { ArrowLeft, CircleCheck, Check } from 'lucide-preact';
@@ -21,19 +21,17 @@ import { Tabela, type Coluna } from '../../ui/tabela';
 import type { Pendencia, ResponsavelNovo } from '../../lib/tipos/financeiro';
 import { Revisao } from './Revisao';
 import { Conciliacao, type VistaConciliacao } from './Conciliacao';
-import { Acertos } from './Acertos';
 import { temPermissao, useCategorias, OpcoesCategoria, useContasPagadoras, rotuloConta, atualizarFinanceiro, avisar, PARTE, LADOS, RESPONSAVEL, RESPONSAVEIS_NOVOS } from './comum';
 
-export type VistaPendencias = 'lista' | 'revisao' | 'acertos' | VistaConciliacao;
-const VISTAS: VistaPendencias[] = ['lista', 'revisao', 'acertos', 'banco', 'stone', 'divergencias'];
+export type VistaPendencias = 'lista' | 'revisao' | VistaConciliacao;
+const VISTAS: VistaPendencias[] = ['lista', 'revisao', 'banco', 'stone', 'divergencias'];
 const NOME_VISTA: Record<Exclude<VistaPendencias, 'lista'>, string> = {
-  revisao: 'Documentos para conferir', acertos: 'Acertos Âmbar × Roll', banco: 'Banco', stone: 'Stone e recebíveis', divergencias: 'Divergências do extrato',
+  revisao: 'Documentos para conferir', banco: 'Banco', stone: 'Stone e recebíveis', divergencias: 'Divergências do extrato',
 };
 
 export function Pendencias({ contexto }: { contexto: ContextoPainel; revisar?: number | null }) {
   const conciliar = temPermissao(contexto.usuario, 'financeiro.conciliar');
-  const societario = temPermissao(contexto.usuario, 'financeiro.ver_societario');
-  const permitida = (v: VistaPendencias) => v === 'lista' || v === 'revisao' || (v === 'acertos' ? societario : conciliar);
+  const permitida = (v: VistaPendencias) => v === 'lista' || v === 'revisao' || conciliar;
   const [vista, setVista] = useState<VistaPendencias>(() => {
     const v = lerParam('vista') as VistaPendencias | null;
     return v && VISTAS.includes(v) && permitida(v) ? v : 'lista';
@@ -53,7 +51,6 @@ export function Pendencias({ contexto }: { contexto: ContextoPainel; revisar?: n
           <strong>{NOME_VISTA[vista]}</strong>
         </div>
         {vista === 'revisao' && <Revisao contexto={contexto} />}
-        {vista === 'acertos' && <Acertos />}
         {(vista === 'banco' || vista === 'stone' || vista === 'divergencias') && <Conciliacao contexto={contexto} vista={vista} aoMudarVista={ir} />}
       </>
     );

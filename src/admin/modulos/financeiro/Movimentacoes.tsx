@@ -28,6 +28,10 @@ import { DetalheDespesa } from './DetalheDespesa';
 type Periodo = 'mes' | 'anterior' | '30d' | 'personalizado';
 export type VistaMovimentacoes = 'receitas' | 'despesas';
 
+/** Tipos de cada visão. Vendas do PDV (venda_dia) são RECEITA: nunca entram em Despesas, mesmo que um backend anterior
+ * à 0031 (que ignora `grupo`) devolva tudo — foi assim que "Vendas PDV" apareceu em Despesas como "A pagar". */
+const TIPOS_DA_VISTA: Record<VistaMovimentacoes, string[]> = { receitas: ['venda_dia', 'outra_receita'], despesas: ['despesa'] };
+
 const diasEntre = (de: string, ate: string) => (Date.parse(`${ate}T12:00:00Z`) - Date.parse(`${de}T12:00:00Z`)) / 86_400_000;
 
 function intervalo(p: Periodo, de: string, ate: string): [string, string] {
@@ -237,7 +241,7 @@ function Lista(p: {
             <Tabela
               rotulo={vista === 'receitas' ? 'Receitas do período' : 'Despesas do período'}
               colunas={vista === 'receitas' ? colunasReceitas : colunasDespesas}
-              linhas={r.itens}
+              linhas={r.itens.filter((l) => TIPOS_DA_VISTA[vista].includes(l.tipo))}
               chave={(l) => `${l.tipo}:${l.id}`}
               aoAbrir={(l) => {
                 if (l.tipo === 'venda_dia') abrirDia(l);

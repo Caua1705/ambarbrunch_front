@@ -974,6 +974,8 @@ export interface SocioAcerto {
   sem_reembolso: Dec;
   reembolsado: Dec;
   a_reembolsar: Dec;
+  /** Lado da pessoa: quem deve o reembolso a ela. */
+  lado?: 'ambar' | 'roll' | null;
 }
 export interface MovimentoAcerto {
   id: Uuid;
@@ -1000,8 +1002,24 @@ export interface ItemAcerto {
   tratamento: Tratamento | null;
   valor_reembolso: Dec | null;
   versao: number | null;
+  /** Por que o pagamento está nos acertos: dívida entre os lados ou pendência (fora da conta). */
+  situacao?: SituacaoAcerto;
+  devedor?: 'ambar' | 'roll' | null;
+  valor_no_acerto?: Dec;
+  lado?: 'ambar' | 'roll' | 'conjunta' | null;
+  status_despesa?: string;
 }
+export type SituacaoAcerto = 'acerto' | 'sem_divida' | 'sem_regra' | 'conta_conjunta' | 'sem_pagador';
+export type PendenciaAcerto = 'sem_regra' | 'conta_conjunta' | 'sem_pagador' | 'reembolso_a_definir';
+export interface DividaAcerto { gerado: Dec; pago: Dec; em_aberto: Dec }
 export interface Acertos {
+  /** Dívida entre os lados (despesas pagas por um lado para o outro) e o líquido, já com os acertos pagos. */
+  acerto?: { ambar_deve_a_roll: DividaAcerto; roll_deve_ao_ambar: DividaAcerto; liquido: { situacao: 'roll_deve' | 'ambar_deve' | 'zerado'; valor: Dec; saldo: Dec } };
+  /** Quanto cada lado deve às pessoas do próprio lado que pagaram com dinheiro próprio. */
+  reembolsos?: Record<'ambar' | 'roll', { a_reembolsar: Dec; a_definir: Dec; a_definir_quantidade: number }>;
+  /** O que ainda não entra na conta (sem regra de divisão, conta conjunta, sem pagador, reembolso a decidir). */
+  pendencias?: Record<PendenciaAcerto, { quantidade: number; valor: Dec; por_lado: Record<'ambar' | 'roll', Dec> }>;
+  itens_total?: number;
   roll: {
     ambar_adiantou_pela_roll: Dec;
     roll_adiantou_pelo_ambar: Dec;

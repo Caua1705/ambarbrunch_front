@@ -93,6 +93,13 @@ export const ALL: APIRoute = async ({ params, request, cookies, url }) => {
   }
   if (res.status === 401) apagarSessao(cookies);
   const tipo = res.headers.get('content-type') ?? 'application/json';
+  // Erro sem JSON não veio da API do Âmbar (que sempre responde JSON): é o proxy da VPS sem o contêiner no ar (deploy,
+  // reinício ou falha de saúde devolvem "404 page not found" em texto). Antes isso virava "Não encontrado. Pode ter sido
+  // removido." no painel, como se o registro tivesse sido apagado.
+  if (!res.ok && res.status !== 401 && !JSON_TIPO.test(tipo)) {
+    await res.body?.cancel().catch(() => undefined);
+    return erro(503, 'O sistema do Âmbar está reiniciando ou fora do ar. Tente de novo em instantes.', 'backend_indisponivel');
+  }
   const saida = new Headers({ 'Content-Type': tipo });
   if (res.ok && !JSON_TIPO.test(tipo)) cabecalhosDeArquivo(res.headers, saida);
   const req = res.headers.get('x-request-id');
