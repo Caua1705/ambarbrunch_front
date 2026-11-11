@@ -9,7 +9,7 @@ import type {
   RelatorioVendas, OutraReceitaEntrada, OutraReceitaSaida, OutraReceitaAlteracao, OpcoesReceita, TaxaPagamento, TaxaEntrada, RecorrenciaEntrada, Participacao,
   SimulacaoParticipacao, EstadoContaMes, DocumentoRevisao, CorrecaoDocumento, ResolucaoDocumento, AnexoDespesa,
   CategoriaEntrada, CategoriaAlteracao, CandidataRevisao, DespesaCandidata, FornecedorCadastro, FornecedorDetalhe,
-  ContaPagadora, ContaPagadoraCadastro, ContaPagadoraEntrada, ListaPendencias, Pendencia, PagadorPagamento, Acertos,
+  ContaPagadora, ContaPagadoraCadastro, ContaPagadoraEntrada, ListaPendencias, Pendencia, PagadorPagamento, Acertos, RepassesConjunto,
   MovimentoAcerto, Responsavel, Tratamento, ConfiguracaoFinanceira, ResponsavelNovo,
 } from '../tipos/financeiro';
 
@@ -108,6 +108,8 @@ export const financeiro = {
   criarOutraReceita: (r: OutraReceitaEntrada, chave = novaChave()) => pedir<OutraReceitaSaida>('financeiro/outras-receitas', { metodo: 'POST', corpo: r, idempotencia: chave }),
   cancelarOutraReceita: (id: string, motivo: string) => pedir<{ id: string; status: OutraReceitaSaida['status'] }>(`financeiro/outras-receitas/${id}/cancelar`, { metodo: 'POST', corpo: { motivo } }),
   // Contas fixas (recorrências) e taxas do cartão/PIX: financeiro.lancar no backend (gerente e proprietário).
+  /** Pausar (true) ou retomar (false) uma conta recorrente. */
+  pausarRecorrencia: (id: string, versao: number, pausar: boolean) => pedir<Recorrencia>(`financeiro/recorrencias/${id}`, { metodo: 'PATCH', corpo: { versao, pausar } }),
   recorrencias: (ativas = true) => pedir<Recorrencia[]>('financeiro/recorrencias', { query: { ativas } }),
   criarRecorrencia: (r: RecorrenciaEntrada) => pedir<Recorrencia>('financeiro/recorrencias', { metodo: 'POST', corpo: r }),
   alterarRecorrencia: (id: string, r: { versao: number; aplicar_a_partir_de?: string; encerrar_em?: string; valor_previsto?: string; descricao?: string; dia_vencimento?: number; valor_variavel?: boolean }) =>
@@ -205,6 +207,12 @@ export const financeiro = {
   definirResponsavel: (despesaId: string, versao: number, responsavel: Responsavel) =>
     pedir<{ despesa_id: string; responsavel: Responsavel; versao: number }>(`financeiro/despesas/${despesaId}/responsavel`, { metodo: 'PUT', corpo: { versao, responsavel } }),
   acertos: () => pedir<Acertos>('financeiro/acertos'),
+  /** 0032: quanto o Conjunto (Master) ainda repassa ao Âmbar e à Roll, com o cálculo. */
+  repassesConjunto: () => pedir<RepassesConjunto>('financeiro/repasses'),
+  registrarRepasse: (m: { sentido: 'conjunto_para_ambar' | 'conjunto_para_roll' | 'ajuste_ambar' | 'ajuste_roll'; valor: string; data: string; descricao: string }) =>
+    pedir<MovimentoAcerto>('financeiro/repasses/movimentos', { metodo: 'POST', corpo: m }),
+  alterarRegrasRepasse: (versao: number, regras: { operacao_vendas_pdv?: 'ambar' | 'roll' | null; rateio_conjunto_ambar?: string | null }) =>
+    pedir<ConfiguracaoFinanceira>('financeiro/configuracao', { metodo: 'PUT', corpo: { versao, ...regras } }),
   /** 0031: responsável padrão das despesas novas (ler: financeiro.lancar; mudar: financeiro.configurar). */
   configuracao: () => pedir<ConfiguracaoFinanceira>('financeiro/configuracao'),
   alterarConfiguracao: (versao: number, responsavel_padrao: ResponsavelNovo) =>

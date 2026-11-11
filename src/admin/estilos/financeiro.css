@@ -371,3 +371,10 @@
   padding: 0 var(--e-4);
   margin: 0 0 var(--e-2);
 }
+
+/* Repasses (0032): os dois cartões lado a lado; um embaixo do outro no celular. */
+.fin-repasses {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--e-3);
+}

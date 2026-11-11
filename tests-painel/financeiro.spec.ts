@@ -54,7 +54,7 @@ test('endereços antigos caem na aba e na parte novas', async ({ page }) => {
     ['aba=contas', /^Contas a pagar/, async (p) => { await expect(p.getByRole('table', { name: 'Contas a pagar' })).toBeVisible(); await expect(p.getByRole('group', { name: 'Situação das contas' })).toHaveCount(0); }],
     ['tipo=a-pagar', /^Contas a pagar/, async (p) => expect(p.getByRole('table', { name: 'Contas a pagar' })).toBeVisible()],
     ['aba=contas&situacao=vencidas', /^Contas a pagar/, async (p) => { await expect(p.getByRole('table', { name: 'Contas a pagar' })).toBeVisible(); await expect(p.getByRole('group', { name: 'Situação das contas' })).toHaveCount(0); }],
-    ['aba=contas-fixas', /^Contas a pagar/, async (p) => expect(p.getByText('Aluguel da loja')).toBeVisible()],
+    ['aba=contas-fixas', /^Contas recorrentes/, async (p) => expect(p.getByText('Aluguel da loja')).toBeVisible()],
     ['aba=revisao', /^Pendências/, async (p) => expect(p.getByRole('heading', { name: /Documentos do grupo/ })).toBeVisible()],
     ['aba=lancamentos&revisar=1', /^Pendências/, async (p) => expect(listaPendencias(p)).toBeVisible()],
     ['aba=conciliacao', /^Pendências/, async (p) => expect(p.getByRole('button', { name: 'Importar extrato' })).toBeVisible()],
@@ -216,7 +216,7 @@ test('Contas a pagar: parcelada e recorrente pela mesma aba, sem o botão Contas
   const parcelas = page.getByRole('table', { name: 'Contas a pagar' }).getByRole('row', { name: new RegExp(nome) });
   await expect(parcelas.first()).toContainText(/Parcelada · 1\/\d/);
 
-  await page.getByText('Contas recorrentes', { exact: true }).click();
+  await aba(page, /^Contas recorrentes/).click();
   await expect(page.getByText('Aluguel da loja')).toBeVisible();
   await page.getByRole('button', { name: 'Conta a pagar' }).click();
   await page.getByRole('menuitem', { name: /^Recorrente/ }).click();
@@ -340,25 +340,17 @@ test('Pendências: uma lista só (sem categoria e/ou sem pagador), corrigida na 
   expect((await page.request.get(`${API}/acertos`)).status()).toBe(403);
 });
 
-test('Acertos Âmbar × Roll e contas pagadoras: só o Proprietário', async ({ page }) => {
+test('Repasses do Conjunto e contas pagadoras: só o Proprietário', async ({ page }) => {
   await entrarDemo(page, 'admin');
+  // Endereço antigo dos Acertos cai em Repasses.
   await page.goto(`${DEMO}/admin/financeiro?aba=pendencias&vista=acertos`);
-  await expect(page.getByRole('heading', { name: 'Âmbar × Roll', exact: true })).toBeVisible();
-  await expect(aba(page, /^Acertos/)).toHaveAttribute('aria-selected', 'true');
-  await expect(page.getByRole('heading', { name: 'Reembolsos pessoais' })).toBeVisible();
-  await expect(page.locator('.fin-saldo')).toContainText(/quites|deve/);
-  await page.getByRole('button', { name: 'Ver detalhes' }).first().click();
-  await expect(page.getByRole('dialog', { name: 'Lançamentos dos acertos' })).toBeVisible();
+  await expect(aba(page, /^Repasses/)).toHaveAttribute('aria-selected', 'true');
+  for (const t of ['Conjunto → Âmbar', 'Conjunto → Roll']) await expect(page.getByRole('heading', { name: t })).toBeVisible();
+  // Sem regra/operação definida: pendente, nunca um saldo inventado.
+  await expect(page.getByText('Pendente de identificação')).toHaveCount(2);
+  await page.getByRole('button', { name: 'Ver cálculo' }).first().click();
+  await expect(page.getByRole('dialog', { name: /Cálculo · Conjunto → Âmbar/ })).toBeVisible();
   await page.keyboard.press('Escape');
-  const pagar = page.getByRole('button', { name: 'Registrar acerto pago' });
-  test.skip((await pagar.count()) === 0, 'demonstração quite: nada a registrar');
-  await pagar.click();
-  const dialogo = page.getByRole('dialog', { name: 'Registrar acerto' });
-  await dialogo.getByLabel('Valor').fill('50,00');
-  await dialogo.getByLabel('Descrição').fill('Pix de acerto (demonstração)');
-  await dialogo.getByRole('button', { name: 'Registrar' }).click();
-  await expect(page.getByText('Acerto registrado.')).toBeVisible();
-  await expect(page.getByText(/Acertos e reembolsos registrados \(1\)/)).toBeVisible();
 
   await page.goto(`${DEMO}/admin/configuracoes?secao=financeiro&cadastro=contas`);
   // Três grupos, cada um com os seus pagadores; a empresa conjunta (Stone) é a padrão.

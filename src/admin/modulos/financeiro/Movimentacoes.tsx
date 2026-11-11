@@ -16,11 +16,11 @@ import { financeiro } from '../../lib/api/financeiro';
 import { moeda, dataCurta, hojeISO, inicioMes, fimMes, somarMeses, somarDias, plural } from '../../lib/formato';
 import { lerParam, gravarParams } from '../../lib/rotas';
 import { useConfirmacao, Suspenso, Gaveta, type PedidoConfirmacao } from '../../ui/camadas';
-import { Botao, Cartao, Segmentado, Situacao } from '../../ui/base';
+import { Botao, Cartao, Segmentado, Situacao, Etiqueta } from '../../ui/base';
 import { Dados, Esqueleto, EsqueletoTabela, Vazio } from '../../ui/estados';
 import { Tabela, type Coluna } from '../../ui/tabela';
 import type { Lancamento, ListaLancamentos, OutraReceitaSaida } from '../../lib/tipos/financeiro';
-import { SituacaoLancamento, useCadastroCategorias, nomeCategoria, temPermissao, atualizarFinanceiro, avisar, RESPONSAVEL, MEIO } from './comum';
+import { SituacaoLancamento, useCadastroCategorias, nomeCategoria, temPermissao, atualizarFinanceiro, avisar, RESPONSAVEL, MEIO, PARTE } from './comum';
 import { NovaDespesa } from './NovaDespesa';
 import { NovaReceita } from './NovaReceita';
 import { DetalheDespesa } from './DetalheDespesa';
@@ -141,20 +141,25 @@ function Datas({ periodo, de, ate, setDe, setAte }: { periodo: Periodo; de: stri
   );
 }
 
-/** Situação de pagamento da despesa (a conta a pagar é a mesma despesa). */
+/** Situação de PAGAMENTO da despesa (a conta a pagar é a mesma despesa). Comprovante registrado (pagamento vivo)
+ * = Paga, mesmo com categoria/pagador ainda por conferir: isso é pendência à parte (etiqueta), não muda o pagamento. */
 function SituacaoDespesa({ l }: { l: Lancamento }) {
-  if (l.status === 'em_revisao') return <Situacao tom="atencao" destaque>Para revisar</Situacao>;
   if (l.status === 'cancelada') return <Situacao tom="apagado">Cancelada</Situacao>;
   const pago = Number(l.detalhes.pago ?? 0);
   const valor = Number(l.valor);
   const proximo = l.detalhes.proximo_vencimento as string | null | undefined;
-  if (pago >= valor - 0.004) return <Situacao tom="ok">Paga</Situacao>;
-  if (proximo && proximo < hojeISO()) return <Situacao tom="perigo" destaque>Vencida</Situacao>;
-  if (pago > 0) return <Situacao tom="info">Parcialmente paga</Situacao>;
-  return <Situacao tom="neutro">A pagar</Situacao>;
+  const situacao = pago >= valor - 0.004 ? <Situacao tom="ok">Paga</Situacao>
+    : proximo && proximo < hojeISO() ? <Situacao tom="perigo" destaque>Vencida</Situacao>
+      : pago > 0 ? <Situacao tom="info">Parcialmente paga</Situacao>
+        : <Situacao tom="neutro">A pagar</Situacao>;
+  if (l.status !== 'em_revisao') return situacao;
+  return <span class="linha" style={{ gap: '6px', flexWrap: 'wrap' }}>{situacao}<Etiqueta tom="atencao">pendência</Etiqueta></span>;
 }
 
+/** Pagador com os mesmos nomes do Responsável (Âmbar, Roll, Conjunto); a conta (ex.: pessoal do Cauã) fica embaixo. */
 function PagadorCelula({ l }: { l: Lancamento }) {
+  const lado = l.pagador_lado ? PARTE[l.pagador_lado] : null;
+  if (lado) return <><span>{lado}</span>{l.pagador && <span class="sub">{l.pagador}</span>}</>;
   if (l.pagador) return <span>{l.pagador}</span>;
   if (l.detalhes.tem_pagamento === false || l.status === 'cancelada') return <span class="fraco">—</span>;
   return <span class="fin-falta">Não identificado</span>;
@@ -221,13 +226,13 @@ function Lista(p: {
       celula: (l) => (
         <>
           <span class="principal-celula">{l.descricao}</span>
-          <span class="sub"><span class="fin-so-celular">{dataCurta(l.data)} · {l.pagador ?? 'pagador não identificado'} · </span>{l.fornecedor ?? ''}</span>
+          <span class="sub"><span class="fin-so-celular">{dataCurta(l.data)} · {l.pagador_lado ? PARTE[l.pagador_lado] : l.pagador ?? 'pagador não identificado'} · </span>{l.fornecedor ?? ''}</span>
         </>
       ),
     },
     { id: 'categoria', titulo: 'Categoria', prioridade: 'media', ordenar: (l) => l.categoria ?? '', celula: (l) => (l.categoria === 'a_classificar' ? <span class="fin-falta">Sem categoria</span> : nomeCategoria(cats.dados, l.categoria)) },
     { id: 'valor', titulo: 'Valor', numero: true, ordenar: (l) => Number(l.valor), celula: (l) => <span class="num forte" style={{ whiteSpace: 'nowrap' }}>{moeda(l.valor)}</span> },
-    { id: 'pagador', titulo: 'Pagador', prioridade: 'media', ordenar: (l) => l.pagador ?? '', celula: (l) => <PagadorCelula l={l} /> },
+    { id: 'pagador', titulo: 'Pagador', prioridade: 'media', ordenar: (l) => l.pagador_lado ?? l.pagador ?? '', celula: (l) => <PagadorCelula l={l} /> },
     { id: 'responsavel', titulo: 'Responsável', prioridade: 'media', ordenar: (l) => String(l.detalhes.responsavel ?? ''), celula: (l) => RESPONSAVEL[String(l.detalhes.responsavel ?? '')] ?? '—' },
     { id: 'situacao', titulo: 'Situação', prioridade: 'media', celula: (l) => <SituacaoDespesa l={l} /> },
     acoes,

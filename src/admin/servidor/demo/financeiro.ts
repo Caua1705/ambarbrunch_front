@@ -1702,6 +1702,12 @@ export const ROTAS_FINANCEIRO: Rota[] = [
     return { despesa_id: d.id, responsavel: PAG.responsavel.get(d.id), versao: d.versao };
   }],
   ['GET', R('financeiro/acertos'), ADMIN, () => acertosDemo()],
+  ['GET', R('financeiro/repasses'), ADMIN, () => {
+    const lado = { receitas: '0.00', despesas: '0.00', ajustes: '0.00', repassado: '0.00', calculado: '0.00', pendente: null, itens: [], itens_total: 0 };
+    const zero = { quantidade: 0, valor: '0.00', itens: [] };
+    return { ambar: lado, roll: lado, completo: false, regras: { operacao_vendas_pdv: null, rateio_conjunto_ambar: null },
+      pendencias: { vendas_pdv_sem_operacao: { ...zero, quantidade: 1, valor: '1.00' }, receitas_sem_operacao: zero, conjunto_sem_rateio: zero, sem_pagador: zero }, movimentos: [] };
+  }],
   ['POST', R('financeiro/acertos/movimentos'), ADMIN, async ({ corpo }) => {
     montarPagadores();
     const e = await corpo<{ sentido?: MovimentoAcerto['sentido']; valor?: string; data?: string; descricao?: string; conta_id?: string | null }>();

@@ -24,6 +24,7 @@ export function NovaReceita({ aberta, aoFechar, editar }: { aberta: boolean; aoF
   const [valor, setValor] = useState('');
   const [competencia, setCompetencia] = useState(hojeISO());
   const [categoria, setCategoria] = useState('outra_operacional');
+  const [operacao, setOperacao] = useState<'' | 'ambar' | 'roll'>('');
   const [recebida, setRecebida] = useState<'sim' | 'nao'>('sim');
   const [recebidoEm, setRecebidoEm] = useState(hojeISO());
   const [forma, setForma] = useState('');
@@ -44,6 +45,7 @@ export function NovaReceita({ aberta, aoFechar, editar }: { aberta: boolean; aoF
     setValor(r ? r.valor : '');
     setCompetencia(r?.competencia ?? hojeISO());
     setCategoria(r?.categoria ?? 'outra_operacional');
+    setOperacao(r?.operacao ?? '');
     setRecebida(r && !r.recebido_em ? 'nao' : 'sim');
     setRecebidoEm(r?.recebido_em ?? r?.competencia ?? hojeISO());
     setForma(r?.forma_recebimento ?? '');
@@ -74,7 +76,7 @@ export function NovaReceita({ aberta, aoFechar, editar }: { aberta: boolean; aoF
     setEnviando(true);
     try {
       const campos = {
-        descricao: descricao.trim(), valor: v!, competencia, categoria,
+        descricao: descricao.trim(), valor: v!, competencia, categoria, operacao: operacao || null,
         recebido_em: recebida === 'sim' ? recebidoEm : null,
         forma_recebimento: forma || null, origem: origem.trim() || null, observacao: observacao.trim() || null,
         ciente_duplicidade: duplicidade && ciente,
@@ -138,6 +140,13 @@ export function NovaReceita({ aberta, aoFechar, editar }: { aberta: boolean; aoF
           </Campo>
           <Campo rotulo="Data" erro={erros.competencia} ajuda="Dia a que a receita pertence (competência).">
             {(id, d) => <input id={id} type="date" class="entrada" aria-describedby={d} value={competencia} onChange={(e) => setCompetencia(e.currentTarget.value)} />}
+          </Campo>
+          <Campo rotulo="Operação" ajuda="De quem é a receita (repasses do Conjunto).">
+            {(id, d) => (
+              <select id={id} class="selecao" aria-describedby={d} value={operacao} onChange={(e) => setOperacao(e.currentTarget.value as '' | 'ambar' | 'roll')}>
+                <option value="">Não identificada</option><option value="ambar">Âmbar</option><option value="roll">Roll</option>
+              </select>
+            )}
           </Campo>
           <Campo rotulo="Categoria" class="inteiro" erro={erros.categoria} ajuda={cat && !cat.operacional ? 'Fica registrada, mas não entra no faturamento nem no resultado.' : 'Entra na receita do mês.'}>
             {(id, d) => (

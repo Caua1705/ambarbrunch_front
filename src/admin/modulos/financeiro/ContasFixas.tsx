@@ -187,7 +187,7 @@ export function EditarRecorrencia({ alvo, aoFechar }: { alvo: Recorrencia | 'nov
   );
 }
 
-function EncerrarRecorrencia({ alvo, aoFechar }: { alvo: Recorrencia | null; aoFechar: () => void }) {
+export function EncerrarRecorrencia({ alvo, aoFechar }: { alvo: Recorrencia | null; aoFechar: () => void }) {
   const [quando, setQuando] = useState(hojeISO());
   const [erro, setErro] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);

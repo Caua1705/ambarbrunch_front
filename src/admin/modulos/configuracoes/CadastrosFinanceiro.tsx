@@ -22,7 +22,7 @@ const ATALHOS: Atalho[] = [
   { href: '/admin/financeiro?aba=pendencias&vista=revisao', titulo: 'Documentos da Júlia para conferir', detalhe: 'Comprovantes que não viraram lançamento (ilegível, sem data, possível duplicado)' },
   { href: '/admin/financeiro?aba=pendencias&vista=stone', titulo: 'Stone e recebíveis', detalhe: 'Vendido, líquido estimado e taxas contratadas da adquirente', permissao: 'financeiro.conciliar' },
   { href: '/admin/financeiro?aba=pendencias&vista=banco', titulo: 'Banco e extratos (opcional)', detalhe: 'Importar OFX ou CSV para conferir', permissao: 'financeiro.conciliar' },
-  { href: '/admin/financeiro?aba=acertos', titulo: 'Acertos Âmbar × Roll', detalhe: 'Adiantamentos, reembolsos e compensações entre os grupos', permissao: 'financeiro.ver_societario' },
+  { href: '/admin/financeiro?aba=repasses', titulo: 'Repasses do Conjunto', detalhe: 'Quanto o Conjunto ainda repassa ao Âmbar e à Roll', permissao: 'financeiro.ver_societario' },
 ];
 
 export function CadastrosFinanceiro({ contexto }: { contexto: ContextoPainel }) {

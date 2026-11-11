@@ -55,6 +55,8 @@ export interface Lancamento {
   id: string;
   data: Data;
   descricao: string;
+  /** 0030: lado da conta pagadora (ambar, roll, conjunta = Conjunto). */
+  pagador_lado?: 'ambar' | 'roll' | 'conjunta' | null;
   /** Sempre positivo; o sentido está em `sinal`. */
   valor: Dec;
   sinal: 1 | -1;
@@ -563,6 +565,8 @@ export interface OpcoesReceita {
 }
 
 export interface OutraReceitaEntrada {
+  /** 0032: operação dona da receita (repasses do Conjunto). */
+  operacao?: 'ambar' | 'roll' | null;
   descricao: string;
   valor: Dec;
   competencia: Data;
@@ -584,6 +588,7 @@ export interface OutraReceitaAlteracao extends Partial<Omit<OutraReceitaEntrada,
 }
 
 export interface OutraReceitaSaida {
+  operacao?: 'ambar' | 'roll' | null;
   id: Uuid;
   descricao: string;
   valor: Dec;
@@ -876,6 +881,9 @@ export type Responsavel = 'conjunto' | 'ambar' | 'roll' | 'compartilhada';
 export type ResponsavelNovo = 'conjunto' | 'ambar' | 'roll';
 export interface ConfiguracaoFinanceira {
   responsavel_padrao: ResponsavelNovo;
+  /** 0032: regras dos repasses (null = não definida → pendência). */
+  operacao_vendas_pdv?: 'ambar' | 'roll' | null;
+  rateio_conjunto_ambar?: Dec | null;
   /** 0 = ainda sem configuração gravada (vale o padrão inicial, conjunto). */
   versao: number;
   atualizado_por: string | null;
@@ -979,7 +987,7 @@ export interface SocioAcerto {
 }
 export interface MovimentoAcerto {
   id: Uuid;
-  sentido: 'roll_para_ambar' | 'ambar_para_roll' | 'ambar_para_socio';
+  sentido: 'roll_para_ambar' | 'ambar_para_roll' | 'ambar_para_socio' | 'conjunto_para_ambar' | 'conjunto_para_roll' | 'ajuste_ambar' | 'ajuste_roll';
   valor: Dec;
   data: Data;
   descricao: string;
@@ -1041,6 +1049,34 @@ export interface Acertos {
   movimentos: MovimentoAcerto[];
   /** false: há pagamentos sem pagador — o saldo não está completo. */
   completo: boolean;
+}
+
+// --- 0032: repasses do Conjunto (Master) para Âmbar e Roll ---
+export type PendenciaRepasse = 'vendas_pdv_sem_operacao' | 'receitas_sem_operacao' | 'conjunto_sem_rateio' | 'sem_pagador';
+export interface ItemRepasse {
+  tipo: 'venda_pdv' | 'receita' | 'despesa' | 'repasse' | 'ajuste';
+  data: Data;
+  descricao: string;
+  valor: Dec;
+  /** Efeito no repasse (+ receita/ajuste, − despesa/repasse). */
+  efeito: Dec;
+  id: Uuid | null;
+  arquivo_id: Uuid | null;
+}
+export interface RepasseLado {
+  receitas: Dec; despesas: Dec; ajustes: Dec; repassado: Dec;
+  calculado: Dec;
+  /** null = há pendência (origem das receitas ou regra de rateio): não mostrar como saldo certo. */
+  pendente: Dec | null;
+  itens: ItemRepasse[];
+  itens_total: number;
+}
+export interface RepassesConjunto {
+  ambar: RepasseLado;
+  roll: RepasseLado;
+  completo: boolean;
+  pendencias: Record<PendenciaRepasse, { quantidade: number; valor: Dec; itens: Omit<ItemRepasse, 'efeito'>[] }>;
+  regras: { operacao_vendas_pdv: 'ambar' | 'roll' | null; rateio_conjunto_ambar: Dec | null };
 }
 
 /** Resumo de cartão e Pix em GET /conciliacao/repasses (0029). Tudo o que é líquido é ESTIMADO. */

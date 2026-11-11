@@ -159,7 +159,7 @@ function FormConta({ conta, aoFechar }: { conta: ContaPagadoraCadastro | 'nova' 
           <Campo rotulo="Grupo">
             {(id) => (
               <select id={id} class="selecao" value={f.parte} onChange={(e) => mudarLado(e.currentTarget.value as ParteConta)}>
-                <option value="ambar">Âmbar</option><option value="roll">Roll</option><option value="conjunta">Conjunto (empresa Âmbar × Roll)</option>
+                <option value="ambar">Âmbar</option><option value="roll">Roll</option><option value="conjunta">Conjunto (Master)</option>
               </select>
             )}
           </Campo>

@@ -320,7 +320,7 @@ export const BASE_PARTICIPACAO: Record<string, string> = {
 /** Grupos financeiros (o valor interno da conta conjunta continua 'conjunta'). */
 export const PARTE: Record<string, string> = { ambar: 'Âmbar', roll: 'Roll', conjunta: 'Conjunto' };
 export const LADOS = ['ambar', 'roll', 'conjunta'] as const;
-export const RESPONSAVEL: Record<string, string> = { conjunto: 'Conjunto', ambar: 'Âmbar', roll: 'Roll', compartilhada: '50/50 (antigo)' };
+export const RESPONSAVEL: Record<string, string> = { conjunto: 'Conjunto', ambar: 'Âmbar', roll: 'Roll', compartilhada: 'Conjunto (50/50)' };
 /** Responsáveis oferecidos em lançamento novo (o legado 50/50 só aparece onde já existe). */
 export const RESPONSAVEIS_NOVOS = ['conjunto', 'ambar', 'roll'] as const;
 

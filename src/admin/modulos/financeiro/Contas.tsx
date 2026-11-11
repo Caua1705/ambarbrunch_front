@@ -12,16 +12,16 @@ import { Banknote, Search, Plus } from 'lucide-preact';
 import type { ContextoPainel } from '../../lib/sessao';
 import { useConsulta } from '../../lib/consulta';
 import { financeiro } from '../../lib/api/financeiro';
-import { moeda, dataCurta, num, hojeISO, inicioMes, somarMeses, plural } from '../../lib/formato';
-import { lerParam, gravarParams } from '../../lib/rotas';
+import { moeda, dataCurta, plural } from '../../lib/formato';
+import { gravarParams } from '../../lib/rotas';
 import { Suspenso } from '../../ui/camadas';
-import { Botao, Cartao, Situacao, Etiqueta } from '../../ui/base';
+import { Botao, Cartao, Situacao } from '../../ui/base';
 import { Dados, EsqueletoTabela, Vazio } from '../../ui/estados';
 import { Tabela, type Coluna } from '../../ui/tabela';
 import type { ContaPagar, ListaContas } from '../../lib/tipos/financeiro';
-import { SITUACAO_CONTA, useNomeCategoria, temPermissao } from './comum';
+import { useNomeCategoria, temPermissao } from './comum';
 import { Pagar, type ContaParaPagar } from './Pagar';
-import { Recorrencias, EditarRecorrencia } from './ContasFixas';
+import { EditarRecorrencia } from './ContasFixas';
 import { NovaDespesa } from './NovaDespesa';
 
 type TipoNova = 'avulsa' | 'parcelada' | 'recorrente';
@@ -64,54 +64,40 @@ export function ContasAPagar({ contexto, abrirDespesa }: { contexto: ContextoPai
 function ListaContasPagar({ contexto, busca, abrirDespesa }: { contexto: ContextoPainel; busca: string; abrirDespesa: (id: string) => void }) {
   const lancar = temPermissao(contexto.usuario, 'financeiro.lancar');
   const [pagar, setPagar] = useState<ContaParaPagar | null>(null);
-  // Endereços antigos (?situacao=, ?vista=recorrentes): os filtros saíram; o antigo "Recorrentes" abre o bloco delas.
-  const [recorrentesAbertas] = useState(() => lerParam('vista') === 'recorrentes');
   const nome = useNomeCategoria();
-  useEffect(() => gravarParams({ situacao: null, vista: null }), []);
+  // Endereços antigos (?situacao=): os filtros saíram.
+  useEffect(() => gravarParams({ situacao: null }), []);
 
-  // Uma lista só: TODAS as contas em aberto e as pagas dos últimos meses (a lista completa de pagas não cabe numa tela).
-  const qPagas = { situacao: 'pagas' as const, de: somarMeses(inicioMes(hojeISO()), -2) };
-  const abertas = useConsulta('financeiro/contas:{"situacao":"abertas"}', () => financeiro.contas({ situacao: 'abertas' }));
-  const pagas = useConsulta(`financeiro/contas:${JSON.stringify(qPagas)}`, () => financeiro.contas(qPagas));
-  const lista = abertas;
-  // Ordem: em aberto por vencimento (vencidas primeiro, como o backend devolve) e, depois, as pagas mais recentes.
+  // SÓ o que falta pagar (em aberto e vencidas). Paga, a conta sai daqui e fica em Movimentações → Despesas.
+  const lista = useConsulta('financeiro/contas:{"situacao":"abertas"}', () => financeiro.contas({ situacao: 'abertas' }));
+  const situacao = (c: ContaPagar) => (c.situacao_painel === 'vencida' ? 'vencida' : 'aberta');
 
   const colunas: Coluna<ContaPagar>[] = [
     { id: 'vencimento', titulo: 'Vencimento', prioridade: 'media', ordenar: (c) => c.vencimento, largura: '108px', celula: (c) => <span class="num" style={{ whiteSpace: 'nowrap' }}>{dataCurta(c.vencimento)}</span> },
     {
-      id: 'descricao', titulo: 'Conta', ordenar: (c) => c.descricao,
+      id: 'descricao', titulo: 'Descrição', ordenar: (c) => c.descricao,
       celula: (c) => (
         <>
           <span class="principal-celula">{c.descricao}</span>
           <span class="sub">
-            <span class="fin-so-celular"><strong style={{ color: c.situacao_painel === 'vencida' ? 'var(--perigo)' : undefined }}>{SITUACAO_CONTA[c.situacao_painel].rotulo}</strong> · {dataCurta(c.vencimento)} · </span>
+            <span class="fin-so-celular"><strong style={{ color: situacao(c) === 'vencida' ? 'var(--perigo)' : undefined }}>{situacao(c) === 'vencida' ? 'Vencida' : 'Em aberto'}</strong> · {dataCurta(c.vencimento)} · </span>
             {[c.fornecedor, nome(c.categoria)].filter(Boolean).join(' · ')}
           </span>
         </>
       ),
     },
     {
-      id: 'tipo', titulo: 'Tipo', prioridade: 'media', ordenar: (c) => c.tipo_conta ?? '',
-      celula: (c) => <span class="fraco">{TIPO_CONTA[c.tipo_conta ?? (c.recorrencia_id ? 'recorrente' : 'avulsa')]}{c.tipo_conta === 'parcelada' && c.parcelas_total ? ` · ${c.numero}/${c.parcelas_total}` : ''}</span>,
+      // O que falta pagar desta conta (parcial: o saldo; valor variável: o previsto).
+      id: 'valor', titulo: 'Valor', numero: true, ordenar: (c) => Number(c.saldo),
+      celula: (c) => (c.valor_a_confirmar ? <><span class="num forte">{moeda(c.valor)}</span><span class="sub">previsto</span></> : <span class="num forte" style={{ whiteSpace: 'nowrap' }}>{moeda(c.saldo)}</span>),
     },
-    {
-      id: 'valor', titulo: 'Valor', numero: true, prioridade: 'media', ordenar: (c) => Number(c.valor),
-      celula: (c) => (c.valor_a_confirmar ? <><span class="num">{moeda(c.valor)}</span><span class="sub">previsto</span></> : <span class="num">{moeda(c.valor)}</span>),
-    },
-    { id: 'pago', titulo: 'Pago', numero: true, prioridade: 'baixa', celula: (c) => <span class="num">{num(c.valor_pago) ? moeda(c.valor_pago) : '—'}</span> },
-    { id: 'saldo', titulo: 'Falta pagar', numero: true, ordenar: (c) => Number(c.saldo), celula: (c) => <span class="num forte" style={{ whiteSpace: 'nowrap' }}>{c.situacao === 'paga' ? '—' : c.valor_a_confirmar ? 'a confirmar' : moeda(c.saldo)}</span> },
     {
       id: 'situacao', titulo: 'Situação', prioridade: 'media',
-      celula: (c) => (
-        <span class="linha" style={{ gap: '6px' }}>
-          <Situacao tom={SITUACAO_CONTA[c.situacao_painel].tom} destaque={SITUACAO_CONTA[c.situacao_painel].destaque}>{SITUACAO_CONTA[c.situacao_painel].rotulo}</Situacao>
-          {c.status_despesa === 'em_revisao' && <Etiqueta tom="atencao">em revisão</Etiqueta>}
-        </span>
-      ),
+      celula: (c) => (situacao(c) === 'vencida' ? <Situacao tom="perigo" destaque>Vencida</Situacao> : <Situacao tom="neutro">Em aberto</Situacao>),
     },
     {
       id: 'acoes', titulo: '',
-      celula: (c) => (c.situacao === 'paga' || !lancar ? null : (
+      celula: (c) => (!lancar ? null : (
         <Botao tamanho="p" variante={c.situacao_painel === 'vencida' || c.situacao_painel === 'vence_hoje' ? 'primario' : 'secundario'} icone={<Banknote aria-hidden="true" />} onClick={() => setPagar(c)}>
           Pagar
         </Botao>
@@ -126,7 +112,7 @@ function ListaContasPagar({ contexto, busca, abrirDespesa }: { contexto: Context
           <Dados consulta={lista} recurso="As contas a pagar" esqueleto={<EsqueletoTabela />}>
             {(r: ListaContas) => {
               const termo = busca.trim().toLocaleLowerCase('pt-BR');
-              const todas = [...r.itens, ...(pagas.dados?.itens ?? [])];
+              const todas = r.itens.filter((c) => c.situacao !== 'paga');
               const linhas = termo ? todas.filter((c) => `${c.descricao} ${c.fornecedor ?? ''}`.toLocaleLowerCase('pt-BR').includes(termo)) : todas;
               return (
                 <>
@@ -154,10 +140,6 @@ function ListaContasPagar({ contexto, busca, abrirDespesa }: { contexto: Context
           </Dados>
         </Cartao>
       )}
-      <details class="fin-detalhes" open={recorrentesAbertas}>
-        <summary>Contas recorrentes</summary>
-        <Recorrencias lancar={lancar} />
-      </details>
 
       <Pagar conta={pagar} aoFechar={() => setPagar(null)} />
     </>
