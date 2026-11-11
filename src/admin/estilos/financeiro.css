@@ -403,3 +403,39 @@
   flex-wrap: wrap;
 }
 .fin-item__valor { text-align: right; }
+
+/* Tabelas do financeiro: a Descrição (ou a Conta) absorve a sobra; as demais colunas ficam do tamanho do conteúdo,
+   sem buracos entre colunas. Margem direita igual à esquerda. */
+.fin-painel .tabela [data-col]:not([data-col='descricao']):not([data-col='apelido']),
+.config-cadastros .tabela [data-col]:not([data-col='descricao']):not([data-col='apelido']) {
+  width: 1%;
+  white-space: nowrap;
+}
+.fin-painel .tabela td:last-child,
+.fin-painel .tabela th:last-child,
+.config-cadastros .tabela td:last-child,
+.config-cadastros .tabela th:last-child,
+.fin-calculo .tabela td:last-child,
+.fin-calculo .tabela th:last-child {
+  padding-right: var(--e-5);
+}
+
+/* Repasses → Ver cálculo: cabeçalho e rodapé (total gasto e a receber) fixos durante a rolagem. */
+.fin-calculo {
+  max-height: calc(100vh - 180px);
+  overflow: auto;
+}
+.fin-calculo .tabela td:first-child {
+  width: 100%;
+}
+.fin-calculo .tabela td:not(:first-child),
+.fin-calculo .tabela th:not(:first-child) {
+  white-space: nowrap;
+}
+.fin-calculo .tabela tfoot td {
+  position: sticky;
+  bottom: 0;
+  background: var(--superficie-2);
+  border-top: 1px solid var(--borda);
+  border-bottom: 0;
+}

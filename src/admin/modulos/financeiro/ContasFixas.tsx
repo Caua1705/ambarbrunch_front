@@ -183,7 +183,7 @@ export function EditarRecorrencia({ alvo, aoFechar }: { alvo: Recorrencia | 'nov
           {!r && <Campo rotulo="A cada quantos meses">{(id) => <input id={id} type="number" min={1} max={12} class="entrada num" value={intervalo} onInput={(e) => setIntervalo(Number(e.currentTarget.value))} />}</Campo>}
           {!r && <Campo rotulo="Fim" opcional>{(id) => <input id={id} type="date" class="entrada" value={fim} onChange={(e) => setFim(e.currentTarget.value)} />}</Campo>}
           {!r && (
-            <Campo rotulo="Responsável" ajuda="Vazio: o responsável padrão (Conjunto) na conta de cada mês.">
+            <Campo rotulo="Responsável" ajuda="Vazio: o responsável padrão (ÂmbarxRoll) na conta de cada mês.">
               {(id, d) => (
                 <select id={id} class="selecao" aria-describedby={d} value={responsavel} onChange={(e) => setResponsavel(e.currentTarget.value as '' | ResponsavelNovo)}>
                   <option value="">Padrão</option>

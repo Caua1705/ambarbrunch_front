@@ -84,13 +84,13 @@ export function ContasPagadoras() {
             <div class="fin-grupos">
               {LADOS.map((lado) => (
                 <section key={lado} class="fin-grupo" aria-labelledby={`grupo-${lado}`}>
-                  <h3 class="secao-titulo" id={`grupo-${lado}`}>{PARTE[lado]} <span class="fraco">· {GRUPO_DESCRICAO[lado]}</span></h3>
+                  <h3 class="secao-titulo" id={`grupo-${lado}`}>{PARTE[lado]}{lado !== 'conjunta' && <span class="fraco"> · {GRUPO_DESCRICAO[lado]}</span>}</h3>
                   <Tabela rotulo={`Pagadores do grupo ${PARTE[lado]}`} colunas={colunas} linhas={itens.filter((c) => c.parte === lado)} chave={(c) => c.id} aoAbrir={setEditar}
                     vazio={<Vazio compacto titulo="Nenhum pagador neste grupo" />} />
                 </section>
               ))}
             </div>
-          ) : <Vazio compacto titulo="Nenhuma conta cadastrada">Cadastre a conta da empresa conjunta (Stone, a padrão) e as contas que já pagaram despesas.</Vazio>)}
+          ) : <Vazio compacto titulo="Nenhuma conta cadastrada">Cadastre a conta ÂmbarxRoll (Stone, a padrão) e as contas que já pagaram despesas.</Vazio>)}
         </Dados>
       </Cartao>
       <ResponsavelPadrao />
@@ -159,7 +159,7 @@ function FormConta({ conta, aoFechar }: { conta: ContaPagadoraCadastro | 'nova' 
           <Campo rotulo="Grupo">
             {(id) => (
               <select id={id} class="selecao" value={f.parte} onChange={(e) => mudarLado(e.currentTarget.value as ParteConta)}>
-                <option value="ambar">Âmbar</option><option value="roll">Roll</option><option value="conjunta">Conjunto (Master)</option>
+                <option value="ambar">Âmbar</option><option value="roll">Roll</option><option value="conjunta">ÂmbarxRoll</option>
               </select>
             )}
           </Campo>

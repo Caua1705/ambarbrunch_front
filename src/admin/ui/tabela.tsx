@@ -92,7 +92,7 @@ export function Tabela<T>({ colunas, linhas, chave, aoAbrir, destaque, apagada, 
               {visiveis.map((c) => {
                 const ativa = ordem?.coluna === c.id;
                 return (
-                  <th key={c.id} scope="col" class={c.numero ? 'num' : undefined} data-prioridade={c.prioridade} style={c.largura ? { width: c.largura } : undefined} aria-sort={ativa ? (ordem!.desc ? 'descending' : 'ascending') : undefined}>
+                  <th key={c.id} data-col={c.id} scope="col" class={c.numero ? 'num' : undefined} data-prioridade={c.prioridade} style={c.largura ? { width: c.largura } : undefined} aria-sort={ativa ? (ordem!.desc ? 'descending' : 'ascending') : undefined}>
                     {c.ordenar ? (
                       <button onClick={() => setOrdem({ coluna: c.id, desc: ativa ? !ordem!.desc : false })}>
                         {c.titulo}
@@ -127,7 +127,7 @@ export function Tabela<T>({ colunas, linhas, chave, aoAbrir, destaque, apagada, 
                 } : undefined}
               >
                 {visiveis.map((c) => (
-                  <td key={c.id} class={c.numero ? 'num' : c.id === 'acoes' ? 'celula-acoes' : undefined} data-prioridade={c.prioridade}>
+                  <td key={c.id} data-col={c.id} class={c.numero ? 'num' : c.id === 'acoes' ? 'celula-acoes' : undefined} data-prioridade={c.prioridade}>
                     {c.celula(l)}
                   </td>
                 ))}

@@ -169,7 +169,7 @@ function SituacaoDespesa({ l }: { l: Lancamento }) {
 /** Pagador com os mesmos nomes do Responsável (Âmbar, Roll, Conjunto); a conta (ex.: pessoal do Cauã) fica embaixo. */
 function PagadorCelula({ l }: { l: Lancamento }) {
   // Empresa pagadora: Âmbar, Roll ou Âmbarxroll (a operação conjunta). Conta individual, se houver, embaixo.
-  const lado = l.pagador_lado ? (l.pagador_lado === 'conjunta' ? 'Âmbarxroll' : PARTE[l.pagador_lado]) : null;
+  const lado = l.pagador_lado ? (l.pagador_lado === 'conjunta' ? 'ÂmbarxRoll' : PARTE[l.pagador_lado]) : null;
   if (lado) return <><span>{lado}</span>{l.pagador && l.pagador !== lado && <span class="sub">{l.pagador}</span>}</>;
   if (l.pagador) return <span>{l.pagador}</span>;
   if (l.detalhes.tem_pagamento === false || l.status === 'cancelada') return <span class="fraco">—</span>;

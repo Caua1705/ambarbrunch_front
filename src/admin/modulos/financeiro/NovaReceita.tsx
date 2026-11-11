@@ -140,7 +140,7 @@ export function NovaReceita({ aberta, aoFechar, editar }: { aberta: boolean; aoF
           <Campo rotulo="Data (opcional)" erro={erros.competencia} ajuda="Dia a que a receita pertence (competência). Pode ser informada depois.">
             {(id, d) => <input id={id} type="date" class="entrada" aria-describedby={d} value={competencia} onChange={(e) => setCompetencia(e.currentTarget.value)} />}
           </Campo>
-          <Campo rotulo="Operação" ajuda="De quem é a receita (repasses do Conjunto).">
+          <Campo rotulo="Operação" ajuda="De quem é a receita (repasses do ÂmbarxRoll).">
             {(id, d) => (
               <select id={id} class="selecao" aria-describedby={d} value={operacao} onChange={(e) => setOperacao(e.currentTarget.value as '' | 'ambar' | 'roll')}>
                 <option value="">Não identificada</option><option value="ambar">Âmbar</option><option value="roll">Roll</option>

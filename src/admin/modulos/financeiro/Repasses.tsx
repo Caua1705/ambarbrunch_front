@@ -1,4 +1,4 @@
-// Repasses: quanto Âmbar e Roll têm a receber da operação conjunta (Âmbarxroll) pelos gastos que adiantaram. Não existe
+// Repasses: quanto Âmbar e Roll têm a receber da operação conjunta (ÂmbarxRoll) pelos gastos que adiantaram. Não existe
 // dívida direta entre os parceiros. Os valores vêm PRONTOS do backend (GET /admin/financeiro/repasses/historicos, que lê
 // as views v_repasses_historicos_*): o painel não recalcula. Só leitura: não cria transferência nem baixa saldo.
 import { useState } from 'preact/hooks';
@@ -12,7 +12,7 @@ import type { ItemRessarcimento } from '../../lib/tipos/financeiro';
 import { RESPONSAVEL } from './comum';
 
 type Empresa = 'ambar' | 'roll';
-const NOME: Record<string, string> = { ambar: 'Âmbar', roll: 'Roll', ambarxroll: 'Âmbarxroll' };
+const NOME: Record<string, string> = { ambar: 'Âmbar', roll: 'Roll', ambarxroll: 'ÂmbarxRoll' };
 const pct = (v: string | number) => `${Math.round(Number(v) * 100)}%`;
 
 export function Repasses() {
@@ -42,9 +42,11 @@ export function Repasses() {
 
 function Calculo({ empresa, itens, total, aoFechar }: { empresa: Empresa | null; itens: ItemRessarcimento[]; total: string; aoFechar: () => void }) {
   if (!empresa) return null;
+  // Soma da coluna "Valor original" (inclui os gastos com 0% de ressarcimento); só exibição, em centavos.
+  const gasto = itens.reduce((t, i) => t + Math.round(Number(i.valor_original) * 100), 0) / 100;
   return (
     <Gaveta aberta largura="larga" aoFechar={aoFechar} titulo={`Cálculo · ${NOME[empresa]} a receber`} subtitulo={plural(itens.length, 'gasto pago', 'gastos pagos')}>
-      <div class="tabela-rolagem">
+      <div class="tabela-rolagem fin-calculo">
         <table class="tabela" aria-label={`Cálculo do que ${NOME[empresa]} tem a receber`}>
           <thead>
             <tr><th>Descrição</th><th class="num">Valor original</th><th data-prioridade="media">Pagador</th><th data-prioridade="media">Responsabilidade</th><th class="num">%</th><th class="num">A receber</th></tr>
@@ -62,7 +64,12 @@ function Calculo({ empresa, itens, total, aoFechar }: { empresa: Empresa | null;
             ))}
           </tbody>
           <tfoot>
-            <tr><td colSpan={5}><strong>Total</strong></td><td class="num forte">{moeda(total)}</td></tr>
+            <tr>
+              <td><strong>Total</strong></td>
+              <td class="num forte" title="Total gasto">{moeda(gasto)}</td>
+              <td data-prioridade="media" /><td data-prioridade="media" /><td />
+              <td class="num forte" title="Total a receber">{moeda(total)}</td>
+            </tr>
           </tfoot>
         </table>
       </div>

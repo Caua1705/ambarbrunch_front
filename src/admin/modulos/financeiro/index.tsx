@@ -156,7 +156,7 @@ function Conteudo({ contexto }: { contexto: ContextoPainel }) {
       <UnidadesFinanceiro.Provider value={{ unidade: contexto.unidade, unidades: contexto.unidades }}>
         <Raiz>
           <Abas<Aba> atual={aba} aoMudar={ir} abas={abas} />
-          <div role="tabpanel" id={`painel-${aba}`} aria-labelledby={`aba-${aba}`} class="pilha" style={{ gap: '20px' }}>
+          <div role="tabpanel" id={`painel-${aba}`} aria-labelledby={`aba-${aba}`} class="pilha fin-painel" style={{ gap: '20px' }}>
             {aba === 'movimentacoes' && <Movimentacoes contexto={contexto} />}
             {aba === 'contas' && <ContasAPagar contexto={contexto} abrirDespesa={setDespesa} />}
             {aba === 'pendencias' && <Pendencias contexto={contexto} />}
