@@ -43,7 +43,7 @@ export default function Configuracoes({ contexto }: { contexto: ContextoPainel }
     { id: 'equipe', rotulo: 'Equipe e acessos', icone: Users },
     ...(veAtendimento ? [{ id: 'atendimento' as const, rotulo: 'Atendimento', icone: MessagesSquare }] : []),
     ...(veFinanceiro ? [{ id: 'financeiro' as const, rotulo: 'Financeiro', icone: Wallet }] : []),
-    ...(vePontoAqui ? [{ id: 'ponto' as const, rotulo: 'Ponto: tablets e auditoria', icone: Tablet }] : []),
+    ...(vePontoAqui ? [{ id: 'ponto' as const, rotulo: 'Ponto: checklist e auditoria', icone: Tablet }] : []),
   ];
   const [secao, setSecao] = useState<Secao>(() => {
     const s = lerParam('secao');

@@ -9,6 +9,7 @@ import TemaInicial from '../layout/TemaInicial.astro';
 import SemAcesso from '../layout/SemAcesso.astro';
 import Operacao from '../modulos/operacao';
 import { podeVer } from '../lib/permissoes';
+import { apiBase } from '../servidor/config';
 
 export const prerender = false;
 const contexto = Astro.locals.painel;
@@ -30,13 +31,19 @@ const pode = liberado && podeVer(contexto.usuario.papel, 'reservas');
     <meta name="theme-color" content="#141110" media="(prefers-color-scheme: dark)" />
     <title>Operação · Painel Âmbar</title>
     <link rel="icon" href="/favicon-48.png" type="image/png" sizes="48x48" />
+    <!-- Tablet do café: instalável como aplicativo (Chrome → Instalar app / Adicionar à tela inicial), abre direto aqui. -->
+    <link rel="manifest" href="/operacao.webmanifest" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Âmbar" />
     <TemaInicial />
   </head>
   <body class="op" style={`--logo:url(${logo})`}>
     <a class="pular" href="#conteudo">Pular para o conteúdo</a>
     {contexto.modo === 'demo' && <div class="faixa-demo" role="note">DEMONSTRAÇÃO — dados fictícios, nada é enviado ao sistema do Âmbar</div>}
     {pode ? (
-      <Operacao client:only="preact" contexto={contexto}>
+      <Operacao client:only="preact" contexto={contexto} apiUrl={apiBase()}>
         <div slot="fallback" class="op-carregando" aria-busy="true" aria-label="Carregando"><span class="esqueleto" style="height:64px"></span><span class="esqueleto" style="height:120px"></span><span class="esqueleto" style="height:420px"></span></div>
       </Operacao>
     ) : (

@@ -1,4 +1,5 @@
-// Equipe em duas abas: Hoje e Funcionários (ponto dia a dia e dias e horários na ficha; escalas em ?vista=escalas).
+// Equipe em abas: Hoje, Funcionários (ponto dia a dia e dias e horários na ficha; escalas em ?vista=escalas) e Abertura
+// (os checklists de abertura enviados pelo tablet, para a gerência).
 // Registros (revisão e correções) segue em ?aba=registros, fora da navegação. Tablets e Auditoria moram em Configurações →
 // Ponto. Endereços antigos continuam valendo (abaDaUrl). O painel só esconde o que daria 403: quem decide é o backend. Com o
 // módulo desligado no backend, a área mostra isso de forma honesta, sem dados de exemplo.
@@ -16,17 +17,19 @@ import { permissoesEquipe } from './comum';
 import { Hoje } from './Hoje';
 import { Funcionarios } from './Funcionarios';
 import { Registros } from './Registros';
+import { Aberturas } from './Aberturas';
+import { pode } from '../../lib/permissoes';
 import { useFilasRevisao } from './Correcoes';
 import { useTecladoNaTela } from './tablet';
 
-type Aba = 'hoje' | 'funcionarios' | 'registros';
+type Aba = 'hoje' | 'funcionarios' | 'registros' | 'abertura';
 
 export const hrefPonto = (item?: 'auditoria') => `/admin/configuracoes?secao=ponto${item ? `&item=${item}` : ''}`;
 
 /** Aba e vista a partir da URL, inclusive dos endereços de antes das três abas. `redirecionar`: a área mudou de lugar. */
 function abaDaUrl(): { aba: Aba; vista?: string; redirecionar?: string } {
   const aba = lerParam('aba');
-  if (aba === 'funcionarios' || aba === 'registros') return { aba };
+  if (aba === 'funcionarios' || aba === 'registros' || aba === 'abertura') return { aba };
   if (aba === 'escalas') return { aba: 'funcionarios', vista: 'escalas' };
   if (aba === 'correcoes') return { aba: 'registros', vista: 'revisar' };
   if (aba === 'tablets') return { aba: 'hoje', redirecionar: hrefPonto() };
@@ -39,9 +42,11 @@ export default function Equipe({ contexto }: { contexto: ContextoPainel }) {
   const painel = useConsulta('equipe:painel', () => equipe.painel());
   const desligado = painel.erro?.codigo === 'ponto_desativado';
   const filas = useFilasRevisao(!desligado);
+  const veAbertura = pode(contexto.usuario.papel, 'abertura.consultar');
   const abas: { id: Aba; rotulo: string; contagem?: number | null }[] = [
     { id: 'hoje', rotulo: 'Hoje' },
     { id: 'funcionarios', rotulo: 'Funcionários' },
+    ...(veAbertura ? [{ id: 'abertura' as const, rotulo: 'Abertura' }] : []),
   ];
   const [aba, setAba] = useState<Aba | null>(null);
   // Tocar na aba (mesmo a atual) volta à vista principal dela: o painel remonta.
@@ -87,6 +92,7 @@ export default function Equipe({ contexto }: { contexto: ContextoPainel }) {
             {aba === 'hoje' && <Hoje consulta={painel} perm={perm} aoCadastrar={() => mudarAba('funcionarios')} aoRevisar={() => mudarAba('registros', 'revisar')} aRevisar={filas.total} />}
             {aba === 'funcionarios' && <Funcionarios perm={perm} />}
             {aba === 'registros' && <Registros perm={perm} />}
+            {aba === 'abertura' && veAbertura && <Aberturas />}
           </div>
         )}
       </div>

@@ -1,8 +1,8 @@
 // Camadas sobre a página: gaveta (drawer), diálogo, confirmação de ação, menu suspenso e avisos rápidos (toast).
 // Foco preso dentro da camada, Esc fecha, o foco volta para quem abriu e a página por trás não rola.
-import type { ComponentChildren } from 'preact';
+import { createContext, type ComponentChildren } from 'preact';
 import { createPortal } from 'preact/compat';
-import { useEffect, useRef, useState, useId, useCallback } from 'preact/hooks';
+import { useContext, useEffect, useRef, useState, useId, useCallback } from 'preact/hooks';
 import { X, CheckCircle2, AlertCircle, Info } from 'lucide-preact';
 import { Botao, Campo } from './base';
 import { ErroApi } from '../lib/api/cliente';
@@ -268,12 +268,16 @@ export function AvisosRapidos() {
   );
 }
 
-/** Raiz de cada ilha de página: conteúdo + avisos rápidos. */
+const DentroDaRaiz = createContext(false);
+
+/** Raiz de cada ilha de página: conteúdo + avisos rápidos. Um módulo dentro de outro (Conversas no Modo Operação) não
+ *  repete os avisos. */
 export function Raiz({ children }: { children: ComponentChildren }) {
+  if (useContext(DentroDaRaiz)) return <>{children}</>;
   return (
-    <>
+    <DentroDaRaiz.Provider value={true}>
       {children}
       <AvisosRapidos />
-    </>
+    </DentroDaRaiz.Provider>
   );
 }

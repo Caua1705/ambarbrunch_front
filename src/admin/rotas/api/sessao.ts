@@ -2,7 +2,8 @@
 // Demonstração: POST {demo: "gerente"} — só existe com PAINEL_MODO=demo (nunca na Vercel).
 import type { APIRoute } from 'astro';
 import { modoPainel, DEMO_PERMITIDO, chavePainel } from '../../servidor/config';
-import { gravarSessao, apagarSessao, lerSessao, requisicaoDoPainel, ehHttps } from '../../servidor/sessao';
+import { gravarSessao, gravarRenovacao, apagarSessao, lerSessao, lerRenovacao, requisicaoDoPainel, ehHttps } from '../../servidor/sessao';
+import { renovarSessao } from '../../servidor/renovar';
 import { chamarBackend, lerJson, BackendForaDoAr } from '../../servidor/backend';
 import type { Usuario } from '../../lib/sessao';
 
@@ -64,17 +65,27 @@ export const POST: APIRoute = async (ctx) => {
   if (res.status === 401 || res.status === 403 || res.status === 422) return json(401, { detail: 'E-mail ou senha incorretos.', codigo: 'credenciais' });
   if (!res.ok) return json(502, { detail: 'Não foi possível entrar agora. Tente de novo em instantes.', codigo: 'backend_indisponivel' });
 
-  const login = await lerJson<{ token: string; expira_em: string; usuario: Usuario }>(res);
+  const login = await lerJson<{ token: string; expira_em: string; usuario: Usuario; renovacao?: string | null; renovacao_expira_em?: string | null }>(res);
   if (!login?.token) return json(502, { detail: 'Resposta inesperada do sistema.', codigo: 'backend_indisponivel' });
-  gravarSessao(cookies, ehHttps(request, url), login.token, new Date(login.expira_em));
+  const https = ehHttps(request, url);
+  apagarSessao(cookies);
+  gravarSessao(cookies, https, login.token, new Date(login.expira_em));
+  // Só a conta do tablet (Atendente) recebe: o aparelho fica conectado sem login diário (servidor/renovar.ts).
+  if (login.renovacao && login.renovacao_expira_em) gravarRenovacao(cookies, https, login.renovacao, new Date(login.renovacao_expira_em));
   // O token não volta para o navegador.
   return json(200, { ok: true, usuario: { nome: login.usuario.nome, papel: login.usuario.papel } });
 };
 
-export const DELETE: APIRoute = async ({ request, cookies }) => {
+export const DELETE: APIRoute = async ({ request, cookies, url }) => {
   if (!requisicaoDoPainel(request)) return json(403, { detail: 'Requisição recusada.', codigo: 'origem_invalida' });
-  // Sair de verdade: o backend invalida o token (POST /admin/auth/sair; vale para todos os aparelhos da conta).
-  const sessao = lerSessao(cookies);
+  // Sair de verdade: o backend invalida o token (POST /admin/auth/sair; vale para todos os aparelhos da conta) — inclusive
+  // a renovação do tablet. Com o acesso já vencido e a renovação no aparelho, renova só para conseguir encerrar.
+  let token = lerSessao(cookies)?.token ?? null;
+  if (!token && lerRenovacao(cookies) && modoPainel() === 'api') {
+    const r = await renovarSessao(cookies, ehHttps(request, url)).catch(() => 'backend' as const);
+    if (r !== 'sessao' && r !== 'backend') token = r.token;
+  }
+  const sessao = token ? { token, demoPapel: lerSessao(cookies)?.demoPapel ?? null } : null;
   let revogada = false;
   if (sessao && !sessao.demoPapel && modoPainel() === 'api') {
     try {

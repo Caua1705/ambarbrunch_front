@@ -1,5 +1,14 @@
 # Modo Operação — tablet fixo do café (`/admin/operacao`)
 
+> **12/11/2026 — tablet completo.** A conta do Atendente fica conectada (renovação automática em cookie HttpOnly,
+> `servidor/renovar.ts`), cai direto aqui e não vê o painel administrativo (o middleware redireciona). Seções, todas
+> dentro desta tela: **Conversas** (o módulo Atendimento), **Reservas** (a agenda abaixo) e **Ponto** (*Registrar ponto*:
+> terminal facial pela conta logada, sem código de tablet, com confirmação antes de gravar — `RegistrarPonto.tsx`,
+> `Identificacao.tsx`; *Checklist de abertura*: `Abertura.tsx`, `GravadorVideo.tsx`). `/ponto` redireciona para cá;
+> a consulta dos checklists fica em Equipe → Abertura. Instalável como app: `public/operacao.webmanifest`. Guia de uso e
+> configuração do tablet: `docs/equipe-ponto/ATENDENTE-TABLET.md` no backend. Testes: `tests-painel/tablet-abertura.spec.ts`
+> e `tests-tablet-real/` (backend real local, `playwright.tablet-real.config.ts`).
+
 > Criado em 28/10/2026 (frontend `main`, sem push). Parte do painel administrativo (`docs/technical/PAINEL-ADMIN.md`):
 > mesma sessão, mesmas permissões, mesmas rotas reais de Reservas. Nenhuma rota nova no backend.
 

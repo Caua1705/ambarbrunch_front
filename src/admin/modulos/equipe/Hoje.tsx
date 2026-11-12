@@ -55,7 +55,7 @@ export function Hoje({ consulta, perm, aoCadastrar, aoRevisar, aRevisar }: { con
         const resumo = [
           `${i.presentes + i.em_intervalo} na casa`,
           i.ainda_nao_chegaram ? `${i.ainda_nao_chegaram} por chegar` : '',
-          i.ausentes ? `${i.ausentes} ${i.ausentes === 1 ? 'ausente' : 'ausentes'}` : '',
+          i.ausentes ? `${i.ausentes} sem marcação` : '',
           i.jornada_encerrada ? `${i.jornada_encerrada} já ${i.jornada_encerrada === 1 ? 'saiu' : 'saíram'}` : '',
         ].filter(Boolean).join(' · ');
         return (

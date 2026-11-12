@@ -7,7 +7,10 @@ import { DEMO, entrarDemo, post, semRolagemHorizontal } from './apoio';
 async function abrirAtendimento(page: Page, papel: 'admin' | 'gerente' | 'operador' = 'operador') {
   await entrarDemo(page, papel);
   await page.goto(`${DEMO}/admin/atendimento`);
-  await expect(page.getByRole('heading', { name: 'Atendimento', level: 1 })).toBeVisible();
+  // O Atendente vê as Conversas dentro do Modo Operação (o painel administrativo não é dele).
+  if (papel === 'operador') await expect(page).toHaveURL(/\/admin\/operacao\?secao=atendimento/);
+  else await expect(page.getByRole('heading', { name: 'Atendimento', level: 1 })).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Conversas' })).toBeVisible();
 }
 const conversa = (page: Page, nome: RegExp) => page.getByRole('list', { name: 'Conversas' }).getByRole('button', { name: nome });
 

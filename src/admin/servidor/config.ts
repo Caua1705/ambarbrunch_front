@@ -60,6 +60,8 @@ export function moduloDaRota(caminho: string): Modulo | 'arquivos' | null {
   if (raiz === 'financeiro') return 'financeiro';
   if (raiz === 'estoque') return 'estoque';
   if (raiz === 'ponto') return 'equipe';
+  // checklist de abertura (Modo Operação e consulta em Equipe)
+  if (raiz === 'abertura') return 'equipe';
   if (raiz === 'visao-geral') return 'visao-geral';
   if (raiz === 'julia') return 'financeiro';
   // documentos (notas e comprovantes) servem o Financeiro e o Estoque

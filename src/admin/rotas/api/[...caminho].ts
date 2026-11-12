@@ -2,8 +2,9 @@
 // O navegador nunca vê o token nem fala direto com a API. No modo demo, responde com os dados de demonstração.
 import type { APIRoute } from 'astro';
 import { modoPainel, modulosLiberados, rotaLiberada, DEMO_PERMITIDO } from '../../servidor/config';
-import { lerSessao, apagarSessao, COOKIE_UNIDADE, requisicaoDoPainel } from '../../servidor/sessao';
+import { lerSessao, lerRenovacao, apagarSessao, COOKIE_UNIDADE, requisicaoDoPainel, ehHttps } from '../../servidor/sessao';
 import { chamarBackend, BackendForaDoAr } from '../../servidor/backend';
+import { renovarSessao } from '../../servidor/renovar';
 
 export const prerender = false;
 
@@ -50,7 +51,14 @@ export const ALL: APIRoute = async ({ params, request, cookies, url }) => {
   // Proteção contra requisição forjada: cookie SameSite=Strict + cabeçalho próprio + mesma origem.
   if (metodo !== 'GET' && !requisicaoDoPainel(request)) return erro(403, 'Requisição recusada.', 'origem_invalida');
 
-  const sessao = lerSessao(cookies);
+  let sessao = lerSessao(cookies);
+  const https = ehHttps(request, url);
+  // Tablet (conta do Atendente): acesso vencido com a renovação no aparelho → acesso novo, sem senha (servidor/renovar.ts).
+  if (!sessao && modoPainel() === 'api' && lerRenovacao(cookies)) {
+    const r = await renovarSessao(cookies, https);
+    if (r === 'backend') return erro(502, 'O sistema do Âmbar não respondeu. Tente de novo em instantes.', 'backend_indisponivel');
+    if (r !== 'sessao') sessao = { token: r.token, demoPapel: null };
+  }
   if (!sessao) return erro(401, 'Sua sessão terminou. Entre de novo.', 'nao_autenticado');
   // Liberação controlada (PAINEL_MODULOS): rota de módulo não liberado nem chega ao backend.
   if (!rotaLiberada(caminho, modulosLiberados())) return erro(403, 'Este módulo ainda não foi liberado no painel.', 'modulo_nao_liberado');
@@ -81,12 +89,18 @@ export const ALL: APIRoute = async ({ params, request, cookies, url }) => {
     if (v) headers.set(h, v);
   }
   let res: Response;
+  // O corpo é lido uma vez: se o acesso for recusado (401: nada foi feito no backend) e a renovação ainda valer, a mesma
+  // chamada é repetida uma vez com o acesso novo.
+  const corpo = metodo === 'GET' ? undefined : await request.arrayBuffer();
   try {
-    res = await chamarBackend(sessao.token, alvo, {
-      method: metodo,
-      headers,
-      body: metodo === 'GET' ? undefined : await request.arrayBuffer(),
-    });
+    res = await chamarBackend(sessao.token, alvo, { method: metodo, headers, body: corpo });
+    if (res.status === 401 && lerRenovacao(cookies)) {
+      const r = await renovarSessao(cookies, https);
+      if (r !== 'sessao' && r !== 'backend') {
+        await res.body?.cancel().catch(() => undefined);
+        res = await chamarBackend(r.token, alvo, { method: metodo, headers, body: corpo });
+      }
+    }
   } catch (e) {
     if (e instanceof BackendForaDoAr) return erro(502, 'O sistema do Âmbar não respondeu. Tente de novo em instantes.', 'backend_indisponivel');
     throw e;

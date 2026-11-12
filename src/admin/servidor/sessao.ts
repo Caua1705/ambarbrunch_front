@@ -5,6 +5,12 @@ import type { Papel } from '../lib/sessao';
 
 export const COOKIE_SESSAO = 'ambar_painel';
 export const COOKIE_UNIDADE = 'ambar_painel_unidade';
+/**
+ * Sessão do tablet (só a conta do Atendente): token de RENOVAÇÃO do backend, também HttpOnly. Troca um acesso vencido por um
+ * novo sem senha (POST /admin/auth/renovar), enquanto a conta estiver ativa e ninguém tiver encerrado a sessão. Assim o
+ * tablet do café continua conectado depois de fechar o navegador ou reiniciar, sem login diário.
+ */
+export const COOKIE_RENOVACAO = 'ambar_painel_renovacao';
 
 export interface Sessao {
   /** Token Bearer do backend, ou `demo:<papel>` no modo de demonstração. */
@@ -39,8 +45,18 @@ export function gravarUnidade(cookies: AstroCookies, seguro: boolean, codigo: st
   cookies.set(COOKIE_UNIDADE, codigo, { path: '/admin', secure: seguro, sameSite: 'strict', maxAge: 31536000 });
 }
 
+export function lerRenovacao(cookies: AstroCookies): string | null {
+  return cookies.get(COOKIE_RENOVACAO)?.value || null;
+}
+
+export function gravarRenovacao(cookies: AstroCookies, seguro: boolean, token: string, expiraEm: Date) {
+  const segundos = Math.max(60, Math.floor((expiraEm.getTime() - Date.now()) / 1000));
+  cookies.set(COOKIE_RENOVACAO, token, { path: '/admin', httpOnly: true, secure: seguro, sameSite: 'strict', maxAge: segundos });
+}
+
 export function apagarSessao(cookies: AstroCookies) {
   cookies.delete(COOKIE_SESSAO, { path: '/admin' });
+  cookies.delete(COOKIE_RENOVACAO, { path: '/admin' });
 }
 
 /**

@@ -1,0 +1,17 @@
+{
+  "id": "/admin/operacao",
+  "name": "Âmbar — Operação",
+  "short_name": "Âmbar",
+  "description": "Tablet do café: conversas, reservas, ponto e checklist de abertura.",
+  "start_url": "/admin/operacao",
+  "scope": "/admin/",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "any",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/favicon.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ],
+  "theme_color": "#670D27",
+  "background_color": "#F7F5F2"
+}

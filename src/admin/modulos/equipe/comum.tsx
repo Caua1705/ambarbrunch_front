@@ -24,7 +24,9 @@ export const ROTULO_STATUS: Record<StatusDia, string> = {
   previsto: 'Previsto',
   aguardando: 'Aguardando',
   atrasado: 'Atrasado',
-  ausente: 'Ausente',
+  // Fim do turno sem nenhuma marcação: pode ser falta OU falha do tablet. Não é falta confirmada até o gestor conferir
+  // (regularizar com Incluir batida, ou manter como falta).
+  ausente: 'Sem marcação',
   folga: 'Folga',
   sem_escala: 'Sem escala',
 };
@@ -37,7 +39,7 @@ export const TOM_STATUS: Record<StatusDia, Tom> = {
   previsto: 'apagado',
   aguardando: 'apagado',
   atrasado: 'atencao',
-  ausente: 'perigo',
+  ausente: 'atencao',
   folga: 'apagado',
   sem_escala: 'apagado',
 };

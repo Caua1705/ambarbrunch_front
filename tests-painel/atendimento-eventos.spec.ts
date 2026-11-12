@@ -10,7 +10,10 @@ const escrever = { 'X-Painel': '1', 'Content-Type': 'application/json', Origin: 
 async function abrir(page: Page, papel: 'admin' | 'gerente' | 'operador') {
   await entrarDemo(page, papel);
   await page.goto(`${DEMO}/admin/atendimento`);
-  await expect(page.getByRole('heading', { name: 'Atendimento', level: 1 })).toBeVisible();
+  // O Atendente vê as Conversas dentro do Modo Operação (o painel administrativo não é dele).
+  if (papel === 'operador') await expect(page).toHaveURL(/\/admin\/operacao\?secao=atendimento/);
+  else await expect(page.getByRole('heading', { name: 'Atendimento', level: 1 })).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Conversas' })).toBeVisible();
 }
 const item = (page: Page, nome: RegExp) => page.getByRole('list', { name: 'Conversas' }).getByRole('button', { name: nome });
 const ficha = (page: Page) => page.getByRole('complementary', { name: 'Ficha do evento' });

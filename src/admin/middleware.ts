@@ -3,7 +3,8 @@
 import { defineMiddleware } from 'astro:middleware';
 import { createHash } from 'node:crypto';
 import { apiBase, modoPainel, clubeConvites, modulosLiberados, DEMO_PERMITIDO } from './servidor/config';
-import { lerSessao, apagarSessao, gravarUnidade, COOKIE_UNIDADE, ehHttps } from './servidor/sessao';
+import { lerSessao, lerRenovacao, apagarSessao, gravarUnidade, COOKIE_UNIDADE, ehHttps } from './servidor/sessao';
+import { renovarSessao } from './servidor/renovar';
 import { chamarBackend, lerJson, BackendForaDoAr } from './servidor/backend';
 import { unidadePadrao, type ContextoPainel, type Unidade, type Usuario } from './lib/sessao';
 
@@ -22,25 +23,42 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
   const modo = modoPainel();
   ctx.locals.painelModo = modo;
   const https = ehHttps(ctx.request, ctx.url);
-  const seguro = (res: Response) => cabecalhos(res, modo, https, caminho === CADASTRO_FACIAL, caminho === OPERACAO);
+  const seguro = (res: Response) => cabecalhos(res, modo, https, caminho === CADASTRO_FACIAL, caminho === OPERACAO, caminho === '/admin/equipe');
 
   if (!PUBLICAS.has(caminho)) {
-    const sessao = lerSessao(ctx.cookies);
+    let sessao = lerSessao(ctx.cookies);
     const negar = () => {
       apagarSessao(ctx.cookies);
       if (api) return json(401, { detail: 'Sua sessão terminou. Entre de novo.', codigo: 'nao_autenticado' });
       const volta = caminho === '/admin' ? '' : `?volta=${encodeURIComponent(caminho + ctx.url.search)}`;
       return ctx.redirect(`/admin/login${volta}`, 303);
     };
+    // Tablet (conta do Atendente): o acesso venceu (o cookie some com ele) mas a renovação continua → acesso novo, sem
+    // senha. Vale para as telas e para as chamadas de dados (a ponte, api/[...caminho].ts, também renova num 401).
+    if (!sessao && modo === 'api' && lerRenovacao(ctx.cookies)) {
+      const r = await renovarSessao(ctx.cookies, https);
+      if (r === 'backend') return seguro(api ? json(502, { detail: 'O sistema do Âmbar não respondeu. Tente de novo em instantes.', codigo: 'backend_indisponivel' }) : paginaForaDoAr());
+      if (r !== 'sessao') sessao = { token: r.token, demoPapel: null };
+    }
     // Sessão de demonstração só vale no modo demo (e vice-versa).
     if (!sessao || modo === 'indisponivel' || (modo === 'demo') !== (sessao.demoPapel !== null)) return seguro(negar());
 
     // As rotas de API não conferem /me: o backend valida o token em cada chamada repassada.
     if (!api) {
       const cookieUnidade = ctx.cookies.get(COOKIE_UNIDADE)?.value;
-      const carregado = await carregarContexto(sessao.token, sessao.demoPapel, cookieUnidade);
+      let carregado = await carregarContexto(sessao.token, sessao.demoPapel, cookieUnidade);
+      // Acesso recusado com a renovação ainda no aparelho: tenta uma vez (se a sessão foi encerrada, a renovação também é
+      // recusada e a tela vai para o login).
+      if (carregado === 'sessao' && !sessao.demoPapel && lerRenovacao(ctx.cookies)) {
+        const r = await renovarSessao(ctx.cookies, https);
+        if (r === 'backend') return seguro(paginaForaDoAr());
+        if (r !== 'sessao') carregado = await carregarContexto(r.token, null, cookieUnidade);
+      }
       if (carregado === 'sessao') return seguro(negar());
       if (carregado === 'backend') return seguro(paginaForaDoAr());
+      // O Atendente (conta do tablet) vive no Modo Operação: nenhuma tela do painel administrativo tradicional.
+      const destino = destinoDoAtendente(carregado.usuario.papel, caminho, ctx.url.searchParams);
+      if (destino) return seguro(ctx.redirect(destino, 303));
       // A ponte da API manda a unidade do cookie: ele precisa dizer a mesma unidade que esta página mostra no topo.
       if (carregado.unidade && carregado.unidade.codigo !== cookieUnidade) gravarUnidade(ctx.cookies, https, carregado.unidade.codigo);
       ctx.locals.painel = { ...carregado, modo };
@@ -50,6 +68,21 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
 });
 
 type Carregado = Omit<ContextoPainel, 'modo'>;
+
+/** Páginas do painel que o Atendente abre por link antigo ou favorito: todas levam ao Modo Operação (na seção equivalente). */
+function destinoDoAtendente(papel: string, caminho: string, busca: URLSearchParams): string | null {
+  if (papel !== 'operador' || caminho === OPERACAO || caminho === '/admin/login') return null;
+  if (caminho === '/admin/atendimento') {
+    // Links de conversa (sino, avisos) continuam abrindo a conversa: ?conversa=, ?filtro=, ?eventos=.
+    const q = new URLSearchParams({ secao: 'atendimento' });
+    for (const k of ['conversa', 'filtro', 'eventos']) {
+      const v = busca.get(k);
+      if (v && /^[\w-]{1,64}$/.test(v)) q.set(k, v);
+    }
+    return `${OPERACAO}?${q}`;
+  }
+  return OPERACAO;
+}
 
 async function carregarContexto(token: string, demoPapel: ContextoPainel['usuario']['papel'] | null, unidadeCookie?: string): Promise<Carregado | 'sessao' | 'backend'> {
   let usuario: Usuario;
@@ -94,7 +127,7 @@ function paginaForaDoAr() {
  * Cabeçalhos de segurança do painel. A CSP libera só os scripts inline que estão NESTA resposta (hash sha256 de cada um:
  * o tema antes da pintura e o carregador das ilhas do Astro) — nada de 'unsafe-inline' para scripts.
  */
-async function cabecalhos(res: Response, modo: string, https: boolean, cadastroFacial: boolean, operacao = false): Promise<Response> {
+async function cabecalhos(res: Response, modo: string, https: boolean, cadastroFacial: boolean, operacao = false, equipe = false): Promise<Response> {
   const headers = new Headers(res.headers);
   // https: o navegador não volta a tentar http neste host (sem includeSubDomains: não mexe em outros subdomínios)
   if (https) headers.set('Strict-Transport-Security', 'max-age=31536000');
@@ -116,7 +149,8 @@ async function cabecalhos(res: Response, modo: string, https: boolean, cadastroF
   }
   // `astro dev` (Vite) precisa de eval e do websocket de recarga; o build não.
   const dev = import.meta.env.DEV ? ' ws: http://localhost:* http://127.0.0.1:*' : '';
-  const api = cadastroFacial && apiBase() ? ` ${new URL(apiBase()!).origin}` : '';
+  // Quem manda arquivo grande direto à API (quadros do rosto, vídeo da abertura) precisa falar com a origem dela.
+  const api = (cadastroFacial || operacao) && apiBase() ? ` ${new URL(apiBase()!).origin}` : '';
   headers.set('Content-Security-Policy', [
     "default-src 'self'",
     `script-src 'self' ${[...hashes].join(' ')}${import.meta.env.DEV ? " 'unsafe-eval'" : ''}`,
@@ -124,6 +158,8 @@ async function cabecalhos(res: Response, modo: string, https: boolean, cadastroF
     // documentos (notas, comprovantes) abrem por URL assinada do armazenamento do backend
     "img-src 'self' data: blob: https:",
     "frame-src 'self' blob: https:",
+    // Vídeo: a prévia gravada no tablet (blob:) e o vídeo da abertura por link assinado do armazenamento (https:).
+    `media-src 'self' blob:${equipe || operacao ? ' https:' : ''}`,
     `connect-src 'self'${api}${dev}`,
     "font-src 'self'",
     "object-src 'none'",

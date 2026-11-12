@@ -1,17 +1,18 @@
 // Modo Operação: a tela do tablet fixo do café (o painel do Atendente). Cabeçalho com hora de Fortaleza, quem está logado
-// e sair; abaixo, a seção em uso: Conversas (o módulo Atendimento), Reservas ou Ponto (o terminal oficial embutido).
-// Mesma sessão, mesmas permissões e mesmas rotas reais do painel — nada paralelo.
+// e sair; abaixo, a seção em uso, sempre DENTRO desta tela: Conversas (o módulo Atendimento), Reservas (a agenda do dia) ou
+// Ponto (registrar ponto e checklist de abertura). Mesma sessão, mesmas permissões e mesmas rotas reais do painel.
 import { useEffect, useState } from 'preact/hooks';
-import { Sun, Moon, LogOut, LayoutDashboard, ChevronDown, CalendarCheck, MessagesSquare, ExternalLink, ScanFace } from 'lucide-preact';
+import { Sun, Moon, LogOut, LayoutDashboard, ChevronDown, CalendarCheck, MessagesSquare, ScanFace } from 'lucide-preact';
 import type { ContextoPainel } from '../../lib/sessao';
 import { NOME_PAPEL } from '../../lib/sessao';
-import { painelCompletoDo } from '../../lib/permissoes';
+import { painelCompletoDo, podeVer } from '../../lib/permissoes';
 import { sair } from '../../layout/sair';
 import { Raiz, Suspenso } from '../../ui/camadas';
 import { Vazio } from '../../ui/estados';
 import { secoesDe, type IdSecao } from './secoes';
 import { Agenda } from './Agenda';
 import { TerminalPonto } from './TerminalPonto';
+import Atendimento from '../atendimento';
 
 const FUSO = 'America/Fortaleza';
 const horaFmt = new Intl.DateTimeFormat('pt-BR', { timeZone: FUSO, hour: '2-digit', minute: '2-digit' });
@@ -51,23 +52,27 @@ function alternarTema() {
   }
 }
 
-export default function Operacao({ contexto }: { contexto: ContextoPainel }) {
+export default function Operacao({ contexto, apiUrl = null }: { contexto: ContextoPainel; apiUrl?: string | null }) {
   const agora = useAgora();
   const secoes = secoesDe(contexto);
   // Seção da URL (?secao=ponto vem do menu do painel); sem ela, Reservas (ou a primeira disponível).
   const [secao, setSecao] = useState<IdSecao>(() => {
     const pedida = new URLSearchParams(location.search).get('secao') as IdSecao | null;
-    const internas = secoes.filter((s) => !s.href);
-    return internas.find((s) => s.id === pedida)?.id ?? internas.find((s) => s.id === 'reservas')?.id ?? internas[0]?.id ?? 'reservas';
+    return secoes.find((s) => s.id === pedida)?.id ?? secoes.find((s) => s.id === 'reservas')?.id ?? secoes[0]?.id ?? 'reservas';
   });
   useEffect(() => {
     const url = new URL(location.href);
     if (secao === 'reservas') url.searchParams.delete('secao');
     else url.searchParams.set('secao', secao);
+    // Parâmetros de uma seção não ficam pendurados na outra.
+    if (secao !== 'atendimento') ['filtro', 'conversa', 'eventos'].forEach((p) => url.searchParams.delete(p));
+    if (secao !== 'ponto') url.searchParams.delete('ponto');
     history.replaceState(history.state, '', url);
   }, [secao]);
   const [saindo, setSaindo] = useState(false);
   const { usuario, unidade } = contexto;
+  // O Atendente (conta do tablet) não tem painel administrativo: tudo dele está aqui.
+  const temPainelCompleto = podeVer(usuario.papel, 'visao-geral');
   const iniciais = usuario.nome.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]!.toUpperCase()).join('');
   const dataHoje = dataFmt.format(agora);
   const sairAgora = () => {
@@ -112,9 +117,11 @@ export default function Operacao({ contexto }: { contexto: ContextoPainel }) {
                   <span>{usuario.perfil ?? NOME_PAPEL[usuario.papel]} · {unidade?.nome ?? 'sem unidade'}</span>
                 </div>
                 <div class="suspenso__sep" />
-                <a class="suspenso__item" role="menuitem" href={painelCompletoDo(usuario.papel)} onClick={fechar}>
-                  <LayoutDashboard aria-hidden="true" /> Abrir o painel completo
-                </a>
+                {temPainelCompleto && (
+                  <a class="suspenso__item" role="menuitem" href={painelCompletoDo(usuario.papel)} onClick={fechar}>
+                    <LayoutDashboard aria-hidden="true" /> Abrir o painel completo
+                  </a>
+                )}
                 <button type="button" class="suspenso__item suspenso__item--perigo" role="menuitem" onClick={() => { fechar(); sairAgora(); }}>
                   <LogOut aria-hidden="true" /> Sair desta conta
                 </button>
@@ -132,11 +139,7 @@ export default function Operacao({ contexto }: { contexto: ContextoPainel }) {
         <nav class="op-secoes" aria-label="Seções do Modo Operação">
           {secoes.map((s) => {
             const Icone = ICONES[s.id];
-            return s.href ? (
-              <a key={s.id} class="op-secoes__item" href={s.href}>
-                <Icone aria-hidden="true" /> {s.rotulo} <ExternalLink class="op-secoes__fora" aria-hidden="true" />
-              </a>
-            ) : (
+            return (
               <button key={s.id} type="button" class="op-secoes__item" aria-current={s.id === secao ? 'page' : undefined} onClick={() => setSecao(s.id)}>
                 <Icone aria-hidden="true" /> {s.rotulo}
               </button>
@@ -150,8 +153,10 @@ export default function Operacao({ contexto }: { contexto: ContextoPainel }) {
           <Vazio titulo="Sua conta não tem unidade atribuída">Peça ao Proprietário para ligar sua conta ao Âmbar Café no painel.</Vazio>
         ) : secao === 'reservas' && secoes.some((s) => s.id === 'reservas') ? (
           <Agenda contexto={contexto} agora={agora} />
+        ) : secao === 'atendimento' && secoes.some((s) => s.id === 'atendimento') ? (
+          <div class="op-conversas"><Atendimento contexto={contexto} /></div>
         ) : secao === 'ponto' && secoes.some((s) => s.id === 'ponto') ? (
-          <TerminalPonto />
+          <TerminalPonto apiUrl={apiUrl} />
         ) : (
           <Vazio titulo="Nada para operar por aqui">Seu perfil não tem nenhuma área do Modo Operação liberada.</Vazio>
         )}

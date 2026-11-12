@@ -2,42 +2,49 @@
 import { test, expect } from '@playwright/test';
 import { DEMO, entrarDemo } from './apoio';
 
-test('Atendente: abre no Modo Operação com Conversas, Reservas e Ponto; o ponto é o terminal oficial do tablet', async ({ page }) => {
+test('Atendente: abre no Modo Operação com Conversas, Reservas e Ponto, tudo na mesma tela e sem código de tablet', async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 768 });
   await entrarDemo(page, 'operador');
   await page.goto(`${DEMO}/admin`);
   await page.waitForURL(`${DEMO}/admin/operacao`);
   const secoes = page.getByRole('navigation', { name: /Seções/ });
-  await expect(secoes.getByRole('link', { name: /Conversas/ })).toHaveAttribute('href', '/admin/atendimento');
+  await expect(secoes.getByRole('link')).toHaveCount(0);   // nenhuma seção leva para fora
   await expect(secoes.getByRole('button', { name: /Reservas/ })).toHaveAttribute('aria-current', 'page');
+  await secoes.getByRole('button', { name: /Conversas/ }).click();
+  await expect(page).toHaveURL(/\/admin\/operacao\?secao=atendimento/);
+  await expect(page.getByRole('list', { name: 'Conversas' })).toBeVisible();
   await secoes.getByRole('button', { name: /Ponto/ }).click();
   await expect(page).toHaveURL(/secao=ponto/);
-  const terminal = page.locator('iframe[title="Terminal de ponto"]');
-  await expect(terminal).toHaveAttribute('src', '/ponto');
-  await expect(terminal).toHaveAttribute('allow', 'camera');
-  await expect(page.getByText('O ponto é de quem aparece, não de quem está logado.')).toBeVisible();
+  await expect(page.locator('iframe')).toHaveCount(0);
+  await expect(page.getByText('Tablet não autorizado')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Ponto pelo rosto indisponível' })).toBeVisible();
+  await expect(page.getByText('Nenhum ponto é registrado por este tablet.')).toBeVisible();
+  await expect(page.getByText('Se o tablet não registrar')).toBeVisible();
+  // Sem "Abrir o painel completo" para o Atendente.
+  await page.locator('button.op-conta').click();
+  await expect(page.getByRole('menuitem', { name: /painel completo/ })).toHaveCount(0);
+  await page.keyboard.press('Escape');
   // A câmera só é delegada nesta página (e no cadastro facial); o resto do painel continua sem câmera.
   const politica = (await page.request.get(`${DEMO}/admin/operacao`)).headers()['permissions-policy'];
   expect(politica).toContain('camera=(self)');
-  expect((await page.request.get(`${DEMO}/admin/reservas`)).headers()['permissions-policy']).toContain('camera=()');
+  expect((await page.request.get(`${DEMO}/admin/reservas`, { maxRedirects: 0 })).headers()['permissions-policy']).toContain('camera=()');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   // Cadastro facial, registros e tablets ficam com o Proprietário (os 403 da API do ponto: tests/test_atendente_ponto.py no backend).
   expect((await page.request.get(`${DEMO}/admin/api/usuarios`)).status()).toBe(403);
 });
 
-test('Atendente: no painel completo, menu só com Reservas e Atendimento, o resto recusado', async ({ page }) => {
+test('Atendente: nenhuma tela do painel administrativo; tudo leva ao Modo Operação e a API recusa o resto', async ({ page }) => {
   await entrarDemo(page, 'operador');
-  await page.goto(`${DEMO}/admin/reservas`);
-  const nav = page.getByRole('navigation', { name: 'Módulos' });
-  await expect(nav.getByRole('listitem')).toHaveCount(2);
-  await expect(nav.getByRole('link', { name: 'Reservas' })).toBeVisible();
-  await expect(nav.getByRole('link', { name: 'Atendimento' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Configurações' })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Nova reserva' })).toHaveCount(0);
-  for (const area of ['financeiro', 'estoque', 'configuracoes', 'clube']) {
-    await page.goto(`${DEMO}/admin/${area}`);
-    await expect(page.getByText('Sem acesso a esta área')).toBeVisible();
+  for (const area of ['reservas', 'financeiro', 'estoque', 'configuracoes', 'clube', 'equipe', 'equipe/cadastro-facial']) {
+    const r = await page.request.get(`${DEMO}/admin/${area}`, { maxRedirects: 0 });
+    expect(r.status(), area).toBe(303);
+    expect(r.headers().location, area).toBe('/admin/operacao');
   }
+  const conversas = await page.request.get(`${DEMO}/admin/atendimento`, { maxRedirects: 0 });
+  expect(conversas.headers().location).toBe('/admin/operacao?secao=atendimento');
+  await page.goto(`${DEMO}/admin/financeiro`);
+  await page.waitForURL(`${DEMO}/admin/operacao`);
+  await expect(page.getByRole('navigation', { name: 'Módulos' })).toHaveCount(0);
   expect((await page.request.get(`${DEMO}/admin/api/financeiro/resumo`)).status()).toBe(403);
   expect((await page.request.get(`${DEMO}/admin/api/usuarios`)).status()).toBe(403);
 });

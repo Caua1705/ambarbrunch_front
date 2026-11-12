@@ -172,7 +172,9 @@ test.describe('perfis (demonstração)', () => {
     await expect(gaveta.getByRole('link', { name: /Abrir no painel/ })).toHaveCount(0);
     await gaveta.getByRole('button', { name: 'Fechar' }).click();
     await page.locator('.op-conta').click();
-    await expect(page.getByRole('menuitem', { name: 'Abrir o painel completo' })).toHaveAttribute('href', '/admin/reservas');
+    // O Atendente não tem painel administrativo: tudo dele está no Modo Operação.
+    await expect(page.getByRole('menuitem', { name: 'Sair desta conta' })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Abrir o painel completo' })).toHaveCount(0);
   });
 
   test('Proprietário e Gerente entram; o painel completo abre na Visão Geral', async ({ page }) => {

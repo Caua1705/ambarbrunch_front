@@ -453,3 +453,19 @@ html[data-equipe] .dialogo {
   font-size: var(--t-l);
   font-weight: 600;
 }
+
+/* Equipe → Abertura e Configurações → Ponto → Checklist de abertura */
+.video-abertura {
+  width: 100%;
+  max-height: 60vh;
+  border-radius: var(--r-l);
+  background: #000;
+}
+.lista-abertura .lista__fim {
+  flex: none;
+}
+.modelo-abertura__item {
+  display: flex;
+  align-items: center;
+  gap: var(--e-2);
+}

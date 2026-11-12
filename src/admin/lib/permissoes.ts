@@ -12,7 +12,7 @@ const TODOS: Papel[] = ['admin', 'gerente', 'operador'];
 const GERENCIA: Papel[] = ['admin', 'gerente'];
 const ADMIN: Papel[] = ['admin'];
 
-// O Atendente vê só Reservas e Atendimento (e entra direto em Reservas).
+// O Atendente vive no Modo Operação (Conversas | Reservas | Ponto): o middleware leva qualquer página do painel para lá.
 const MODULOS: Record<Area, Papel[]> = {
   'visao-geral': GERENCIA,
   reservas: TODOS,
@@ -66,6 +66,10 @@ const ACOES = {
   'ponto.biometria': ADMIN,
   'ponto.dispositivos': ADMIN,
   'auditoria.visualizar': ADMIN,
+  // Checklist de abertura: a equipe preenche no tablet (Modo Operação); a gerência consulta em Equipe → Abertura e confirma
+  // a responsável declarada; as tarefas do modelo, só o Proprietário.
+  'abertura.consultar': GERENCIA,
+  'abertura.configurar': ADMIN,
 } satisfies Record<string, Papel[]>;
 
 export type Acao = keyof typeof ACOES;
