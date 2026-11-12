@@ -115,7 +115,7 @@ function hoje() {
   const data = hojeFortaleza();
   const c = checklists.find((x) => x.data === data);
   return {
-    data, horario_servidor: new Date().toISOString(), biometria_disponivel: false, video: { max_mb: 50, max_segundos: 120 },
+    data, horario_servidor: new Date().toISOString(), biometria_disponivel: false, video: { max_mb: 15, max_segundos: 120 },
     checklist: c ? dados(c) : null,
     ...(c ? {} : { tarefas: modelo.filter((t) => t.ativo).map((t) => t.titulo), funcionarios: FUNCIONARIAS.map((f) => ({ ...f, ponto_hoje: false })) }),
   };
@@ -158,7 +158,7 @@ export const ROTAS_PONTO: Rota[] = [
   ['POST', /^abertura\/([^/]+)\/video\/envio$/, TODOS, (ctx) => {
     const c = checklist(ctx.params[0]);
     if (c.estado === 'concluido' && c.video) throw new ErroDemo(409, 'video_ja_enviado', 'O vídeo desta abertura já foi enviado.');
-    return { caminho: `/admin/abertura/${c.id}/video`, metodo: 'PUT', token: 'demonstracao', expira_em: new Date(Date.now() + 1800_000).toISOString(), max_mb: 50, max_segundos: 120 };
+    return { caminho: `/admin/abertura/${c.id}/video`, metodo: 'PUT', token: 'demonstracao', expira_em: new Date(Date.now() + 1800_000).toISOString(), max_mb: 15, max_segundos: 120 };
   }],
   ['PUT', /^abertura\/([^/]+)\/video$/, TODOS, receberVideo],
   ['POST', /^abertura\/([^/]+)\/concluir$/, TODOS, concluir],

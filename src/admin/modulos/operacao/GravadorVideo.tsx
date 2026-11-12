@@ -20,7 +20,9 @@ type Estado =
   | { e: 'enviando'; arquivo: Blob; url: string; duracao: number | null; fracao: number };
 
 const TIPOS = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm', 'video/mp4'];
-const BITS_POR_SEGUNDO = 2_000_000;
+// Leve de propósito: o bucket privado aceita 15 MB por arquivo; ~0,9 Mbps em 960×540 deixa 2 min em ~13 MB e ainda
+// mostra bem os ambientes.
+const BITS_POR_SEGUNDO = 900_000;
 
 function tipoSuportado(): string | null {
   if (typeof MediaRecorder === 'undefined') return null;
@@ -87,7 +89,7 @@ export function GravadorVideo({ checklistId, maxMb, maxSegundos, apiUrl, aoEnvia
     try {
       fluxo.current = await navigator.mediaDevices.getUserMedia({
         audio: false,
-        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 24 } },
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 960 }, height: { ideal: 540 }, frameRate: { ideal: 24 } },
       });
       const v = ao_vivo.current!;
       v.srcObject = fluxo.current;
