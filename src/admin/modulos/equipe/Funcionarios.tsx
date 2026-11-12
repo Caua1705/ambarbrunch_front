@@ -357,7 +357,7 @@ function Ficha({ id, perm, aoFechar }: { id: string | null; perm: PermissoesEqui
               {perm.gerenciar && <Botao icone={<Pencil aria-hidden="true" />} onClick={() => setEditar(true)}>Editar</Botao>}
               {perm.gerenciar && f.ativo && <Botao icone={<CalendarClock aria-hidden="true" />} onClick={() => setHorario(true)}>Dias e horários</Botao>}
               {perm.biometria && f.ativo && !f.registro_supervisionado && (
-                <a class="btn" href={`/admin/equipe/cadastro-facial?funcionario=${f.id}`}><ScanFace aria-hidden="true" /> Cadastro facial</a>
+                <a class="btn" href={`/admin/equipe/cadastro-facial?funcionario=${f.id}`}><ScanFace aria-hidden="true" /> {f.biometria_estado === 'ativa' ? 'Recadastrar rosto' : 'Cadastrar rosto'}</a>
               )}
               <Botao icone={<History aria-hidden="true" />} onClick={() => setHistorico(true)}>Histórico</Botao>
             </div>

@@ -198,7 +198,7 @@ export interface ResultadoFacial {
   nova_tentativa: boolean;
   biometria_id?: string;
   amostras?: number;
-  proximo_passo?: 'testar' | 'confirmar';
+  proximo_passo?: 'testar' | 'confirmar' | 'concluido';
 }
 
 export interface Marcacao {

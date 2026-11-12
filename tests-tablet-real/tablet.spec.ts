@@ -168,6 +168,48 @@ test.describe.serial('tablet do café', () => {
     await dono.close();
   });
 
+  test('cadastro facial em UMA etapa: o Proprietário cadastra, sem segunda captura, e o cadastro antigo fica intacto', async ({ browser }) => {
+    const dono = await browser.newContext();
+    // Câmera falsa repete quadros idênticos (ver beforeAll): mesmo "ruído de sensor" aqui.
+    await dono.addInitScript(() => {
+      const original = HTMLCanvasElement.prototype.toBlob;
+      HTMLCanvasElement.prototype.toBlob = function (this: HTMLCanvasElement, ...args: Parameters<HTMLCanvasElement['toBlob']>) {
+        const ctx = this.getContext('2d');
+        if (ctx) {
+          ctx.fillStyle = `rgb(${Math.random() * 255},${Math.random() * 255},${Math.random() * 255})`;
+          ctx.fillRect(Math.floor(Math.random() * this.width), Math.floor(Math.random() * this.height), 2, 2);
+        }
+        return original.apply(this, args);
+      };
+    });
+    const pd = await dono.newPage();
+    await entrar(pd, DONO, '/admin');
+    await pd.waitForURL(/\/admin(\?|$)/);
+    const funcionarios = (await (await api(pd).get('ponto/funcionarios')).json()).itens as { id: string; nome_exibicao: string; biometria_estado: string }[];
+    const isabelly = funcionarios.find((f) => f.nome_exibicao === 'Isabelly')!;
+    const rituane = funcionarios.find((f) => f.nome_exibicao === 'Rituane')!;
+    expect(isabelly.biometria_estado).toBe('nao_cadastrada');
+    expect(rituane.biometria_estado).toBe('ativa');
+
+    await pd.goto(`/admin/equipe/cadastro-facial?funcionario=${isabelly.id}`);
+    await expect(pd.getByRole('heading', { name: 'Cadastro facial — Isabelly' })).toBeVisible();
+    await pd.getByLabel(/está aqui comigo/).check();
+    await pd.getByRole('button', { name: 'Iniciar câmera' }).click();
+    await expect(pd.getByText('Rosto cadastrado com sucesso.')).toBeVisible({ timeout: 60_000 });
+    // Sem etapa de teste nem de confirmação.
+    await expect(pd.getByRole('button', { name: /testar|Confirmar cadastro/i })).toHaveCount(0);
+
+    const depois = (await (await api(pd).get('ponto/funcionarios')).json()).itens as { nome_exibicao: string; biometria_estado: string }[];
+    expect(depois.find((f) => f.nome_exibicao === 'Isabelly')!.biometria_estado).toBe('ativa');
+    const bio = await (await api(pd).get(`ponto/funcionarios/${isabelly.id}/biometria`)).json();
+    expect(bio.cadastros).toHaveLength(1);
+    expect(bio.cadastros[0].estado).toBe('ativa');
+    // O rosto que já existia (Rituane) continua o mesmo: nenhum recadastro, nada apagado.
+    const antigo = await (await api(pd).get(`ponto/funcionarios/${rituane.id}/biometria`)).json();
+    expect(antigo.cadastros.map((c: { estado: string }) => c.estado)).toEqual(['ativa']);
+    await dono.close();
+  });
+
   test('4. o Proprietário encerra a sessão do tablet e ele volta para o login (sem entrar sem senha)', async ({ browser }) => {
     const dono = await browser.newContext();
     const pd = await dono.newPage();

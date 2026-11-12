@@ -1,27 +1,28 @@
-// Cadastro facial supervisionado: o Proprietário fica com a conta aberta, o funcionário segue as instruções e nada vale até o
-// teste passar e o Proprietário confirmar. O backend valida qualidade, identidade e prova de vida; esta tela só captura.
-// Recadastrar é o mesmo caminho: o cadastro anterior vale até a confirmação.
+// Cadastro facial supervisionado, em UMA etapa (12/11/2026): o Proprietário abre a câmera, o funcionário segue as
+// instruções e, se tudo passar, o rosto já fica cadastrado — sem segunda captura e sem etapa de confirmação. O backend
+// valida qualidade, prova de vida, identidade e a verificação que a segunda captura fazia (com quadros da mesma sessão);
+// esta tela só orienta e captura. A captura é GUIADA: a prévia de enquadramento do backend diz "aproxime", "melhore a
+// iluminação" e quando a virada do rosto apareceu, e cada pose só é capturada quando aparece. Se falhar, a câmera continua
+// aberta e só a captura é repetida. Recadastrar: o rosto atual continua valendo até o novo passar.
 import '../../estilos/equipe.css';
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { ArrowLeft, CheckCircle2, ScanFace, ShieldCheck } from 'lucide-preact';
+import { ArrowLeft, CheckCircle2, RotateCcw, ScanFace } from 'lucide-preact';
 import { ErroApi } from '../../lib/api/cliente';
 import { enviarCapturaFacial, equipe } from '../../lib/api/equipe';
 import { invalidar, useConsulta } from '../../lib/consulta';
-import { abrirCamera, capturarQuadros, ErroCamera, INSTRUCOES_CAMERA, medirLuz, montarFormulario, pararCamera } from '../../../lib/ponto/captura';
-import { orientacaoDoMotivo } from '../../../lib/ponto/contrato';
+import { abrirCamera, capturarQuadros, conferidorDaApi, ErroCamera, montarFormulario, pararCamera, textoDaOrientacao } from '../../../lib/ponto/captura';
 import { lerParam } from '../../lib/rotas';
-import type { SessaoFacial } from '../../lib/tipos/equipe';
+import type { ResultadoFacial, SessaoFacial } from '../../lib/tipos/equipe';
 import { Aviso, Botao, Cartao } from '../../ui/base';
 import { Raiz } from '../../ui/camadas';
 import { Dados, Vazio } from '../../ui/estados';
 
-type Etapa = 'cadastro' | 'teste' | 'confirmar' | 'concluido';
 // A imagem na tela é espelhada: virar para a própria esquerda aparece andando para a esquerda da tela.
-const INSTRUCAO: Record<string, string> = { frente: 'Olhe RETO para a câmera', esquerda: '← Vire o rosto para a ESQUERDA', direita: 'Vire o rosto para a DIREITA →' };
-/** No cadastro, a pessoa ouve a instrução de quem supervisiona: tempo de sobra para chegar em cada pose e parar. */
+const INSTRUCAO: Record<string, string> = { frente: 'Olhe para a câmera', esquerda: '← Vire o rosto devagar para a esquerda', direita: 'Vire o rosto devagar para a direita →' };
+/** Sem a prévia (rede, backend antigo), a janela fixa por pose fica folgada. */
 const PREPARO_POSE_MS = 2200;
-const PREPARO_INICIAL_MS = 3000;
-const PASSOS: { id: Etapa; rotulo: string }[] = [{ id: 'cadastro', rotulo: 'Captura' }, { id: 'teste', rotulo: 'Teste' }, { id: 'confirmar', rotulo: 'Confirmação' }];
+
+type Fase = 'pronto' | 'camera' | 'capturando' | 'conferindo' | 'concluido';
 
 export default function CadastroFacial({ apiUrl }: { apiUrl: string | null }) {
   const id = lerParam('funcionario');
@@ -45,14 +46,35 @@ export default function CadastroFacial({ apiUrl }: { apiUrl: string | null }) {
   );
 }
 
+/** Mensagem curta para quando a captura não passou (nada técnico na tela). */
+function mensagemDaRecusa(r: ResultadoFacial): string {
+  switch (r.resultado) {
+    case 'falha_prova_de_vida':
+      if (r.motivo === 'apresentacao_suspeita') return 'Não deu para confirmar que é uma pessoa na frente da câmera. Tente de novo, sem foto ou tela na frente.';
+      return 'Não deu para ver o rosto virando. Vamos repetir: vire devagar quando a seta pedir e volte para a frente.';
+    case 'qualidade_insuficiente':
+      if (r.motivo === 'pouca_luz') return 'Pouca luz. Procure um lugar mais claro e tente de novo.';
+      if (r.motivo === 'rosto_pequeno') return 'O rosto ficou longe. Aproxime um pouco e tente de novo.';
+      if (r.motivo === 'multiplos_rostos') return 'Apareceu mais de uma pessoa. Só quem está cadastrando na frente da câmera.';
+      return 'A imagem não ficou boa. Tente de novo com o rosto bem iluminado.';
+    case 'conflito_biometrico':
+      return 'Este rosto se parece com o de outra pessoa já cadastrada. Nada foi salvo: confira se é o funcionário certo.';
+    case 'nao_confere':
+      return 'Não deu para confirmar o rosto com segurança. Tente de novo com boa luz, olhando para a câmera.';
+    case 'sessao_expirada':
+      return 'O tempo acabou. Tente de novo.';
+    default:
+      return r.mensagem || 'Não deu certo. Tente de novo.';
+  }
+}
+
 function Fluxo({ id, nome, pendente, recadastro, apiUrl, voltar }: { id: string; nome: string; pendente: boolean; recadastro: boolean; apiUrl: string | null; voltar: string }) {
-  const [etapa, setEtapa] = useState<Etapa>(pendente ? 'teste' : 'cadastro');
+  const [fase, setFase] = useState<Fase>('pronto');
   const [presente, setPresente] = useState(false);
-  const [capturando, setCapturando] = useState(false);
-  const [instrucao, setInstrucao] = useState<string | null>(null);
-  const [enviando, setEnviando] = useState(false);
+  const [mensagem, setMensagem] = useState('Posicione o rosto dentro da área indicada');
+  const [passo, setPasso] = useState<{ i: number; total: number } | null>(null);
   const [erro, setErro] = useState<string | null>(null);
-  const [luz, setLuz] = useState<'ok' | 'escuro' | 'claro'>('ok');
+  const [ativando, setAtivando] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const fluxoRef = useRef<MediaStream | null>(null);
   const abortoRef = useRef<AbortController | null>(null);
@@ -60,14 +82,13 @@ function Fluxo({ id, nome, pendente, recadastro, apiUrl, voltar }: { id: string;
   const desligar = () => {
     pararCamera(fluxoRef.current, videoRef.current);
     fluxoRef.current = null;
-    setInstrucao(null);
   };
   useEffect(() => {
     const sair = () => {
       if (document.visibilityState !== 'visible') {
         abortoRef.current?.abort();
         desligar();
-        setCapturando(false);
+        setFase((f) => (f === 'concluido' ? f : 'pronto'));
       }
     };
     document.addEventListener('visibilitychange', sair);
@@ -77,121 +98,136 @@ function Fluxo({ id, nome, pendente, recadastro, apiUrl, voltar }: { id: string;
       desligar();
     };
   }, []);
-  useEffect(() => {
-    if (!capturando) return;
-    const t = setInterval(() => videoRef.current && setLuz(medirLuz(videoRef.current)), 500);
-    return () => clearInterval(t);
-  }, [capturando]);
 
-  const iniciar = async () => {
+  /** Abre a câmera (se ainda não está aberta) e faz UMA captura completa. Repetir = chamar de novo. */
+  const capturar = async () => {
     setErro(null);
-    setCapturando(true);
+    setPasso(null);
     abortoRef.current = new AbortController();
+    try {
+      if (!fluxoRef.current) {
+        setFase('camera');
+        fluxoRef.current = await abrirCamera(videoRef.current!);
+      }
+    } catch (e) {
+      desligar();
+      setFase('pronto');
+      return setErro(e instanceof ErroCamera
+        ? { permissao: 'A câmera está bloqueada. Libere a câmera nas permissões do navegador.', ausente: 'Nenhuma câmera encontrada neste aparelho.', ocupada: 'A câmera não respondeu. Feche outros apps que usam a câmera.', contexto: 'A câmera só funciona em conexão segura (https).' }[e.motivo]
+        : 'A câmera não abriu. Tente de novo.');
+    }
     let sessao: SessaoFacial;
     try {
-      sessao = etapa === 'cadastro' ? await equipe.iniciarCadastroFacial(id) : await equipe.iniciarTesteFacial(id);
+      sessao = await equipe.iniciarCadastroFacial(id);
     } catch (e) {
-      setCapturando(false);
+      setFase('camera');
       return setErro(e instanceof ErroApi ? e.message : 'Não foi possível iniciar.');
     }
+    setFase('capturando');
+    setMensagem('Posicione o rosto dentro da área indicada');
+    const conferir = sessao.captura_token && apiUrl ? conferidorDaApi(`${apiUrl}/admin/ponto/biometria/sessoes/${sessao.sessao_id}/previa`, sessao.captura_token) : undefined;
     let quadros: Blob[];
+    let instrucao = INSTRUCAO.frente;
     try {
-      fluxoRef.current = await abrirCamera(videoRef.current!);
-      setInstrucao('Prepare-se: olhe RETO para a câmera');
-      await new Promise((ok) => setTimeout(ok, PREPARO_INICIAL_MS));
       quadros = await capturarQuadros(videoRef.current!, {
         desafio: sessao.desafio,
         quadrosMax: sessao.quadros_max,
         preparoMs: PREPARO_POSE_MS,
+        conferir,
+        esperaMaxMs: 12_000,
         sinal: abortoRef.current.signal,
-        aoPose: (pose, i, total) => setInstrucao(`${i + 1} de ${total}: ${INSTRUCAO[pose] ?? pose}`),
+        aoPose: (pose, i, total) => {
+          instrucao = INSTRUCAO[pose] ?? 'Olhe para a câmera';
+          setMensagem(instrucao);
+          setPasso({ i: i + 1, total });
+        },
+        aoOrientacao: (o, certa) => setMensagem(textoDaOrientacao(o, certa, instrucao)),
       });
     } catch (e) {
-      desligar();
-      setCapturando(false);
       if ((e as DOMException).name === 'AbortError') return;
-      return setErro(e instanceof ErroCamera ? INSTRUCOES_CAMERA[e.motivo].replace(' ou procure o gestor', '').replace(' Procure o gestor.', '') : 'A captura não terminou. Tente de novo.');
+      setFase('camera');
+      return setErro('A captura não terminou. Tente de novo.');
     }
-    desligar();
-    setCapturando(false);
-    setEnviando(true);
+    setFase('conferindo');
+    setMensagem('Captura concluída. Conferindo…');
     try {
       const r = await enviarCapturaFacial(sessao, montarFormulario(sessao.nonce, quadros), apiUrl);
-      if (r.resultado !== 'aprovado') return setErro([r.mensagem, orientacaoDoMotivo(r.motivo)].filter(Boolean).join(' '));
+      if (r.resultado !== 'aprovado') {
+        setFase('camera');     // câmera continua aberta: só a captura se repete
+        return setErro(mensagemDaRecusa(r));
+      }
       invalidar('equipe');
-      setEtapa(r.proximo_passo === 'confirmar' ? 'confirmar' : 'teste');
+      desligar();
+      setFase('concluido');
     } catch (e) {
-      setErro(e instanceof ErroApi ? e.message : 'Não foi possível enviar.');
-    } finally {
-      setEnviando(false);
+      setFase('camera');
+      setErro(e instanceof ErroApi ? e.message : 'Não foi possível enviar. Confira a internet e tente de novo.');
     }
   };
 
-  const confirmar = async () => {
-    setEnviando(true);
+  const ativarPendente = async () => {
+    setAtivando(true);
     setErro(null);
     try {
       await equipe.confirmarBiometria(id);
       invalidar('equipe');
-      setEtapa('concluido');
+      setFase('concluido');
     } catch (e) {
-      setErro(e instanceof ErroApi ? e.message : 'Não foi possível confirmar.');
+      setErro(e instanceof ErroApi ? e.message : 'Não foi possível ativar.');
     } finally {
-      setEnviando(false);
+      setAtivando(false);
     }
   };
 
-  const texto = etapa === 'cadastro'
-    ? `Peça para ${nome} ficar de frente para o aparelho, com o rosto bem iluminado e sem outra pessoa na imagem.`
-    : `Agora um teste: ${nome} repete o movimento para conferir se o sistema reconhece.`;
+  const cameraVisivel = fase === 'camera' || fase === 'capturando' || fase === 'conferindo';
 
   return (
-    <Cartao titulo={`Cadastro facial de ${nome}`} descricao={recadastro && etapa !== 'concluido' ? 'O cadastro atual continua valendo até você confirmar o novo.' : undefined}>
-      <ol class="equipe-passos" aria-label="Etapas do cadastro">
-        {PASSOS.map((p, i) => {
-          const atual = PASSOS.findIndex((x) => x.id === etapa);
-          const feito = etapa === 'concluido' || i < atual;
-          return <li key={p.id} aria-current={p.id === etapa ? 'step' : undefined} data-feito={feito || undefined}>{p.rotulo}</li>;
-        })}
-      </ol>
-
-      <div class="equipe-camera" hidden={!capturando}>
+    <Cartao titulo={`Cadastro facial — ${nome}`} descricao={recadastro && fase !== 'concluido' ? 'Substitui o rosto cadastrado hoje. Se não der certo, o atual continua valendo.' : undefined}>
+      <div class="equipe-camera" hidden={!cameraVisivel}>
         <div class="equipe-camera__moldura">
           <video ref={videoRef} playsInline muted autoPlay aria-hidden="true" />
           <span class="equipe-camera__oval" aria-hidden="true"></span>
         </div>
-        <p class="equipe-camera__guia" role="status" aria-live="assertive">{instrucao ?? 'Encaixe o rosto no oval'}</p>
-        <p class="fraco">Faça cada movimento devagar e fique parado até a próxima instrução.</p>
-        {luz !== 'ok' && <p class="fraco">{luz === 'escuro' ? 'Pouca luz. Procure um lugar mais claro.' : 'Luz forte demais atrás da pessoa.'}</p>}
+        <p class="equipe-camera__guia" role="status" aria-live="assertive">{fase === 'camera' ? 'Posicione o rosto dentro da área indicada' : mensagem}</p>
+        {passo && fase === 'capturando' && (
+          <span class="equipe-camera__passos" aria-label={`Passo ${passo.i} de ${passo.total}`}>
+            {Array.from({ length: passo.total }, (_, i) => <i key={i} data-feito={i < passo.i || undefined} />)}
+          </span>
+        )}
       </div>
 
-      {!capturando && (etapa === 'cadastro' || etapa === 'teste') && (
+      {fase === 'pronto' && (
         <div class="pilha">
-          <p>{texto}</p>
-          {etapa === 'cadastro' && (
-            <label class="marcar">
-              <input type="checkbox" checked={presente} onChange={(e) => setPresente(e.currentTarget.checked)} />
-              <span>{nome} está aqui comigo e autorizou o cadastro do rosto.</span>
-            </label>
+          {pendente && (
+            <Aviso tom="info">
+              <span class="pilha pilha--p">
+                <span>{nome} já tem um rosto capturado esperando ativação. Dá para ativar sem nova captura.</span>
+                <span><Botao tamanho="p" variante="primario" carregando={ativando} onClick={ativarPendente}>Ativar o cadastro já capturado</Botao></span>
+              </span>
+            </Aviso>
           )}
+          <p>{nome} fica de frente para o aparelho, com o rosto iluminado e sem outra pessoa na imagem. A tela diz o que fazer.</p>
+          <label class="marcar">
+            <input type="checkbox" checked={presente} onChange={(e) => setPresente(e.currentTarget.checked)} />
+            <span>{nome} está aqui comigo e autorizou o cadastro do rosto.</span>
+          </label>
           <div class="linha">
-            <Botao variante="primario" icone={<ScanFace aria-hidden="true" />} onClick={iniciar} carregando={enviando} disabled={etapa === 'cadastro' && !presente}>
-              {enviando ? 'Conferindo' : etapa === 'cadastro' ? 'Abrir câmera e capturar' : 'Abrir câmera e testar'}
-            </Botao>
+            <Botao variante="primario" icone={<ScanFace aria-hidden="true" />} onClick={capturar} disabled={!presente}>Iniciar câmera</Botao>
           </div>
         </div>
       )}
 
-      {etapa === 'confirmar' && (
-        <div class="pilha">
-          <Aviso tom="ok" icone={<ShieldCheck aria-hidden="true" />}>O teste passou. O cadastro só vale depois da sua confirmação.</Aviso>
-          <div class="linha"><Botao variante="primario" onClick={confirmar} carregando={enviando}>Confirmar cadastro</Botao></div>
+      {fase === 'camera' && erro && (
+        <div class="linha">
+          <Botao variante="primario" icone={<RotateCcw aria-hidden="true" />} onClick={capturar}>Tentar de novo</Botao>
+          <Botao variante="fantasma" onClick={() => { desligar(); setErro(null); setFase('pronto'); }}>Fechar a câmera</Botao>
         </div>
       )}
 
-      {etapa === 'concluido' && (
+      {fase === 'concluido' && (
         <div class="pilha">
-          <Aviso tom="ok" icone={<CheckCircle2 aria-hidden="true" />}>Cadastro facial de {nome} ativo.</Aviso>
+          <Aviso tom="ok" icone={<CheckCircle2 aria-hidden="true" />}>Rosto cadastrado com sucesso.</Aviso>
+          <p class="fraco">{nome} já pode registrar o ponto no tablet.</p>
           <div class="linha"><a class="btn btn--primario" href={voltar}>Voltar para a ficha</a></div>
         </div>
       )}

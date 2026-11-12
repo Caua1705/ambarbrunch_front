@@ -469,3 +469,17 @@ html[data-equipe] .dialogo {
   align-items: center;
   gap: var(--e-2);
 }
+.equipe-camera__passos {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+.equipe-camera__passos i {
+  width: 28px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--borda-forte);
+}
+.equipe-camera__passos i[data-feito] {
+  background: var(--marca);
+}

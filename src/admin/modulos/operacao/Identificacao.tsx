@@ -1,12 +1,13 @@
 // Identificação pelo rosto no tablet (Modo Operação): abre a sessão no backend, liga a câmera só depois do toque, orienta as
 // poses do desafio, desliga a câmera ANTES de enviar e devolve o que o backend decidiu. Não registra nada: quem chama mostra
 // nome e marcação e só grava depois da confirmação da pessoa. Usada por "Registrar ponto" e por "Assumir a abertura".
-// Os quadros vão direto à API com o token curto da sessão; vivem só na memória desta tentativa.
+// Os quadros vão direto à API com o token curto da sessão; vivem só na memória desta tentativa. A captura é GUIADA pela
+// prévia de enquadramento do backend ("aproxime", "melhore a iluminação", e só captura a virada quando ela aparece).
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { ErroApi } from '../../lib/api/cliente';
 import { enviarCaptura, terminal } from '../../lib/api/operacao';
 import type { ConfiguracaoQuiosque, ResultadoCaptura, SessaoTerminal } from '../../lib/tipos/abertura';
-import { abrirCamera, capturarQuadros, ErroCamera, medirLuz, montarFormulario, pararCamera } from '../../../lib/ponto/captura';
+import { abrirCamera, capturarQuadros, conferidorDaApi, ErroCamera, medirLuz, montarFormulario, pararCamera, textoDaOrientacao } from '../../../lib/ponto/captura';
 import { Botao } from '../../ui/base';
 
 const OCUPADA_TENTATIVAS = 3;
@@ -62,17 +63,25 @@ export function Identificacao({ config, apiUrl, aoTerminar }: { config: Configur
       try {
         fluxoRef.current = await abrirCamera(videoRef.current!);
         if (!vivo) return;
-        await esperar(1200);
+        await esperar(600);
         setFase('capturando');
+        let atual = INSTRUCAO.frente;
+        const conferir = sessao.captura_token && apiUrl
+          ? conferidorDaApi(`${apiUrl}/admin/ponto/terminal/sessoes/${sessao.sessao_id}/previa`, sessao.captura_token) : undefined;
         quadros = await capturarQuadros(videoRef.current!, {
           desafio: sessao.desafio,
           quadrosMax: sessao.quadros_max,
           maxKb: config.quadro_max_kb,
+          conferir,
+          // A sessão do tablet vence em ~30 s: cada pose espera no máximo 6 s.
+          esperaMaxMs: 6_000,
           sinal: abortoRef.current.signal,
           aoPose: (pose, i, total) => {
-            setInstrucao(INSTRUCAO[pose] ?? config.poses[pose] ?? 'Olhe para a câmera');
+            atual = INSTRUCAO[pose] ?? config.poses[pose] ?? 'Olhe para a câmera';
+            setInstrucao(atual);
             setPasso({ i: i + 1, total });
           },
+          aoOrientacao: (o, certa) => setInstrucao(textoDaOrientacao(o, certa, atual)),
         });
       } catch (e) {
         if ((e as DOMException).name === 'AbortError') return;

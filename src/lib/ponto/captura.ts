@@ -70,6 +70,12 @@ const esperar = (ms: number, sinal?: AbortSignal) =>
     }, { once: true });
   });
 
+/** O que a prévia de enquadramento do backend diz de um quadro (não identifica ninguém). */
+export interface Orientacao {
+  orientacao: 'ok' | 'sem_rosto' | 'varios_rostos' | 'aproxime' | 'afaste' | 'pouca_luz' | 'luz_excessiva' | 'parado' | 'ocupado' | string;
+  pose: string | null;
+}
+
 export interface OpcoesCaptura {
   desafio: string[];
   quadrosMax?: number;
@@ -79,12 +85,22 @@ export interface OpcoesCaptura {
   preparoMs?: number;
   /** Avisa a pose pedida agora, para a tela orientar. */
   aoPose?: (pose: string, indice: number, total: number) => void;
+  /**
+   * Captura GUIADA: antes dos quadros de cada pose, pergunta ao backend (prévia de enquadramento) até a pose pedida
+   * aparecer com o rosto bem enquadrado, e só então captura — no lugar da janela fixa de tempo. Erro ou sem resposta:
+   * cai na janela fixa (quem decide continua sendo o backend, com a captura inteira).
+   */
+  conferir?: (quadro: Blob) => Promise<Orientacao | null>;
+  /** O que dizer agora (aproxime, luz…), e se a pose pedida já foi vista. */
+  aoOrientacao?: (o: Orientacao, poseCerta: boolean) => void;
+  /** Quanto esperar a pose aparecer, por pose, na captura guiada. */
+  esperaMaxMs?: number;
   sinal?: AbortSignal;
 }
 
 /** Captura enquanto orienta pose a pose. O backend confere a ordem das poses, então cada pose recebe a sua parte dos quadros. */
 export async function capturarQuadros(video: HTMLVideoElement, opcoes: OpcoesCaptura): Promise<Blob[]> {
-  const { desafio, quadrosMax = QUADROS_PADRAO, maxKb = 400, preparoMs = PREPARO_MS, aoPose, sinal } = opcoes;
+  const { desafio, quadrosMax = QUADROS_PADRAO, maxKb = 400, preparoMs = PREPARO_MS, aoPose, conferir, aoOrientacao, esperaMaxMs = 8_000, sinal } = opcoes;
   const canvas = document.createElement('canvas');
   canvas.width = LARGURA;
   canvas.height = ALTURA;
@@ -93,9 +109,11 @@ export async function capturarQuadros(video: HTMLVideoElement, opcoes: OpcoesCap
   const total = Math.min(quadrosMax, QUADROS_PADRAO);
   const porPose = Math.max(1, Math.floor(total / desafio.length));
   const quadros: Blob[] = [];
+  let guiada = !!conferir;
   for (let p = 0; p < desafio.length; p++) {
     aoPose?.(desafio[p], p, desafio.length);
-    await esperar(preparoMs, sinal);
+    if (guiada) guiada = await esperarPose(video, contexto, canvas, desafio[p], conferir!, aoOrientacao, esperaMaxMs, sinal);
+    if (!guiada) await esperar(preparoMs, sinal);
     for (let q = 0; q < porPose; q++) {
       enquadrar(video, contexto);
       let jpeg = await paraJpeg(canvas, QUALIDADE);
@@ -105,6 +123,35 @@ export async function capturarQuadros(video: HTMLVideoElement, opcoes: OpcoesCap
     }
   }
   return quadros;
+}
+
+/**
+ * Espera a pose pedida aparecer, bem enquadrada, numa prévia do backend. Devolve false se a prévia não responde (sem rede,
+ * backend antigo): aí a captura segue na janela fixa. Tempo esgotado também segue (o backend julga a captura inteira).
+ */
+async function esperarPose(video: HTMLVideoElement, contexto: CanvasRenderingContext2D, canvas: HTMLCanvasElement, pose: string,
+  conferir: (q: Blob) => Promise<Orientacao | null>, aoOrientacao: OpcoesCaptura['aoOrientacao'], esperaMaxMs: number, sinal?: AbortSignal): Promise<boolean> {
+  const fim = Date.now() + esperaMaxMs;
+  let falhas = 0;
+  while (Date.now() < fim) {
+    if (sinal?.aborted) throw new DOMException('cancelada', 'AbortError');
+    enquadrar(video, contexto);
+    const quadro = await paraJpeg(canvas, QUALIDADE_REDUZIDA);
+    const r = await conferir(quadro).catch(() => null);
+    if (!r) {
+      if (++falhas >= 2) return false;
+      continue;
+    }
+    if (r.orientacao === 'ocupado') {
+      await esperar(200, sinal);
+      continue;
+    }
+    const certa = r.orientacao === 'ok' && r.pose === pose;
+    aoOrientacao?.(r, certa);
+    if (certa) return true;
+    await esperar(120, sinal);
+  }
+  return true;
 }
 
 /** Sem bloquear: só avisa a pessoa antes da captura. Quem reprova por luz é o backend. */
@@ -128,6 +175,39 @@ export function montarFormulario(nonce: string, quadros: Blob[]): FormData {
   formulario.append('nonce', nonce);
   quadros.forEach((q, i) => formulario.append('quadros', q, `${i}.jpg`));
   return formulario;
+}
+
+/** Prévia de enquadramento direto na API, com o token curto da sessão. Erro de rede/HTTP: null (a captura segue sem guia). */
+export function conferidorDaApi(url: string, token: string): (quadro: Blob) => Promise<Orientacao | null> {
+  return async (quadro) => {
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { Accept: 'application/json', Authorization: `Bearer ${token}`, 'Content-Type': 'image/jpeg' },
+        body: quadro,
+        credentials: 'omit',
+        signal: AbortSignal.timeout(4_000),
+      });
+      if (!res.ok) return null;
+      return (await res.json()) as Orientacao;
+    } catch {
+      return null;
+    }
+  };
+}
+
+/** Frase curta para a tela, a partir da prévia. `instrucao` = o que fazer para a pose pedida. */
+export function textoDaOrientacao(o: Orientacao, poseCerta: boolean, instrucao: string): string {
+  switch (o.orientacao) {
+    case 'sem_rosto': return 'Posicione o rosto dentro da área indicada';
+    case 'varios_rostos': return 'Só uma pessoa na frente da câmera';
+    case 'aproxime': return 'Aproxime um pouco';
+    case 'afaste': return 'Afaste um pouco';
+    case 'pouca_luz': return 'Melhore a iluminação';
+    case 'luz_excessiva': return 'Luz forte demais atrás de você';
+    case 'parado': return 'Segure firme um instante';
+    default: return poseCerta ? 'Rosto encontrado. Segure assim' : instrucao;
+  }
 }
 
 export const INSTRUCOES_CAMERA: Record<FalhaCamera, string> = {
