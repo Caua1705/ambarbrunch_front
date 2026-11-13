@@ -17,7 +17,7 @@ test('Atendente: abre no Modo Operação com Conversas, Reservas e Ponto, tudo n
   await expect(page).toHaveURL(/secao=ponto/);
   await expect(page.locator('iframe')).toHaveCount(0);
   await expect(page.getByText('Tablet não autorizado')).toHaveCount(0);
-  await expect(page.getByRole('heading', { name: 'Ponto pelo rosto indisponível' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Ponto pelo rosto desligado' })).toBeVisible();
   await expect(page.getByText('Nenhum ponto é registrado por este tablet.')).toBeVisible();
   await expect(page.getByText('Se o tablet não registrar')).toBeVisible();
   // Sem "Abrir o painel completo" para o Atendente.

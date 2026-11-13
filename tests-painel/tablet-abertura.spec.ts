@@ -84,7 +84,7 @@ test('registrar ponto sem reconhecimento facial: diz que nada foi registrado e m
   await entrarDemo(page, 'operador');
   await page.goto(`${DEMO}/admin/operacao?secao=ponto`);
   await expect(page.getByRole('tab', { name: 'Registrar ponto' })).toHaveAttribute('aria-selected', 'true');
-  await expect(page.getByRole('heading', { name: 'Ponto pelo rosto indisponível' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Ponto pelo rosto desligado' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Registrar ponto' })).toHaveCount(0);
   await expect(page.getByText('Incluir batida')).toBeVisible();
   expect(await semRolagemHorizontal(page)).toBe(true);

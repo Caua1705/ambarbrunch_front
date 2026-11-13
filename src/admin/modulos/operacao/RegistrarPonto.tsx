@@ -152,8 +152,8 @@ export function RegistrarPonto({ config, apiUrl, aoRecarregar }: { config: Confi
         <Relogio agora={agora} />
         <div class="op-terminal__cartao" role="status">
           <UserRoundX aria-hidden="true" />
-          <h2>Ponto pelo rosto indisponível</h2>
-          <p>O reconhecimento facial não está liberado neste momento. <strong>Nenhum ponto é registrado por este tablet.</strong></p>
+          <h2>Ponto pelo rosto desligado</h2>
+          <p>O reconhecimento facial está desligado no sistema. <strong>Nenhum ponto é registrado agora.</strong> Avise o gestor.</p>
         </div>
         <Contingencia />
       </div>
