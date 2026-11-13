@@ -69,7 +69,7 @@ export const FOTOS_PRODUTO: Record<string, FotoCardapio> = {
   'cheesecakes.frutas_vermelhas': ilustrativa('cheesecakes/frutas-vermelhas', 'Fatia de cheesecake com frutas vermelhas'),
   'cheesecakes.maca_com_crumble_fatia': ilustrativa('cheesecakes/maca-com-crumble-fatia', 'Fatia de maçã com crumble dourado'),
   'cinnamon_rolls.tradicional': ilustrativa('cinnamon-rolls/tradicional', 'Cinnamon roll Tradicional em espiral, com glacê'),
-  'cinnamon_rolls.mood_cheesecake': real('cinnamon-rolls/mood-cheesecake', 'Cinnamon roll Mood Cheesecake com geleia de morango e crumble'),
+  'cinnamon_rolls.mood_cheesecake': real('cinnamon-rolls/mood-cheesecake', 'Cinnamon roll Mood Cheesecake de massa vermelha, com glacê cremoso e farelo vermelho'),
   'cinnamon_rolls.kinder_bueno': real('cinnamon-rolls/kinder-bueno', 'Cinnamon roll Kinder Bueno com fios de Nutella'),
   'cinnamon_rolls.biscoff': real('cinnamon-rolls/biscoff', 'Cinnamon roll de Biscoff com creme e biscoito triturado'),
   'cafes.cappuccino': ilustrativa('cafes/cappuccino', 'Xícara de cappuccino com desenho na espuma'),

@@ -43,13 +43,12 @@ Depois, acrescentar o id em `FOTOS_PRODUTO` (`src/data/cardapio.ts`), com `real`
 
 | Origem | Quantidade | Onde |
 |---|---:|---|
-| Fotos da Roll autorizadas | 3 | `cinnamon-rolls/` |
-| Arte da Roll, autorizada em 6/11/2026 | 1 | `cinnamon-rolls/tradicional.webp` |
+| `rolls_cardapio_ambar_webp.zip`, enviado pelo responsável em 12/11/2026 (1000 × 1000, roll inteiro em fundo branco) | 4 | `cinnamon-rolls/` |
 | `Ambar_Fotos_Finais_Home_e_11_Pendentes_2026-11-06.zip` (IA), revisado item a item | 7 | brunchs, sanduíches, Expresso duplo e Retinol |
 | Recriada por IA em 6/11/2026, a partir da descrição oficial, revisada item a item | 41 | demais produtos |
 | Recriada por IA em 8/11/2026, quando o Antioxidant virou Vitalidade (beterraba, cenoura e laranja) | 1 | `sucos/vitalidade.webp` (id `sucos.antioxidant`) |
 
-Imagem gerada por IA fica sempre como `ilustrativa`: não é foto do produto servido. Mood Cheesecake e Biscoff têm um recorte mínimo que tira as pontas das setas da arte da Roll; as fotos originais seguem em `roll/`.
+Imagem gerada por IA fica sempre como `ilustrativa`: não é foto do produto servido. Os 4 Cinnamon Rolls trocaram em 12/11/2026 os recortes fechados das artes da Roll pelas imagens do zip; o modal usa o arquivo de 1000 × 1000 e a miniatura é a mesma imagem reduzida, sem recorte. O Mood Cheesecake do zip tem massa vermelha, confirmado pelo responsável. As fotos originais da Roll seguem em `roll/`.
 
 As 42 recriadas substituíram arquivos sem resolução para o modal: faixas de 768 × 260 px, recortes de 320 px e arquivos de 200 a 440 px. Os copos de Cafés gelados foram recriados a partir da arte do PDF do dono,
 que tem cerca de 200 px por copo.
