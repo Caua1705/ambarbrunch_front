@@ -95,12 +95,14 @@ export interface OpcoesCaptura {
   aoOrientacao?: (o: Orientacao, poseCerta: boolean) => void;
   /** Quanto esperar a pose aparecer, por pose, na captura guiada. */
   esperaMaxMs?: number;
+  /** Intervalo entre quadros da mesma pose (padrão INTERVALO_MS). O ponto usa menor: identificação na hora. */
+  intervaloMs?: number;
   sinal?: AbortSignal;
 }
 
 /** Captura enquanto orienta pose a pose. O backend confere a ordem das poses, então cada pose recebe a sua parte dos quadros. */
 export async function capturarQuadros(video: HTMLVideoElement, opcoes: OpcoesCaptura): Promise<Blob[]> {
-  const { desafio, quadrosMax = QUADROS_PADRAO, maxKb = 400, preparoMs = PREPARO_MS, aoPose, conferir, aoOrientacao, esperaMaxMs = 8_000, sinal } = opcoes;
+  const { desafio, quadrosMax = QUADROS_PADRAO, maxKb = 400, preparoMs = PREPARO_MS, aoPose, conferir, aoOrientacao, esperaMaxMs = 8_000, intervaloMs = INTERVALO_MS, sinal } = opcoes;
   const canvas = document.createElement('canvas');
   canvas.width = LARGURA;
   canvas.height = ALTURA;
@@ -119,7 +121,7 @@ export async function capturarQuadros(video: HTMLVideoElement, opcoes: OpcoesCap
       let jpeg = await paraJpeg(canvas, QUALIDADE);
       if (jpeg.size > maxKb * 1024) jpeg = await paraJpeg(canvas, QUALIDADE_REDUZIDA);
       quadros.push(jpeg);
-      if (q < porPose - 1) await esperar(INTERVALO_MS, sinal);
+      if (q < porPose - 1) await esperar(intervaloMs, sinal);
     }
   }
   return quadros;

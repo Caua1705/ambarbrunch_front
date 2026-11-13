@@ -1,5 +1,5 @@
-// Identificação pelo rosto no tablet (Modo Operação): abre a sessão no backend, liga a câmera só depois do toque, orienta as
-// poses do desafio, desliga a câmera ANTES de enviar e devolve o que o backend decidiu. Não registra nada: quem chama mostra
+// Identificação pelo rosto no tablet (Modo Operação): abre a sessão no backend, liga a câmera só depois do toque, pede só o
+// rosto de frente (virar para os lados é só no cadastro), desliga a câmera ANTES de enviar e devolve o que o backend decidiu. Não registra nada: quem chama mostra
 // nome e marcação e só grava depois da confirmação da pessoa. Usada por "Registrar ponto" e por "Assumir a abertura".
 // Os quadros vão direto à API com o token curto da sessão; vivem só na memória desta tentativa. A captura é GUIADA pela
 // prévia de enquadramento do backend ("aproxime", "melhore a iluminação", e só captura a virada quando ela aparece).
@@ -63,14 +63,16 @@ export function Identificacao({ config, apiUrl, aoTerminar }: { config: Configur
       try {
         fluxoRef.current = await abrirCamera(videoRef.current!);
         if (!vivo) return;
-        await esperar(600);
+        await esperar(300);
         setFase('capturando');
         let atual = INSTRUCAO.frente;
         const conferir = sessao.captura_token && apiUrl
           ? conferidorDaApi(`${apiUrl}/admin/ponto/terminal/sessoes/${sessao.sessao_id}/previa`, sessao.captura_token) : undefined;
         quadros = await capturarQuadros(videoRef.current!, {
           desafio: sessao.desafio,
-          quadrosMax: sessao.quadros_max,
+          // Ponto na hora: o backend só pede o rosto de frente; manda o mínimo de quadros, em sequência curta.
+          quadrosMax: sessao.quadros_min,
+          intervaloMs: 120,
           maxKb: config.quadro_max_kb,
           conferir,
           // A sessão do tablet vence em ~30 s: cada pose espera no máximo 6 s.
@@ -141,7 +143,7 @@ export function Identificacao({ config, apiUrl, aoTerminar }: { config: Configur
       </div>
       <div class="op-camera__guia" role="status" aria-live="assertive">
         <strong>{fase === 'analisando' ? 'Conferindo…' : fase === 'preparando' ? 'Abrindo a câmera…' : instrucao}</strong>
-        {passo && fase === 'capturando' && (
+        {passo && passo.total > 1 && fase === 'capturando' && (
           <span class="op-camera__passos" aria-label={`Passo ${passo.i} de ${passo.total}`}>
             {Array.from({ length: passo.total }, (_, i) => <i key={i} data-feito={i < passo.i || undefined} />)}
           </span>
