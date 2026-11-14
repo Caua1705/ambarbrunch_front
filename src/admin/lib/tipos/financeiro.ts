@@ -563,7 +563,25 @@ export interface SomaVendas {
   taxa_servico: Dec;
   recebido_pdv: Dec;
   vendas_canceladas: number;
+  /** Receita de produtos (sem a taxa de serviço) ÷ vendas. */
   ticket_medio: Dec | null;
+  /** Faturamento PDV: o total da Eyemobile (produtos − descontos + taxa de serviço) — a "Receita total" dela. */
+  faturamento_pdv: Dec;
+  /** Pagamentos confirmados (conta dividida conta cada parte). */
+  pagamentos: number;
+  /** Faturamento PDV ÷ vendas. */
+  ticket_medio_venda: Dec | null;
+  /** Faturamento PDV ÷ pagamentos. */
+  ticket_medio_pagamento: Dec | null;
+}
+
+/** Conferência Eyemobile × banco (vendas/conferencia.py): `divergente` = números EM CONFERÊNCIA. */
+export interface ConferenciaVendas {
+  situacao: 'conferido' | 'divergente' | 'pendente';
+  dias_divergentes: { dia: Data; loja: string; faturamento_pdv: Dec; faturamento_interno: Dec; diferenca: Dec; conferido_em: string | null }[];
+  dias_conferidos: number;
+  dias_sem_conferencia: Data[];
+  ultima_em: string | null;
 }
 
 export interface PeriodoVendas extends SomaVendas {
@@ -586,6 +604,8 @@ export type RelatorioVendas =
       totais: SomaVendas;
       por_meio: { meio: string; pagamentos: number; valor: Dec }[];
       sincronizacao: Sincronizacao;
+      /** Ausente em backend anterior à conferência (tratar como pendente). */
+      conferencia?: ConferenciaVendas;
       observacao: string;
     };
 

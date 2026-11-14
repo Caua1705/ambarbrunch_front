@@ -692,7 +692,8 @@ function vendasPorPeriodo(de: string, ate: string, agrupar: AgrupamentoVendas) {
   const soma = (vs: Venda[]) => {
     const total = vs.reduce((s2, v) => s2 + v.total, 0);
     const vendas = vs.reduce((s2, v) => s2 + v.vendas, 0);
-    return { vendas, faturamento_bruto: d2(total * 1.035), descontos: d2(total * 0.03), receita_liquida_produtos: d2(total), devolucoes: d2(total * 0.005), receita_liquida: d2(total), taxa_servico: d2(total * 0.08), recebido_pdv: d2(total * 1.08), vendas_canceladas: vs.filter((v) => v.vendas % 9 === 0).length, ticket_medio: vendas ? d2(total / vendas) : null };
+    return { vendas, faturamento_bruto: d2(total * 1.035), descontos: d2(total * 0.03), receita_liquida_produtos: d2(total), devolucoes: d2(total * 0.005), receita_liquida: d2(total), taxa_servico: d2(total * 0.08), recebido_pdv: d2(total * 1.08), vendas_canceladas: vs.filter((v) => v.vendas % 9 === 0).length, ticket_medio: vendas ? d2(total / vendas) : null,
+      faturamento_pdv: d2(total * 1.08), pagamentos: Math.round(vendas * 1.1), ticket_medio_venda: vendas ? d2((total * 1.08) / vendas) : null, ticket_medio_pagamento: vendas ? d2((total * 1.08) / Math.round(vendas * 1.1)) : null };
   };
   const periodos: PeriodoVendas[] = [...grupos].sort(([a], [b]) => a.localeCompare(b)).map(([inicio, vs]) => ({ inicio, primeiro_dia: vs[0].dia, ultimo_dia: vs[vs.length - 1].dia, ...soma(vs) }));
   const todas = [...grupos.values()].flat();
@@ -703,7 +704,8 @@ function vendasPorPeriodo(de: string, ate: string, agrupar: AgrupamentoVendas) {
     disponivel: true, de, ate, agrupar, periodos, totais: soma(todas),
     por_meio: todas.length ? [meio('credito', 0.45), meio('debito', 0.26), meio('pix', 0.24), meio('outro', 0.05)] : [],
     sincronizacao: { ultimo_sucesso_em: new Date(Date.now() - 18 * 60_000).toISOString(), falhas_seguidas: 0, atrasada: false },
-    observacao: 'Receita líquida = produtos − descontos − devoluções. A taxa de serviço fica fora da receita (H2). Recebido por meio é o registrado no PDV, não o crédito no banco.',
+    conferencia: { situacao: 'conferido', dias_divergentes: [], dias_conferidos: grupos.size, dias_sem_conferencia: [], ultima_em: new Date(Date.now() - 20 * 60_000).toISOString() },
+    observacao: 'Faturamento PDV = o total da Eyemobile (produtos − descontos + taxa de serviço). Receita líquida = produtos − descontos − devoluções, SEM a taxa de serviço (repasse à equipe, H2). Recebido por meio é o registrado no PDV, não o crédito no banco.',
   };
 }
 

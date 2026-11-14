@@ -1,14 +1,15 @@
 // Vendas: faturamento do PDV (Eyemobile) por dia, semana ou mês, com ticket médio e o recebido por meio.
+// Faturamento PDV = o total da Eyemobile (com a taxa de serviço); receita líquida = sem a taxa. Nomes diferentes, sempre.
 // Rota: GET /admin/financeiro/relatorios/vendas?de&ate&agrupar=dia|semana|mes (até 400 dias). Os números vêm prontos do
 // backend (view oficial v_vendas_dia): aqui só se escolhe o período e se formata. Sem a loja ligada, "—", nunca zero.
 import { useEffect, useMemo, useState } from 'preact/hooks';
-import { Wallet, Receipt, Percent, HandCoins, RefreshCw, Store } from 'lucide-preact';
+import { Wallet, Receipt, Percent, HandCoins, RefreshCw, Store, ShoppingBag } from 'lucide-preact';
 import type { ContextoPainel } from '../../lib/sessao';
 import { useConsulta } from '../../lib/consulta';
 import { financeiro } from '../../lib/api/financeiro';
 import { moeda, num, inteiro, plural, dataCurta, mesAno, mesCurto, hojeISO, inicioMes, fimMes, somarDias, somarMeses, relativo, dataHora } from '../../lib/formato';
 import { lerParam, gravarParams } from '../../lib/rotas';
-import { Cartao, Segmentado, Indicador, Aviso } from '../../ui/base';
+import { Cartao, Segmentado, Indicador, Aviso, Situacao } from '../../ui/base';
 import { Dados, Esqueleto, Vazio } from '../../ui/estados';
 import { Tabela, type Coluna } from '../../ui/tabela';
 import { GraficoBarras, Legenda } from '../../ui/graficos';
@@ -101,11 +102,12 @@ function Relatorio({ r }: { r: Extract<RelatorioVendas, { disponivel: true }> })
   const colunas: Coluna<PeriodoVendas>[] = useMemo(() => [
     { id: 'periodo', titulo: r.agrupar === 'mes' ? 'Mês' : r.agrupar === 'semana' ? 'Semana' : 'Dia', ordenar: (p) => p.inicio, celula: (p) => <span style={{ whiteSpace: 'nowrap' }}>{rotuloPeriodo(r.agrupar, p)}</span> },
     { id: 'vendas', titulo: 'Vendas', numero: true, prioridade: 'media', ordenar: (p) => p.vendas, celula: (p) => <span class="num">{inteiro(p.vendas)}</span> },
+    { id: 'faturamento', titulo: 'Faturamento PDV', numero: true, ordenar: (p) => num(p.faturamento_pdv), celula: (p) => <span class="num forte" style={{ whiteSpace: 'nowrap' }}>{moeda(p.faturamento_pdv)}</span> },
     { id: 'bruto', titulo: 'Bruto', numero: true, prioridade: 'baixa', ordenar: (p) => num(p.faturamento_bruto), celula: (p) => <span class="num">{moeda(p.faturamento_bruto)}</span> },
     { id: 'descontos', titulo: 'Descontos', numero: true, prioridade: 'baixa', celula: (p) => <span class="num">{moeda(p.descontos)}</span> },
     { id: 'devolucoes', titulo: 'Devoluções', numero: true, prioridade: 'baixa', celula: (p) => <span class="num">{moeda(p.devolucoes)}</span> },
-    { id: 'liquida', titulo: 'Receita líquida', numero: true, ordenar: (p) => num(p.receita_liquida), celula: (p) => <span class="num forte" style={{ whiteSpace: 'nowrap' }}>{moeda(p.receita_liquida)}</span> },
-    { id: 'ticket', titulo: 'Ticket médio', numero: true, prioridade: 'media', ordenar: (p) => num(p.ticket_medio), celula: (p) => <span class="num">{moeda(p.ticket_medio)}</span> },
+    { id: 'liquida', titulo: 'Receita líquida', numero: true, ordenar: (p) => num(p.receita_liquida), celula: (p) => <span class="num" style={{ whiteSpace: 'nowrap' }}>{moeda(p.receita_liquida)}</span> },
+    { id: 'ticket', titulo: 'Ticket por venda', numero: true, prioridade: 'media', ordenar: (p) => num(p.ticket_medio_venda), celula: (p) => <span class="num">{moeda(p.ticket_medio_venda)}</span> },
     { id: 'servico', titulo: 'Taxa de serviço*', numero: true, prioridade: 'baixa', celula: (p) => <span class="num">{moeda(p.taxa_servico)}</span> },
   ], [r.agrupar]);
 
@@ -119,11 +121,20 @@ function Relatorio({ r }: { r: Extract<RelatorioVendas, { disponivel: true }> })
         <p class="fraco">Eyemobile sincronizada {relativo(s.ultimo_sucesso_em)}.</p>
       )}
 
+      {r.conferencia?.situacao === 'divergente' ? (
+        <Aviso tom="atencao">
+          <strong>Em conferência:</strong> a Eyemobile e o sistema não bateram em {r.conferencia.dias_divergentes.map((d) => `${dataCurta(d.dia)} (Eyemobile ${moeda(d.faturamento_pdv)} × sistema ${moeda(d.faturamento_interno)})`).join(', ')}. Os totais deste período ainda não estão confirmados.
+        </Aviso>
+      ) : r.conferencia?.situacao === 'conferido' ? (
+        <p class="fraco">Conferido com a Eyemobile, venda a venda{r.conferencia.ultima_em ? ` (${relativo(r.conferencia.ultima_em)})` : ''}.</p>
+      ) : null}
+
       <section class="indicadores" aria-label="Totais do período">
-        <Indicador rotulo="Receita líquida" medio icone={<Wallet aria-hidden="true" />} valor={moeda(t.receita_liquida)} rodape={plural(t.vendas, 'venda', 'vendas')} />
-        <Indicador rotulo="Ticket médio" medio icone={<Receipt aria-hidden="true" />} valor={moeda(t.ticket_medio)} rodape={`Faturamento bruto ${moeda(t.faturamento_bruto)}`} />
-        <Indicador rotulo="Descontos" medio icone={<Percent aria-hidden="true" />} valor={moeda(t.descontos)} rodape={`Devoluções ${moeda(t.devolucoes)} · ${plural(t.vendas_canceladas, 'cancelada', 'canceladas')}`} />
+        <Indicador rotulo="Faturamento PDV" medio icone={<ShoppingBag aria-hidden="true" />} valor={moeda(t.faturamento_pdv)} rodape={<>{r.conferencia?.situacao === 'divergente' && <Situacao tom="atencao">Em conferência</Situacao>} {`Total da Eyemobile · ${plural(t.vendas, 'venda', 'vendas')}`}</>} />
+        <Indicador rotulo="Receita líquida" medio icone={<Wallet aria-hidden="true" />} valor={moeda(t.receita_liquida)} rodape="Sem a taxa de serviço, menos devoluções" />
+        <Indicador rotulo="Ticket médio por venda" medio icone={<Receipt aria-hidden="true" />} valor={moeda(t.ticket_medio_venda)} rodape={`Por pagamento ${moeda(t.ticket_medio_pagamento)} · ${plural(t.pagamentos ?? 0, 'pagamento', 'pagamentos')}`} />
         <Indicador rotulo="Taxa de serviço" medio icone={<HandCoins aria-hidden="true" />} valor={moeda(t.taxa_servico)} rodape="Fora da receita (vai para a equipe)" />
+        <Indicador rotulo="Descontos" medio icone={<Percent aria-hidden="true" />} valor={moeda(t.descontos)} rodape={`Devoluções ${moeda(t.devolucoes)} · ${plural(t.vendas_canceladas, 'cancelada', 'canceladas')}`} />
       </section>
 
       {r.periodos.length > 1 && (

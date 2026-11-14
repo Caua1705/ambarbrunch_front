@@ -2,8 +2,12 @@
 // com UM filtro de período para tudo. Pendências não moram aqui: ficam no sino do topo (layout/avisos.ts).
 //
 // Fontes (todas oficiais do backend; nada é recalculado aqui):
-//  - Receita e ticket médio: GET /financeiro/relatorios/vendas (view v_vendas_dia — a venda da Eyemobile, uma vez só; o
-//    repasse da Stone é recebimento, não receita).
+//  - Faturamento PDV e ticket médio por venda: GET /financeiro/relatorios/vendas (view v_vendas_dia — a venda da
+//    Eyemobile, uma vez só; o repasse da Stone é recebimento, não receita). Faturamento PDV é o MESMO total da Eyemobile
+//    (com a taxa de serviço); a receita líquida (sem a taxa) aparece com esse nome, nunca como se fossem o mesmo número
+//    (divergência de 14/11/2026: Eyemobile R$ 1.318,90 × "Receita" R$ 1.199,00 = taxa de serviço de 10%).
+//  - Conferência Eyemobile × banco (`conferencia` no mesmo relatório): dia que não bateu deixa os números de vendas
+//    "Em conferência" em vez de confirmados.
 //  - Despesas: GET /financeiro/relatorios/despesas-por-categoria (confirmadas, por competência). O gráfico distribui as
 //    MESMAS despesas por data com GET /financeiro/lancamentos (tipo=despesa, status=confirmada; data = competência): só
 //    soma para desenhar, o total do indicador é o do backend.
@@ -126,6 +130,8 @@ function Executiva({ produtos }: { produtos: boolean }) {
 
   const v = vendas.dados?.disponivel ? vendas.dados : null;
   const va = vendasAnt.dados?.disponivel ? vendasAnt.dados : null;
+  const divergentes = v?.conferencia?.situacao === 'divergente' ? v.conferencia.dias_divergentes : [];
+  const emConferencia = divergentes.length > 0 ? <Situacao tom="atencao">Em conferência</Situacao> : null;
   const res = resultado.dados;
   const naPeriodo = rotuloPeriodo(p);
   // Só cai para "formas de pagamento" quando não há análise por produto. Erro de API aparece no cartão, com nova tentativa.
@@ -153,15 +159,21 @@ function Executiva({ produtos }: { produtos: boolean }) {
         </Aviso>
       )}
 
+      {divergentes.length > 0 && (
+        <Aviso tom="atencao">
+          <strong>Vendas em conferência.</strong> A Eyemobile e o sistema não bateram em {divergentes.map((d) => `${dataCurta(d.dia)} (diferença ${moeda(d.diferenca)})`).join(', ')}. Faturamento e ticket deste período aguardam a conferência.
+        </Aviso>
+      )}
+
       <section class="indicadores" aria-label="Indicadores do período">
         <Indicador
-          rotulo="Receita"
+          rotulo="Faturamento PDV"
           carregando={vendas.carregando}
-          valor={v ? moeda(v.totais.receita_liquida) : '—'}
+          valor={v ? moeda(v.totais.faturamento_pdv ?? null) : '—'}
           rodape={
             vendas.erro ? <FalhaIndicador consulta={vendas} />
             : !v ? SEM_VENDAS
-            : <><Variacao atual={num(v.totais.receita_liquida)} anterior={va ? num(va.totais.receita_liquida) : null} /> <span>Vendas líquidas {naPeriodo}</span></>
+            : <>{emConferencia}<Variacao atual={num(v.totais.faturamento_pdv)} anterior={va ? num(va.totais.faturamento_pdv) : null} /> <span>Total da Eyemobile {naPeriodo} · sem a taxa de serviço {moeda(v.totais.receita_liquida)}</span></>
           }
           href={vendas.erro ? undefined : '/admin/financeiro?aba=relatorios&relatorio=vendas'}
         />
@@ -193,14 +205,14 @@ function Executiva({ produtos }: { produtos: boolean }) {
           href={mes && !resultado.erro ? `/admin/financeiro?aba=relatorios&relatorio=resultado&mes=${mes}` : undefined}
         />
         <Indicador
-          rotulo="Ticket médio"
+          rotulo="Ticket médio por venda"
           carregando={vendas.carregando}
-          valor={v && v.totais.ticket_medio !== null ? moeda(v.totais.ticket_medio) : '—'}
-          rodape={vendas.erro ? <FalhaIndicador consulta={vendas} /> : !v ? SEM_VENDAS : v.totais.vendas ? <><Variacao atual={num(v.totais.ticket_medio)} anterior={va ? num(va.totais.ticket_medio) : null} /> <span>{plural(v.totais.vendas, 'venda', 'vendas')}</span></> : 'Nenhuma venda no período'}
+          valor={v && v.totais.ticket_medio_venda != null ? moeda(v.totais.ticket_medio_venda) : '—'}
+          rodape={vendas.erro ? <FalhaIndicador consulta={vendas} /> : !v ? SEM_VENDAS : v.totais.vendas ? <>{emConferencia}<Variacao atual={num(v.totais.ticket_medio_venda)} anterior={va ? num(va.totais.ticket_medio_venda) : null} /> <span>{plural(v.totais.vendas, 'venda', 'vendas')}{v.totais.ticket_medio_pagamento != null ? ` · por pagamento ${moeda(v.totais.ticket_medio_pagamento)}` : ''}</span></> : 'Nenhuma venda no período'}
         />
       </section>
 
-      <Cartao titulo="Receitas × despesas" descricao={`${agrupar === 'dia' ? 'Por dia' : agrupar === 'semana' ? 'Por semana' : 'Por mês'}${janela.ampliada ? ' · últimos 7 dias' : ''}`} acoes={<Legenda series={[{ nome: 'Receita', cor: COR_RECEITA }, { nome: 'Despesas', cor: COR_DESPESA }]} />}>
+      <Cartao titulo="Receitas × despesas" descricao={`${agrupar === 'dia' ? 'Por dia' : agrupar === 'semana' ? 'Por semana' : 'Por mês'}${janela.ampliada ? ' · últimos 7 dias' : ''}`} acoes={<Legenda series={[{ nome: 'Receita líquida', cor: COR_RECEITA }, { nome: 'Despesas', cor: COR_DESPESA }]} />}>
         <Dados consulta={despesasGrafico} recurso="O gráfico" esqueleto={<Esqueleto linhas={6} altura={28} />} compacto>
           {(desp) =>
             vendasGrafico.erro && !vendasGrafico.dados ? <Falha erro={vendasGrafico.erro} aoTentar={vendasGrafico.recarregar} compacto recurso="O relatório de vendas" />
@@ -287,7 +299,7 @@ function GraficoEvolucao({ de, ate, agrupar, vendas, despesas, completo }: { de:
         altura={260}
         series={[
           // Dia sem linha no relatório de vendas: sem venda registrada (0); sem a loja ligada, sem dado (null).
-          { nome: 'Receita', cor: COR_RECEITA, valores: eixo.map((b) => (semVendas ? null : receita.get(b) ?? 0)) },
+          { nome: 'Receita líquida', cor: COR_RECEITA, valores: eixo.map((b) => (semVendas ? null : receita.get(b) ?? 0)) },
           { nome: 'Despesas', cor: COR_DESPESA, valores: eixo.map((b) => gasto.get(b) ?? 0) },
         ]}
       />
@@ -297,7 +309,7 @@ function GraficoEvolucao({ de, ate, agrupar, vendas, despesas, completo }: { de:
           {!completo ? 'Período com muitas despesas: o gráfico mostra as 2.000 mais recentes; o total do indicador é o oficial.' : ''}
         </span>
       )}
-      <span class="fraco">Despesas pela data de competência; receita pela data da venda. Contas ainda não pagas entram pela competência, não pelo pagamento.</span>
+      <span class="fraco">Receita líquida: vendas sem a taxa de serviço (o Faturamento PDV, igual ao da Eyemobile, inclui a taxa). Despesas pela data de competência; receita pela data da venda. Contas ainda não pagas entram pela competência, não pelo pagamento.</span>
     </div>
   );
 }

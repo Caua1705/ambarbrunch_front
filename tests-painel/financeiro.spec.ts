@@ -403,6 +403,11 @@ test('Vendas: por dia, semana e mês, com o recebido por meio', async ({ page })
   await page.goto(`${DEMO}/admin/financeiro?aba=relatorios&relatorio=vendas`);
   await expect(page.getByRole('table', { name: 'Vendas por período', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Recebido por meio' })).toBeVisible();
+  // Faturamento PDV (igual à Eyemobile) e receita líquida (sem a taxa de serviço): dois números, dois nomes.
+  const totais = page.getByRole('region', { name: 'Totais do período' });
+  for (const k of ['Faturamento PDV', 'Receita líquida', 'Ticket médio por venda', 'Taxa de serviço']) await expect(totais.getByText(k, { exact: true })).toBeVisible();
+  await expect(page.getByRole('columnheader', { name: 'Faturamento PDV' })).toBeVisible();
+  await expect(page.getByText(/Conferido com a Eyemobile/)).toBeVisible();
   await page.getByRole('group', { name: 'Agrupar por' }).getByRole('button', { name: 'Mês' }).click();
   await expect(page.getByRole('columnheader', { name: 'Mês' })).toBeVisible();
 });

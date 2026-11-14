@@ -77,7 +77,7 @@ test('gerência: vê os módulos (sem Clientes) e o financeiro na Visão Geral; 
   await expect(nav.getByRole('link', { name: 'Clientes' })).toHaveCount(0);
   await expect(nav.getByRole('link', { name: /Clube/ })).toHaveCount(0);
   const kpis = page.getByRole('region', { name: 'Indicadores do período' });
-  for (const k of ['Receita', 'Despesas', 'Resultado gerencial', 'Ticket médio']) await expect(kpis.getByText(k, { exact: true })).toBeVisible();
+  for (const k of ['Faturamento PDV', 'Despesas', 'Resultado gerencial', 'Ticket médio por venda']) await expect(kpis.getByText(k, { exact: true })).toBeVisible();
   // Clube oculto da navegação, não apagado: quem tem o link continua entrando.
   await page.goto(`${DEMO}/admin/clube`);
   await expect(page.getByRole('heading', { name: 'Clube Âmbar', level: 1 })).toBeVisible();

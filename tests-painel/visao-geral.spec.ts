@@ -28,10 +28,12 @@ test('receita, despesas e ticket médio são os totais do backend no período', 
   const vendas = await (await respostaVendas).json();
   const categorias = await (await respostaCategorias).json();
   expect(vendas.disponivel).toBe(true);
-  await expect(kpi(page, 'Receita').locator('.indicador__valor')).toHaveText(brl(vendas.totais.receita_liquida));
+  await expect(kpi(page, 'Faturamento PDV').locator('.indicador__valor')).toHaveText(brl(vendas.totais.faturamento_pdv));
   await expect(kpi(page, 'Despesas').locator('.indicador__valor')).toHaveText(brl(categorias.total));
-  await expect(kpi(page, 'Ticket médio').locator('.indicador__valor')).toHaveText(brl(vendas.totais.ticket_medio));
-  await expect(kpi(page, 'Receita')).toContainText('Vendas líquidas');
+  await expect(kpi(page, 'Ticket médio por venda').locator('.indicador__valor')).toHaveText(brl(vendas.totais.ticket_medio_venda));
+  // A receita sem a taxa de serviço aparece com esse nome, nunca como se fosse o faturamento da Eyemobile.
+  await expect(kpi(page, 'Faturamento PDV')).toContainText(`sem a taxa de serviço ${brl(vendas.totais.receita_liquida)}`);
+  await expect(page.getByText('Em conferência')).toHaveCount(0);
   await expect(kpi(page, 'Despesas')).toContainText('Confirmadas por competência');
   await expect(page.getByRole('heading', { name: 'Produtos mais vendidos' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Despesas por categoria' })).toBeVisible();
@@ -59,7 +61,7 @@ test('receitas × despesas: receita verde e despesa vermelha nas barras, na lege
   await page.mouse.move(caixa.x + caixa.width * 0.9, caixa.y + caixa.height * 0.5);
   const dica = cartao.locator('.grafico__dica');
   await expect(dica).toBeVisible();
-  await expect(dica.locator('.grafico__dica-serie')).toHaveText(['Receita', 'Despesas']);
+  await expect(dica.locator('.grafico__dica-serie')).toHaveText(['Receita líquida', 'Despesas']);
   expect(await dica.locator('.grafico__dica-serie i').nth(0).evaluate((e) => getComputedStyle(e).backgroundColor)).toBe(VERDE);
   expect(await dica.locator('.grafico__dica-serie i').nth(1).evaluate((e) => getComputedStyle(e).backgroundColor)).toBe(VERMELHO);
   // a marca continua vinho
@@ -80,7 +82,7 @@ test('receitas × despesas sem vendas sincronizadas: nenhuma barra verde (receit
 
 test('o filtro de período muda o intervalo pedido ao backend', async ({ page }) => {
   await page.goto(`${DEMO}/admin`);
-  await expect(kpi(page, 'Receita').locator('.indicador__valor')).not.toHaveText('—');
+  await expect(kpi(page, 'Faturamento PDV').locator('.indicador__valor')).not.toHaveText('—');
   const pedido = page.waitForRequest((r) => /relatorios\/vendas\?/.test(r.url()) && /agrupar=dia/.test(r.url()));
   await page.getByRole('group', { name: 'Período' }).getByRole('button', { name: '7 dias' }).click();
   const u = new URL((await pedido).url());
@@ -93,10 +95,10 @@ test('o filtro de período muda o intervalo pedido ao backend', async ({ page })
 test('sem a loja do PDV ligada: nenhum aviso amarelo, "—" e nunca R$ 0,00 de receita', async ({ page }) => {
   await semLoja(page);
   await page.goto(`${DEMO}/admin`);
-  await expect(kpi(page, 'Receita')).toContainText('Sem vendas sincronizadas');
+  await expect(kpi(page, 'Faturamento PDV')).toContainText('Sem vendas sincronizadas');
   await expect(page.getByText('Aguardando dados de vendas')).toHaveCount(0);
   await expect(page.locator('.aviso')).toHaveCount(0);
-  await expect(kpi(page, 'Receita').locator('.indicador__valor')).toHaveText('—');
+  await expect(kpi(page, 'Faturamento PDV').locator('.indicador__valor')).toHaveText('—');
   await expect(kpi(page, 'Ticket médio').locator('.indicador__valor')).toHaveText('—');
   // as despesas continuam: vêm do Financeiro, não da Eyemobile
   await expect(kpi(page, 'Despesas').locator('.indicador__valor')).not.toHaveText('—');
@@ -107,10 +109,10 @@ test('erro da API de vendas não vira "sem vendas": aparece no indicador e o "Te
   let falhar = true;
   await page.route('**/admin/api/financeiro/relatorios/vendas*', (r) => (falhar ? r.fulfill({ status: 500, json: { detail: 'erro' } }) : r.fallback()));
   await page.goto(`${DEMO}/admin`);
-  const receita = kpi(page, 'Receita');
+  const receita = kpi(page, 'Faturamento PDV');
   await expect(receita.locator('.indicador__falha')).toContainText('O sistema teve um problema');
   await expect(receita.getByRole('link')).toHaveCount(0);
-  await expect(page.locator('a.indicador', { hasText: 'Receita' })).toHaveCount(0);
+  await expect(page.locator('a.indicador', { hasText: 'Faturamento PDV' })).toHaveCount(0);
   await expect(page.getByText('Sem vendas sincronizadas')).toHaveCount(0);
   await expect(page.getByText('Receita indisponível')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Não foi possível carregar' }).first()).toBeVisible();
@@ -125,7 +127,7 @@ test('erro nas despesas fica no indicador e no cartão de despesas, com nova ten
   await page.route('**/admin/api/financeiro/relatorios/despesas-por-categoria*', (r) => (falhar ? r.fulfill({ status: 503, json: { detail: 'Fora do ar.' } }) : r.fallback()));
   await page.goto(`${DEMO}/admin`);
   await expect(kpi(page, 'Despesas').locator('.indicador__falha')).toContainText('Fora do ar.');
-  await expect(kpi(page, 'Receita').locator('.indicador__falha')).toHaveCount(0);
+  await expect(kpi(page, 'Faturamento PDV').locator('.indicador__falha')).toHaveCount(0);
   falhar = false;
   await kpi(page, 'Despesas').getByRole('button', { name: 'Tentar de novo' }).click();
   await expect(kpi(page, 'Despesas').locator('.indicador__falha')).toHaveCount(0);
