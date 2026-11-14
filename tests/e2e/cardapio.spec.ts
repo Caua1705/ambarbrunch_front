@@ -42,7 +42,7 @@ test('Cinnamon Rolls: os quatro sabores aprovados, sem S’mores e separados dos
   await page.goto('/cardapio/');
   const rolls = page.locator('#' + (await page.locator('[data-item="cinnamon_rolls.biscoff"]').evaluate((e) => e.closest('section')!.id)));
   await expect(rolls.locator('[data-item]')).toHaveCount(4);
-  for (const [id, preco] of [['tradicional', 1800], ['mood_cheesecake', 2300], ['kinder_bueno', 2400], ['biscoff', 2500]] as const) {
+  for (const [id, preco] of [['tradicional', 1800], ['mood_cheesecake', 2300], ['kinder_bueno', 2500], ['biscoff', 2500]] as const) {
     await expect(rolls.locator(`[data-item="cinnamon_rolls.${id}"]`)).toHaveAttribute('data-preco', String(preco));
   }
   await expect(page.locator('main')).not.toContainText(/S.mores/i);
