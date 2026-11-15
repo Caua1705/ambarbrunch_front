@@ -124,7 +124,8 @@ function hoje() {
   return {
     data, horario_servidor: new Date().toISOString(), biometria_disponivel: false, video: VIDEO,
     checklist: c ? dados(c) : null,
-    ...(c ? {} : { tarefas: modelo.filter((t) => t.ativo).map((t) => t.titulo), funcionarios: FUNCIONARIAS.map((f) => ({ ...f, ponto_hoje: false })) }),
+    funcionarios: FUNCIONARIAS.map((f) => ({ ...f, ponto_hoje: false })),
+    ...(c ? {} : { tarefas: modelo.filter((t) => t.ativo).map((t) => t.titulo) }),
   };
 }
 
@@ -160,6 +161,14 @@ export const ROTAS_PONTO: Rota[] = [
     const ate = ctx.query.get('ate') ?? '9999';
     const itens = checklists.filter((c) => c.data >= de && c.data <= ate).map((c) => dados(c, false, true));
     return { itens, total: itens.length, limite: 200, deslocamento: 0 };
+  }],
+  ['PUT', /^abertura\/([^/]+)\/responsavel$/, TODOS, async (ctx) => {
+    const c = checklist(ctx.params[0]);
+    if (c.estado !== 'em_andamento') throw new ErroDemo(409, 'checklist_concluido', 'Este checklist já foi concluído.');
+    const { funcionario_id } = await ctx.corpo<{ funcionario_id: string }>();
+    if (!FUNCIONARIAS.some((f) => f.id === funcionario_id)) throw new ErroDemo(404, 'funcionario_nao_encontrado', 'Funcionária não encontrada.');
+    c.funcionario = funcionario_id;
+    return dados(c);
   }],
   ['PATCH', /^abertura\/([^/]+)$/, TODOS, salvar],
   ['POST', /^abertura\/([^/]+)\/video\/envio$/, TODOS, (ctx) => {

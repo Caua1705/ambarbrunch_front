@@ -4,9 +4,11 @@
 //   2. Cada tarefa: Feito / Não feito (Não feito pede o motivo). Cada toque é salvo sozinho no servidor.
 //   3. Grava o vídeo da abertura (GravadorVideo) e envia.
 //   4. Concluir só liberado com tudo marcado e o vídeo salvo no servidor.
-// Já existe abertura hoje: volta direto para ela. Sem vídeo, quem conclui é a gerência pelo painel (Equipe → Abertura).
+// Já existe abertura hoje: volta direto para ela. Tocou no nome errado: "Voltar" mostra os nomes de novo e o toque em outro
+// nome troca a responsável (só em andamento; marcações e vídeo ficam; fica na auditoria). Sem vídeo, quem conclui é a
+// gerência pelo painel (Equipe → Abertura).
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { Check, CheckCircle2, CloudOff, LoaderCircle, RotateCcw, X } from 'lucide-preact';
+import { ArrowLeft, Check, CheckCircle2, CloudOff, LoaderCircle, RotateCcw, X } from 'lucide-preact';
 import { ErroApi } from '../../lib/api/cliente';
 import { abertura } from '../../lib/api/operacao';
 import { invalidar, useConsulta } from '../../lib/consulta';
@@ -26,31 +28,47 @@ const iniciais = (nome: string) => nome.split(/\s+/).filter(Boolean).slice(0, 2)
 export function Abertura({ apiUrl }: { apiUrl: string | null }) {
   // Sem releitura periódica: o que está na tela (inclusive o que está sendo digitado) é a fonte até salvar.
   const consulta = useConsulta(CHAVE, () => abertura.hoje());
+  // null: o checklist. 'lista': voltou aos nomes. <id>: escolheu esse nome — os nomes ficam na tela (com o carregando no
+  // nome tocado) até o servidor devolver o checklist já com essa responsável; nunca aparece o nome antigo.
+  const [nomes, setNomes] = useState<string | null>(null);
   return (
     <Dados consulta={consulta} recurso="O checklist de abertura">
-      {(hoje) => (hoje.checklist
-        ? <Checklist key={hoje.checklist.id} inicial={hoje.checklist} hoje={hoje} apiUrl={apiUrl} />
-        : <EscolherNome hoje={hoje} />)}
+      {(hoje) => {
+        const c = hoje.checklist;
+        const mostrarNomes = !c || (c.estado === 'em_andamento' && nomes !== null
+          && (nomes === 'lista' || c.responsavel.funcionario_id !== nomes));
+        return mostrarNomes
+          ? <EscolherNome hoje={hoje} aoEscolher={(id) => setNomes(id)} />
+          : <Checklist key={`${c!.id}:${c!.responsavel.funcionario_id}`} inicial={c!} hoje={hoje} apiUrl={apiUrl} aoVoltar={() => setNomes('lista')} />;
+      }}
     </Dados>
   );
 }
 
 // --- 1. quem está abrindo ------------------------------------------------------------------------
 
-function EscolherNome({ hoje }: { hoje: AberturaHoje }) {
+function EscolherNome({ hoje, aoEscolher }: { hoje: AberturaHoje; aoEscolher: (id: string | null) => void }) {
   const [enviando, setEnviando] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const atual = hoje.checklist;
 
   const escolher = async (id: string) => {
     if (enviando) return;   // um toque só
+    // Voltou e tocou no mesmo nome: só volta ao checklist.
+    if (atual?.responsavel.funcionario_id === id) return aoEscolher(id);
     setEnviando(id);
     setErro(null);
     try {
-      await abertura.assumirDeclarada(id);
+      if (atual) await abertura.trocarResponsavel(atual.id, id);
+      else await abertura.assumirDeclarada(id);
+      aoEscolher(id);
       invalidar(CHAVE);
     } catch (e) {
       // Outra pessoa abriu antes: a tela volta direto para a abertura que já existe.
-      if (e instanceof ErroApi && e.codigo === 'abertura_ja_assumida') return invalidar(CHAVE);
+      if (e instanceof ErroApi && (e.codigo === 'abertura_ja_assumida' || e.codigo === 'checklist_concluido')) {
+        aoEscolher(null);
+        return invalidar(CHAVE);
+      }
       setErro(e instanceof ErroApi ? e.message : 'Não foi possível abrir o checklist. Tente de novo.');
       setEnviando(null);
     }
@@ -67,7 +85,7 @@ function EscolherNome({ hoje }: { hoje: AberturaHoje }) {
         <ul class="op-nomes">
           {hoje.funcionarios.map((f) => (
             <li key={f.id}>
-              <button type="button" class="op-nome" disabled={!!enviando} aria-busy={enviando === f.id || undefined} onClick={() => escolher(f.id)}>
+              <button type="button" class="op-nome" disabled={!!enviando} aria-busy={enviando === f.id || undefined} aria-current={atual?.responsavel.funcionario_id === f.id || undefined} onClick={() => escolher(f.id)}>
                 <span class="op-nome__inicial" aria-hidden="true">{enviando === f.id ? <LoaderCircle class="girando" /> : iniciais(f.nome_exibicao)}</span>
                 <span class="op-nome__texto">{f.nome_exibicao}</span>
               </button>
@@ -83,7 +101,7 @@ function EscolherNome({ hoje }: { hoje: AberturaHoje }) {
 
 type EstadoSalvo = 'salvo' | 'salvando' | 'erro';
 
-function Checklist({ inicial, hoje, apiUrl }: { inicial: ChecklistAbertura; hoje: AberturaHoje; apiUrl: string | null }) {
+function Checklist({ inicial, hoje, apiUrl, aoVoltar }: { inicial: ChecklistAbertura; hoje: AberturaHoje; apiUrl: string | null; aoVoltar: () => void }) {
   const [c, setC] = useState(inicial);
   const [itens, setItens] = useState<ItemChecklist[]>(inicial.itens ?? []);
   const [salvo, setSalvo] = useState<EstadoSalvo>('salvo');
@@ -181,8 +199,17 @@ function Checklist({ inicial, hoje, apiUrl }: { inicial: ChecklistAbertura; hoje
     );
   }
 
+  // Antes de voltar aos nomes, termina de salvar o que já foi marcado.
+  const voltar = async () => {
+    await filaRef.current;
+    aoVoltar();
+  };
+
   return (
     <div class="op-abertura">
+      <button type="button" class="op-voltar" onClick={voltar}>
+        <ArrowLeft aria-hidden="true" /> Voltar
+      </button>
       <div class="op-abertura__cabeca op-abertura__cabeca--linha">
         <div>
           <h2>Abertura · {dataCurta(c.data)}</h2>

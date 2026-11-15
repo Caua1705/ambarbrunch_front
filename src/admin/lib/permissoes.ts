@@ -12,11 +12,18 @@ const TODOS: Papel[] = ['admin', 'gerente', 'operador'];
 const GERENCIA: Papel[] = ['admin', 'gerente'];
 const ADMIN: Papel[] = ['admin'];
 
-// O Atendente vive no Modo Operação (Conversas | Reservas | Ponto): o middleware leva qualquer página do painel para lá.
+/**
+ * Conversas no Modo Operação do Atendente: DESLIGADO por ora (dono, 15/11/2026 — o tablet fica só com Reservas e Ponto).
+ * Desligado, o Atendente não vê a seção Conversas nem abre /admin/atendimento (o servidor do painel recusa a página).
+ * O backend ainda dá ao perfil as permissões atendimento.*; religar = trocar para true.
+ */
+export const ATENDENTE_CONVERSAS = false;
+
+// O Atendente vive no Modo Operação (Reservas | Ponto): o middleware leva qualquer página do painel para lá.
 const MODULOS: Record<Area, Papel[]> = {
   'visao-geral': GERENCIA,
   reservas: TODOS,
-  atendimento: TODOS,
+  atendimento: ATENDENTE_CONVERSAS ? TODOS : GERENCIA,
   clube: GERENCIA,
   financeiro: GERENCIA,
   estoque: GERENCIA,

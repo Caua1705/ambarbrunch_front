@@ -74,6 +74,7 @@ export interface AberturaHoje {
   checklist: ChecklistAbertura | null;
   /** Só antes de alguém assumir. */
   tarefas?: string[];
+  /** Sempre (o "Voltar" do checklist volta para os nomes). */
   funcionarios?: { id: string; nome_exibicao: string; ponto_hoje: boolean }[];
 }
 

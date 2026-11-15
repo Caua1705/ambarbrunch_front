@@ -2,7 +2,7 @@
 import { test, expect } from '@playwright/test';
 import { DEMO, entrarDemo } from './apoio';
 
-test('Atendente: abre no Modo Operação com Conversas, Reservas e Ponto, tudo na mesma tela e sem código de tablet', async ({ page }) => {
+test('Atendente: abre no Modo Operação só com Reservas e Ponto (Conversas fora por ora), sem código de tablet', async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 768 });
   await entrarDemo(page, 'operador');
   await page.goto(`${DEMO}/admin`);
@@ -10,9 +10,13 @@ test('Atendente: abre no Modo Operação com Conversas, Reservas e Ponto, tudo n
   const secoes = page.getByRole('navigation', { name: /Seções/ });
   await expect(secoes.getByRole('link')).toHaveCount(0);   // nenhuma seção leva para fora
   await expect(secoes.getByRole('button', { name: /Reservas/ })).toHaveAttribute('aria-current', 'page');
-  await secoes.getByRole('button', { name: /Conversas/ }).click();
-  await expect(page).toHaveURL(/\/admin\/operacao\?secao=atendimento/);
-  await expect(page.getByRole('list', { name: 'Conversas' })).toBeVisible();
+  // Conversas fora do tablet (dono, 15/11/2026): nem a seção, nem pelo endereço.
+  await expect(secoes.getByRole('button')).toHaveCount(2);
+  await expect(secoes.getByRole('button', { name: /Conversas/ })).toHaveCount(0);
+  await page.goto(`${DEMO}/admin/operacao?secao=atendimento`);
+  await expect(page.getByRole('list', { name: 'Conversas' })).toHaveCount(0);
+  await page.goto(`${DEMO}/admin/atendimento`);
+  await expect(page.getByRole('list', { name: 'Conversas' })).toHaveCount(0);
   await secoes.getByRole('button', { name: /Ponto/ }).click();
   await expect(page).toHaveURL(/secao=ponto/);
   await expect(page.locator('iframe')).toHaveCount(0);

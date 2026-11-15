@@ -35,8 +35,18 @@ test('checklist de abertura: toca no nome, marca, grava o vídeo, envia e conclu
   // Os nomes já estão na tela: nenhum botão "Assumir", nenhum rosto, nenhuma confirmação.
   await expect(page.getByRole('heading', { name: 'Quem está abrindo hoje?' })).toBeVisible();
   await expect(page.getByRole('button', { name: /Assumir/ })).toHaveCount(0);
+  // Tocou no nome errado: Voltar mostra os nomes de novo e o toque no certo troca (sem modal).
+  await page.getByRole('button', { name: /Rayssa/ }).click();
+  await expect(page.getByText('Responsável: Rayssa')).toBeVisible();
+  await page.getByRole('button', { name: 'Voltar' }).click();
+  await expect(page.getByRole('heading', { name: 'Quem está abrindo hoje?' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Rayssa/ })).toHaveAttribute('aria-current', 'true');
   await page.getByRole('button', { name: /Ritiele/ }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByText('Responsável: Ritiele')).toBeVisible();
+  // Voltar e tocar no mesmo nome só volta ao checklist.
+  await page.getByRole('button', { name: 'Voltar' }).click();
+  await page.getByRole('button', { name: /Ritiele/ }).click();
   await expect(page.getByText('Responsável: Ritiele')).toBeVisible();
   await expect(page.getByText(/aguardando|confirmação do gestor/)).toHaveCount(0);
   await expect(page.locator('.op-tarefa')).toHaveCount(13);

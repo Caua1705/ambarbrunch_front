@@ -3,11 +3,14 @@
 // registro manual sem duplicar (409), handoff (assumir e responder com o assistente desligado), erros e o backend antigo.
 // A demonstração imita app/modulos/atendimento/eventos.py (mesmas regras e códigos de erro do contrato §7).
 import { test, expect, type Page } from '@playwright/test';
+import { ATENDENTE_CONVERSAS } from '../src/admin/lib/permissoes';
 import { DEMO, entrarDemo, semRolagemHorizontal } from './apoio';
 
 const escrever = { 'X-Painel': '1', 'Content-Type': 'application/json', Origin: DEMO };
 
 async function abrir(page: Page, papel: 'admin' | 'gerente' | 'operador') {
+  // Conversas fora do tablet do Atendente (15/11/2026): enquanto desligado, a caixa é exercitada pela gerência.
+  if (papel === 'operador' && !ATENDENTE_CONVERSAS) papel = 'gerente';
   await entrarDemo(page, papel);
   await page.goto(`${DEMO}/admin/atendimento`);
   // O Atendente vê as Conversas dentro do Modo Operação (o painel administrativo não é dele).
@@ -65,6 +68,7 @@ test('caixa: etiqueta Evento, atalho com os que aguardam contato e visão compac
 });
 
 test('Atendente: corrige os dados, não muda o status comercial; assume e responde com o assistente desligado', async ({ page }) => {
+  test.skip(!ATENDENTE_CONVERSAS, 'Conversas fora do tablet do Atendente (dono, 15/11/2026)');
   await abrir(page, 'operador');
   await item(page, /Larissa Pontes/).click();
   const f = ficha(page);

@@ -2,9 +2,12 @@
 // ligado/desligado, assumir, ficha do contato, nova conversa com template, cardápio, campanhas, base de conhecimento e
 // cadastros duplicados (estes dois em Configurações) e o fim da página Clientes (redireciona para cá).
 import { test, expect, type Page } from '@playwright/test';
+import { ATENDENTE_CONVERSAS } from '../src/admin/lib/permissoes';
 import { DEMO, entrarDemo, post, semRolagemHorizontal } from './apoio';
 
 async function abrirAtendimento(page: Page, papel: 'admin' | 'gerente' | 'operador' = 'operador') {
+  // Conversas fora do tablet do Atendente (15/11/2026): enquanto desligado, a caixa é exercitada pela gerência.
+  if (papel === 'operador' && !ATENDENTE_CONVERSAS) papel = 'gerente';
   await entrarDemo(page, papel);
   await page.goto(`${DEMO}/admin/atendimento`);
   // O Atendente vê as Conversas dentro do Modo Operação (o painel administrativo não é dele).
@@ -35,6 +38,7 @@ test('conversa com o assistente: responder assume, ligar o assistente de novo e 
 });
 
 test('conversa de outra pessoa: só "Assumir no lugar" libera a resposta', async ({ page }) => {
+  test.skip(!ATENDENTE_CONVERSAS, 'Conversas fora do tablet do Atendente (dono, 15/11/2026)');
   // a demonstração guarda o estado no servidor: antes, a Gerente fica com a conversa (transferindo se preciso)
   await entrarDemo(page, 'gerente');
   const [paula] = await (await page.request.get(`${DEMO}/admin/api/atendimento/conversas?busca=Paula`)).json();
@@ -204,6 +208,7 @@ test('Gerente: campanha de teste — rascunho com bloqueio, confirmação e envi
 });
 
 test('base de conhecimento em Configurações: a gerência cadastra com fonte; o Atendente só lê, no Atendimento', async ({ page }) => {
+  test.skip(!ATENDENTE_CONVERSAS, 'Conversas fora do tablet do Atendente (dono, 15/11/2026)');
   await abrirConfiguracoes(page);
   await page.getByRole('button', { name: /Base de conhecimento da IA/ }).click();
   const g = page.getByRole('dialog', { name: 'Base de conhecimento' });

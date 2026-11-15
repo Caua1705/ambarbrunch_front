@@ -59,6 +59,8 @@ export async function enviarCaptura(sessao: SessaoTerminal, formulario: FormData
 export const abertura = {
   hoje: () => pedir<AberturaHoje>(`${A}/hoje`),
   assumirDeclarada: (funcionarioId: string) => pedir<ChecklistAbertura>(`${A}/hoje/assumir`, { metodo: 'POST', corpo: { funcionario_id: funcionarioId } }),
+  /** "Voltar" do checklist: troca o nome enquanto a abertura está em andamento (marcações e vídeo ficam). */
+  trocarResponsavel: (id: string, funcionarioId: string) => pedir<ChecklistAbertura>(`${A}/${id}/responsavel`, { metodo: 'PUT', corpo: { funcionario_id: funcionarioId } }),
   salvar: (id: string, itens: { id: string; situacao: SituacaoItem | null; observacao: string | null }[], observacao?: string | null) =>
     pedir<ChecklistAbertura>(`${A}/${id}`, { metodo: 'PATCH', corpo: { itens, ...(observacao !== undefined ? { observacao } : {}) } }),
   autorizarEnvio: (id: string) => pedir<EnvioVideo>(`${A}/${id}/video/envio`, { metodo: 'POST' }),

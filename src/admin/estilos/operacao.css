@@ -972,6 +972,30 @@ button.op-secoes__item {
   cursor: default;
   opacity: 0.6;
 }
+.op-nome[aria-current='true'] {
+  border-color: var(--marca);
+  background: var(--marca-suave);
+}
+.op-voltar {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: var(--e-2);
+  min-height: 56px;
+  padding: var(--e-2) var(--e-4);
+  border: 2px solid var(--borda-controle);
+  border-radius: var(--r-l);
+  background: var(--superficie);
+  color: var(--texto);
+  font: inherit;
+  font-size: var(--op-t-texto);
+  font-weight: 700;
+  cursor: pointer;
+}
+.op-voltar svg {
+  width: 24px;
+  height: 24px;
+}
 .op-nome[aria-busy='true'] {
   border-color: var(--marca);
   opacity: 1;
