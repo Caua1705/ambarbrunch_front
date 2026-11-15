@@ -15,7 +15,8 @@ const ADMIN: Papel[] = ['admin'];
 /**
  * Conversas no Modo Operação do Atendente: DESLIGADO por ora (dono, 15/11/2026 — o tablet fica só com Reservas e Ponto).
  * Desligado, o Atendente não vê a seção Conversas nem abre /admin/atendimento (o servidor do painel recusa a página).
- * O backend ainda dá ao perfil as permissões atendimento.*; religar = trocar para true.
+ * O backend também recusa (403 em /admin/atendimento/* para o Atendente desde 3351214): religar exige devolver
+ * atendimento.* ao perfil ATENDENTE no backend (app/modulos/usuarios/permissoes.py) e trocar isto para true.
  */
 export const ATENDENTE_CONVERSAS = false;
 
