@@ -9,6 +9,14 @@
 > configuração do tablet: `docs/equipe-ponto/ATENDENTE-TABLET.md` no backend. Testes: `tests-painel/tablet-abertura.spec.ts`
 > e `tests-tablet-real/` (backend real local, `playwright.tablet-real.config.ts`).
 
+> **15/11/2026 — Ponto e Checklist simplificados.** *Registrar ponto*: toque → câmera → nome, tipo (Entrada, Saída para
+> intervalo, Volta do intervalo, Saída do expediente — decidido pelo backend pela jornada, escala e marcações) e hora →
+> **Confirmar ponto**. *Checklist de abertura*: os nomes aparecem na hora, um toque no próprio nome abre o checklist (sem
+> rosto, sem modal, sem aprovação; identificação declarada), Feito / Não feito com motivo salvos sozinhos, "8 de 13
+> tarefas", **Gravar vídeo** com um botão (720p sem som, quadro fixo, MP4 H.264 quando possível, guardado no tablet até o
+> servidor confirmar) e **Concluir abertura** só com o vídeo salvo. Equipe → Abertura: situação do vídeo no WhatsApp,
+> reenvio (Proprietário) e conclusão sem vídeo pela gerência. Testes: `tests-painel/tablet-abertura.spec.ts`.
+
 > Criado em 28/10/2026 (frontend `main`, sem push). Parte do painel administrativo (`docs/technical/PAINEL-ADMIN.md`):
 > mesma sessão, mesmas permissões, mesmas rotas reais de Reservas. Nenhuma rota nova no backend.
 

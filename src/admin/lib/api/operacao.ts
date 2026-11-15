@@ -58,19 +58,19 @@ export async function enviarCaptura(sessao: SessaoTerminal, formulario: FormData
 
 export const abertura = {
   hoje: () => pedir<AberturaHoje>(`${A}/hoje`),
-  assumirPeloRosto: (sessaoId: string, autorizacao: string) =>
-    pedir<ChecklistAbertura>(`${A}/hoje/assumir`, { metodo: 'POST', corpo: { sessao_id: sessaoId, autorizacao } }),
   assumirDeclarada: (funcionarioId: string) => pedir<ChecklistAbertura>(`${A}/hoje/assumir`, { metodo: 'POST', corpo: { funcionario_id: funcionarioId } }),
   salvar: (id: string, itens: { id: string; situacao: SituacaoItem | null; observacao: string | null }[], observacao?: string | null) =>
     pedir<ChecklistAbertura>(`${A}/${id}`, { metodo: 'PATCH', corpo: { itens, ...(observacao !== undefined ? { observacao } : {}) } }),
   autorizarEnvio: (id: string) => pedir<EnvioVideo>(`${A}/${id}/video/envio`, { metodo: 'POST' }),
+  /** No tablet, sem motivo (o vídeo é obrigatório). Com motivo, só a gerência: conclusão sem vídeo (defeito técnico). */
   concluir: (id: string, semVideoMotivo?: string | null) =>
     pedir<ChecklistAbertura>(`${A}/${id}/concluir`, { metodo: 'POST', corpo: { sem_video_motivo: semVideoMotivo || null } }),
   // consulta (gerência)
   listar: (de: string, ate: string) => pedir<PaginaAberturas>(A, { query: { de, ate, limite: 200 } }),
   detalhe: (id: string) => pedir<ChecklistAbertura>(`${A}/${id}`),
   linkVideo: (id: string) => pedir<{ url: string | null; mime: string; expira_em: string }>(`${A}/${id}/video`),
-  confirmarResponsavel: (id: string) => pedir<ChecklistAbertura>(`${A}/${id}/confirmar-responsavel`, { metodo: 'POST' }),
+  /** Reenvio controlado do vídeo ao WhatsApp (Proprietário), só depois de uma falha. */
+  reenviarWhatsapp: (id: string) => pedir<ChecklistAbertura>(`${A}/${id}/whatsapp/reenviar`, { metodo: 'POST' }),
   // modelo (Proprietário)
   modelo: () => pedir<TarefaModelo[]>(`${A}/modelo`),
   criarTarefa: (titulo: string) => pedir<TarefaModelo>(`${A}/modelo`, { metodo: 'POST', corpo: { titulo } }),

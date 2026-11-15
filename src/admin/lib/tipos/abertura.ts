@@ -16,7 +16,7 @@ export interface ItemChecklist {
 export interface Responsavel {
   funcionario_id: string;
   nome_exibicao: string | null;
-  /** `facial`: identificada pelo rosto no tablet. `declarada`: escolhida na lista (sem rosto), confirmada depois pelo gestor. */
+  /** `declarada`: a pessoa tocou no próprio nome no tablet (não é biometria). `facial`: registros antigos, pelo rosto. */
   metodo: 'facial' | 'declarada';
   verificada: boolean;
   confirmado_por: string | null;
@@ -28,6 +28,24 @@ export interface VideoAbertura {
   tamanho_bytes: number;
   duracao_s: number | null;
   enviado_em: string;
+}
+
+/** O vídeo da abertura no WhatsApp (fila da Júlia). "aceita" = a Z-API recebeu; só "entregue"/"lida" confirmam a chegada. */
+export interface WhatsappAbertura {
+  status: 'aguardando_midia' | 'pendente' | 'enviando' | 'aceita' | 'entregue' | 'lida' | 'falhou' | 'bloqueada' | 'cancelada' | null;
+  modo: 'desligado' | 'teste' | 'adm';
+  envios: number;
+  pode_reenviar: boolean;
+  motivo?: string | null;
+  grupo?: 'teste' | 'adm';
+  envio_id?: number;
+  tentativas?: number;
+  zapi_message_id?: string | null;
+  ultimo_erro?: string | null;
+  criado_em?: string;
+  aceito_em?: string | null;
+  entregue_em?: string | null;
+  lido_em?: string | null;
 }
 
 export interface ChecklistAbertura {
@@ -42,6 +60,8 @@ export interface ChecklistAbertura {
   resumo: { total: number; feitos: number; nao_feitos: number; pendentes: number };
   nao_feitos: { titulo: string; observacao: string | null }[];
   video: VideoAbertura | null;
+  /** Só nas telas da gerência. */
+  whatsapp?: WhatsappAbertura;
   /** Só no detalhe (a lista não traz as tarefas). */
   itens?: ItemChecklist[];
 }

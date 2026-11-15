@@ -127,30 +127,28 @@ test.describe.serial('tablet do café', () => {
     await semCamera.close();
   });
 
-  test('17–23. checklist de abertura: assume pelo rosto, preenche, grava o vídeo, envia; o Proprietário consulta e assiste', async ({ browser }) => {
+  test('17–23. checklist de abertura: toca no nome, preenche, grava o vídeo, envia; o Proprietário consulta e assiste', async ({ browser }) => {
     await pagina.setViewportSize({ width: 800, height: 1280 });   // tablet em pé
     await pagina.goto('/admin/operacao?secao=ponto&ponto=abertura');
-    await pagina.getByRole('button', { name: 'Assumir a abertura' }).click();
-    const dialogo = pagina.getByRole('dialog', { name: 'Rituane, assumir a abertura de hoje?' });
-    await dialogo.getByRole('button', { name: 'Assumir' }).click({ timeout: 40_000 });
-    await expect(pagina.getByText('pelo rosto')).toBeVisible();
+    // Sem rosto, sem modal, sem aprovação: um toque no próprio nome abre o checklist.
+    await pagina.getByRole('button', { name: /Rituane/ }).click();
+    await expect(pagina.getByText('Responsável: Rituane')).toBeVisible();
     const tarefas = pagina.locator('.op-tarefa');
     await expect(tarefas).toHaveCount(13);
     for (let i = 0; i < 13; i++) await tarefas.nth(i).getByRole('button', { name: 'Feito', exact: true }).click();
-    await expect(pagina.getByText('13 de 13 feitas')).toBeVisible();
+    await expect(pagina.getByText('13 de 13 tarefas')).toBeVisible();
     await expect(pagina.getByRole('status').filter({ hasText: 'Salvo' })).toBeVisible();
 
-    await pagina.getByRole('button', { name: 'Gravar vídeo da abertura' }).click();
-    await pagina.getByRole('button', { name: 'Abrir a câmera' }).click();
-    await pagina.getByRole('button', { name: 'Gravar', exact: true }).click();
+    await pagina.getByRole('button', { name: 'Gravar vídeo' }).click();
+    await pagina.getByRole('button', { name: 'Iniciar gravação' }).click();
     await pagina.waitForTimeout(3000);
-    await pagina.getByRole('button', { name: 'Parar a gravação' }).click();
+    await pagina.getByRole('button', { name: 'Parar' }).click();
     await expect(pagina.getByLabel('Prévia do vídeo da abertura')).toBeVisible();
     await pagina.getByRole('button', { name: 'Enviar vídeo' }).click();
-    await expect(pagina.getByText(/Vídeo enviado às/)).toBeVisible();
+    await expect(pagina.getByText(/^Vídeo salvo/)).toBeVisible();
     expect(await pagina.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
-    await pagina.getByRole('button', { name: 'Concluir e enviar' }).click();
-    await expect(pagina.getByText('Checklist de hoje concluído.')).toBeVisible();
+    await pagina.getByRole('button', { name: 'Concluir abertura' }).click();
+    await expect(pagina.getByText('Abertura concluída', { exact: false })).toBeVisible();
 
     // O Proprietário consulta em Equipe → Abertura e assiste ao vídeo (arquivo privado, pelo backend).
     const dono = await browser.newContext();

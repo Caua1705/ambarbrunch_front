@@ -1,7 +1,9 @@
 // Ponto na demonstração. De propósito não há dados fictícios de jornada nem identificação simulada: as telas de ponto são
 // exercitadas contra o backend real (tests-ponto-real/). O terminal do Modo Operação responde como a produção de hoje:
 // reconhecimento facial desligado (a tela mostra o caminho do gestor). O checklist de abertura funciona em memória, com
-// funcionárias fictícias, para a tela do tablet e a consulta da gerência serem testadas (o vídeo fica só na memória).
+// funcionárias fictícias, para a tela do tablet e a consulta da gerência serem testadas (o vídeo fica só na memória). Como
+// a produção: a pessoa toca no próprio nome (sem aprovação), concluir exige o vídeo (sem vídeo, só a gerência, com motivo) e o
+// envio ao WhatsApp está desligado.
 import { ADMIN, ErroDemo, GERENCIA, TODOS, hojeFortaleza, resposta, uuid, type Contexto, type Rota } from './roteador';
 
 const desligado = () => {
@@ -36,8 +38,10 @@ interface ChecklistDemo {
   itens: { id: string; ordem: number; titulo: string; situacao: Situacao; observacao: string | null; marcado_em: string | null }[];
 }
 const checklists: ChecklistDemo[] = [];
+const VIDEO = { max_mb: 15, max_segundos: 90 };
+const WHATSAPP_DESLIGADO = { status: null, modo: 'desligado', envios: 0, pode_reenviar: false };
 
-function dados(c: ChecklistDemo, comItens = true) {
+function dados(c: ChecklistDemo, comItens = true, gestao = false) {
   const pessoa = FUNCIONARIAS.find((f) => f.id === c.funcionario);
   return {
     id: c.id, data: c.data, estado: c.estado,
@@ -46,6 +50,7 @@ function dados(c: ChecklistDemo, comItens = true) {
     resumo: { total: c.itens.length, feitos: c.itens.filter((i) => i.situacao === 'feito').length, nao_feitos: c.itens.filter((i) => i.situacao === 'nao_feito').length, pendentes: c.itens.filter((i) => !i.situacao).length },
     nao_feitos: c.itens.filter((i) => i.situacao === 'nao_feito').map((i) => ({ titulo: i.titulo, observacao: i.observacao })),
     video: c.video,
+    ...(gestao ? { whatsapp: WHATSAPP_DESLIGADO } : {}),
     ...(comItens ? { itens: c.itens } : {}),
   };
 }
@@ -94,7 +99,8 @@ async function concluir(ctx: Contexto) {
   if (c.itens.some((i) => !i.situacao)) throw new ErroDemo(422, 'tarefas_pendentes', 'Marque todas as tarefas antes de concluir.');
   if (c.itens.some((i) => i.situacao === 'nao_feito' && !i.observacao)) throw new ErroDemo(422, 'observacao_obrigatoria', 'Explique nas observações por que a tarefa não foi feita.');
   const motivo = corpo.sem_video_motivo?.trim() || null;
-  if (!c.video && (!motivo || motivo.length < 3)) throw new ErroDemo(422, 'video_obrigatorio', 'Grave o vídeo da abertura ou diga por que não foi possível.');
+  if (!c.video && ctx.papel === 'operador') throw new ErroDemo(422, 'video_obrigatorio', 'Grave e envie o vídeo da abertura para concluir.');
+  if (!c.video && (!motivo || motivo.length < 3)) throw new ErroDemo(422, 'video_obrigatorio', 'Diga por que a abertura vai ser concluída sem vídeo.');
   c.estado = 'concluido';
   c.concluido_em = new Date().toISOString();
   c.sem_video_motivo = c.video ? null : motivo;
@@ -107,6 +113,7 @@ async function receberVideo(ctx: Contexto) {
   const corpo = await ctx.request.arrayBuffer();
   if (!corpo.byteLength) throw new ErroDemo(422, 'video_vazio', 'Vídeo vazio.');
   const duracao = Number(ctx.query.get('duracao'));
+  if (Number.isFinite(duracao) && duracao > VIDEO.max_segundos + 5) throw new ErroDemo(422, 'video_longo', `O vídeo passou de ${VIDEO.max_segundos} segundos. Grave um vídeo mais curto.`);
   c.video = { mime: ctx.request.headers.get('content-type')?.split(';')[0] || 'video/webm', tamanho_bytes: corpo.byteLength, duracao_s: Number.isFinite(duracao) && duracao > 0 ? Math.round(duracao) : null, enviado_em: new Date().toISOString() };
   return { ...dados(c), repetido: false };
 }
@@ -115,7 +122,7 @@ function hoje() {
   const data = hojeFortaleza();
   const c = checklists.find((x) => x.data === data);
   return {
-    data, horario_servidor: new Date().toISOString(), biometria_disponivel: false, video: { max_mb: 15, max_segundos: 120 },
+    data, horario_servidor: new Date().toISOString(), biometria_disponivel: false, video: VIDEO,
     checklist: c ? dados(c) : null,
     ...(c ? {} : { tarefas: modelo.filter((t) => t.ativo).map((t) => t.titulo), funcionarios: FUNCIONARIAS.map((f) => ({ ...f, ponto_hoje: false })) }),
   };
@@ -151,26 +158,23 @@ export const ROTAS_PONTO: Rota[] = [
   ['GET', /^abertura$/, GERENCIA, (ctx) => {
     const de = ctx.query.get('de') ?? '';
     const ate = ctx.query.get('ate') ?? '9999';
-    const itens = checklists.filter((c) => c.data >= de && c.data <= ate).map((c) => dados(c, false));
+    const itens = checklists.filter((c) => c.data >= de && c.data <= ate).map((c) => dados(c, false, true));
     return { itens, total: itens.length, limite: 200, deslocamento: 0 };
   }],
   ['PATCH', /^abertura\/([^/]+)$/, TODOS, salvar],
   ['POST', /^abertura\/([^/]+)\/video\/envio$/, TODOS, (ctx) => {
     const c = checklist(ctx.params[0]);
     if (c.estado === 'concluido' && c.video) throw new ErroDemo(409, 'video_ja_enviado', 'O vídeo desta abertura já foi enviado.');
-    return { caminho: `/admin/abertura/${c.id}/video`, metodo: 'PUT', token: 'demonstracao', expira_em: new Date(Date.now() + 1800_000).toISOString(), max_mb: 15, max_segundos: 120 };
+    return { caminho: `/admin/abertura/${c.id}/video`, metodo: 'PUT', token: 'demonstracao', expira_em: new Date(Date.now() + 1800_000).toISOString(), ...VIDEO };
   }],
   ['PUT', /^abertura\/([^/]+)\/video$/, TODOS, receberVideo],
   ['POST', /^abertura\/([^/]+)\/concluir$/, TODOS, concluir],
-  ['GET', /^abertura\/([^/]+)$/, GERENCIA, (ctx) => dados(checklist(ctx.params[0]))],
+  ['GET', /^abertura\/([^/]+)$/, GERENCIA, (ctx) => dados(checklist(ctx.params[0]), true, true)],
   ['GET', /^abertura\/([^/]+)\/video$/, GERENCIA, (ctx) => {
     if (!checklist(ctx.params[0]).video) throw new ErroDemo(404, 'sem_video', 'Esta abertura não tem vídeo.');
     return { url: null, mime: 'video/webm', expira_em: new Date(Date.now() + 600_000).toISOString() };
   }],
-  ['POST', /^abertura\/([^/]+)\/confirmar-responsavel$/, GERENCIA, (ctx) => {
-    const c = checklist(ctx.params[0]);
-    c.confirmado_por ??= 'Proprietário (demonstração)';
-    c.confirmado_em ??= new Date().toISOString();
-    return dados(c);
+  ['POST', /^abertura\/([^/]+)\/whatsapp\/reenviar$/, ADMIN, () => {
+    throw new ErroDemo(409, 'whatsapp_desligado', 'O envio do vídeo pelo WhatsApp está desligado.');
   }],
 ];

@@ -35,9 +35,8 @@ export function Contingencia({ compacta }: { compacta?: boolean }) {
       <ClipboardPen aria-hidden="true" />
       <div>
         <strong>Se o tablet não registrar</strong>
-        <p>Anote o horário em que você chegou e avise o gestor. Ele regulariza pelo painel (Equipe → ficha da pessoa → dia →
-          Incluir batida), com o horário e o motivo, e fica tudo auditado. Falha do tablet aparece como “sem marcação”, nunca como
-          falta confirmada.</p>
+        <p>Anote o horário e avise o gestor. Ele corrige pelo painel (Equipe → ficha da pessoa → Incluir batida), com o motivo.
+          Falha do tablet nunca vira falta.</p>
       </div>
     </div>
   );

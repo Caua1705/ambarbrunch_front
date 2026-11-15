@@ -66,8 +66,8 @@ const ACOES = {
   'ponto.biometria': ADMIN,
   'ponto.dispositivos': ADMIN,
   'auditoria.visualizar': ADMIN,
-  // Checklist de abertura: a equipe preenche no tablet (Modo Operação); a gerência consulta em Equipe → Abertura e confirma
-  // a responsável declarada; as tarefas do modelo, só o Proprietário.
+  // Checklist de abertura: a equipe preenche no tablet (Modo Operação); a gerência consulta em Equipe → Abertura e conclui
+  // sem vídeo num defeito técnico; tarefas do modelo e reenvio do vídeo ao WhatsApp, só o Proprietário.
   'abertura.consultar': GERENCIA,
   'abertura.configurar': ADMIN,
 } satisfies Record<string, Papel[]>;

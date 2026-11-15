@@ -10,12 +10,19 @@ import { CheckCircle2, CircleAlert, LoaderCircle, ScanFace, UserRoundX, WifiOff 
 import { ErroApi, novaChave } from '../../lib/api/cliente';
 import { terminal } from '../../lib/api/operacao';
 import type { ConfiguracaoQuiosque, SessaoTerminal } from '../../lib/tipos/abertura';
-import { ROTULO_BATIDA, orientacaoDoMotivo, type Recibo, type TipoBatida } from '../../../lib/ponto/contrato';
+import { orientacaoDoMotivo, type Recibo, type TipoBatida } from '../../../lib/ponto/contrato';
 import { Botao } from '../../ui/base';
 import { Identificacao, mensagemDeErro, type FimIdentificacao } from './Identificacao';
 import { Contingencia, Relogio, useRelogioDoServidor } from './comum-ponto';
 
 const RECIBO_MS = 6_000;
+// Nomes do tablet: dizem para onde a pessoa vai (o backend decide QUAL é, pela jornada, pela escala e pelas marcações).
+export const ROTULO_TABLET: Record<TipoBatida, string> = {
+  ENTRADA: 'Entrada',
+  INICIO_INTERVALO: 'Saída para intervalo',
+  FIM_INTERVALO: 'Volta do intervalo',
+  SAIDA: 'Saída do expediente',
+};
 const AVISO_MS = 25_000;
 
 type Tela =
@@ -168,8 +175,7 @@ export function RegistrarPonto({ config, apiUrl, aoRecarregar }: { config: Confi
           <button type="button" class="op-terminal__principal" onClick={() => setTela({ t: 'camera' })}>
             <ScanFace aria-hidden="true" /> Registrar ponto
           </button>
-          <p class="op-terminal__ajuda">Cada pessoa registra o próprio ponto: toque, olhe para a câmera e siga as instruções.</p>
-          <p class="op-terminal__nota">A imagem serve só para confirmar quem está registrando e não fica guardada no tablet.</p>
+          <p class="op-terminal__ajuda">Toque e olhe para a câmera. A imagem não fica guardada no tablet.</p>
         </>
       )}
 
@@ -177,28 +183,30 @@ export function RegistrarPonto({ config, apiUrl, aoRecarregar }: { config: Confi
 
       {tela.t === 'confirmar' && (
         <div class="op-confirma" role="dialog" aria-label="Confirmar ponto">
-          <p class="op-confirma__rotulo">Confira e confirme</p>
+          <p class="op-confirma__rotulo">Confira</p>
           <h2 class="op-confirma__nome">{tela.nome}</h2>
           {tela.tipo ? (
             <>
-              <p class="op-confirma__tipo">{ROTULO_BATIDA[tela.tipo]}</p>
+              <p class="op-confirma__tipo">{ROTULO_TABLET[tela.tipo]}</p>
               <p class="op-confirma__hora num">{agora ? horaCurta(agora) : '--:--'}</p>
               <div class="op-confirma__acoes">
                 <button type="button" class="op-terminal__principal" onClick={() => confirmar()}>
-                  <CheckCircle2 aria-hidden="true" /> Confirmar
+                  <CheckCircle2 aria-hidden="true" /> Confirmar ponto
                 </button>
-                <Botao variante="fantasma" onClick={desistir}>Não sou eu / cancelar</Botao>
+                <Botao variante="fantasma" onClick={desistir}>Não sou eu</Botao>
               </div>
             </>
           ) : (
             <>
-              <p class="op-confirma__pergunta">O que você vai registrar agora? <span class="num">{agora ? horaCurta(agora) : ''}</span></p>
+              <p class="op-confirma__hora num">{agora ? horaCurta(agora) : '--:--'}</p>
+              <p class="op-confirma__pergunta">Você está saindo para o intervalo ou encerrando o expediente?</p>
               <div class="op-confirma__opcoes">
                 {tela.opcoes.map((o) => (
-                  <button type="button" key={o} class="op-terminal__principal op-terminal__principal--opcao" onClick={() => confirmar(o)}>{ROTULO_BATIDA[o]}</button>
+                  <button type="button" key={o} class="op-terminal__principal op-terminal__principal--opcao" onClick={() => confirmar(o)}>{ROTULO_TABLET[o]}</button>
                 ))}
               </div>
-              <Botao variante="fantasma" onClick={desistir}>Não sou eu / cancelar</Botao>
+              <p class="op-terminal__nota">Sua escala não define isso agora: o gestor confere depois.</p>
+              <Botao variante="fantasma" onClick={desistir}>Não sou eu</Botao>
             </>
           )}
         </div>
@@ -228,7 +236,7 @@ export function RegistrarPonto({ config, apiUrl, aoRecarregar }: { config: Confi
           <CheckCircle2 aria-hidden="true" />
           <p class="op-recibo__rotulo">Ponto registrado</p>
           <h2>{tela.recibo.nome_exibicao}</h2>
-          <p class="op-recibo__tipo">{ROTULO_BATIDA[tela.recibo.tipo]}</p>
+          <p class="op-recibo__tipo">{ROTULO_TABLET[tela.recibo.tipo]}</p>
           <p class="op-recibo__hora num">{tela.recibo.hora.slice(0, 5)}</p>
           <p class="op-recibo__data">{tela.recibo.data.split('-').reverse().join('/')}</p>
           {tela.recibo.repetida && <p class="fraco">Esta marcação já estava registrada (nada foi duplicado).</p>}

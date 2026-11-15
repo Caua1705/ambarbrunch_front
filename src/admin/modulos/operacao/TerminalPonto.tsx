@@ -1,5 +1,6 @@
 // Seção Ponto do Modo Operação: "Registrar ponto" (o terminal facial, autenticado pela conta logada — sem código de tablet)
-// e "Checklist de abertura". Quem bate o ponto é sempre o rosto identificado no backend, nunca a conta do tablet.
+// e "Checklist de abertura" (sem rosto: a pessoa toca no próprio nome). Quem bate o ponto é sempre o rosto identificado no
+// backend, nunca a conta do tablet.
 // Sem reconhecimento facial liberado, sem câmera ou sem internet, a tela diz que nada foi registrado e mostra o caminho do
 // gestor (registro pelo painel, com horário, motivo e auditoria).
 import { useEffect, useState } from 'preact/hooks';
@@ -36,7 +37,7 @@ export function TerminalPonto({ apiUrl }: { apiUrl: string | null }) {
         {desligado ? (
           <Vazio titulo="Controle de ponto desligado">O ponto e o checklist ficam disponíveis quando o módulo for ativado no sistema do Âmbar.</Vazio>
         ) : aba === 'abertura' ? (
-          <Abertura config={config.dados ?? null} apiUrl={apiUrl} />
+          <Abertura apiUrl={apiUrl} />
         ) : config.dados ? (
           <RegistrarPonto config={config.dados} apiUrl={apiUrl} aoRecarregar={config.recarregar} />
         ) : config.erro ? (

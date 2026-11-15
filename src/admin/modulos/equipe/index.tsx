@@ -92,7 +92,7 @@ export default function Equipe({ contexto }: { contexto: ContextoPainel }) {
             {aba === 'hoje' && <Hoje consulta={painel} perm={perm} aoCadastrar={() => mudarAba('funcionarios')} aoRevisar={() => mudarAba('registros', 'revisar')} aRevisar={filas.total} />}
             {aba === 'funcionarios' && <Funcionarios perm={perm} />}
             {aba === 'registros' && <Registros perm={perm} />}
-            {aba === 'abertura' && veAbertura && <Aberturas />}
+            {aba === 'abertura' && veAbertura && <Aberturas podeReenviar={pode(contexto.usuario.papel, 'abertura.configurar')} />}
           </div>
         )}
       </div>
