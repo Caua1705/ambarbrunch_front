@@ -504,3 +504,39 @@ test('Configurações → Financeiro: Categorias e Fornecedores ali dentro, com 
   await expect(aba(page, /^Contas recorrentes/)).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByText('Aluguel da loja')).toBeVisible();
 });
+
+test('Parcelar compra (tablet 3x paga de uma vez): só a parcela paga hoje sai em Despesas; as outras viram contas', async ({ page }) => {
+  const nome = `Tablet 3x ${Date.now()}`;
+  const hoje = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Fortaleza' }).format(new Date());
+  await page.goto(`${DEMO}/admin/financeiro`);
+  await page.getByRole('button', { name: 'Nova despesa' }).click();
+  const gaveta = page.getByRole('dialog', { name: 'Nova despesa' });
+  await gaveta.getByLabel('Descrição').fill(nome);
+  await gaveta.getByLabel('Valor').fill('300,00');
+  await gaveta.getByLabel('Categoria').selectOption({ label: 'Operacional' });
+  await gaveta.getByRole('group', { name: 'Situação do pagamento' }).getByRole('button', { name: 'Já foi paga' }).click();
+  await gaveta.getByLabel('Forma de pagamento').selectOption('cartao');
+  await gaveta.getByRole('button', { name: 'Lançar despesa' }).click();
+  await expect(gaveta).toHaveCount(0);
+
+  const detalhe = page.getByRole('dialog', { name: nome });
+  await detalhe.getByRole('button', { name: 'Parcelar compra' }).click();
+  await expect(detalhe.getByRole('spinbutton', { name: 'Parcelas' })).toHaveValue('3');   // "3x" da descrição
+  await detalhe.getByLabel('1º vencimento').fill(hoje);
+  const parcelas = detalhe.getByRole('list', { name: 'Plano das parcelas' }).getByRole('listitem');
+  await expect(parcelas).toHaveCount(3);
+  await parcelas.first().getByLabel('já paga').check();
+  await expect(detalhe).toContainText('Saída registrada agora: R$ 100,00');
+  await detalhe.getByRole('button', { name: 'Parcelar em 3x' }).click();
+  await expect(detalhe.getByText('Parcelas (3)')).toBeVisible();
+  await fecharDetalhe(page, nome);
+
+  await page.getByLabel('Buscar movimentação').fill(nome);
+  const linhas = despesas(page).getByRole('row', { name: new RegExp(nome) });
+  await expect(linhas).toHaveCount(1);                  // a parcela paga, não os R$ 300 nem o pagamento estornado
+  await expect(linhas).toContainText('R$ 100,00');
+
+  await aba(page, /^Contas a pagar/).click();
+  await page.getByLabel('Buscar conta a pagar').fill(nome);
+  await expect(page.getByRole('table').getByRole('row', { name: new RegExp(nome) })).toHaveCount(2);
+});

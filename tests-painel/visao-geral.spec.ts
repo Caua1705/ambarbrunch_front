@@ -26,7 +26,8 @@ test('receita, despesas e ticket médio são os totais do backend no período', 
   const respostaCategorias = page.waitForResponse((r) => /despesas-por-categoria\?/.test(r.url()) && doPeriodo(r.url()) && r.ok());
   await page.goto(`${DEMO}/admin`);
   const vendas = await (await respostaVendas).json();
-  const categorias = await (await respostaCategorias).json();
+  const rCategorias = await respostaCategorias;
+  const categorias = await rCategorias.json();
   expect(vendas.disponivel).toBe(true);
   await expect(kpi(page, 'Faturamento PDV').locator('.indicador__valor')).toHaveText(brl(vendas.totais.faturamento_pdv));
   await expect(kpi(page, 'Despesas').locator('.indicador__valor')).toHaveText(brl(categorias.total));
@@ -34,7 +35,9 @@ test('receita, despesas e ticket médio são os totais do backend no período', 
   // A receita sem a taxa de serviço aparece com esse nome, nunca como se fosse o faturamento da Eyemobile.
   await expect(kpi(page, 'Faturamento PDV')).toContainText(`sem a taxa de serviço ${brl(vendas.totais.receita_liquida)}`);
   await expect(page.getByText('Em conferência')).toHaveCount(0);
-  await expect(kpi(page, 'Despesas')).toContainText('Confirmadas por competência');
+  // 17/11: despesas pela data real do pagamento (o que saiu no período), como Movimentações.
+  expect(new URL(rCategorias.url()).searchParams.get('base')).toBe('pagamentos');
+  await expect(kpi(page, 'Despesas')).toContainText('Pagas em');
   await expect(page.getByRole('heading', { name: 'Produtos mais vendidos' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Despesas por categoria' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Receitas × despesas' })).toBeVisible();
@@ -156,7 +159,7 @@ test('período sem nenhum dado: estados vazios, não números inventados', async
   await page.route('**/admin/api/financeiro/lancamentos*', (r) => r.fulfill({ json: { total: 0, itens: [] } }));
   await page.route('**/admin/api/estoque/analises/produtos*', (r) => r.fulfill({ json: [] }));
   await page.goto(`${DEMO}/admin`);
-  await expect(page.getByText('Nenhuma despesa confirmada no período')).toBeVisible();
+  await expect(page.getByText('Nenhum pagamento de despesa no período')).toBeVisible();
   await expect(page.getByText('Sem vendas por produto no período')).toBeVisible();
   await expect(kpi(page, 'Ticket médio')).toContainText('Nenhuma venda no período');
 });

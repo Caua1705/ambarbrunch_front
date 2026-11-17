@@ -977,7 +977,7 @@ export const ROTAS_FINANCEIRO: Rota[] = [
     for (const v of E.vendas.filter((x) => x.dia >= de && x.dia <= ate)) itens.push({ tipo: 'venda_dia', id: `1:${v.dia}`, data: v.dia, descricao: 'Vendas PDV', valor: d2(v.total), sinal: 1, categoria: null, origem: 'eyemobile', fornecedor_id: null, fornecedor: null, status: 'confirmada', tem_comprovante: false, compra_id: null, despesa_id: null, detalhes: { vendas: v.vendas, taxa_servico: d2(v.total * 0.08), total_vendido: d2(v.total * 1.035), descontos: d2(v.total * 0.03), recebido_pdv: d2(v.total * 1.08) } });
     const un = idUnidade(query);
     for (const d of E.despesas.filter((x) => x.competencia >= de && x.competencia <= ate && x.unidade_negocio_id === un)) itens.push({ tipo: 'despesa', id: d.id, data: d.competencia, descricao: d.descricao, valor: d.valor, sinal: -1, categoria: d.categoria_codigo, origem: d.origem, fornecedor_id: d.fornecedor?.id ?? null, fornecedor: d.fornecedor?.nome ?? null, status: d.status, tem_comprovante: !!d.arquivo_id, compra_id: d.compra_id, despesa_id: d.id, detalhes: { motivos_revisao: d.motivos_revisao, valor_a_confirmar: d.valor_a_confirmar, versao: d.versao, tem_pagamento: pagamentosVivos(d).length > 0, responsavel: responsavelDe(d.id), parcelas: d.parcelas.filter((x) => x.situacao !== 'cancelada').length, pago: d2(d.parcelas.reduce((t, x) => t + Number(x.valor_pago), 0)), proximo_vencimento: d.parcelas.filter((x) => x.situacao === 'aberta').map((x) => x.vencimento).sort()[0] ?? null }, pagador_conta_id: (() => { const c = PAG.pagadores.get(pagamentosVivos(d)[0]?.id ?? '')?.conta_id ?? null; return c; })(), pagador: contaPorId(PAG.pagadores.get(pagamentosVivos(d)[0]?.id ?? '')?.conta_id)?.apelido ?? null });
-    for (const d of E.despesas.filter((x) => x.unidade_negocio_id === un)) for (const p of d.parcelas) for (const pg of p.pagamentos.filter((x) => x.pago_em >= de && x.pago_em <= ate)) itens.push({ tipo: 'pagamento', id: pg.id, data: pg.pago_em, descricao: d.descricao, valor: pg.valor, sinal: -1, categoria: d.categoria_codigo, origem: pg.origem, fornecedor_id: d.fornecedor?.id ?? null, fornecedor: d.fornecedor?.nome ?? null, status: pg.estornado_em ? 'estornado' : 'confirmado', tem_comprovante: !!pg.arquivo_id, compra_id: d.compra_id, despesa_id: d.id, detalhes: { forma: pg.forma, parcela_id: p.id, parcela: p.numero, conciliacao: pg.conciliacao }, pagador_conta_id: PAG.pagadores.get(pg.id)?.conta_id ?? null, pagador: contaPorId(PAG.pagadores.get(pg.id)?.conta_id)?.apelido ?? null });
+    for (const d of E.despesas.filter((x) => x.unidade_negocio_id === un)) for (const p of d.parcelas) for (const pg of p.pagamentos.filter((x) => x.pago_em >= de && x.pago_em <= ate)) itens.push({ tipo: 'pagamento', id: pg.id, data: pg.pago_em, descricao: d.descricao, valor: pg.valor, sinal: -1, categoria: d.categoria_codigo, origem: pg.origem, fornecedor_id: d.fornecedor?.id ?? null, fornecedor: d.fornecedor?.nome ?? null, status: pg.estornado_em ? 'estornado' : 'confirmado', tem_comprovante: !!pg.arquivo_id, compra_id: d.compra_id, despesa_id: d.id, detalhes: { forma: pg.forma, parcela_id: p.id, parcela: p.numero, conciliacao: pg.conciliacao, status_despesa: d.status, responsavel: responsavelDe(d.id), pagador_natureza: contaPorId(PAG.pagadores.get(pg.id)?.conta_id)?.natureza ?? null }, pagador_conta_id: PAG.pagadores.get(pg.id)?.conta_id ?? null, pagador: contaPorId(PAG.pagadores.get(pg.id)?.conta_id)?.apelido ?? null });
     for (const r of E.receitas.filter((x) => x.competencia >= de && x.competencia <= ate)) itens.push({ tipo: 'outra_receita', id: r.id, data: r.competencia, descricao: r.descricao, valor: r.valor, sinal: 1, categoria: r.categoria, origem: 'painel', fornecedor_id: null, fornecedor: null, status: r.status, tem_comprovante: false, compra_id: null, despesa_id: null, detalhes: { recebido_em: r.recebido_em, forma_recebimento: r.forma_recebimento, origem: r.origem, observacao: r.observacao, versao: r.versao, operacional: receitaOperacional(r.categoria) } });
     const tipo = query.get('tipo');
     const grupo = query.get('grupo');
@@ -988,9 +988,9 @@ export const ROTAS_FINANCEIRO: Rota[] = [
     const rec = query.get('recebimento');
     const pagadorQ = query.get('pagador');
     const ladoQ = query.get('lado');
-    const f = itens.filter((l) => (!grupo || (grupo === 'receitas' ? l.tipo === 'venda_dia' || l.tipo === 'outra_receita' : l.tipo === 'despesa')) && (!ladoQ || ((l.tipo === 'despesa' || l.tipo === 'pagamento') && contaPorId(l.pagador_conta_id)?.parte === ladoQ)) && (!pagadorQ || ((l.tipo === 'despesa' || l.tipo === 'pagamento') && (pagadorQ === 'nenhum' ? !l.pagador_conta_id : l.pagador_conta_id === pagadorQ))) && (!rec || (l.tipo === 'outra_receita' && (rec === 'recebida') === !!l.detalhes.recebido_em)) && (!tipo || l.tipo === tipo) && (!cat || l.categoria === cat) && (!org || l.origem === org) && (!st || l.status === st) && (veSocietario(papel) || !ehRetirada(l.categoria)) && (!b || `${l.descricao} ${l.fornecedor ?? ''}`.toLowerCase().includes(b))).sort((a, b2) => b2.data.localeCompare(a.data));
+    const f = itens.filter((l) => (!grupo || (grupo === 'receitas' ? l.tipo === 'venda_dia' || l.tipo === 'outra_receita' : l.tipo === 'pagamento' && l.status === 'confirmado')) && (!ladoQ || ((l.tipo === 'despesa' || l.tipo === 'pagamento') && contaPorId(l.pagador_conta_id)?.parte === ladoQ)) && (!pagadorQ || ((l.tipo === 'despesa' || l.tipo === 'pagamento') && (pagadorQ === 'nenhum' ? !l.pagador_conta_id : l.pagador_conta_id === pagadorQ))) && (!rec || (l.tipo === 'outra_receita' && (rec === 'recebida') === !!l.detalhes.recebido_em)) && (!tipo || l.tipo === tipo) && (!cat || l.categoria === cat) && (!org || l.origem === org) && (!st || l.status === st) && (veSocietario(papel) || !ehRetirada(l.categoria)) && (!b || `${l.descricao} ${l.fornecedor ?? ''}`.toLowerCase().includes(b))).sort((a, b2) => b2.data.localeCompare(a.data));
     const soma = (fn: (l: Lancamento) => boolean) => d2(f.filter(fn).reduce((s, l) => s + Number(l.valor), 0));
-    return { ...paginar(f, query), totais: { receita_pdv: soma((l) => l.tipo === 'venda_dia'), outras_receitas: soma((l) => l.tipo === 'outra_receita' && l.status === 'confirmada' && !!l.detalhes.operacional), entradas_fora_da_receita: soma((l) => l.tipo === 'outra_receita' && l.status === 'confirmada' && !l.detalhes.operacional), receitas_a_receber: soma((l) => l.tipo === 'outra_receita' && l.status === 'confirmada' && !l.detalhes.recebido_em), despesas_confirmadas: soma((l) => l.tipo === 'despesa' && l.status === 'confirmada'), despesas_em_revisao: soma((l) => l.tipo === 'despesa' && l.status === 'em_revisao'), pagamentos: soma((l) => l.tipo === 'pagamento' && l.status === 'confirmado') } };
+    return { ...paginar(f, query), totais: { receita_pdv: soma((l) => l.tipo === 'venda_dia'), outras_receitas: soma((l) => l.tipo === 'outra_receita' && l.status === 'confirmada' && !!l.detalhes.operacional), entradas_fora_da_receita: soma((l) => l.tipo === 'outra_receita' && l.status === 'confirmada' && !l.detalhes.operacional), receitas_a_receber: soma((l) => l.tipo === 'outra_receita' && l.status === 'confirmada' && !l.detalhes.recebido_em), despesas_confirmadas: soma((l) => l.tipo === 'despesa' && l.status === 'confirmada'), despesas_em_revisao: soma((l) => l.tipo === 'despesa' && l.status === 'em_revisao'), pagamentos: soma((l) => l.tipo === 'pagamento' && l.status === 'confirmado'), quantidade: f.length, valor: soma(() => true), pagamentos_conta_pessoal: soma((l) => l.tipo === 'pagamento' && l.status === 'confirmado' && l.detalhes.pagador_natureza === 'pessoal'), pagamentos_sem_pagador: soma((l) => l.tipo === 'pagamento' && l.status === 'confirmado' && !l.pagador_conta_id) } };
   }],
   ['POST', R('financeiro/despesas'), GERENCIA, async ({ corpo, query }) => {
     montar();
@@ -1228,6 +1228,32 @@ export const ROTAS_FINANCEIRO: Rota[] = [
     if (e.conta_pagadora_id) { montarPagadores(); definirPagadorDemo(pg.id, e.conta_pagadora_id, true); }
     return resposta(201, p);
   }],
+  // 17/11: como o backend (parcelamento.py): estorna o pagamento único e recria as parcelas; só as pagas saem, na data dada.
+  ['POST', R(`financeiro/despesas/${UUID}/parcelar`), GERENCIA, async ({ params, corpo }) => {
+    montar();
+    const d = achaDespesa(params[0]);
+    const e = await corpo<{ versao: number; motivo: string; parcelas: { vencimento: string; valor: string; pago_em: string | null }[] }>();
+    exigirMotivo(e.motivo);
+    if (e.versao !== d.versao) throw new ErroDemo(409, 'conflito_versao', 'A despesa mudou desde que você abriu. Recarregue.');
+    const vivas = d.parcelas.filter((p) => p.situacao !== 'cancelada');
+    if (vivas.length !== 1) throw new ErroDemo(409, 'ja_parcelada', 'Esta despesa já tem parcelas: ajuste cada parcela em Contas a pagar.');
+    if (!e.parcelas || e.parcelas.length < 2) throw new ErroDemo(422, 'parcelas_invalidas', 'Informe de 2 a 60 parcelas.');
+    const original = vivas[0].pagamentos.find((pg) => !pg.estornado_em) ?? null;
+    if (original) { original.estornado_em = agora(); original.estorno_motivo = `Compra parcelada em ${e.parcelas.length}x: ${e.motivo}`; }
+    const pagador = original ? PAG.pagadores.get(original.id)?.conta_id ?? null : null;
+    d.parcelas = e.parcelas.map((x, i) => ({ id: i === 0 ? vivas[0].id : id(), numero: i + 1, vencimento: x.vencimento, valor: d2(Number(x.valor)), valor_pago: '0.00', saldo: d2(Number(x.valor)), situacao: 'aberta', pagamentos: i === 0 ? vivas[0].pagamentos : [] }));
+    d.valor = d2(e.parcelas.reduce((s, x) => s + Number(x.valor), 0));
+    for (const [i, x] of e.parcelas.entries()) {
+      const p = d.parcelas[i];
+      recalcularParcela(p);
+      if (!x.pago_em) continue;
+      const { pg } = pagarParcela(p.id, Number(x.valor), x.pago_em, original?.forma ?? 'cartao', original?.origem ?? 'painel');
+      if (pagador) { montarPagadores(); definirPagadorDemo(pg.id, pagador, true); }
+    }
+    d.versao++;
+    d.historico.push({ em: agora(), acao: 'parcelar', ator: 'Usuário (demo)', ator_tipo: 'usuario', dados: { motivo: e.motivo } });
+    return d;
+  }],
   ['POST', R(`financeiro/pagamentos/${UUID}/estornar`), GERENCIA, async ({ params, corpo }) => {
     montar();
     const { motivo } = await corpo<{ motivo: string }>();
@@ -1369,7 +1395,10 @@ export const ROTAS_FINANCEIRO: Rota[] = [
     montar();
     const de = query.get('de') ?? '';
     const ate = query.get('ate') ?? '';
-    const desp = vivas().filter((d) => d.status === 'confirmada' && d.competencia >= de && d.competencia <= ate && (veSocietario(papel) || d.grupo !== 'retirada'));
+    // Como o backend: base=pagamentos soma os pagamentos vivos pela data real (parcela paga); senão, a competência.
+    const desp = query.get('base') === 'pagamentos'
+      ? vivas().filter((d) => veSocietario(papel) || d.grupo !== 'retirada').flatMap((d) => pagamentosVivos(d).filter((pg) => pg.pago_em >= de && pg.pago_em <= ate).map((pg) => ({ ...d, valor: pg.valor })))
+      : vivas().filter((d) => d.status === 'confirmada' && d.competencia >= de && d.competencia <= ate && (veSocietario(papel) || d.grupo !== 'retirada'));
     const total = desp.reduce((s, d) => s + Number(d.valor), 0);
     const por = new Map<string, { valor: number; n: number }>();
     for (const d of desp) { const x = por.get(d.categoria_codigo) ?? { valor: 0, n: 0 }; x.valor += Number(d.valor); x.n++; por.set(d.categoria_codigo, x); }

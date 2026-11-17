@@ -101,7 +101,9 @@ export interface ListaLancamentos {
   total: number;
   itens: Lancamento[];
   /** `outras_receitas`: só as operacionais. `entradas_fora_da_receita` (empréstimo, aporte…) e `receitas_a_receber` vêm à parte. */
-  totais: { quantidade?: number; valor?: Dec; receita_pdv: Dec; outras_receitas: Dec; despesas_confirmadas: Dec; despesas_em_revisao: Dec; pagamentos: Dec; entradas_fora_da_receita?: Dec; receitas_a_receber?: Dec };
+  totais: { quantidade?: number; valor?: Dec; receita_pdv: Dec; outras_receitas: Dec; despesas_confirmadas: Dec; despesas_em_revisao: Dec; pagamentos: Dec; entradas_fora_da_receita?: Dec; receitas_a_receber?: Dec;
+    /** 17/11: pago por conta PESSOAL de sócio (não saiu da conta da empresa) e sem pagador identificado. */
+    pagamentos_conta_pessoal?: Dec; pagamentos_sem_pagador?: Dec };
 }
 
 export type SituacaoConta = 'paga' | 'vencida' | 'vence_hoje' | 'parcial' | 'a_vencer';
@@ -153,6 +155,14 @@ export interface PagamentoSaida {
   criado_em: Instante;
   estornado_em: Instante | null;
   estorno_motivo: string | null;
+}
+
+/** POST /despesas/{id}/parcelar (17/11): `pago_em` preenchido = a parcela já foi paga nessa data. */
+export interface ParcelamentoEntrada {
+  versao: number;
+  motivo: string;
+  parcelas: { vencimento: Data; valor: Dec; pago_em: Data | null }[];
+  conta_pagadora_id?: Uuid | null;
 }
 
 export interface ParcelaSaida {

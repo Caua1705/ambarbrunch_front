@@ -8,9 +8,10 @@
 //    (divergência de 14/11/2026: Eyemobile R$ 1.318,90 × "Receita" R$ 1.199,00 = taxa de serviço de 10%).
 //  - Conferência Eyemobile × banco (`conferencia` no mesmo relatório): dia que não bateu deixa os números de vendas
 //    "Em conferência" em vez de confirmados.
-//  - Despesas: GET /financeiro/relatorios/despesas-por-categoria (confirmadas, por competência). O gráfico distribui as
-//    MESMAS despesas por data com GET /financeiro/lancamentos (tipo=despesa, status=confirmada; data = competência): só
-//    soma para desenhar, o total do indicador é o do backend.
+//  - Despesas (17/11): pela DATA REAL DO PAGAMENTO. Indicador e "por categoria": GET
+//    /financeiro/relatorios/despesas-por-categoria?base=pagamentos; o gráfico distribui os MESMOS pagamentos por data com
+//    GET /financeiro/lancamentos?grupo=despesas (só soma para desenhar; o total do indicador é o do backend). Compra
+//    parcelada entra parcela a parcela. A competência (gerencial) continua no Resultado e em Relatórios.
 //  - Resultado gerencial: GET /financeiro/relatorios/resultado?mes= — o backend apura por mês civil; em outro período o
 //    indicador diz isso em vez de inventar um resultado.
 //  - Produtos mais vendidos: GET /estoque/analises/produtos (vendas da Eyemobile por produto). Sem eles, as vendas por
@@ -81,11 +82,12 @@ function rotuloPeriodo(p: Periodo) {
   return p.de === p.ate ? `em ${dataCurta(p.de, { ano: true })}` : `de ${dataCurta(p.de)} a ${dataCurta(p.ate, { ano: true })}`;
 }
 
-/** Todas as despesas confirmadas do período, página a página (o backend devolve até 200 por vez). */
+/** Todos os PAGAMENTOS de despesa do período (data real do pagamento; parcela paga, nunca o valor cheio da compra),
+ * página a página (o backend devolve até 200 por vez). */
 async function despesasDoPeriodo(de: string, ate: string): Promise<{ itens: Lancamento[]; completo: boolean }> {
   const itens: Lancamento[] = [];
   for (let pagina = 0; pagina < 10; pagina++) {
-    const r = await financeiro.lancamentos({ de, ate, tipo: 'despesa', status: 'confirmada', limite: 200, deslocamento: pagina * 200 });
+    const r = await financeiro.lancamentos({ de, ate, grupo: 'despesas', limite: 200, deslocamento: pagina * 200 });
     itens.push(...r.itens);
     if (itens.length >= r.total || r.itens.length === 0) return { itens, completo: true };
   }
@@ -119,10 +121,10 @@ function Executiva({ produtos }: { produtos: boolean }) {
 
   const vendas = useConsulta(`financeiro/relatorios/vendas:${p.de}:${p.ate}`, () => financeiro.vendas(p.de, p.ate, 'dia'));
   const vendasAnt = useConsulta(`financeiro/relatorios/vendas:${ant.de}:${ant.ate}`, () => financeiro.vendas(ant.de, ant.ate, 'dia'));
-  const categorias = useConsulta(`financeiro/relatorios/despesas-por-categoria:${p.de}:${p.ate}`, () => financeiro.porCategoria(p.de, p.ate));
-  const categoriasAnt = useConsulta(`financeiro/relatorios/despesas-por-categoria:${ant.de}:${ant.ate}`, () => financeiro.porCategoria(ant.de, ant.ate));
-  // Gráfico "Despesas por categoria": pelo caixa (só pagamentos feitos no período). O KPI acima segue na competência.
+  // 17/11: indicador Despesas, gráfico Receitas × despesas e Despesas por categoria pela DATA REAL DO PAGAMENTO (o que
+  // saiu no período; compra parcelada só pelas parcelas pagas), como em Movimentações. A competência fica no Resultado.
   const categoriasPagas = useConsulta(`financeiro/relatorios/despesas-por-categoria:pagamentos:${p.de}:${p.ate}`, () => financeiro.porCategoria(p.de, p.ate, 'pagamentos'));
+  const categoriasPagasAnt = useConsulta(`financeiro/relatorios/despesas-por-categoria:pagamentos:${ant.de}:${ant.ate}`, () => financeiro.porCategoria(ant.de, ant.ate, 'pagamentos'));
   const resultado = useConsulta(mes ? `financeiro/relatorios/resultado:${mes}` : null, () => financeiro.resultado(mes!));
   const vendasGrafico = useConsulta(`financeiro/relatorios/vendas:${janela.de}:${janela.ate}:${agrupar}`, () => financeiro.vendas(janela.de, janela.ate, agrupar));
   const despesasGrafico = useConsulta(`financeiro/lancamentos?grafico:${janela.de}:${janela.ate}`, () => despesasDoPeriodo(janela.de, janela.ate));
@@ -179,14 +181,14 @@ function Executiva({ produtos }: { produtos: boolean }) {
         />
         <Indicador
           rotulo="Despesas"
-          carregando={categorias.carregando}
-          valor={categorias.dados ? moeda(categorias.dados.total) : '—'}
+          carregando={categoriasPagas.carregando}
+          valor={categoriasPagas.dados ? moeda(categoriasPagas.dados.total) : '—'}
           rodape={
-            categorias.erro ? <FalhaIndicador consulta={categorias} />
-            : categorias.dados ? <><Variacao inverter atual={num(categorias.dados.total)} anterior={categoriasAnt.dados ? num(categoriasAnt.dados.total) : null} /> <span>Confirmadas por competência</span></>
+            categoriasPagas.erro ? <FalhaIndicador consulta={categoriasPagas} />
+            : categoriasPagas.dados ? <><Variacao inverter atual={num(categoriasPagas.dados.total)} anterior={categoriasPagasAnt.dados ? num(categoriasPagasAnt.dados.total) : null} /> <span>Pagas {naPeriodo}</span></>
             : null
           }
-          href={categorias.erro ? undefined : '/admin/financeiro?tipo=despesas'}
+          href={categoriasPagas.erro ? undefined : '/admin/financeiro?tipo=despesas'}
         />
         <Indicador
           rotulo="Resultado gerencial"
@@ -289,7 +291,7 @@ function GraficoEvolucao({ de, ate, agrupar, vendas, despesas, completo }: { de:
     gasto.set(b, (gasto.get(b) ?? 0) + (num(d.valor) ?? 0));
   }
   const semVendas = !vendas?.disponivel;
-  if (semVendas && gasto.size === 0) return <Vazio compacto titulo="Sem dados no período">Vendas sincronizadas e despesas confirmadas aparecem aqui.</Vazio>;
+  if (semVendas && gasto.size === 0) return <Vazio compacto titulo="Sem dados no período">Vendas sincronizadas e despesas pagas aparecem aqui.</Vazio>;
   return (
     <div class="pilha pilha--p">
       <GraficoBarras
@@ -306,10 +308,10 @@ function GraficoEvolucao({ de, ate, agrupar, vendas, despesas, completo }: { de:
       {(semVendas || !completo) && (
         <span class="fraco">
           {semVendas ? 'Receita indisponível: as vendas da Eyemobile ainda não estão sincronizadas. ' : ''}
-          {!completo ? 'Período com muitas despesas: o gráfico mostra as 2.000 mais recentes; o total do indicador é o oficial.' : ''}
+          {!completo ? 'Período com muitos pagamentos: o gráfico mostra os 2.000 mais recentes; o total do indicador é o oficial.' : ''}
         </span>
       )}
-      <span class="fraco">Receita líquida: vendas sem a taxa de serviço (o Faturamento PDV, igual ao da Eyemobile, inclui a taxa). Despesas pela data de competência; receita pela data da venda. Contas ainda não pagas entram pela competência, não pelo pagamento.</span>
+      <span class="fraco">Receita líquida: vendas sem a taxa de serviço (o Faturamento PDV, igual ao da Eyemobile, inclui a taxa), pela data da venda. Despesas pela data do pagamento: conta em aberto só entra quando é paga, e compra parcelada entra parcela a parcela.</span>
     </div>
   );
 }

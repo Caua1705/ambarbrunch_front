@@ -3,7 +3,8 @@
 // painel de filtros (nenhum filtro escondido fica aplicado: a consulta é só período + busca + visão).
 //  - Receitas: vendas do PDV (Eyemobile) agrupadas por dia + outras receitas. A linha do dia abre o detalhe com o que
 //    a integração informa (venda não é dinheiro recebido no banco); a receita manual abre a correção.
-//  - Despesas: só despesas (o pagamento é a mesma despesa: não aparece de novo, nada é contado duas vezes). Colunas:
+//  - Despesas: os PAGAMENTOS, na data real do pagamento (parcela paga entra no dia em que foi paga; o valor cheio de
+//    uma compra parcelada nunca), cada um uma vez. Conta pessoal de sócio fica marcada "pessoal". Colunas:
 //    Data, Descrição, Categoria, Valor, Pagador, Responsável e Situação; a linha abre o detalhe (edição autorizada,
 //    inclusive o responsável). Conta a pagar em aberto é a MESMA despesa que aparece em Contas a pagar.
 // Rotas: GET /admin/financeiro/lancamentos?grupo=receitas|despesas e /relatorios/vendas (detalhe do dia).
@@ -13,7 +14,7 @@ import { Plus, Search, MoreHorizontal, Pencil } from 'lucide-preact';
 import type { ContextoPainel } from '../../lib/sessao';
 import { useConsulta } from '../../lib/consulta';
 import { financeiro } from '../../lib/api/financeiro';
-import { moeda, dataCurta, hojeISO, inicioMes, fimMes, somarMeses, somarDias, plural } from '../../lib/formato';
+import { moeda, dataCurta, hojeISO, inicioMes, fimMes, somarMeses, somarDias, plural, num } from '../../lib/formato';
 import { lerParam, gravarParams } from '../../lib/rotas';
 import { useConfirmacao, Suspenso, Gaveta, type PedidoConfirmacao } from '../../ui/camadas';
 import { Botao, Cartao, Segmentado, Situacao, Etiqueta } from '../../ui/base';
@@ -169,9 +170,11 @@ function SituacaoDespesa({ l }: { l: Lancamento }) {
 /** Pagador com os mesmos nomes do Responsável (Âmbar, Roll, Conjunto); a conta (ex.: pessoal do Cauã) fica embaixo. */
 function PagadorCelula({ l }: { l: Lancamento }) {
   // Empresa pagadora: Âmbar, Roll ou Âmbarxroll (a operação conjunta). Conta individual, se houver, embaixo.
+  // 17/11: conta PESSOAL de sócio (cartão/Pix pessoal) não é saída da conta da empresa: fica marcada.
+  const pessoal = l.detalhes.pagador_natureza === 'pessoal' ? <Etiqueta tom="info">pessoal</Etiqueta> : null;
   const lado = l.pagador_lado ? (l.pagador_lado === 'conjunta' ? 'ÂmbarxRoll' : PARTE[l.pagador_lado]) : null;
-  if (lado) return <><span>{lado}</span>{l.pagador && l.pagador !== lado && <span class="sub">{l.pagador}</span>}</>;
-  if (l.pagador) return <span>{l.pagador}</span>;
+  if (lado) return <><span>{lado}</span>{l.pagador && l.pagador !== lado && <span class="sub">{l.pagador} {pessoal}</span>}</>;
+  if (l.pagador) return <span>{l.pagador} {pessoal}</span>;
   if (l.detalhes.tem_pagamento === false || l.status === 'cancelada') return <span class="fraco">—</span>;
   return <span class="fin-falta">Não identificado</span>;
 }
@@ -262,6 +265,9 @@ function Lista(p: {
         <div class="fin-totais">
           <div><span>{vista === 'despesas' ? 'Pagamentos realizados' : 'Recebimentos'}</span><strong class="num">{lista.dados.totais.quantidade ?? lista.dados.total}</strong></div>
           <div><span>{vista === 'despesas' ? 'Total pago' : 'Total recebido'}</span><strong class="num">{moeda(lista.dados.totais.valor ?? '0')}</strong></div>
+          {vista === 'despesas' && num(lista.dados.totais.pagamentos_conta_pessoal ?? null) ? (
+            <div><span>Pago com conta pessoal</span><strong class="num">{moeda(lista.dados.totais.pagamentos_conta_pessoal!)}</strong></div>
+          ) : null}
         </div>
       )}
       <Dados consulta={lista} recurso="As movimentações" esqueleto={<EsqueletoTabela />}>

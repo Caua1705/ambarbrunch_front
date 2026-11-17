@@ -12,6 +12,7 @@ import type {
   ContaPagadora, ContaPagadoraCadastro, ContaPagadoraEntrada, ListaPendencias, Pendencia, PagadorPagamento, Acertos, RepassesConjunto, Ressarcimentos, DespesaCorrecao, ItemDetalhe,
   MovimentoAcerto, Responsavel, Tratamento, ConfiguracaoFinanceira, ResponsavelNovo,
   SugestaoConciliacao, PagamentoRegistrado, ContaConciliar, ConciliacaoFeita, ConciliacaoRecente, MotivoDiferenca,
+  ParcelamentoEntrada,
 } from '../tipos/financeiro';
 
 const lista = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
@@ -88,6 +89,8 @@ export const financeiro = {
   confirmarDespesa: (id: string, categoria?: string, descricao?: string) =>
     pedir<DespesaSaida>(`financeiro/despesas/${id}/confirmar`, { metodo: 'POST', corpo: categoria || descricao ? { ...(categoria ? { categoria } : {}), ...(descricao ? { descricao } : {}) } : null }),
   cancelarDespesa: (id: string, motivo: string) => pedir<DespesaSaida>(`financeiro/despesas/${id}/cancelar`, { metodo: 'POST', corpo: { motivo } }),
+  /** 17/11: compra que entrou paga de uma vez vira parcelas; só as pagas saem, cada uma na data real. */
+  parcelarDespesa: (id: string, corpo: ParcelamentoEntrada) => pedir<DespesaSaida>(`financeiro/despesas/${id}/parcelar`, { metodo: 'POST', corpo }),
   // Documentos da Júlia (§5.2–5.4): ler, corrigir a leitura (PATCH com versão e motivo) e resolver.
   documentoRevisao: async (id: string) => normalizarDocumento(await pedir<DocumentoRevisao>(`financeiro/revisao/documentos/${id}`)),
   corrigirDocumento: async (id: string, c: CorrecaoDocumento) => normalizarDocumento(await pedir<DocumentoRevisao>(`financeiro/revisao/documentos/${id}`, { metodo: 'PATCH', corpo: c })),

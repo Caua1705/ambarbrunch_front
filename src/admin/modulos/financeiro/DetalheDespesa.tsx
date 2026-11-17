@@ -3,11 +3,11 @@
 // cancelar — sempre a MESMA despesa. Anexos: GET …/despesas/{id}/documentos (§5.5), um por arquivo, com o papel de cada.
 import { Fragment } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
-import { Check, Pencil, X, Undo2, Info, Banknote, Building2 } from 'lucide-preact';
+import { Check, Pencil, X, Undo2, Info, Banknote, Building2, CalendarRange } from 'lucide-preact';
 import { useConsulta } from '../../lib/consulta';
 import { financeiro } from '../../lib/api/financeiro';
 import { ErroApi } from '../../lib/api/cliente';
-import { moeda, dataCurta, dataHora, paraDecimal, num } from '../../lib/formato';
+import { moeda, dataCurta, dataHora, paraDecimal, num, hojeISO, somarMeses } from '../../lib/formato';
 import { Gaveta, type PedidoConfirmacao } from '../../ui/camadas';
 import { Botao, Campo, Aviso, Etiqueta, Situacao } from '../../ui/base';
 import { EntradaMoeda } from '../../ui/entradas';
@@ -25,7 +25,7 @@ export function DetalheDespesa({ id, aoFechar, confirmar }: { id: string | null;
   const nome = useNomeCategoria();
   const { unidades } = useUnidades();
   const lancar = usePermissao('financeiro.lancar');
-  const [editando, setEditando] = useState<false | 'dados' | 'unidade'>(false);
+  const [editando, setEditando] = useState<false | 'dados' | 'unidade' | 'parcelar'>(false);
   const [categoria, setCategoria] = useState('');
   const [ocupado, setOcupado] = useState(false);
   const [pagar, setPagar] = useState<ContaParaPagar | null>(null);
@@ -73,6 +73,8 @@ export function DetalheDespesa({ id, aoFechar, confirmar }: { id: string | null;
           {(d: DespesaSaida) =>
             editando === 'unidade' ? (
               <MudarUnidade d={d} aoTerminar={(movida) => (movida ? aoFechar() : setEditando(false))} />
+            ) : editando === 'parcelar' ? (
+              <Parcelar d={d} aoTerminar={() => setEditando(false)} />
             ) : editando ? (
               <Correcao d={d} aoTerminar={() => setEditando(false)} />
             ) : (
@@ -135,7 +137,10 @@ export function DetalheDespesa({ id, aoFechar, confirmar }: { id: string | null;
                 )}
 
                 <section class="pilha pilha--p">
-                  <h3 class="secao-titulo">{d.parcelas.length > 1 ? `Parcelas (${d.parcelas.length})` : 'Pagamento'}</h3>
+                  <div class="linha linha--entre">
+                    <h3 class="secao-titulo">{d.parcelas.length > 1 ? `Parcelas (${d.parcelas.length})` : 'Pagamento'}</h3>
+                    {lancar && podeParcelar(d) && <Botao tamanho="p" variante="fantasma" icone={<CalendarRange aria-hidden="true" />} onClick={() => setEditando('parcelar')}>Parcelar compra</Botao>}
+                  </div>
                   {d.parcelas.map((p) => (
                     <div key={p.id} class="fin-parcela">
                       <div class="linha linha--entre">
@@ -191,6 +196,119 @@ export function DetalheDespesa({ id, aoFechar, confirmar }: { id: string | null;
       </Gaveta>
       <Pagar conta={pagar} aoFechar={() => setPagar(null)} />
     </>
+  );
+}
+
+/** Compra que entrou como paga de uma vez (ex.: cartão em 6x) e pode virar parcelas: uma parcela só, paga inteira ou em
+ * aberto, sem compra do Estoque nem conta fixa. A palavra final é do backend (conciliação, mês fechado, histórico). */
+function podeParcelar(d: DespesaSaida): boolean {
+  if (d.status === 'cancelada' || d.compra_id || d.recorrencia_id) return false;
+  const vivas = d.parcelas.filter((p) => p.situacao !== 'cancelada');
+  if (vivas.length !== 1) return false;
+  const pagos = vivas[0].pagamentos.filter((pg) => !pg.estornado_em);
+  if (pagos.length === 0) return true;
+  // Paga de uma vez: só oferece quando parece compra parcelada (cartão ou "6x" na descrição), sem poluir o Pix do dia.
+  return pagos.length === 1 && Number(pagos[0].valor) === Number(vivas[0].valor) && (pagos[0].forma === 'cartao' || /\d\s*x\b/i.test(d.descricao));
+}
+
+/** Divide em n parcelas (centavos na última) ou usa o valor de cada parcela informado (o total passa a ser n × valor). */
+function dividir(total: number, n: number, cada: number | null): number[] {
+  if (cada) return Array.from({ length: n }, () => cada);
+  const cota = Math.floor((total / n) * 100) / 100;
+  return Array.from({ length: n }, (_, i) => (i < n - 1 ? cota : Math.round((total - cota * (n - 1)) * 100) / 100));
+}
+
+/** Parcelar compra (17/11): o pagamento único é estornado (fica no histórico) e só as parcelas marcadas como pagas
+ * saem, cada uma na data da linha. Continua a MESMA despesa; as outras parcelas vão para Contas a pagar. A descrição
+ * "6x de 348,24" (como a Júlia recebe) já preenche o número e o valor de cada parcela. */
+function Parcelar({ d, aoTerminar }: { d: DespesaSaida; aoTerminar: () => void }) {
+  const viva = d.parcelas.find((p) => p.situacao !== 'cancelada')!;
+  const pago = viva.pagamentos.find((pg) => !pg.estornado_em) ?? null;
+  const n0 = Number(/(\d{1,2})\s*x/i.exec(d.descricao)?.[1] ?? 0);
+  const [n, setN] = useState(n0 >= 2 && n0 <= 24 ? n0 : 2);
+  const [cada, setCada] = useState(/\dx\s*de\s*(?:R\$\s*)?(\d[\d.]*,\d{2})/i.exec(d.descricao)?.[1] ?? '');
+  const [primeiro, setPrimeiro] = useState(pago ? somarMeses(pago.pago_em, 1) : hojeISO());
+  const [datas, setDatas] = useState<Record<number, string>>({});
+  const [pagas, setPagas] = useState<Record<number, boolean>>({});
+  const [motivo, setMotivo] = useState(n0 >= 2 && n0 <= 24 ? `Compra no cartão em ${n0}x` : 'Compra parcelada no cartão');
+  const [erro, setErro] = useState<ErroApi | null>(null);
+  const [enviando, setEnviando] = useState(false);
+
+  const valorCada = cada ? Number(paraDecimal(cada) ?? 0) : null;
+  const valores = dividir(Number(d.valor), n, valorCada);
+  const linhas = valores.map((v, i) => ({ valor: v, vencimento: datas[i] ?? somarMeses(primeiro, i), paga: !!pagas[i] }));
+  const total = Math.round(valores.reduce((s, v) => s + v, 0) * 100) / 100;
+  const diferenca = Math.round((total - Number(d.valor)) * 100) / 100;
+  const saida = linhas.filter((l) => l.paga).reduce((s, l) => s + l.valor, 0);
+  const nPagas = linhas.filter((l) => l.paga).length;
+  const hoje = hojeISO();
+
+  async function salvar(e: Event) {
+    e.preventDefault();
+    if (valorCada !== null && !(valorCada > 0)) return setErro(new ErroApi('validacao', 'Informe o valor de cada parcela.', 0, null, { valor: 'Valor inválido.' }));
+    if (motivo.trim().length < 5) return setErro(new ErroApi('validacao', 'Explique o motivo.', 0, null, { motivo: 'Pelo menos 5 caracteres.' }));
+    if (linhas.some((l) => l.paga && l.vencimento > hoje)) return setErro(new ErroApi('validacao', 'Parcela marcada como paga com data futura: use a data em que foi paga.', 0, null, {}));
+    setEnviando(true);
+    setErro(null);
+    try {
+      await financeiro.parcelarDespesa(d.id, { versao: d.versao, motivo: motivo.trim(), parcelas: linhas.map((l) => ({ vencimento: l.vencimento, valor: l.valor.toFixed(2), pago_em: l.paga ? l.vencimento : null })) });
+      atualizarFinanceiro();
+      avisar(`Compra parcelada em ${n}x.${nPagas ? ` ${nPagas === 1 ? '1 parcela paga' : `${nPagas} parcelas pagas`};` : ''} As parcelas em aberto estão em Contas a pagar.`, 'ok');
+      aoTerminar();
+    } catch (err) {
+      const x = err instanceof ErroApi ? err : new ErroApi('servidor', 'Não foi possível parcelar.');
+      if (x.tipo === 'conflito') atualizarFinanceiro();
+      setErro(x);
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <form class="pilha" onSubmit={salvar} noValidate>
+      <h3 class="secao-titulo">Parcelar compra</h3>
+      <p class="fraco">
+        {pago ? `O pagamento único de ${moeda(pago.valor)} em ${dataCurta(pago.pago_em)} é estornado (fica no histórico). ` : ''}
+        Marque as parcelas já pagas: cada uma sai na data da linha. As outras vão para Contas a pagar. Continua a mesma despesa, com a mesma competência{pago ? ' e o mesmo pagador' : ''}.
+      </p>
+      {erro && <Aviso tom="perigo" icone={<Info aria-hidden="true" />}>{erro.message}</Aviso>}
+      <div class="grade-campos">
+        <Campo rotulo="Parcelas">
+          {(id) => <input id={id} type="number" min={2} max={24} class="entrada num" value={n} onInput={(e) => setN(Math.min(24, Math.max(2, Number(e.currentTarget.value) || 2)))} />}
+        </Campo>
+        <Campo rotulo="Valor de cada parcela" opcional erro={erro?.campos.valor} ajuda={cada ? undefined : `Vazio: divide ${moeda(d.valor)}.`}>
+          {(id, dsc) => <EntradaMoeda id={id} descr={dsc} valor={cada} aoMudar={setCada} invalido={!!erro?.campos.valor} />}
+        </Campo>
+        <Campo rotulo="1º vencimento" class="inteiro">
+          {(id) => <input id={id} type="date" class="entrada" value={primeiro} onChange={(e) => { setPrimeiro(e.currentTarget.value); setDatas({}); }} />}
+        </Campo>
+      </div>
+      <ul class="lista fin-parcelas" aria-label="Plano das parcelas">
+        {linhas.map((l, i) => (
+          <li key={i} class="linha linha--entre" style={{ gap: '8px', flexWrap: 'wrap' }}>
+            <span class="linha" style={{ gap: '8px' }}>
+              <span class="forte">{i + 1}ª</span>
+              <input type="date" class="entrada entrada--data" aria-label={`Data da ${i + 1}ª parcela`} value={l.vencimento} onChange={(e) => { const v = e.currentTarget.value; setDatas((x) => ({ ...x, [i]: v })); }} />
+            </span>
+            <span class="linha" style={{ gap: '10px' }}>
+              <span class="num">{moeda(l.valor.toFixed(2))}</span>
+              <label class="linha" style={{ gap: '6px' }}><input type="checkbox" checked={l.paga} onChange={(e) => { const v = e.currentTarget.checked; setPagas((x) => ({ ...x, [i]: v })); }} /> já paga</label>
+            </span>
+          </li>
+        ))}
+      </ul>
+      <p class="fraco">
+        Total {moeda(total.toFixed(2))}{diferenca !== 0 ? ` · ${moeda(Math.abs(diferenca).toFixed(2))} ${diferenca > 0 ? 'a mais' : 'a menos'} que o lançado (juros do cartão: o valor da despesa muda e fica no histórico)` : ''}.
+        {nPagas ? ` Saída registrada agora: ${moeda(saida.toFixed(2))}.` : ' Nenhuma saída até pagar a 1ª parcela.'}
+      </p>
+      <Campo rotulo="Motivo" erro={erro?.campos.motivo}>
+        {(id) => <input id={id} class="entrada" maxLength={300} value={motivo} onInput={(e) => setMotivo(e.currentTarget.value)} />}
+      </Campo>
+      <div class="linha" style={{ justifyContent: 'flex-end' }}>
+        <Botao onClick={aoTerminar} disabled={enviando}>Voltar</Botao>
+        <Botao variante="primario" type="submit" carregando={enviando}>Parcelar em {n}x</Botao>
+      </div>
+    </form>
   );
 }
 

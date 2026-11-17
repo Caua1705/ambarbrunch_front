@@ -11,7 +11,7 @@ import { useConsulta } from '../../lib/consulta';
 import { financeiro } from '../../lib/api/financeiro';
 import { moeda, num, pct, mesAno, mesCurto, hojeISO, somarMeses, fimMes, plural } from '../../lib/formato';
 import { lerParam, gravarParams } from '../../lib/rotas';
-import { Cartao, Aviso, Variacao } from '../../ui/base';
+import { Cartao, Aviso, Variacao, Segmentado } from '../../ui/base';
 import { Dados, Esqueleto, Vazio } from '../../ui/estados';
 import { GraficoLinhas, Legenda, BarraParte } from '../../ui/graficos';
 import type { ResultadoMes, DespesasPorCategoria, MesEvolucao } from '../../lib/tipos/financeiro';
@@ -163,12 +163,20 @@ function ResultadoDoMes({ mes }: { mes: string }) {
 function Categorias({ mes }: { mes: string }) {
   const de = `${mes}-01`;
   const ate = fimMes(de);
-  const r = useConsulta(`financeiro/por-categoria:${mes}`, () => financeiro.porCategoria(de, ate));
+  // 17/11: padrão = o que foi PAGO no mês (data real do pagamento, parcela a parcela), como Movimentações. A competência
+  // (gerencial, com o rateio das compras; a mesma base do Resultado) continua a um clique.
+  const [base, setBase] = useState<'pagamentos' | 'competencia'>(() => (lerParam('base') === 'competencia' ? 'competencia' : 'pagamentos'));
+  useEffect(() => gravarParams({ base: base === 'pagamentos' ? null : base }), [base]);
+  const r = useConsulta(`financeiro/por-categoria:${base}:${mes}`, () => financeiro.porCategoria(de, ate, base === 'pagamentos' ? 'pagamentos' : undefined));
   return (
-    <Cartao titulo={`Despesas por categoria · ${mesAno(de)}`} descricao="Despesas confirmadas da competência, com o rateio das compras">
+    <Cartao
+      titulo={`Despesas por categoria · ${mesAno(de)}`}
+      descricao={base === 'pagamentos' ? 'Pagas no mês, na data do pagamento (compra parcelada: só as parcelas pagas)' : 'Competência do mês (gerencial, a base do Resultado), com o rateio das compras'}
+      acoes={<Segmentado<'pagamentos' | 'competencia'> rotulo="Base do relatório" valor={base} aoMudar={setBase} opcoes={[{ valor: 'pagamentos', rotulo: 'Pagas' }, { valor: 'competencia', rotulo: 'Competência' }]} />}
+    >
       <Dados consulta={r} recurso="O relatório por categoria" esqueleto={<Esqueleto linhas={8} />}>
         {(x: DespesasPorCategoria) => {
-          if (!x.itens.length) return <Vazio compacto titulo="Nenhuma despesa confirmada no mês" />;
+          if (!x.itens.length) return <Vazio compacto titulo={base === 'pagamentos' ? 'Nenhum pagamento de despesa no mês' : 'Nenhuma despesa confirmada no mês'} />;
           const total = num(x.total) ?? 0;
           const grupos = [...new Set(x.itens.map((i) => i.grupo))];
           return (
