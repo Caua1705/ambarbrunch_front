@@ -7,7 +7,7 @@ import { Check, Pencil, X, Undo2, Info, Banknote, Building2, CalendarRange } fro
 import { useConsulta } from '../../lib/consulta';
 import { financeiro } from '../../lib/api/financeiro';
 import { ErroApi } from '../../lib/api/cliente';
-import { moeda, dataCurta, dataHora, paraDecimal, num, hojeISO, somarMeses } from '../../lib/formato';
+import { moeda, dataCurta, dataHora, paraDecimal, num, hojeISO, somarMeses, plural } from '../../lib/formato';
 import { Gaveta, type PedidoConfirmacao } from '../../ui/camadas';
 import { Botao, Campo, Aviso, Etiqueta, Situacao } from '../../ui/base';
 import { EntradaMoeda } from '../../ui/entradas';
@@ -81,10 +81,21 @@ export function DetalheDespesa({ id, aoFechar, confirmar }: { id: string | null;
               <>
                 <div class="linha">
                   {d.status === 'em_revisao' ? <Situacao tom="atencao" destaque>Para revisar</Situacao> : d.status === 'cancelada' ? <Situacao tom="apagado">Cancelada</Situacao> : <Situacao tom="ok">Confirmada</Situacao>}
-                  {d.valor_a_confirmar && <Etiqueta tom="info">Valor a confirmar</Etiqueta>}
+                  {d.valor_a_confirmar && <Etiqueta tom="info">Valor previsto</Etiqueta>}
                   {d.recorrencia_id && <Etiqueta>Conta fixa</Etiqueta>}
                   {d.compra_id && <Etiqueta>Compra de insumos</Etiqueta>}
+                  {d.agrupamento && <Etiqueta tom="info">Agrupamento: {d.agrupamento.titulo}</Etiqueta>}
                 </div>
+                {d.valor_a_confirmar && (
+                  <p class="fraco" style={{ margin: 0 }}>
+                    Valor previsto: conta de valor variável (ex.: gás, energia). {moeda(d.valor)} é uma previsão — não é pagamento e não entra em Movimentações. Ao pagar, informe o valor real da conta.
+                  </p>
+                )}
+                {d.agrupamento && (
+                  <p class="fraco" style={{ margin: 0 }}>
+                    Está no agrupamento “{d.agrupamento.titulo}” ({plural(d.agrupamento.quantidade, 'despesa', 'despesas')}, {moeda(d.agrupamento.total)} no total). O agrupamento só organiza: esta despesa continua sendo contada uma vez, por ela mesma.
+                  </p>
+                )}
 
                 {d.status === 'em_revisao' && (
                   <div class="pilha pilha--p fin-destaque">

@@ -25,9 +25,12 @@ import { SituacaoLancamento, useCadastroCategorias, nomeCategoria, temPermissao,
 import { NovaDespesa, EditarDespesa } from './NovaDespesa';
 import { NovaReceita } from './NovaReceita';
 import { DetalheDespesa } from './DetalheDespesa';
+import { Agrupamentos } from './Agrupamentos';
 
 type Periodo = 'mes' | 'anterior' | '30d' | 'personalizado' | 'todo' | 'sem_data';
 export type VistaMovimentacoes = 'receitas' | 'despesas';
+/** 0039: a terceira visão organiza despesas já lançadas em agrupamentos (nunca soma de novo). */
+type Visao = VistaMovimentacoes | 'agrupamentos';
 
 /** Tipos de cada visão. Vendas do PDV (venda_dia) são RECEITA: nunca entram em Despesas, mesmo que um backend anterior
  * à 0031 (que ignora `grupo`) devolva tudo — foi assim que "Vendas PDV" apareceu em Despesas como "A pagar". */
@@ -61,7 +64,7 @@ function pedidoCorrecao(l: Lancamento): PedidoConfirmacao | null {
 
 export function Movimentacoes({ contexto }: { contexto: ContextoPainel }) {
   const lancar = temPermissao(contexto.usuario, 'financeiro.lancar');
-  const [vista, setVista] = useState<VistaMovimentacoes>(() => (lerParam('vista') === 'receitas' || lerParam('tipo') === 'receitas' ? 'receitas' : 'despesas'));
+  const [vista, setVista] = useState<Visao>(() => (lerParam('vista') === 'agrupamentos' ? 'agrupamentos' : lerParam('vista') === 'receitas' || lerParam('tipo') === 'receitas' ? 'receitas' : 'despesas'));
   const [periodo, setPeriodo] = useState<Periodo>('mes');
   const [de, setDe] = useState('');
   const [ate, setAte] = useState('');
@@ -93,7 +96,7 @@ export function Movimentacoes({ contexto }: { contexto: ContextoPainel }) {
 
   return (
     <>
-      <div class="barra-ferramentas">
+      {vista !== 'agrupamentos' && <div class="barra-ferramentas">
         <div class="entrada-grupo barra-ferramentas__busca">
           <Search aria-hidden="true" />
           <input class="entrada" type="search" placeholder="Buscar descrição ou fornecedor" aria-label="Buscar movimentação" maxLength={80} value={busca} onInput={(e) => setBusca(e.currentTarget.value)} />
@@ -113,20 +116,20 @@ export function Movimentacoes({ contexto }: { contexto: ContextoPainel }) {
             <Botao tamanho="p" variante="primario" aria-label="Nova despesa" icone={<Plus aria-hidden="true" />} onClick={() => setNova(true)}>Despesa</Botao>
           </div>
         )}
-      </div>
+      </div>}
 
-      <Segmentado<VistaMovimentacoes>
+      <Segmentado<Visao>
         rotulo="Visão de Movimentações"
         valor={vista}
         aoMudar={setVista}
-        opcoes={[{ valor: 'receitas', rotulo: 'Receitas' }, { valor: 'despesas', rotulo: 'Despesas' }]}
+        opcoes={[{ valor: 'receitas', rotulo: 'Receitas' }, { valor: 'despesas', rotulo: 'Despesas' }, { valor: 'agrupamentos', rotulo: 'Agrupamentos' }]}
       />
 
-      <Lista
+      {vista === 'agrupamentos' ? <Agrupamentos lancar={lancar} abrirDespesa={setDespesa} confirmar={confirmar} /> : <Lista
         vista={vista} periodo={periodo} de={de} ate={ate} busca={buscaAtiva} lancar={lancar} confirmar={confirmar}
         abrirDespesa={setDespesa} abrirReceita={abrirReceita} abrirDia={setDia} editarDespesa={setEditar}
         irPara={(d, a) => { setDe(d); setAte(a); setPeriodo('personalizado'); }}
-      />
+      />}
 
       <NovaDespesa aberta={nova} aoFechar={() => setNova(false)} aoCriar={(id) => setDespesa(id)} />
       <NovaReceita aberta={receita || !!receitaEditar} editar={receitaEditar} aoFechar={() => { setReceita(false); setReceitaEditar(null); }} />
@@ -167,13 +170,16 @@ function SituacaoDespesa({ l }: { l: Lancamento }) {
   return <span class="linha" style={{ gap: '6px', flexWrap: 'wrap' }}>{situacao}<Etiqueta tom="atencao">pendência</Etiqueta></span>;
 }
 
-/** Pagador com os mesmos nomes do Responsável (Âmbar, Roll, Conjunto); a conta (ex.: pessoal do Cauã) fica embaixo. */
+/** Quem pagou: ÂMBAR ou ROLL (o lado da conta de onde o dinheiro saiu); a conta (ex.: Marcelo, pessoal) fica embaixo.
+ *  A conta conjunta (Stone) aparece como ÂMBARXROLL com "conta conjunta" embaixo: o dinheiro saiu da própria operação
+ *  conjunta, por isso não gera repasse. Responsabilidade (quem deve arcar) é a coluna ao lado, não esta. */
 function PagadorCelula({ l }: { l: Lancamento }) {
-  // Empresa pagadora: Âmbar, Roll ou Âmbarxroll (a operação conjunta). Conta individual, se houver, embaixo.
   // 17/11: conta PESSOAL de sócio (cartão/Pix pessoal) não é saída da conta da empresa: fica marcada.
   const pessoal = l.detalhes.pagador_natureza === 'pessoal' ? <Etiqueta tom="info">pessoal</Etiqueta> : null;
-  const lado = l.pagador_lado ? (l.pagador_lado === 'conjunta' ? 'ÂmbarxRoll' : PARTE[l.pagador_lado]) : null;
-  if (lado) return <><span>{lado}</span>{l.pagador && l.pagador !== lado && <span class="sub">{l.pagador} {pessoal}</span>}</>;
+  const lado = l.pagador_lado ? PARTE[l.pagador_lado] : null;
+  const conta = l.pagador_lado === 'conjunta' ? `conta conjunta${l.pagador && l.pagador.toLowerCase() !== 'âmbarxroll' ? ` · ${l.pagador}` : ''}` : l.pagador;
+  // Histórico importado sem conta: o backend manda o nome da empresa ("Âmbar"), que não se repete embaixo.
+  if (lado) return <><span>{lado}</span>{conta && conta.toLowerCase() !== lado.toLowerCase() && <span class="sub">{conta} {pessoal}</span>}</>;
   if (l.pagador) return <span>{l.pagador} {pessoal}</span>;
   if (l.detalhes.tem_pagamento === false || l.status === 'cancelada') return <span class="fraco">—</span>;
   return <span class="fin-falta">Não identificado</span>;

@@ -180,6 +180,7 @@ export const ORIGEM_CLASSIFICACAO: Record<string, string> = {
   legenda_ia: 'pela legenda e pela IA',
   fornecedor: 'pelo fornecedor',
   ia: 'pela IA',
+  regra_dono: 'passagem da equipe = Folha (regra do dono)',
   sugestao_ia: 'sugestão da IA, a confirmar',
   conflito: 'a confirmar (legenda e IA discordam)',
   ambigua: 'a confirmar (mais de uma possível)',
@@ -317,10 +318,16 @@ export const BASE_PARTICIPACAO: Record<string, string> = {
 
 // --- 0029: quem pagou ---------------------------------------------------------------------------------------------------
 
-/** Grupos financeiros (o valor interno da conta conjunta continua 'conjunta'). */
-export const PARTE: Record<string, string> = { ambar: 'Âmbar', roll: 'Roll', conjunta: 'ÂmbarxRoll' };
+// 17/11 (pedido do dono): só TRÊS identificações na interface — ÂMBAR, ROLL e ÂMBARXROLL. Elas não significam a mesma
+// coisa: ÂMBAR e ROLL dizem QUEM PAGOU (o lado da conta de onde o dinheiro saiu); ÂMBARXROLL é a RESPONSABILIDADE
+// compartilhada. A conta, a pessoa (ex.: Marcelo) e se é pessoal continuam guardadas e aparecem no detalhe — nada é
+// trocado no banco por um nome genérico.
+/** Lado de quem pagou (o valor interno da conta conjunta continua 'conjunta'). */
+export const PARTE: Record<string, string> = { ambar: 'ÂMBAR', roll: 'ROLL', conjunta: 'ÂMBARXROLL' };
+/** Empresa pagadora como o backend devolve nos repasses (ambarxroll = a conta conjunta pagou). */
+export const EMPRESA: Record<string, string> = { ambar: 'ÂMBAR', roll: 'ROLL', ambarxroll: 'ÂMBARXROLL' };
 export const LADOS = ['ambar', 'roll', 'conjunta'] as const;
-export const RESPONSAVEL: Record<string, string> = { conjunto: 'ÂmbarxRoll', ambar: 'Âmbar', roll: 'Roll', compartilhada: 'ÂmbarxRoll (50/50)' };
+export const RESPONSAVEL: Record<string, string> = { conjunto: 'ÂMBARXROLL', ambar: 'ÂMBAR', roll: 'ROLL', compartilhada: 'ÂMBARXROLL (50/50)' };
 /** Responsáveis oferecidos em lançamento novo (o legado 50/50 só aparece onde já existe). */
 export const RESPONSAVEIS_NOVOS = ['conjunto', 'ambar', 'roll'] as const;
 

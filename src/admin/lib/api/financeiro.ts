@@ -12,7 +12,7 @@ import type {
   ContaPagadora, ContaPagadoraCadastro, ContaPagadoraEntrada, ListaPendencias, Pendencia, PagadorPagamento, Acertos, RepassesConjunto, Ressarcimentos, DespesaCorrecao, ItemDetalhe,
   MovimentoAcerto, Responsavel, Tratamento, ConfiguracaoFinanceira, ResponsavelNovo,
   SugestaoConciliacao, PagamentoRegistrado, ContaConciliar, ConciliacaoFeita, ConciliacaoRecente, MotivoDiferenca,
-  ParcelamentoEntrada,
+  ParcelamentoEntrada, Agrupamento, AgrupamentoResumo,
 } from '../tipos/financeiro';
 
 const lista = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
@@ -124,7 +124,7 @@ export const financeiro = {
   pausarRecorrencia: (id: string, versao: number, pausar: boolean) => pedir<Recorrencia>(`financeiro/recorrencias/${id}`, { metodo: 'PATCH', corpo: { versao, pausar } }),
   recorrencias: (ativas = true) => pedir<Recorrencia[]>('financeiro/recorrencias', { query: { ativas } }),
   criarRecorrencia: (r: RecorrenciaEntrada) => pedir<Recorrencia>('financeiro/recorrencias', { metodo: 'POST', corpo: r }),
-  alterarRecorrencia: (id: string, r: { versao: number; aplicar_a_partir_de?: string; encerrar_em?: string; valor_previsto?: string; descricao?: string; dia_vencimento?: number; valor_variavel?: boolean; itens?: ItemDetalhe[] | null; vencimento_dia_util?: boolean; vencimento_mes_seguinte?: boolean }) =>
+  alterarRecorrencia: (id: string, r: { versao: number; aplicar_a_partir_de?: string; encerrar_em?: string; valor_previsto?: string; descricao?: string; dia_vencimento?: number; valor_variavel?: boolean; itens?: ItemDetalhe[] | null; vencimento_dia_util?: boolean; vencimento_mes_seguinte?: boolean; categoria?: string }) =>
     pedir<Recorrencia>(`financeiro/recorrencias/${id}`, { metodo: 'PATCH', corpo: r }),
   taxas: () => pedir<TaxaPagamento[]>('financeiro/taxas-pagamento'),
   registrarTaxa: (t: TaxaEntrada) => pedir<TaxaEntrada>('financeiro/taxas-pagamento', { metodo: 'POST', corpo: t }),
@@ -221,8 +221,20 @@ export const financeiro = {
     pedir<{ despesa_id: string; responsavel: Responsavel; versao: number }>(`financeiro/despesas/${despesaId}/responsavel`, { metodo: 'PUT', corpo: { versao, responsavel } }),
   acertos: () => pedir<Acertos>('financeiro/acertos'),
   /** 0032: quanto o Conjunto (Master) ainda repassa ao Âmbar e à Roll, com o cálculo. */
-  /** Âmbar e Roll a receber da operação conjunta (views do histórico; só leitura). */
-  ressarcimentos: () => pedir<Ressarcimentos>('financeiro/repasses/historicos'),
+  /** Âmbar e Roll a receber um do outro: todos os pagamentos vivos, pela data do pagamento (17/11; só leitura). */
+  ressarcimentos: (q: { de?: string; ate?: string } = {}) => pedir<Ressarcimentos>('financeiro/repasses/historicos', { query: q }),
+  // 0039: agrupamentos (só organizam despesas existentes; nenhum valor novo).
+  agrupamentos: (busca?: string) => pedir<{ itens: AgrupamentoResumo[]; total: number }>('financeiro/agrupamentos', { query: { busca } }),
+  agrupamento: (id: string) => pedir<Agrupamento>(`financeiro/agrupamentos/${id}`),
+  criarAgrupamento: (a: { titulo: string; observacao?: string | null; despesas: string[] }) =>
+    pedir<Agrupamento>('financeiro/agrupamentos', { metodo: 'POST', corpo: a }),
+  alterarAgrupamento: (id: string, a: { versao: number; titulo?: string; observacao?: string | null }) =>
+    pedir<Agrupamento>(`financeiro/agrupamentos/${id}`, { metodo: 'PATCH', corpo: a }),
+  vincularAgrupamento: (id: string, despesas: string[]) =>
+    pedir<Agrupamento>(`financeiro/agrupamentos/${id}/despesas`, { metodo: 'POST', corpo: { despesas } }),
+  desvincularAgrupamento: (id: string, despesaId: string) =>
+    pedir<Agrupamento>(`financeiro/agrupamentos/${id}/despesas/${despesaId}`, { metodo: 'DELETE' }),
+  excluirAgrupamento: (id: string) => pedir<void>(`financeiro/agrupamentos/${id}`, { metodo: 'DELETE' }),
   repassesConjunto: () => pedir<RepassesConjunto>('financeiro/repasses'),
   registrarRepasse: (m: { sentido: 'conjunto_para_ambar' | 'conjunto_para_roll' | 'ajuste_ambar' | 'ajuste_roll'; valor: string; data: string; descricao: string }) =>
     pedir<MovimentoAcerto>('financeiro/repasses/movimentos', { metodo: 'POST', corpo: m }),

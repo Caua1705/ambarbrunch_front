@@ -8,7 +8,10 @@
 // Despesas: nada é contado duas vezes.
 // Conciliação (0038): "Pagamentos encontrados" no topo sugere o pagamento já registrado (Júlia ou painel) que é desta
 // conta — Conciliar / Não corresponde; sem sugestão, "Buscar pagamento" na linha. Nada é baixado sem confirmação.
-// Situação: Pendente · Parcialmente paga · Vencida; "Pagas" mostra as contas já pagas (e desfaz uma conciliação errada).
+// Situação (17/11, os mesmos nomes de Movimentações): A pagar · Parcialmente paga · Vencida · Paga. "Previsto" NÃO é
+// situação: é o valor de uma conta de valor VARIÁVEL (gás, energia) ainda não confirmado — a conta continua A pagar,
+// soma no "Total a pagar" como previsão (destacada) e só vira despesa paga quando alguém paga informando o valor real.
+// Nunca aparece como paga nem entra em Movimentações → Despesas (que só lista pagamentos).
 // Rotas: GET /contas-a-pagar, POST /parcelas/{id}/pagamentos, POST /despesas, GET/POST/PATCH /recorrencias,
 // /conciliacao-contas/* e /parcelas/{id}/conciliar.
 import { useEffect, useState } from 'preact/hooks';
@@ -105,7 +108,7 @@ function ListaContasPagar({ contexto, busca, periodo, modo, abrirDespesa }: { co
   const lista = useConsulta(`financeiro/contas:${JSON.stringify(q)}`, () => financeiro.contas(q));
   const vencida = (c: ContaPagar) => c.situacao === 'aberta' && c.situacao_painel === 'vencida';
   const parcial = (c: ContaPagar) => c.situacao === 'aberta' && Number(c.valor_pago) > 0;
-  const rotuloSituacao = (c: ContaPagar) => (c.situacao === 'paga' ? 'Paga' : vencida(c) ? (parcial(c) ? 'Parcial · vencida' : 'Vencida') : parcial(c) ? 'Parcialmente paga' : 'Pendente');
+  const rotuloSituacao = (c: ContaPagar) => (c.situacao === 'paga' ? 'Paga' : vencida(c) ? (parcial(c) ? 'Parcial · vencida' : 'Vencida') : parcial(c) ? 'Parcialmente paga' : 'A pagar');
   const tomSituacao = (c: ContaPagar) => (c.situacao === 'paga' ? 'ok' : vencida(c) ? 'perigo' : parcial(c) ? 'atencao' : 'neutro');
 
   const colunas: Coluna<ContaPagar>[] = [
@@ -126,7 +129,7 @@ function ListaContasPagar({ contexto, busca, periodo, modo, abrirDespesa }: { co
       // O que falta pagar desta conta (parcial: o saldo; valor variável: o previsto). Paga: o que foi pago.
       id: 'valor', titulo: 'Valor', numero: true, ordenar: (c) => Number(pagas ? c.valor_pago : c.saldo),
       celula: (c) => (c.situacao === 'paga' ? <span class="num forte" style={{ whiteSpace: 'nowrap' }}>{moeda(c.valor_pago)}</span>
-        : c.valor_a_confirmar ? <><span class="num forte">{moeda(c.valor)}</span><span class="sub">previsto</span></>
+        : c.valor_a_confirmar ? <><span class="num forte" title="Valor previsto: conta de valor variável; o valor real é informado ao pagar.">{moeda(c.valor)}</span><span class="sub">valor previsto</span></>
         : <><span class="num forte" style={{ whiteSpace: 'nowrap' }}>{moeda(c.saldo)}</span>{parcial(c) && <span class="sub">de {moeda(c.valor)}</span>}</>),
     },
     {
@@ -170,6 +173,8 @@ function ListaContasPagar({ contexto, busca, periodo, modo, abrirDespesa }: { co
               const todas = pagas ? r.itens.filter((c) => c.situacao === 'paga') : r.itens.filter((c) => c.situacao !== 'paga');
               const linhas = termo ? todas.filter((c) => `${c.descricao} ${c.fornecedor ?? ''}`.toLocaleLowerCase('pt-BR').includes(termo)) : todas;
               const soma = (f: (c: ContaPagar) => string) => (linhas.reduce((s, c) => s + Math.round(Number(f(c)) * 100), 0) / 100).toFixed(2);
+              const previstas = pagas ? [] : linhas.filter((c) => c.valor_a_confirmar && Number(c.valor_pago) === 0);
+              const previsto = previstas.reduce((s, c) => s + Math.round(Number(c.saldo) * 100), 0) / 100;
               return (
                 <>
                   {r.itens.length > 0 && (
@@ -180,7 +185,13 @@ function ListaContasPagar({ contexto, busca, periodo, modo, abrirDespesa }: { co
                       {pagas
                         ? <div><span>Total pago</span><strong class="num">{moeda(soma((c) => c.valor_pago))}</strong></div>
                         : <div><span>Total a pagar</span><strong class="num">{moeda(termo ? soma((c) => c.saldo) : r.totais.saldo)}</strong></div>}
+                      {previstas.length > 0 && <div><span>Dos quais previstos</span><strong class="num" title="Contas de valor variável: previsão, não valor confirmado.">{moeda(previsto)}</strong></div>}
                     </div>
+                  )}
+                  {previstas.length > 0 && (
+                    <p class="fraco" style={{ margin: '0 20px 8px' }}>
+                      “Valor previsto” é a previsão de uma conta de valor variável ({previstas.map((c) => c.descricao).slice(0, 3).join(', ')}{previstas.length > 3 ? '…' : ''}): a conta continua a pagar e o valor real é informado no Pagar.
+                    </p>
                   )}
                   <Tabela
                     rotulo="Contas a pagar"

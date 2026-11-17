@@ -161,7 +161,7 @@ function Conteudo({ contexto }: { contexto: ContextoPainel }) {
             {aba === 'contas' && <ContasAPagar contexto={contexto} abrirDespesa={setDespesa} />}
             {aba === 'pendencias' && <Pendencias contexto={contexto} />}
             {aba === 'recorrentes' && <ContasRecorrentes contexto={contexto} />}
-            {aba === 'repasses' && societario && <Repasses />}
+            {aba === 'repasses' && societario && <Repasses confirmar={confirmar} />}
             {aba === 'relatorios' && <Relatorios contexto={contexto} />}
           </div>
           {aba === 'contas' && <DetalheDespesa id={despesa} aoFechar={() => setDespesa(null)} confirmar={confirmar} />}

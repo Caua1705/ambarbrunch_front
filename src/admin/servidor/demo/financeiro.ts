@@ -1190,6 +1190,8 @@ export const ROTAS_FINANCEIRO: Rota[] = [
   // Conciliação de contas a pagar (0038): a demonstração não tem pagamentos avulsos para sugerir.
   ['GET', R('financeiro/conciliacao-contas/sugestoes'), GERENCIA, () => ({ itens: [], total: 0 })],
   ['GET', R('financeiro/conciliacao-contas/recentes'), GERENCIA, () => ({ itens: [] })],
+  // 0039: agrupamentos (a demonstração começa sem nenhum).
+  ['GET', R('financeiro/agrupamentos'), GERENCIA, () => ({ itens: [], total: 0 })],
   ['GET', R(`financeiro/parcelas/${UUID}/pagamentos-candidatos`), GERENCIA, ({ params }) => {
     montar();
     const d = E.despesas.find((x) => x.parcelas.some((p) => p.id === params[0]));

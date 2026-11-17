@@ -206,6 +206,8 @@ export interface DespesaSaida {
   parcelas: ParcelaSaida[];
   rateio: { categoria: string; valor: Dec }[];
   historico?: { em: Instante; acao: string; ator: string | null; ator_tipo: string; dados: unknown }[];
+  /** 0039: o agrupamento em que a despesa está (só organização). */
+  agrupamento?: { id: Uuid; titulo: string; quantidade: number; total: Dec } | null;
 }
 
 /** 0034: item do detalhamento (total = base + acréscimos − descontos). */
@@ -1141,23 +1143,71 @@ export interface RepasseLado {
   itens: ItemRepasse[];
   itens_total: number;
 }
-/** Ressarcimento de um gasto adiantado (linha de v_repasses_historicos_detalhes). */
+/** Ressarcimento de um gasto adiantado: um PAGAMENTO vivo (histórico importado ou Júlia/painel), 17/11. */
+export type EmpresaPagadora = 'ambar' | 'roll' | 'ambarxroll';
 export interface ItemRessarcimento {
   descricao: string;
+  categoria?: string | null;
   valor_original: Dec;
-  pagador_empresa: string;
+  /** Quem pagou (lado da conta de onde o dinheiro saiu); null = não identificado. */
+  pagador_empresa: EmpresaPagadora | null;
+  /** Conta/pessoa que pagou (ex.: Marcelo), só para conferência. */
+  pagador_conta?: string | null;
+  pagador_natureza?: 'pessoal' | 'empresarial' | null;
+  /** Quem é responsável pelo gasto (não é quem pagou). */
   responsavel: string;
   percentual_ressarcimento: Dec;
   valor_a_receber: Dec;
+  /** Quem ressarce o pagador (o outro lado), ou null. */
+  devedor?: 'ambar' | 'roll' | null;
+  pendencia?: 'sem_pagador' | 'antes_da_divisao' | 'conjunta_pagou_de_um_lado' | null;
+  origem?: 'historico' | 'lancamento';
   data_pagamento: Data | null;
   despesa_id: Uuid;
   pagamento_id: Uuid;
 }
+export interface PendenciaRessarcimento { quantidade: number; valor: Dec; itens: ItemRessarcimento[] }
 export interface Ressarcimentos {
   disponivel: boolean;
-  empresas: Record<'ambar' | 'roll' | 'ambarxroll', { a_receber: Dec; pago: Dec; quantidade: number; itens: ItemRessarcimento[] }>;
+  de?: Data | null;
+  ate?: Data | null;
+  rateio?: { ambar: Dec; roll: Dec; configurado: boolean };
+  inicio_divisao?: Data;
+  empresas: Record<EmpresaPagadora, { a_receber: Dec; pago: Dec; quantidade: number; itens: ItemRessarcimento[] }>;
   total_a_receber: Dec;
+  saldo?: { devedor: 'ambar' | 'roll' | null; credor: 'ambar' | 'roll' | null; valor: Dec };
+  pagamentos?: number;
+  pendencias?: Record<'sem_pagador' | 'antes_da_divisao' | 'conjunta_pagou_de_um_lado', PendenciaRessarcimento>;
 }
+
+/** 0039: agrupamento organizacional de despesas existentes (o total é calculado; nunca somar de novo). */
+export interface AgrupamentoResumo {
+  id: Uuid;
+  titulo: string;
+  observacao: string | null;
+  quantidade: number;
+  total: Dec;
+  pago: Dec;
+  primeiro_pagamento: Data | null;
+  ultimo_pagamento: Data | null;
+  criado_por: string | null;
+  criado_em: Instante;
+  atualizado_em: Instante;
+  versao: number;
+}
+export interface ItemAgrupamento {
+  despesa_id: Uuid;
+  descricao: string;
+  valor: Dec;
+  pago: Dec;
+  pago_em: Data | null;
+  competencia: Data | null;
+  status: string;
+  categoria: string;
+  responsavel: string;
+  adicionado_em: Instante;
+}
+export interface Agrupamento extends AgrupamentoResumo { itens: ItemAgrupamento[] }
 export interface RepassesConjunto {
   ambar: RepasseLado;
   roll: RepasseLado;

@@ -515,3 +515,21 @@
   padding-top: var(--e-2);
   border-top: 1px dashed var(--borda);
 }
+
+/* Agrupamentos (0039): lista de despesas para escolher/ver, compacta e legível no celular. */
+.fin-escolha {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+.fin-escolha > li {
+  padding: var(--e-2) var(--e-1);
+  border-bottom: 1px solid var(--borda);
+}
+.fin-escolha .sub {
+  display: block;
+  font-size: var(--t-s);
+  color: var(--texto-3);
+}

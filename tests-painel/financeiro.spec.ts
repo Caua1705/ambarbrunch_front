@@ -38,7 +38,8 @@ test('abas do Gerente (sem Repasses); Movimentações em Receitas | Despesas, se
   await expect(page.getByLabel('Totais do período')).toHaveCount(0);
   for (const t of ['Vendas do PDV (Eyemobile)', 'Despesas confirmadas', 'Pagamentos realizados', 'A pagar em aberto']) await expect(page.getByText(t, { exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: /^Filtros/ })).toHaveCount(0);
-  await expect(visao(page).getByRole('button')).toHaveText(['Receitas', 'Despesas']);
+  // 0039: a terceira visão organiza despesas já lançadas (agrupamentos), sem somar de novo.
+  await expect(visao(page).getByRole('button')).toHaveText(['Receitas', 'Despesas', 'Agrupamentos']);
   // + Receita e + Despesa pequenos, no canto.
   await expect(page.getByRole('button', { name: 'Nova despesa' })).toHaveText('Despesa');
   await expect(page.getByRole('button', { name: 'Outra receita' })).toHaveText('Receita');
@@ -182,8 +183,8 @@ test('+ Conta a pagar (avulsa): aparece em Contas a pagar, é paga pela lista e 
   await page.getByLabel('Buscar conta a pagar').fill(nome);
   const linha = contas.getByRole('row', { name: new RegExp(nome) });
   await expect(linha).toHaveCount(1);
-  // Colunas: Vencimento, Descrição, Valor e Situação (Pendente | Parcialmente paga | Vencida).
-  await expect(linha).toContainText(/Pendente|Parcialmente paga|Vencida/);
+  // Colunas: Vencimento, Descrição, Valor e Situação (A pagar | Parcialmente paga | Vencida) — os nomes de Movimentações.
+  await expect(linha).toContainText(/A pagar|Parcialmente paga|Vencida/);
   await linha.getByRole('button', { name: 'Pagar', exact: true }).click();
   const pagar = page.getByRole('dialog', { name: 'Registrar pagamento' });
   await expect(pagar.getByLabel('Pago com a conta')).toHaveValue(/.+/); // a conta padrão já vem escolhida
@@ -539,4 +540,15 @@ test('Parcelar compra (tablet 3x paga de uma vez): só a parcela paga hoje sai e
   await aba(page, /^Contas a pagar/).click();
   await page.getByLabel('Buscar conta a pagar').fill(nome);
   await expect(page.getByRole('table').getByRole('row', { name: new RegExp(nome) })).toHaveCount(2);
+});
+
+test('Agrupamentos: terceira visão de Movimentações, só organização (17/11)', async ({ page }) => {
+  await page.goto(`${DEMO}/admin/financeiro`);
+  await visao(page).getByRole('button', { name: 'Agrupamentos' }).click();
+  await expect(page.getByRole('heading', { name: 'Nenhum agrupamento' })).toBeVisible();   // a demonstração começa sem nenhum
+  await expect(page.getByText('o total é a soma delas e não é contado de novo')).toBeVisible();
+  await page.getByRole('button', { name: 'Agrupamento', exact: true }).click();
+  const gaveta = page.getByRole('dialog', { name: 'Novo agrupamento' });
+  await expect(gaveta.getByLabel('Buscar despesa para agrupar')).toBeVisible();
+  await page.keyboard.press('Escape');
 });

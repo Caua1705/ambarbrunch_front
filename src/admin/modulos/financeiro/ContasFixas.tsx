@@ -97,6 +97,7 @@ export function EditarRecorrencia({ alvo, aoFechar }: { alvo: Recorrencia | 'nov
   const [fim, setFim] = useState('');
   const [fornecedor, setFornecedor] = useState('');
   const [responsavel, setResponsavel] = useState<'' | ResponsavelNovo>('');
+  const nomeCat = useNomeCategoria();
   // 0034: itens-base (copiados para cada competência) e vencimento por dia útil / no mês seguinte.
   const [detAtivo, setDetAtivo] = useState(false);
   const [itens, setItens] = useState<ItemForm[]>([]);
@@ -139,7 +140,9 @@ export function EditarRecorrencia({ alvo, aoFechar }: { alvo: Recorrencia | 'nov
     setErro(null);
     try {
       if (r) {
-        await financeiro.alterarRecorrencia(r.id, { versao: r.versao, aplicar_a_partir_de: `${aPartir}-01`, descricao: descricao.trim(), valor_previsto: v, dia_vencimento: dia, valor_variavel: variavel, itens: base.itens, vencimento_dia_util: diaUtil, vencimento_mes_seguinte: mesSeguinte });
+        // 17/11: a categoria também muda (só ativa na unidade): a recorrente e as próximas contas ainda em aberto.
+        const novaCategoria = categoria && categoria !== r.categoria_codigo ? { categoria } : {};
+        await financeiro.alterarRecorrencia(r.id, { versao: r.versao, aplicar_a_partir_de: `${aPartir}-01`, descricao: descricao.trim(), valor_previsto: v, dia_vencimento: dia, valor_variavel: variavel, itens: base.itens, vencimento_dia_util: diaUtil, vencimento_mes_seguinte: mesSeguinte, ...novaCategoria });
         avisar(`Conta recorrente alterada a partir de ${mesAno(`${aPartir}-01`).toLowerCase()}.`, 'ok');
       } else {
         await financeiro.criarRecorrencia({
@@ -166,16 +169,14 @@ export function EditarRecorrencia({ alvo, aoFechar }: { alvo: Recorrencia | 'nov
         {r && <Aviso tom="info" icone={<Info aria-hidden="true" />}>A mudança vale a partir do mês escolhido. Contas já pagas não mudam.</Aviso>}
         {erro && <Aviso tom="perigo" icone={<Info aria-hidden="true" />}>{erro}</Aviso>}
         <Campo rotulo="Descrição">{(id) => <input id={id} class="entrada" maxLength={300} placeholder="Ex.: Aluguel da loja" value={descricao} onInput={(e) => setDescricao(e.currentTarget.value)} data-autofoco />}</Campo>
-        {!r && (
-          <Campo rotulo="Categoria">
-            {(id) => (
-              <select id={id} class="selecao" value={categoria} onChange={(e) => setCategoria(e.currentTarget.value)}>
-                <option value="">Escolha…</option>
-                <OpcoesCategoria cats={cats.dados ?? []} />
-              </select>
-            )}
-          </Campo>
-        )}
+        <Campo rotulo="Categoria" ajuda={r ? 'Mudar a categoria vale para a conta recorrente e para as próximas contas ainda em aberto; as pagas não mudam.' : undefined}>
+          {(id, d) => (
+            <select id={id} class="selecao" aria-describedby={d} value={categoria} onChange={(e) => setCategoria(e.currentTarget.value)}>
+              <option value="">Escolha…</option>
+              <OpcoesCategoria cats={cats.dados ?? []} atual={r ? { codigo: r.categoria_codigo, nome: nomeCat(r.categoria_codigo) } : null} />
+            </select>
+          )}
+        </Campo>
         <div class="grade-campos">
           <Campo rotulo="Valor previsto">{(id, d) => <EntradaMoeda id={id} descr={d} valor={valor} aoMudar={setValor} />}</Campo>
           <Campo rotulo={diaUtil ? 'Dia útil do vencimento (Nº)' : 'Dia do vencimento'}>{(id) => <input id={id} type="number" min={1} max={31} class="entrada num" value={dia} onInput={(e) => setDia(Number(e.currentTarget.value))} />}</Campo>
@@ -183,7 +184,7 @@ export function EditarRecorrencia({ alvo, aoFechar }: { alvo: Recorrencia | 'nov
           {!r && <Campo rotulo="A cada quantos meses">{(id) => <input id={id} type="number" min={1} max={12} class="entrada num" value={intervalo} onInput={(e) => setIntervalo(Number(e.currentTarget.value))} />}</Campo>}
           {!r && <Campo rotulo="Fim" opcional>{(id) => <input id={id} type="date" class="entrada" value={fim} onChange={(e) => setFim(e.currentTarget.value)} />}</Campo>}
           {!r && (
-            <Campo rotulo="Responsável" ajuda="Vazio: o responsável padrão (ÂmbarxRoll) na conta de cada mês.">
+            <Campo rotulo="Responsável" ajuda="Vazio: o responsável padrão (ÂMBARXROLL) na conta de cada mês.">
               {(id, d) => (
                 <select id={id} class="selecao" aria-describedby={d} value={responsavel} onChange={(e) => setResponsavel(e.currentTarget.value as '' | ResponsavelNovo)}>
                   <option value="">Padrão</option>

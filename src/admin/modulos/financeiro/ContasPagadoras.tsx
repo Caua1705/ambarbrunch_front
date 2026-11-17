@@ -90,7 +90,7 @@ export function ContasPagadoras() {
                 </section>
               ))}
             </div>
-          ) : <Vazio compacto titulo="Nenhuma conta cadastrada">Cadastre a conta ÂmbarxRoll (Stone, a padrão) e as contas que já pagaram despesas.</Vazio>)}
+          ) : <Vazio compacto titulo="Nenhuma conta cadastrada">Cadastre a conta conjunta ÂMBARXROLL (Stone, a padrão) e as contas que já pagaram despesas.</Vazio>)}
         </Dados>
       </Cartao>
       <ResponsavelPadrao />
@@ -159,7 +159,7 @@ function FormConta({ conta, aoFechar }: { conta: ContaPagadoraCadastro | 'nova' 
           <Campo rotulo="Grupo">
             {(id) => (
               <select id={id} class="selecao" value={f.parte} onChange={(e) => mudarLado(e.currentTarget.value as ParteConta)}>
-                <option value="ambar">Âmbar</option><option value="roll">Roll</option><option value="conjunta">ÂmbarxRoll</option>
+                <option value="ambar">ÂMBAR</option><option value="roll">ROLL</option><option value="conjunta">ÂMBARXROLL (conta conjunta)</option>
               </select>
             )}
           </Campo>
