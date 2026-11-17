@@ -451,3 +451,67 @@
   padding-top: 8px;
   padding-bottom: 8px;
 }
+
+/* Conciliação de contas a pagar (0038): sugestões e busca inline, sem modal. */
+.concilia-lista {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e-3);
+}
+.concilia-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e-2);
+  padding: var(--e-3) var(--e-4);
+  border: 1px solid var(--borda);
+  border-radius: var(--r-l);
+  background: var(--superficie-2);
+  min-width: 0;
+}
+.concilia-conta,
+.concilia-pagamento {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.concilia-evidencias {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+.concilia-opcoes,
+.concilia-motivo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e-2);
+}
+.concilia-motivo {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.concilia-motivo legend {
+  font-weight: 600;
+  margin-bottom: var(--e-2);
+}
+.concilia-opcao {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--e-2);
+  cursor: pointer;
+}
+.concilia-opcao input {
+  margin-top: 3px;
+  flex: none;
+}
+.concilia-acoes {
+  gap: var(--e-2);
+  flex-wrap: wrap;
+}
+.concilia-form {
+  padding-top: var(--e-2);
+  border-top: 1px dashed var(--borda);
+}

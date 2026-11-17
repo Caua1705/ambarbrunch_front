@@ -1187,6 +1187,19 @@ export const ROTAS_FINANCEIRO: Rota[] = [
     doc.resolvido = 'compras';
     return { id: doc.id, situacao: 'encaminhado_estoque', compra_id: id(), compra_nova: true };
   }],
+  // Conciliação de contas a pagar (0038): a demonstração não tem pagamentos avulsos para sugerir.
+  ['GET', R('financeiro/conciliacao-contas/sugestoes'), GERENCIA, () => ({ itens: [], total: 0 })],
+  ['GET', R('financeiro/conciliacao-contas/recentes'), GERENCIA, () => ({ itens: [] })],
+  ['GET', R(`financeiro/parcelas/${UUID}/pagamentos-candidatos`), GERENCIA, ({ params }) => {
+    montar();
+    const d = E.despesas.find((x) => x.parcelas.some((p) => p.id === params[0]));
+    const p = d?.parcelas.find((x) => x.id === params[0]);
+    if (!d || !p) throw new ErroDemo(404, 'nao_encontrado', 'Conta a pagar em aberto não encontrada.');
+    return {
+      conta: { parcela_id: p.id, despesa_id: d.id, numero: p.numero, parcelas_total: d.parcelas.length, vencimento: p.vencimento, valor: p.valor, valor_pago: p.valor_pago, saldo: p.saldo, descricao: d.descricao, categoria: d.categoria_codigo, fornecedor: d.fornecedor?.nome ?? null, valor_a_confirmar: d.valor_a_confirmar },
+      itens: [], total: 0,
+    };
+  }],
   ['GET', R('financeiro/contas-a-pagar'), GERENCIA, ({ query }) => {
     montar();
     const hoje = hojeFortaleza();

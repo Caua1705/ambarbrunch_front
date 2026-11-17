@@ -11,6 +11,7 @@ import type {
   CategoriaEntrada, CategoriaAlteracao, CandidataRevisao, DespesaCandidata, FornecedorCadastro, FornecedorDetalhe,
   ContaPagadora, ContaPagadoraCadastro, ContaPagadoraEntrada, ListaPendencias, Pendencia, PagadorPagamento, Acertos, RepassesConjunto, Ressarcimentos, DespesaCorrecao, ItemDetalhe,
   MovimentoAcerto, Responsavel, Tratamento, ConfiguracaoFinanceira, ResponsavelNovo,
+  SugestaoConciliacao, PagamentoRegistrado, ContaConciliar, ConciliacaoFeita, ConciliacaoRecente, MotivoDiferenca,
 } from '../tipos/financeiro';
 
 const lista = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
@@ -97,7 +98,15 @@ export const financeiro = {
   /** Despesa lançada na unidade errada (§5.6). 409: despesa_de_compra, despesa_conciliada, apuracao_fechada. */
   mudarUnidadeDespesa: (id: string, m: { unidade: string; versao: number; motivo: string }) => pedir<DespesaSaida>(`financeiro/despesas/${id}/unidade`, { metodo: 'POST', corpo: m }),
   enviarParaCompras: (id: string) => pedir<{ compra_id: string; compra_nova: boolean }>(`financeiro/comprovantes/${id}/enviar-para-compras`, { metodo: 'POST' }),
-  contas: (q: { situacao?: string; de?: string; ate?: string; limite?: number }) => pedir<ListaContas>('financeiro/contas-a-pagar', { query: { limite: 200, ...q } }),
+  contas: (q: { situacao?: string; de?: string; ate?: string; limite?: number; so_contas?: boolean }) => pedir<ListaContas>('financeiro/contas-a-pagar', { query: { limite: 200, ...q } }),
+  // Conciliação de contas a pagar (0038): sugestões nunca dão baixa; conciliar/recusar/desfazer são de uma pessoa.
+  sugestoesConciliacao: async () => lista<SugestaoConciliacao>((await pedir<{ itens: SugestaoConciliacao[] }>('financeiro/conciliacao-contas/sugestoes'))?.itens),
+  conciliacoesRecentes: async () => lista<ConciliacaoRecente>((await pedir<{ itens: ConciliacaoRecente[] }>('financeiro/conciliacao-contas/recentes'))?.itens),
+  buscarPagamentos: (parcelaId: string, busca?: string) => pedir<{ conta: ContaConciliar; itens: PagamentoRegistrado[]; total: number }>(`financeiro/parcelas/${parcelaId}/pagamentos-candidatos`, { query: busca ? { busca } : {} }),
+  conciliarConta: (parcelaId: string, c: { pagamento_id: string; valor?: string | null; pago_em?: string | null; conta_pagadora_id?: string | null; motivo_diferenca?: MotivoDiferenca | null; observacao?: string | null }) =>
+    pedir<ConciliacaoFeita>(`financeiro/parcelas/${parcelaId}/conciliar`, { metodo: 'POST', corpo: c }),
+  recusarPagamento: (parcelaId: string, pagamentoId: string) => pedir<ConciliacaoFeita>(`financeiro/parcelas/${parcelaId}/recusar-pagamento`, { metodo: 'POST', corpo: { pagamento_id: pagamentoId } }),
+  desfazerConciliacao: (id: string, motivo: string) => pedir<ConciliacaoFeita>(`financeiro/conciliacao-contas/${id}/desfazer`, { metodo: 'POST', corpo: { motivo } }),
   pagar: (parcelaId: string, p: PagamentoEntrada) => pedir<ParcelaSaida>(`financeiro/parcelas/${parcelaId}/pagamentos`, { metodo: 'POST', corpo: p }),
   estornarPagamento: (id: string, motivo: string) => pedir<ParcelaSaida>(`financeiro/pagamentos/${id}/estornar`, { metodo: 'POST', corpo: { motivo } }),
   // Outras receitas (fora do PDV): POST 201 com Idempotency-Key; cancelar exige motivo (409 receita_conciliada).

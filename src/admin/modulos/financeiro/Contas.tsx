@@ -6,9 +6,13 @@
 // lista só, com todas as contas em aberto (vencidas primeiro) e as pagas dos últimos meses; as contas recorrentes são
 // administradas no bloco recolhível "Contas recorrentes". Paga, a conta é a mesma despesa de Movimentações →
 // Despesas: nada é contado duas vezes.
-// Rotas: GET /contas-a-pagar, POST /parcelas/{id}/pagamentos, POST /despesas, GET/POST/PATCH /recorrencias.
+// Conciliação (0038): "Pagamentos encontrados" no topo sugere o pagamento já registrado (Júlia ou painel) que é desta
+// conta — Conciliar / Não corresponde; sem sugestão, "Buscar pagamento" na linha. Nada é baixado sem confirmação.
+// Situação: Pendente · Parcialmente paga · Vencida; "Pagas" mostra as contas já pagas (e desfaz uma conciliação errada).
+// Rotas: GET /contas-a-pagar, POST /parcelas/{id}/pagamentos, POST /despesas, GET/POST/PATCH /recorrencias,
+// /conciliacao-contas/* e /parcelas/{id}/conciliar.
 import { useEffect, useState } from 'preact/hooks';
-import { Banknote, Search, Plus, Pencil } from 'lucide-preact';
+import { Banknote, Search, Plus, Pencil, Link2, Undo2 } from 'lucide-preact';
 import type { ContextoPainel } from '../../lib/sessao';
 import { useConsulta } from '../../lib/consulta';
 import { financeiro } from '../../lib/api/financeiro';
@@ -25,7 +29,7 @@ function periodoContas(p: PeriodoContas): { de?: string; ate?: string } {
 }
 import { gravarParams } from '../../lib/rotas';
 import { Suspenso } from '../../ui/camadas';
-import { Botao, Cartao, Situacao } from '../../ui/base';
+import { Botao, Cartao, Etiqueta, Segmentado, Situacao } from '../../ui/base';
 import { Dados, EsqueletoTabela, Vazio } from '../../ui/estados';
 import { Tabela, type Coluna } from '../../ui/tabela';
 import type { ContaPagar, ListaContas } from '../../lib/tipos/financeiro';
@@ -33,8 +37,10 @@ import { useNomeCategoria, temPermissao } from './comum';
 import { Pagar, type ContaParaPagar } from './Pagar';
 import { EditarRecorrencia } from './ContasFixas';
 import { NovaDespesa, EditarDespesa } from './NovaDespesa';
+import { SugestoesConciliacao, BuscarPagamento, DesfazerConciliacao } from './ConciliacaoContas';
 
 type TipoNova = 'avulsa' | 'parcelada' | 'recorrente';
+type Modo = 'pendentes' | 'pagas';
 export const TIPO_CONTA: Record<string, string> = { avulsa: 'Avulsa', recorrente: 'Recorrente', parcelada: 'Parcelada' };
 
 /** Aba Contas a pagar: busca, "+ Conta a pagar" (avulsa, parcelada ou recorrente) e a lista. */
@@ -42,10 +48,12 @@ export function ContasAPagar({ contexto, abrirDespesa }: { contexto: ContextoPai
   const [busca, setBusca] = useState('');
   const [periodo, setPeriodo] = useState<PeriodoContas>('todo');
   const [nova, setNova] = useState<TipoNova | null>(null);
+  const [modo, setModo] = useState<Modo>('pendentes');
   const lancar = temPermissao(contexto.usuario, 'financeiro.lancar');
   return (
     <>
       <div class="barra-ferramentas">
+        <Segmentado<Modo> rotulo="Contas pendentes ou pagas" valor={modo} aoMudar={setModo} opcoes={[{ valor: 'pendentes', rotulo: 'Pendentes' }, { valor: 'pagas', rotulo: 'Pagas' }]} />
         <div class="entrada-grupo barra-ferramentas__busca">
           <Search aria-hidden="true" />
           <input class="entrada" type="search" placeholder="Buscar conta ou fornecedor" aria-label="Buscar conta a pagar" maxLength={80} value={busca} onInput={(e) => setBusca(e.currentTarget.value)} />
@@ -70,7 +78,8 @@ export function ContasAPagar({ contexto, abrirDespesa }: { contexto: ContextoPai
           </div>
         )}
       </div>
-      <ListaContasPagar contexto={contexto} busca={busca} periodo={periodo} abrirDespesa={abrirDespesa} />
+      {lancar && modo === 'pendentes' && <SugestoesConciliacao />}
+      <ListaContasPagar contexto={contexto} busca={busca} periodo={periodo} modo={modo} abrirDespesa={abrirDespesa} />
       <NovaDespesa aberta={nova === 'avulsa' || nova === 'parcelada'} situacaoInicial={nova === 'parcelada' ? 'parcelada' : 'a_pagar'} aoFechar={() => setNova(null)} aoCriar={abrirDespesa} />
       <EditarRecorrencia alvo={nova === 'recorrente' ? 'nova' : null} aoFechar={() => setNova(null)} />
     </>
@@ -78,18 +87,26 @@ export function ContasAPagar({ contexto, abrirDespesa }: { contexto: ContextoPai
 }
 
 
-function ListaContasPagar({ contexto, busca, periodo, abrirDespesa }: { contexto: ContextoPainel; busca: string; periodo: PeriodoContas; abrirDespesa: (id: string) => void }) {
+function ListaContasPagar({ contexto, busca, periodo, modo, abrirDespesa }: { contexto: ContextoPainel; busca: string; periodo: PeriodoContas; modo: Modo; abrirDespesa: (id: string) => void }) {
   const lancar = temPermissao(contexto.usuario, 'financeiro.lancar');
   const [pagar, setPagar] = useState<ContaParaPagar | null>(null);
   const [editar, setEditar] = useState<string | null>(null);
+  const [buscar, setBuscar] = useState<string | null>(null);
+  const [desfazer, setDesfazer] = useState<ContaPagar | null>(null);
   const nome = useNomeCategoria();
   // Endereços antigos (?situacao=): os filtros saíram.
   useEffect(() => gravarParams({ situacao: null }), []);
+  useEffect(() => { setBuscar(null); setDesfazer(null); }, [modo]);
 
-  // SÓ o que falta pagar (em aberto e vencidas). Paga, a conta sai daqui e fica em Movimentações → Despesas.
-  const q = { situacao: 'abertas', ...periodoContas(periodo) };
+  // Pendentes: o que falta pagar (em aberto e vencidas). Pagas: só o que foi conta a pagar (as despesas avulsas que já
+  // nasceram pagas ficam em Movimentações → Despesas).
+  const pagas = modo === 'pagas';
+  const q = pagas ? { situacao: 'pagas', so_contas: true, ...periodoContas(periodo) } : { situacao: 'abertas', ...periodoContas(periodo) };
   const lista = useConsulta(`financeiro/contas:${JSON.stringify(q)}`, () => financeiro.contas(q));
-  const situacao = (c: ContaPagar) => (c.situacao_painel === 'vencida' ? 'vencida' : 'aberta');
+  const vencida = (c: ContaPagar) => c.situacao === 'aberta' && c.situacao_painel === 'vencida';
+  const parcial = (c: ContaPagar) => c.situacao === 'aberta' && Number(c.valor_pago) > 0;
+  const rotuloSituacao = (c: ContaPagar) => (c.situacao === 'paga' ? 'Paga' : vencida(c) ? (parcial(c) ? 'Parcial · vencida' : 'Vencida') : parcial(c) ? 'Parcialmente paga' : 'Pendente');
+  const tomSituacao = (c: ContaPagar) => (c.situacao === 'paga' ? 'ok' : vencida(c) ? 'perigo' : parcial(c) ? 'atencao' : 'neutro');
 
   const colunas: Coluna<ContaPagar>[] = [
     { id: 'vencimento', titulo: 'Vencimento', prioridade: 'media', ordenar: (c) => c.vencimento, largura: '108px', celula: (c) => <span class="num" style={{ whiteSpace: 'nowrap' }}>{dataCurta(c.vencimento)}</span> },
@@ -99,29 +116,43 @@ function ListaContasPagar({ contexto, busca, periodo, abrirDespesa }: { contexto
         <>
           <span class="principal-celula">{c.descricao}</span>
           <span class="sub">
-            <span class="fin-so-celular"><strong style={{ color: situacao(c) === 'vencida' ? 'var(--perigo)' : undefined }}>{situacao(c) === 'vencida' ? 'Vencida' : 'Em aberto'}</strong> · {dataCurta(c.vencimento)} · </span>
+            <span class="fin-so-celular"><strong style={{ color: vencida(c) ? 'var(--perigo)' : undefined }}>{rotuloSituacao(c)}</strong> · {dataCurta(c.vencimento)} · </span>
             {[c.fornecedor, nome(c.categoria)].filter(Boolean).join(' · ')}
           </span>
         </>
       ),
     },
     {
-      // O que falta pagar desta conta (parcial: o saldo; valor variável: o previsto).
-      id: 'valor', titulo: 'Valor', numero: true, ordenar: (c) => Number(c.saldo),
-      celula: (c) => (c.valor_a_confirmar ? <><span class="num forte">{moeda(c.valor)}</span><span class="sub">previsto</span></> : <span class="num forte" style={{ whiteSpace: 'nowrap' }}>{moeda(c.saldo)}</span>),
+      // O que falta pagar desta conta (parcial: o saldo; valor variável: o previsto). Paga: o que foi pago.
+      id: 'valor', titulo: 'Valor', numero: true, ordenar: (c) => Number(pagas ? c.valor_pago : c.saldo),
+      celula: (c) => (c.situacao === 'paga' ? <span class="num forte" style={{ whiteSpace: 'nowrap' }}>{moeda(c.valor_pago)}</span>
+        : c.valor_a_confirmar ? <><span class="num forte">{moeda(c.valor)}</span><span class="sub">previsto</span></>
+        : <><span class="num forte" style={{ whiteSpace: 'nowrap' }}>{moeda(c.saldo)}</span>{parcial(c) && <span class="sub">de {moeda(c.valor)}</span>}</>),
     },
     {
       id: 'situacao', titulo: 'Situação', prioridade: 'media',
-      celula: (c) => (situacao(c) === 'vencida' ? <Situacao tom="perigo" destaque>Vencida</Situacao> : <Situacao tom="neutro">Em aberto</Situacao>),
+      celula: (c) => (
+        <span class="linha" style={{ gap: '4px', flexWrap: 'wrap' }}>
+          <Situacao tom={tomSituacao(c)} destaque={vencida(c)}>{rotuloSituacao(c)}</Situacao>
+          {c.conciliacao_id && <Etiqueta tom="info">Conciliada</Etiqueta>}
+        </span>
+      ),
     },
     {
       id: 'acoes', titulo: '',
       celula: (c) => (!lancar ? null : (
         <span class="linha" style={{ gap: '4px', justifyContent: 'flex-end', flexWrap: 'nowrap' }}>
-          <Botao tamanho="p" variante="fantasma" so_icone aria-label={`Editar ${c.descricao}`} icone={<Pencil aria-hidden="true" />} onClick={() => setEditar(c.despesa_id)} />
-          <Botao tamanho="p" variante={c.situacao_painel === 'vencida' || c.situacao_painel === 'vence_hoje' ? 'primario' : 'secundario'} icone={<Banknote aria-hidden="true" />} onClick={() => setPagar(c)}>
-            Pagar
-          </Botao>
+          {c.conciliacao_id && <Botao tamanho="p" variante="fantasma" so_icone aria-label={`Desfazer conciliação de ${c.descricao}`} title="Desfazer conciliação" icone={<Undo2 aria-hidden="true" />} onClick={() => { setBuscar(null); setDesfazer(c); }} />}
+          {c.situacao !== 'paga' && (
+            <>
+              <Botao tamanho="p" variante="fantasma" so_icone aria-label={`Editar ${c.descricao}`} icone={<Pencil aria-hidden="true" />} onClick={() => setEditar(c.despesa_id)} />
+              <Botao tamanho="p" variante="fantasma" so_icone aria-label={`Buscar pagamento de ${c.descricao}`} title="Buscar pagamento já registrado" icone={<Link2 aria-hidden="true" />} onClick={() => { setDesfazer(null); setBuscar(c.parcela_id); }} />
+              <Botao tamanho="p" variante={c.situacao_painel === 'vencida' || c.situacao_painel === 'vence_hoje' ? 'primario' : 'secundario'} icone={<Banknote aria-hidden="true" />} aria-label="Pagar" title="Pagar" onClick={() => setPagar(c)}>
+                {/* Celular: só o ícone (com Editar e Buscar pagamento, o texto empurraria o botão para fora). */}
+                <span class="so-desktop">Pagar</span>
+              </Botao>
+            </>
+          )}
         </span>
       )),
     },
@@ -129,21 +160,26 @@ function ListaContasPagar({ contexto, busca, periodo, abrirDespesa }: { contexto
 
   return (
     <>
+      {buscar && <BuscarPagamento parcelaId={buscar} aoFechar={() => setBuscar(null)} />}
+      {desfazer?.conciliacao_id && <DesfazerConciliacao conciliacaoId={desfazer.conciliacao_id} descricao={desfazer.descricao} aoFechar={() => setDesfazer(null)} />}
       {(
         <Cartao justo>
           <Dados consulta={lista} recurso="As contas a pagar" esqueleto={<EsqueletoTabela />}>
             {(r: ListaContas) => {
               const termo = busca.trim().toLocaleLowerCase('pt-BR');
-              const todas = r.itens.filter((c) => c.situacao !== 'paga');
+              const todas = pagas ? r.itens.filter((c) => c.situacao === 'paga') : r.itens.filter((c) => c.situacao !== 'paga');
               const linhas = termo ? todas.filter((c) => `${c.descricao} ${c.fornecedor ?? ''}`.toLocaleLowerCase('pt-BR').includes(termo)) : todas;
+              const soma = (f: (c: ContaPagar) => string) => (linhas.reduce((s, c) => s + Math.round(Number(f(c)) * 100), 0) / 100).toFixed(2);
               return (
                 <>
                   {r.itens.length > 0 && (
                     // Acompanha período e busca. Sem busca: totais do servidor (todas as contas do período); com
                     // busca: soma das linhas encontradas. "A pagar" = saldo (já desconta pagamentos parciais).
                     <div class="fin-totais">
-                      <div><span>Contas pendentes</span><strong class="num">{termo ? linhas.length : r.total}</strong></div>
-                      <div><span>Total a pagar</span><strong class="num">{moeda(termo ? (linhas.reduce((s, c) => s + Math.round(Number(c.saldo) * 100), 0) / 100).toFixed(2) : r.totais.saldo)}</strong></div>
+                      <div><span>{pagas ? 'Contas pagas' : 'Contas pendentes'}</span><strong class="num">{termo ? linhas.length : r.total}</strong></div>
+                      {pagas
+                        ? <div><span>Total pago</span><strong class="num">{moeda(soma((c) => c.valor_pago))}</strong></div>
+                        : <div><span>Total a pagar</span><strong class="num">{moeda(termo ? soma((c) => c.saldo) : r.totais.saldo)}</strong></div>}
                     </div>
                   )}
                   <Tabela
@@ -152,12 +188,14 @@ function ListaContasPagar({ contexto, busca, periodo, abrirDespesa }: { contexto
                     linhas={linhas}
                     chave={(c) => c.parcela_id}
                     aoAbrir={(c) => abrirDespesa(c.despesa_id)}
-                    destaque={(c) => c.situacao_painel === 'vencida' || c.situacao_painel === 'vence_hoje'}
+                    destaque={(c) => c.situacao === 'aberta' && (c.situacao_painel === 'vencida' || c.situacao_painel === 'vence_hoje')}
                     vazio={termo
                       ? <Vazio compacto titulo="Nenhuma conta com essa busca">Procure pela descrição ou pelo fornecedor.</Vazio>
-                      : <Vazio compacto titulo="Nenhuma conta a pagar">Contas novas entram por “+ Conta a pagar”, pelas compras ou pelas recorrentes.</Vazio>}
+                      : pagas
+                        ? <Vazio compacto titulo="Nenhuma conta paga no período">As contas pagas (pelo botão Pagar ou conciliadas) aparecem aqui.</Vazio>
+                        : <Vazio compacto titulo="Nenhuma conta a pagar">Contas novas entram por “+ Conta a pagar”, pelas compras ou pelas recorrentes.</Vazio>}
                   />
-                  {r.total > r.itens.length && <p class="fraco" style={{ padding: '10px 20px' }}>Mostrando {r.itens.length} de {r.total} em aberto.</p>}
+                  {r.total > r.itens.length && <p class="fraco" style={{ padding: '10px 20px' }}>Mostrando {r.itens.length} de {r.total} {pagas ? 'pagas' : 'em aberto'}.</p>}
                 </>
               );
             }}

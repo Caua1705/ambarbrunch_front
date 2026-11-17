@@ -129,6 +129,8 @@ export interface ContaPagar {
   recorrencia_id: Uuid | null;
   compra_id: Uuid | null;
   situacao_painel: SituacaoConta;
+  /** 0038: conciliação ativa (pagamento já registrado ligado a esta conta), se houver. */
+  conciliacao_id?: Uuid | null;
 }
 export interface ListaContas {
   total: number;
@@ -1166,4 +1168,76 @@ export interface ResumoRecebiveis {
   meios_sem_taxa: string[];
   por_meio: Record<'credito' | 'debito' | 'pix', { vendido: Dec; liquido_estimado: Dec | null; ainda_no_prazo: Dec; sem_taxa: Dec }>;
   aviso: string;
+}
+
+// --- Conciliação de contas a pagar (0038): o sistema sugere, uma pessoa confirma ----------------------------------
+export type MotivoDiferenca = 'juros_multa' | 'desconto' | 'parcial' | 'ajuste_valor';
+export interface ContaConciliar {
+  parcela_id: Uuid;
+  despesa_id: Uuid;
+  numero: number;
+  parcelas_total: number;
+  vencimento: Data;
+  valor: Dec;
+  valor_pago: Dec;
+  saldo: Dec;
+  descricao: string;
+  categoria: string;
+  fornecedor: string | null;
+  valor_a_confirmar: boolean;
+}
+/** Pagamento já registrado (despesa avulsa que nasceu paga) que pode ser o desta conta. */
+export interface PagamentoRegistrado {
+  pagamento_id: Uuid;
+  despesa_id: Uuid;
+  descricao: string;
+  valor: Dec;
+  pago_em: Data;
+  forma: FormaPagamento;
+  origem: string;
+  categoria: string;
+  fornecedor: string | null;
+  em_revisao: boolean;
+  conta_pagadora_id: Uuid | null;
+  conta_pagadora: string | null;
+  pontos: number;
+  compativel: boolean;
+  valor_confere: 'igual' | 'variavel' | 'maior' | 'menor' | 'parcial' | 'acima';
+  diferenca: Dec;
+  dias: number;
+  evidencias: string[];
+  so_valor: boolean;
+  outras_contas?: number;
+  recusado?: boolean;
+}
+export interface SugestaoConciliacao {
+  conta: ContaConciliar;
+  candidatos: PagamentoRegistrado[];
+  ambigua: boolean;
+}
+export interface ConciliacaoFeita {
+  id: Uuid;
+  status: 'ativa' | 'desfeita' | 'recusada';
+  parcela_id: Uuid;
+  pagamento_id: Uuid | null;
+  valor_pago: Dec | null;
+  pago_em: Data | null;
+  motivo_diferenca: string | null;
+  diferenca: Dec | null;
+  conta?: { situacao: 'pendente' | 'parcial' | 'paga'; valor: Dec; valor_pago: Dec; saldo: Dec };
+}
+export interface ConciliacaoRecente {
+  id: Uuid;
+  parcela_id: Uuid;
+  despesa_id: Uuid;
+  descricao: string;
+  descricao_origem: string;
+  valor_pago: Dec;
+  pago_em: Data;
+  motivo_diferenca: string | null;
+  diferenca: Dec | null;
+  vencimento: Data;
+  situacao: 'aberta' | 'paga';
+  conta_pagadora: string | null;
+  criado_em: Instante;
 }

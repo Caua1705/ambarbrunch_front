@@ -182,9 +182,9 @@ test('+ Conta a pagar (avulsa): aparece em Contas a pagar, é paga pela lista e 
   await page.getByLabel('Buscar conta a pagar').fill(nome);
   const linha = contas.getByRole('row', { name: new RegExp(nome) });
   await expect(linha).toHaveCount(1);
-  // Colunas: Vencimento, Descrição, Valor e Situação (Em aberto | Vencida).
-  await expect(linha).toContainText(/Em aberto|Vencida/);
-  await linha.getByRole('button', { name: 'Pagar' }).click();
+  // Colunas: Vencimento, Descrição, Valor e Situação (Pendente | Parcialmente paga | Vencida).
+  await expect(linha).toContainText(/Pendente|Parcialmente paga|Vencida/);
+  await linha.getByRole('button', { name: 'Pagar', exact: true }).click();
   const pagar = page.getByRole('dialog', { name: 'Registrar pagamento' });
   await expect(pagar.getByLabel('Pago com a conta')).toHaveValue(/.+/); // a conta padrão já vem escolhida
   await pagar.getByRole('button', { name: /^Registrar pagamento/ }).click();
