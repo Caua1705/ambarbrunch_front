@@ -10,7 +10,7 @@ import type { Rota, Contexto } from './roteador';
 import { ErroDemo, hojeFortaleza, dia, instante, sorteio, resposta, exigirMotivo, paginar } from './roteador';
 import type { Papel } from '../../lib/sessao';
 import type {
-  Categoria, DespesaSaida, ParcelaSaida, PagamentoSaida, Recorrencia, DocumentoRevisao, ContaBancaria, Importacao,
+  Categoria, DespesaSaida, ParcelaSaida, PagamentoSaida, Recorrencia, ContaDaExclusao, DocumentoRevisao, ContaBancaria, Importacao,
   MovimentoBancario, NivelConciliacao, ContaPagar, Lancamento, MesEvolucao, ResultadoMes, Qualidade,
   NivelQualidade, ItemFechamento, EstadoConciliacao, EstadoContaMes, FormaPagamento, TaxaPagamento, MeioPdv,
   AgrupamentoVendas, PeriodoVendas, SimulacaoParticipacao, MovimentoBancario as Mov, TipoDocumento,
@@ -169,6 +169,22 @@ function novaDespesa(o: { descricao: string; valor: number; competencia: string;
   };
   E.despesas.push(d);
   return d;
+}
+
+/** Geradas pela recorrência (só por recorrencia_id), como o backend separa na exclusão. */
+function classificarGeradas(recorrenciaId: string) {
+  const hoje = hojeFortaleza();
+  const g: { remover: ContaDaExclusao[]; vencidas: ContaDaExclusao[]; preservadas: ContaDaExclusao[] } = { remover: [], vencidas: [], preservadas: [] };
+  for (const d of E.despesas.filter((x) => x.recorrencia_id === recorrenciaId && x.status !== 'cancelada').sort((a, b) => a.competencia.localeCompare(b.competencia))) {
+    const vencimento = d.parcelas.map((p) => p.vencimento).sort()[0] ?? null;
+    const pago = d.parcelas.reduce((t, p) => t + Number(p.valor_pago), 0);
+    const linha: ContaDaExclusao = { despesa_id: d.id, descricao: d.descricao, competencia: d.competencia, vencimento, valor: d.valor, valor_pago: d2(pago), status: d.status };
+    if (pago > 0 || d.parcelas.some((p) => p.pagamentos.length)) g.preservadas.push({ ...linha, motivo: 'tem pagamento' });
+    else if (d.compra_id) g.preservadas.push({ ...linha, motivo: 'ligada a uma compra' });
+    else if (vencimento && vencimento < hoje) g.vencidas.push(linha);
+    else g.remover.push(linha);
+  }
+  return g;
 }
 
 function montar() {
@@ -1375,6 +1391,30 @@ export const ROTAS_FINANCEIRO: Rota[] = [
     if (e.valor_variavel !== undefined) r.valor_variavel = e.valor_variavel;
     r.versao++;
     return r;
+  }],
+  // Exclusão (espelha o backend 0040): saem as geradas sem pagamento; vencidas só se pedido; pagas ficam.
+  ['GET', R(`financeiro/recorrencias/${UUID}/exclusao`), GERENCIA, ({ params }) => {
+    montar();
+    const r = E.recorrencias.find((x) => x.id === params[0]);
+    if (!r) throw new ErroDemo(404, 'nao_encontrado', 'Conta fixa não encontrada.');
+    return { recorrencia_id: r.id, descricao: r.descricao, versao: r.versao, ...classificarGeradas(r.id) };
+  }],
+  ['POST', R(`financeiro/recorrencias/${UUID}/excluir`), GERENCIA, async ({ params, corpo }) => {
+    montar();
+    const r = E.recorrencias.find((x) => x.id === params[0]);
+    if (!r) throw new ErroDemo(404, 'nao_encontrado', 'Conta fixa não encontrada.');
+    const e = await corpo<{ versao: number; incluir_vencidas?: boolean }>();
+    conferirVersao(r.versao, e.versao);
+    const g = classificarGeradas(r.id);
+    const alvos = [...g.remover, ...(e.incluir_vencidas ? g.vencidas : [])];
+    for (const a of alvos) {
+      const d = E.despesas.find((x) => x.id === a.despesa_id)!;
+      d.status = 'cancelada'; d.cancelado_em = agora(); d.cancelado_motivo = 'conta recorrente excluída';
+      d.parcelas.forEach((p) => (p.situacao = 'cancelada'));
+      d.versao++;
+    }
+    E.recorrencias = E.recorrencias.filter((x) => x.id !== r.id);
+    return { canceladas: alvos.length, preservadas: g.preservadas.length, vencidas_mantidas: e.incluir_vencidas ? 0 : g.vencidas.length };
   }],
   ['GET', R('financeiro/relatorios/evolucao'), GERENCIA, ({ query }) => {
     montar();

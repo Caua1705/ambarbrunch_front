@@ -323,6 +323,31 @@ export interface Recorrencia {
   proximas: { competencia: Data; vencimento: Data }[];
 }
 
+/** Conta gerada pela recorrência, na prévia da exclusão (GET /recorrencias/{id}/exclusao). */
+export interface ContaDaExclusao {
+  despesa_id: Uuid;
+  descricao: string;
+  competencia: Data;
+  vencimento: Data | null;
+  valor: Dec;
+  valor_pago: Dec;
+  status: string;
+  motivo?: string | null;
+}
+
+/** `remover`: sem pagamento e a vencer (saem). `vencidas`: sem pagamento e já vencidas (saem só se pedido).
+ * `preservadas`: com pagamento, agrupadas ou ligadas a compra (ficam). */
+export interface PreviaExclusaoRecorrencia {
+  recorrencia_id: Uuid;
+  descricao: string;
+  versao: number;
+  remover: ContaDaExclusao[];
+  vencidas: ContaDaExclusao[];
+  preservadas: ContaDaExclusao[];
+}
+
+export interface ExclusaoRecorrencia { canceladas: number; preservadas: number; vencidas_mantidas: number }
+
 export type Evidencia = 'mesmo_beneficiario' | 'valor_exato' | 'identificador_da_transacao' | 'mesma_linha_digitavel' | 'sem_boleto_a_conferir' | 'obrigacao_definida';
 
 /** Conta aberta que o COMPROVANTE pode pagar (`candidatas`) → `pagar_parcela`. */

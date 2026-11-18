@@ -1,10 +1,11 @@
 // Contas recorrentes (aba própria): aluguel, internet, sistemas. Cadastradas uma vez; a obrigação de cada mês nasce
 // sozinha em Contas a pagar (o backend não duplica a mesma competência) e, paga, sai de lá — a recorrente continua.
 // Busca, "+ Conta recorrente" e uma tabela compacta: Descrição, Valor previsto, Próximo vencimento. A linha abre o
-// detalhe, onde ficam Editar, Pausar/Retomar e Encerrar (com confirmação). Encerradas não aparecem. Rotas: GET/POST/PATCH /admin/financeiro/recorrencias.
+// detalhe, onde ficam Editar, Pausar/Retomar, Encerrar e Excluir (com prévia do que sai de Contas a pagar). Encerradas e
+// excluídas não aparecem. Rotas: GET/POST/PATCH /admin/financeiro/recorrencias, GET …/{id}/exclusao, POST …/{id}/excluir.
 import { Fragment } from 'preact';
 import { useState } from 'preact/hooks';
-import { Plus, Search, Pencil, Pause, Play, CalendarX } from 'lucide-preact';
+import { Plus, Search, Pencil, Pause, Play, CalendarX, Trash2 } from 'lucide-preact';
 import type { ContextoPainel } from '../../lib/sessao';
 import { useConsulta } from '../../lib/consulta';
 import { financeiro } from '../../lib/api/financeiro';
@@ -15,13 +16,14 @@ import { Tabela, type Coluna } from '../../ui/tabela';
 import { Gaveta } from '../../ui/camadas';
 import type { Recorrencia } from '../../lib/tipos/financeiro';
 import { temPermissao, atualizarFinanceiro, avisar, avisarFalha, useNomeCategoria } from './comum';
-import { EditarRecorrencia, EncerrarRecorrencia } from './ContasFixas';
+import { EditarRecorrencia, EncerrarRecorrencia, ExcluirRecorrencia } from './ContasFixas';
 
 export function ContasRecorrentes({ contexto }: { contexto: ContextoPainel }) {
   const lancar = temPermissao(contexto.usuario, 'financeiro.lancar');
   const [busca, setBusca] = useState('');
   const [editar, setEditar] = useState<Recorrencia | 'nova' | null>(null);
   const [encerrar, setEncerrar] = useState<Recorrencia | null>(null);
+  const [excluir, setExcluir] = useState<Recorrencia | null>(null);
   const [aberta, setAberta] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState<string | null>(null);
   const lista = useConsulta('financeiro/recorrencias:todas', () => financeiro.recorrencias(false));
@@ -80,17 +82,19 @@ export function ContasRecorrentes({ contexto }: { contexto: ContextoPainel }) {
       </Cartao>
       <DetalheRecorrencia r={aberta ? (lista.dados ?? []).find((x) => x.id === aberta) ?? null : null} lancar={lancar} ocupado={ocupado}
         aoFechar={() => setAberta(null)} aoEditar={(r) => { setAberta(null); setEditar(r); }} aoPausar={pausar}
-        aoEncerrar={(r) => { setAberta(null); setEncerrar(r); }} />
+        aoEncerrar={(r) => { setAberta(null); setEncerrar(r); }} aoExcluir={(r) => { setAberta(null); setExcluir(r); }} />
       <EditarRecorrencia alvo={editar} aoFechar={() => setEditar(null)} />
       <EncerrarRecorrencia alvo={encerrar} aoFechar={() => setEncerrar(null)} />
+      <ExcluirRecorrencia alvo={excluir} aoFechar={() => setExcluir(null)} />
     </>
   );
 }
 
 /** Detalhe da recorrência: dados, próximos vencimentos, detalhamento-base (folha) e as ações. */
-function DetalheRecorrencia({ r, lancar, ocupado, aoFechar, aoEditar, aoPausar, aoEncerrar }: {
+function DetalheRecorrencia({ r, lancar, ocupado, aoFechar, aoEditar, aoPausar, aoEncerrar, aoExcluir }: {
   r: Recorrencia | null; lancar: boolean; ocupado: string | null; aoFechar: () => void;
   aoEditar: (r: Recorrencia) => void; aoPausar: (r: Recorrencia) => void; aoEncerrar: (r: Recorrencia) => void;
+  aoExcluir: (r: Recorrencia) => void;
 }) {
   const nome = useNomeCategoria();
   if (!r) return null;
@@ -98,7 +102,8 @@ function DetalheRecorrencia({ r, lancar, ocupado, aoFechar, aoEditar, aoPausar, 
     <Gaveta aberta aoFechar={aoFechar} titulo={r.descricao} subtitulo={r.ativo ? 'Conta recorrente' : 'Conta recorrente · pausada'}
       rodape={lancar ? (
         <>
-          <Botao variante="perigo" icone={<CalendarX aria-hidden="true" />} onClick={() => aoEncerrar(r)}>Encerrar</Botao>
+          <Botao variante="perigo" icone={<Trash2 aria-hidden="true" />} onClick={() => aoExcluir(r)}>Excluir</Botao>
+          <Botao icone={<CalendarX aria-hidden="true" />} onClick={() => aoEncerrar(r)}>Encerrar</Botao>
           <Botao carregando={ocupado === r.id} icone={r.ativo ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />} onClick={() => aoPausar(r)}>{r.ativo ? 'Pausar' : 'Retomar'}</Botao>
           {r.ativo && <Botao variante="primario" icone={<Pencil aria-hidden="true" />} onClick={() => aoEditar(r)}>Editar</Botao>}
         </>

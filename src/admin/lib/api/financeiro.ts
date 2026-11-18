@@ -10,7 +10,7 @@ import type {
   SimulacaoParticipacao, EstadoContaMes, DocumentoRevisao, CorrecaoDocumento, ResolucaoDocumento, AnexoDespesa,
   CategoriaEntrada, CategoriaAlteracao, CandidataRevisao, DespesaCandidata, FornecedorCadastro, FornecedorDetalhe,
   ContaPagadora, ContaPagadoraCadastro, ContaPagadoraEntrada, ListaPendencias, Pendencia, PagadorPagamento, Acertos, RepassesConjunto, Ressarcimentos, DespesaCorrecao, ItemDetalhe,
-  MovimentoAcerto, Responsavel, Tratamento, ConfiguracaoFinanceira, ResponsavelNovo,
+  MovimentoAcerto, Responsavel, Tratamento, ConfiguracaoFinanceira, ResponsavelNovo, PreviaExclusaoRecorrencia, ExclusaoRecorrencia,
   SugestaoConciliacao, PagamentoRegistrado, ContaConciliar, ConciliacaoFeita, ConciliacaoRecente, MotivoDiferenca,
   ParcelamentoEntrada, Agrupamento, AgrupamentoResumo,
 } from '../tipos/financeiro';
@@ -126,6 +126,11 @@ export const financeiro = {
   criarRecorrencia: (r: RecorrenciaEntrada) => pedir<Recorrencia>('financeiro/recorrencias', { metodo: 'POST', corpo: r }),
   alterarRecorrencia: (id: string, r: { versao: number; aplicar_a_partir_de?: string; encerrar_em?: string; valor_previsto?: string; descricao?: string; dia_vencimento?: number; valor_variavel?: boolean; itens?: ItemDetalhe[] | null; vencimento_dia_util?: boolean; vencimento_mes_seguinte?: boolean; categoria?: string }) =>
     pedir<Recorrencia>(`financeiro/recorrencias/${id}`, { metodo: 'PATCH', corpo: r }),
+  /** O que a exclusão cancela e o que preserva (não muda nada). */
+  previaExclusaoRecorrencia: (id: string) => pedir<PreviaExclusaoRecorrencia>(`financeiro/recorrencias/${id}/exclusao`),
+  /** Para de gerar e cancela as geradas sem pagamento (as vencidas só com `incluir_vencidas`). */
+  excluirRecorrencia: (id: string, versao: number, incluir_vencidas: boolean) =>
+    pedir<ExclusaoRecorrencia>(`financeiro/recorrencias/${id}/excluir`, { metodo: 'POST', corpo: { versao, incluir_vencidas } }),
   taxas: () => pedir<TaxaPagamento[]>('financeiro/taxas-pagamento'),
   registrarTaxa: (t: TaxaEntrada) => pedir<TaxaEntrada>('financeiro/taxas-pagamento', { metodo: 'POST', corpo: t }),
   // Relatórios

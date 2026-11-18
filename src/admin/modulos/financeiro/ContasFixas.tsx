@@ -4,7 +4,7 @@
 // vigência — os meses anteriores não mudam. Rotas: GET/POST/PATCH /admin/financeiro/recorrencias e GET/POST
 // /admin/financeiro/taxas-pagamento (as duas com financeiro.lancar no backend: gerente e proprietário).
 import { useEffect, useState } from 'preact/hooks';
-import { Plus, Pencil, CalendarX, Repeat, Info, Percent, Check } from 'lucide-preact';
+import { Plus, Pencil, CalendarX, Repeat, Info, Percent, Check, Trash2 } from 'lucide-preact';
 import { useConsulta } from '../../lib/consulta';
 import { financeiro } from '../../lib/api/financeiro';
 import { ErroApi } from '../../lib/api/cliente';
@@ -13,7 +13,7 @@ import { Gaveta } from '../../ui/camadas';
 import { Botao, Cartao, Segmentado, Etiqueta, Campo, Aviso, Situacao } from '../../ui/base';
 import { EntradaMoeda } from '../../ui/entradas';
 import { Dados, EsqueletoTabela, Vazio } from '../../ui/estados';
-import type { MeioPdv, Recorrencia, TaxaPagamento, ResponsavelNovo } from '../../lib/tipos/financeiro';
+import type { MeioPdv, Recorrencia, TaxaPagamento, ResponsavelNovo, ContaDaExclusao } from '../../lib/tipos/financeiro';
 import { EditorItens, paraForm, paraApi, totalItens, deCentavos, type ItemForm } from './Detalhamento';
 import { useCategorias, useNomeCategoria, OpcoesCategoria, atualizarFinanceiro, avisar, MEIO, RESPONSAVEL, RESPONSAVEIS_NOVOS } from './comum';
 
@@ -247,6 +247,80 @@ export function EncerrarRecorrencia({ alvo, aoFechar }: { alvo: Recorrencia | nu
         {erro && <Aviso tom="perigo" icone={<Info aria-hidden="true" />}>{erro}</Aviso>}
         <Campo rotulo="Encerrar em">{(id) => <input id={id} type="date" class="entrada" value={quando} onChange={(e) => setQuando(e.currentTarget.value)} data-autofoco />}</Campo>
       </form>
+    </Gaveta>
+  );
+}
+
+/** Excluir conta recorrente (17/11): mostra antes o que sai de Contas a pagar e o que fica. Saem só as contas geradas
+ * por ELA (recorrencia_id) e sem nenhum pagamento; pagas, parcialmente pagas, agrupadas e ligadas a compra ficam. As
+ * vencidas sem pagamento só saem se marcadas. Rotas: GET /recorrencias/{id}/exclusao e POST /recorrencias/{id}/excluir. */
+export function ExcluirRecorrencia({ alvo, aoFechar }: { alvo: Recorrencia | null; aoFechar: () => void }) {
+  const previa = useConsulta(alvo ? `financeiro/recorrencias/${alvo.id}/exclusao` : null, () => financeiro.previaExclusaoRecorrencia(alvo!.id));
+  const [vencidas, setVencidas] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const [ocupado, setOcupado] = useState(false);
+  useEffect(() => { setVencidas(false); setErro(null); }, [alvo]);
+
+  async function excluir() {
+    if (!alvo || !previa.dados) return;
+    setOcupado(true);
+    setErro(null);
+    try {
+      const r = await financeiro.excluirRecorrencia(alvo.id, previa.dados.versao, vencidas);
+      atualizarFinanceiro();
+      avisar(r.canceladas ? `Conta recorrente excluída · ${r.canceladas === 1 ? '1 conta saiu' : `${r.canceladas} contas saíram`} de Contas a pagar.` : 'Conta recorrente excluída.', 'ok');
+      aoFechar();
+    } catch (err) {
+      if (err instanceof ErroApi && err.tipo === 'conflito') atualizarFinanceiro();
+      setErro(err instanceof ErroApi ? err.message : 'Não foi possível excluir.');
+    } finally {
+      setOcupado(false);
+    }
+  }
+
+  const lista = (itens: ContaDaExclusao[], comMotivo = false) => (
+    <ul class="fin-lista-simples">
+      {itens.map((c) => (
+        <li key={c.despesa_id}>
+          {c.vencimento ? `Vence ${dataCurta(c.vencimento, { ano: true })}` : mesAno(c.competencia)} · <span class="num">{moeda(c.valor)}</span>
+          {Number(c.valor_pago) > 0 && <span class="fraco"> · pago {moeda(c.valor_pago)}</span>}
+          {comMotivo && c.motivo && <span class="fraco"> · {c.motivo}</span>}
+        </li>
+      ))}
+    </ul>
+  );
+
+  return (
+    <Gaveta aberta={!!alvo} aoFechar={aoFechar} titulo="Excluir conta recorrente" subtitulo={alvo?.descricao}
+      rodape={<><Botao onClick={aoFechar} disabled={ocupado}>Voltar</Botao><Botao variante="perigo" onClick={excluir} carregando={ocupado} disabled={!previa.dados} icone={<Trash2 aria-hidden="true" />}>Excluir</Botao></>}>
+      <Dados consulta={previa} recurso="A prévia da exclusão" compacto esqueleto={<EsqueletoTabela linhas={3} />}>
+        {(p) => (
+          <div class="pilha">
+            <p>Ela para de gerar contas. Pagamentos e contas já pagas não mudam.</p>
+            {erro && <Aviso tom="perigo" icone={<Info aria-hidden="true" />}>{erro}</Aviso>}
+            <section class="pilha pilha--p">
+              <h3 class="secao-titulo">Saem de Contas a pagar · {p.remover.length + (vencidas ? p.vencidas.length : 0)}</h3>
+              {p.remover.length ? lista(p.remover) : <p class="fraco" style={{ margin: 0 }}>Nenhuma conta a vencer sem pagamento.</p>}
+            </section>
+            {p.vencidas.length > 0 && (
+              <section class="pilha pilha--p">
+                <h3 class="secao-titulo">Vencidas e sem pagamento · {p.vencidas.length}</h3>
+                {lista(p.vencidas)}
+                <label class="linha">
+                  <input type="checkbox" checked={vencidas} onChange={(e) => setVencidas(e.currentTarget.checked)} />
+                  Tirar também as vencidas
+                </label>
+              </section>
+            )}
+            {p.preservadas.length > 0 && (
+              <section class="pilha pilha--p">
+                <h3 class="secao-titulo">Ficam como estão · {p.preservadas.length}</h3>
+                {lista(p.preservadas, true)}
+              </section>
+            )}
+          </div>
+        )}
+      </Dados>
     </Gaveta>
   );
 }
