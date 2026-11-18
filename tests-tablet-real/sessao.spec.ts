@@ -150,8 +150,26 @@ test.describe.serial('sessão persistente do tablet', () => {
     await dono.close();
   });
 
+  test('9b. "Sair" num celular com a MESMA conta não derruba o tablet (sessão por aparelho, 0041)', async ({ browser }) => {
+    const celular = await browser.newContext(devices['Pixel 7']);
+    const pc = await celular.newPage();
+    await entrar(pc, TABLET);
+    await pc.waitForURL(/\/admin\/operacao/);
+    const sair = await pc.request.delete('/admin/api/sessao', { headers: { 'X-Painel': '1' } });
+    expect((await sair.json()).revogada).toBe(true);
+    await celular.close();
+    // O acesso do tablet caiu junto (Sair invalida os acessos da conta), mas a sessão do aparelho continua.
+    await pagina.goto('/admin/operacao');
+    await noModoOperacao(pagina);
+    const { ctx, page } = await reabrir(browser, await guardados(tablet));
+    await page.goto('/admin/login');
+    await noModoOperacao(page);
+    await ctx.close();
+  });
+
   test('10. "Encerrar sessões" pelo Proprietário derruba o tablet: reaberto em qualquer endereço, pede a senha', async ({ browser }) => {
     const guardadosAntes = await guardados(tablet);
+    const comAcesso = await guardados(tablet, { acessoVencido: false });
     const dono = await browser.newContext();
     const pd = await dono.newPage();
     await entrar(pd, DONO);
@@ -171,6 +189,13 @@ test.describe.serial('sessão persistente do tablet', () => {
       expect(await cookie(ctx, RENOVACAO)).toBeFalsy();               // a renovação recusada sai do aparelho
       await ctx.close();
     }
+    // Sessão revogada NUNCA vira 403: a chamada de dados devolve 401 (a tela volta ao login) e apaga os cookies.
+    const { ctx, page } = await reabrir(browser, comAcesso);
+    const r = await page.request.get('/admin/api/abertura/hoje');
+    expect(r.status()).toBe(401);
+    expect(await cookie(ctx, RENOVACAO)).toBeFalsy();
+    expect(await cookie(ctx, ACESSO)).toBeFalsy();
+    await ctx.close();
   });
 
   test('11. "Sair" no tablet revoga a renovação: a cópia antiga não entra mais', async ({ browser }) => {

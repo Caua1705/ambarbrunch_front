@@ -97,7 +97,12 @@ export const ALL: APIRoute = async ({ params, request, cookies, url }) => {
     res = await chamarBackend(sessao.token, alvo, { method: metodo, headers, body: corpo });
     if (res.status === 401 && lerRenovacao(cookies)) {
       const r = await renovarSessao(cookies, https);
-      if (r !== 'sessao' && r !== 'backend') {
+      // Backend fora do ar (ou limitando) NA RENOVAÇÃO: não é sessão inválida — nada é apagado e a tela tenta de novo.
+      if (r === 'backend') {
+        await res.body?.cancel().catch(() => undefined);
+        return erro(502, 'O sistema do Âmbar não respondeu. Tente de novo em instantes.', 'backend_indisponivel');
+      }
+      if (r !== 'sessao') {
         await res.body?.cancel().catch(() => undefined);
         res = await chamarBackend(r.token, alvo, { method: metodo, headers, body: corpo });
         renovada = true;
@@ -110,7 +115,9 @@ export const ALL: APIRoute = async ({ params, request, cookies, url }) => {
   if (res.status === 401) {
     // 401 com um acesso RECÉM-renovado não é a sessão (ex.: rota que exige o token curto de captura ou de envio): a sessão
     // do tablet fica e a tela recebe 403, sem voltar ao login. Antes qualquer 401 apagava também a renovação e o tablet
-    // ficava desconectado de vez (18/11/2026). Renovação recusada já apagou os dois cookies em renovarSessao.
+    // ficava desconectado de vez (18/11/2026). Isto não esconde sessão inválida: `renovada` só é verdade quando o backend
+    // ACABOU de aceitar a sessão do aparelho (conta ativa, perfil do tablet, aparelho não revogado). Sessão revogada ou
+    // vencida = renovação recusada → renovarSessao apaga os dois cookies e a resposta continua 401 (volta ao login).
     if (renovada) {
       await res.body?.cancel().catch(() => undefined);
       return erro(403, 'Esta operação não foi autorizada. Tente de novo.', 'nao_autorizado');

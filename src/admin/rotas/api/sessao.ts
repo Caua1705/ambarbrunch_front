@@ -78,8 +78,9 @@ export const POST: APIRoute = async (ctx) => {
 
 export const DELETE: APIRoute = async ({ request, cookies, url }) => {
   if (!requisicaoDoPainel(request)) return json(403, { detail: 'Requisição recusada.', codigo: 'origem_invalida' });
-  // Sair de verdade: o backend invalida o token (POST /admin/auth/sair; vale para todos os aparelhos da conta) — inclusive
-  // a renovação do tablet. Com o acesso já vencido e a renovação no aparelho, renova só para conseguir encerrar.
+  // Sair de verdade: o backend invalida os acessos da conta (POST /admin/auth/sair) e a sessão DESTE aparelho (o token do
+  // tablet vai no corpo; os outros aparelhos da conta seguem). Com o acesso já vencido e a renovação no aparelho, renova só
+  // para conseguir encerrar.
   let token = lerSessao(cookies)?.token ?? null;
   if (!token && lerRenovacao(cookies) && modoPainel() === 'api') {
     const r = await renovarSessao(cookies, ehHttps(request, url)).catch(() => 'backend' as const);
@@ -89,7 +90,12 @@ export const DELETE: APIRoute = async ({ request, cookies, url }) => {
   let revogada = false;
   if (sessao && !sessao.demoPapel && modoPainel() === 'api') {
     try {
-      const r = await chamarBackend(sessao.token, 'auth/sair', { method: 'POST' });
+      // Tablet (0041, 18/11/2026): manda o token DESTE aparelho para o backend revogar a sessão dele. Sem isso o backend
+      // revoga as sessões de todos os aparelhos da conta (Sair num celular derrubava o tablet).
+      const renovacao = lerRenovacao(cookies);
+      const r = await chamarBackend(sessao.token, 'auth/sair', renovacao
+        ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ renovacao }) }
+        : { method: 'POST' });
       revogada = r.status === 204 || r.status === 401;   // 401: já não valia
     } catch {
       revogada = false;
