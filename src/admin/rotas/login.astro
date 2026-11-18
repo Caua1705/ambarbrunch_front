@@ -5,15 +5,29 @@ import '../estilos/painel.css';
 import logo from '../../assets/media/brand/logo-ambar.png?url';
 import TemaInicial from '../layout/TemaInicial.astro';
 import Login from '../modulos/login';
-import { lerSessao } from '../servidor/sessao';
+import { lerSessao, lerRenovacao, ehHttps } from '../servidor/sessao';
+import { renovarSessao } from '../servidor/renovar';
 
 export const prerender = false;
 const modo = Astro.locals.painelModo ?? 'indisponivel';
 const pedida = Astro.url.searchParams.get('volta') ?? '';
 // Só volta para dentro do painel (nada de redirecionamento aberto).
+const volta = /^\/admin(\/[\w\-/]*)?(\?[\w=&%\-.]*)?$/.test(pedida) && !pedida.startsWith('/admin/api') ? pedida : '/admin';
+
+// Tablet (conta do Atendente, 18/11/2026): o navegador reaberto muitas vezes cai AQUI — favorito, atalho da tela inicial ou
+// histórico guardam /admin/login, a primeira tela que o aparelho viu. Antes esta página só olhava o cookie de acesso (que
+// vence em horas) e mostrava o formulário, mesmo com a renovação de 30 dias válida no aparelho: o tablet "pedia e-mail e
+// senha" a cada reabertura. Agora, com a renovação guardada: acesso ainda válido → segue para o painel; vencido → renova no
+// backend (POST /admin/auth/renovar) e segue. Renovação recusada (Sair, "Encerrar sessões", senha trocada, conta
+// desativada, perfil mudado, teto de 90 dias) → renovarSessao apaga os cookies e o formulário aparece. `saiu=1` (acabou de
+// sair) nunca renova. Quem decide se a sessão vale continua sendo o backend: a página de destino confere de novo.
+if (modo === 'api' && Astro.url.searchParams.get('saiu') !== '1' && lerRenovacao(Astro.cookies)) {
+  if (lerSessao(Astro.cookies)) return Astro.redirect(volta, 303);
+  const r = await renovarSessao(Astro.cookies, ehHttps(Astro.request, Astro.url));
+  if (r !== 'sessao' && r !== 'backend') return Astro.redirect(volta, 303);
+}
 const sessaoAberta = modo !== 'indisponivel' && lerSessao(Astro.cookies) !== null;
 const saiu = Astro.url.searchParams.get('saiu') === '1' && !sessaoAberta;
-const volta = /^\/admin(\/[\w\-/]*)?(\?[\w=&%\-.]*)?$/.test(pedida) && !pedida.startsWith('/admin/api') ? pedida : '/admin';
 ---
 
 <!doctype html>

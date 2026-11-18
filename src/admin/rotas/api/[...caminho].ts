@@ -92,6 +92,7 @@ export const ALL: APIRoute = async ({ params, request, cookies, url }) => {
   // O corpo é lido uma vez: se o acesso for recusado (401: nada foi feito no backend) e a renovação ainda valer, a mesma
   // chamada é repetida uma vez com o acesso novo.
   const corpo = metodo === 'GET' ? undefined : await request.arrayBuffer();
+  let renovada = false;
   try {
     res = await chamarBackend(sessao.token, alvo, { method: metodo, headers, body: corpo });
     if (res.status === 401 && lerRenovacao(cookies)) {
@@ -99,13 +100,23 @@ export const ALL: APIRoute = async ({ params, request, cookies, url }) => {
       if (r !== 'sessao' && r !== 'backend') {
         await res.body?.cancel().catch(() => undefined);
         res = await chamarBackend(r.token, alvo, { method: metodo, headers, body: corpo });
+        renovada = true;
       }
     }
   } catch (e) {
     if (e instanceof BackendForaDoAr) return erro(502, 'O sistema do Âmbar não respondeu. Tente de novo em instantes.', 'backend_indisponivel');
     throw e;
   }
-  if (res.status === 401) apagarSessao(cookies);
+  if (res.status === 401) {
+    // 401 com um acesso RECÉM-renovado não é a sessão (ex.: rota que exige o token curto de captura ou de envio): a sessão
+    // do tablet fica e a tela recebe 403, sem voltar ao login. Antes qualquer 401 apagava também a renovação e o tablet
+    // ficava desconectado de vez (18/11/2026). Renovação recusada já apagou os dois cookies em renovarSessao.
+    if (renovada) {
+      await res.body?.cancel().catch(() => undefined);
+      return erro(403, 'Esta operação não foi autorizada. Tente de novo.', 'nao_autorizado');
+    }
+    apagarSessao(cookies);
+  }
   const tipo = res.headers.get('content-type') ?? 'application/json';
   // Erro sem JSON não veio da API do Âmbar (que sempre responde JSON): é o proxy da VPS sem o contêiner no ar (deploy,
   // reinício ou falha de saúde devolvem "404 page not found" em texto). Antes isso virava "Não encontrado. Pode ter sido
