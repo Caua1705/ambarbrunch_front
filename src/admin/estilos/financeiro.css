@@ -431,11 +431,12 @@
   max-height: calc(100vh - 180px);
   overflow: auto;
 }
-.fin-calculo .tabela td:first-child {
+/* A Despesa (2ª coluna) ocupa a sobra; "Pago em" fica estreita, colada à esquerda. */
+.fin-calculo .tabela td:nth-child(2) {
   width: 100%;
 }
-.fin-calculo .tabela td:not(:first-child),
-.fin-calculo .tabela th:not(:first-child) {
+.fin-calculo .tabela td:not(:nth-child(2)),
+.fin-calculo .tabela th:not(:nth-child(2)) {
   white-space: nowrap;
 }
 .fin-calculo .tabela tfoot td {

@@ -20,7 +20,6 @@ import { DetalheDespesa } from './DetalheDespesa';
 type Lado = 'ambar' | 'roll';
 type Periodo = 'todo' | 'mes' | 'anterior' | 'personalizado';
 const pct = (v: string | number) => `${Math.round(Number(v) * 100)}%`;
-const OUTRO: Record<Lado, Lado> = { ambar: 'roll', roll: 'ambar' };
 const PENDENCIA: Record<string, { titulo: string; texto: string }> = {
   sem_pagador: { titulo: 'Sem pagador identificado', texto: 'Defina a conta que pagou em Pendências: até lá o pagamento não entra no cálculo.' },
   antes_da_divisao: { titulo: 'Despesa conjunta paga antes de 26/10', texto: 'A ROLL só participa das despesas conjuntas a partir de 26/10/2026: não é cobrada aqui. Confira se a responsabilidade está certa.' },
@@ -69,10 +68,7 @@ export function Repasses({ confirmar }: { confirmar: (p: PedidoConfirmacao) => v
               <div class="fin-repasses">
                 {(['ambar', 'roll'] as Lado[]).map((e) => (
                   <Cartao key={e} titulo={`${EMPRESA[e]} a receber`}>
-                    <p class="fin-saldo"><strong class="num">{moeda(r.empresas[e].a_receber)}</strong></p>
-                    <p class="fraco" style={{ margin: '0 0 12px' }}>
-                      Ressarcido pela {EMPRESA[OUTRO[e]]} · {plural(r.empresas[e].quantidade, 'pagamento feito', 'pagamentos feitos')} pelo {EMPRESA[e]} ({moeda(r.empresas[e].pago)})
-                    </p>
+                    <p class="fin-saldo" style={{ marginBottom: '12px' }}><strong class="num">{moeda(r.empresas[e].a_receber)}</strong></p>
                     <Botao tamanho="p" onClick={() => setCalculo(e)}>Ver cálculo</Botao>
                   </Cartao>
                 ))}
@@ -114,14 +110,9 @@ function Pendencias({ r, abrir }: { r: Ressarcimentos; abrir: (id: string) => vo
 }
 
 function Pagador({ i }: { i: ItemRessarcimento }) {
+  // 17/11 (pedido do dono): só a empresa — sem conta nem "pessoal".
   if (!i.pagador_empresa) return <span class="fin-falta">Não identificado</span>;
-  const conta = i.pagador_empresa === 'ambarxroll' ? 'conta conjunta' : i.pagador_conta;
-  return (
-    <>
-      <span>{EMPRESA[i.pagador_empresa]}</span>
-      {conta && <span class="sub">{conta}{i.pagador_natureza === 'pessoal' ? ' · pessoal' : ''}{i.origem === 'historico' ? ' · histórico' : ''}</span>}
-    </>
-  );
+  return <span>{EMPRESA[i.pagador_empresa]}</span>;
 }
 
 function Calculo({ empresa, r, aoFechar, abrir }: { empresa: EmpresaPagadora | null; r: Ressarcimentos; aoFechar: () => void; abrir: (despesaId: string) => void }) {
@@ -149,7 +140,7 @@ function Calculo({ empresa, r, aoFechar, abrir }: { empresa: EmpresaPagadora | n
               {itens.map((i) => (
                 <tr key={i.pagamento_id} tabIndex={0} title="Abrir a despesa de origem" style={{ cursor: 'pointer' }}
                   onClick={() => abrir(i.despesa_id)} onKeyDown={(e) => { if (e.key === 'Enter') abrir(i.despesa_id); }}>
-                  <td class="num" style={{ whiteSpace: 'nowrap' }}>{i.data_pagamento ? dataCurta(i.data_pagamento) : <span class="fraco">sem data</span>}</td>
+                  <td>{i.data_pagamento ? dataCurta(i.data_pagamento) : <span class="fraco">sem data</span>}</td>
                   <td>{i.descricao}{i.pendencia && <span class="sub"><Etiqueta tom="atencao">conferir</Etiqueta></span>}</td>
                   <td class="num">{moeda(i.valor_original)}</td>
                   <td data-prioridade="media"><Pagador i={i} /></td>
