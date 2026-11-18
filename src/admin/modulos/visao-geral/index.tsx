@@ -19,6 +19,7 @@
 //
 // Estados: sem a loja do PDV ligada, o backend responde `disponivel: false` e a tela mostra "—", nunca zero, sem faixa de
 // aviso. Falha de API é outra coisa: fica no próprio indicador ou cartão, com "Tentar de novo", e nunca vira "sem vendas".
+import type { ComponentChildren } from 'preact';
 import { useState } from 'preact/hooks';
 import { AlertTriangle, CalendarCheck, Users } from 'lucide-preact';
 import type { ContextoPainel } from '../../lib/sessao';
@@ -48,6 +49,11 @@ const COR_RECEITA = 'var(--receita)';
 const COR_DESPESA = 'var(--despesa)';
 
 const SEM_VENDAS = 'Sem vendas sincronizadas';
+
+/** Indicadores limpos (17/11): o rodapé só traz o status essencial (Em conferência, variação, qualidade, falha); sem
+ * nada disso, o cartão fica sem rodapé. */
+const variacao = (atual: number | null, ant: number | null, inverter = false) => (atual === null || ant === null || ant === 0 ? null : <Variacao atual={atual} anterior={ant} inverter={inverter} />);
+const rodape = (...partes: (ComponentChildren | null)[]) => { const v = partes.filter((x) => x !== null && x !== undefined && x !== false); return v.length ? <>{v}</> : null; };
 
 const lerTipo = (v: string | null): TipoPeriodo => (OPCOES.some((o) => o.valor === v) ? (v as TipoPeriodo) : 'mes');
 
@@ -175,7 +181,7 @@ function Executiva({ produtos }: { produtos: boolean }) {
           rodape={
             vendas.erro ? <FalhaIndicador consulta={vendas} />
             : !v ? SEM_VENDAS
-            : <>{emConferencia}<Variacao atual={num(v.totais.faturamento_pdv)} anterior={va ? num(va.totais.faturamento_pdv) : null} /> <span>Total da Eyemobile {naPeriodo} · sem a taxa de serviço {moeda(v.totais.receita_liquida)}</span></>
+            : rodape(emConferencia, variacao(num(v.totais.faturamento_pdv), va ? num(va.totais.faturamento_pdv) : null))
           }
           href={vendas.erro ? undefined : '/admin/financeiro?aba=relatorios&relatorio=vendas'}
         />
@@ -185,7 +191,7 @@ function Executiva({ produtos }: { produtos: boolean }) {
           valor={categoriasPagas.dados ? moeda(categoriasPagas.dados.total) : '—'}
           rodape={
             categoriasPagas.erro ? <FalhaIndicador consulta={categoriasPagas} />
-            : categoriasPagas.dados ? <><Variacao inverter atual={num(categoriasPagas.dados.total)} anterior={categoriasPagasAnt.dados ? num(categoriasPagasAnt.dados.total) : null} /> <span>Pagas {naPeriodo}</span></>
+            : categoriasPagas.dados ? rodape(variacao(num(categoriasPagas.dados.total), categoriasPagasAnt.dados ? num(categoriasPagasAnt.dados.total) : null, true))
             : null
           }
           href={categoriasPagas.erro ? undefined : '/admin/financeiro?tipo=despesas'}
@@ -201,7 +207,7 @@ function Executiva({ produtos }: { produtos: boolean }) {
           rodape={
             !mes ? <span>Apurado por mês. <button type="button" class="link" onClick={() => setTipo('mes')}>Ver este mês</button></span>
             : resultado.erro ? <FalhaIndicador consulta={resultado} />
-            : res ? <><Situacao tom={QUALIDADE[res.qualidade.nivel].tom}>{QUALIDADE[res.qualidade.nivel].rotulo}</Situacao> <span>{res.disponivel ? 'Não é lucro contábil' : res.qualidade.motivos[0]?.texto ?? 'Indisponível'}</span></>
+            : res ? (res.disponivel ? <Situacao tom={QUALIDADE[res.qualidade.nivel].tom}>{QUALIDADE[res.qualidade.nivel].rotulo}</Situacao> : <Situacao tom="apagado">Indisponível</Situacao>)
             : null
           }
           href={mes && !resultado.erro ? `/admin/financeiro?aba=relatorios&relatorio=resultado&mes=${mes}` : undefined}
@@ -210,7 +216,7 @@ function Executiva({ produtos }: { produtos: boolean }) {
           rotulo="Ticket médio por venda"
           carregando={vendas.carregando}
           valor={v && v.totais.ticket_medio_venda != null ? moeda(v.totais.ticket_medio_venda) : '—'}
-          rodape={vendas.erro ? <FalhaIndicador consulta={vendas} /> : !v ? SEM_VENDAS : v.totais.vendas ? <>{emConferencia}<Variacao atual={num(v.totais.ticket_medio_venda)} anterior={va ? num(va.totais.ticket_medio_venda) : null} /> <span>{plural(v.totais.vendas, 'venda', 'vendas')}{v.totais.ticket_medio_pagamento != null ? ` · por pagamento ${moeda(v.totais.ticket_medio_pagamento)}` : ''}</span></> : 'Nenhuma venda no período'}
+          rodape={vendas.erro ? <FalhaIndicador consulta={vendas} /> : !v ? SEM_VENDAS : v.totais.vendas ? rodape(emConferencia, variacao(num(v.totais.ticket_medio_venda), va ? num(va.totais.ticket_medio_venda) : null)) : 'Nenhuma venda no período'}
         />
       </section>
 

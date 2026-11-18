@@ -534,3 +534,54 @@
   font-size: var(--t-s);
   color: var(--texto-3);
 }
+
+/* Agrupamentos em Despesas (17/11): a linha consolidada tem a seta de expandir; as despesas dela ficam logo abaixo,
+   recuadas e num fundo levemente diferente, para não parecerem linhas soltas (nem somadas de novo). */
+.fin-grupo {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 190px;
+}
+@media (max-width: 640px) {
+  .fin-grupo {
+    min-width: 0;
+  }
+}
+.fin-grupo__alternar {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  margin: -2px 0 0 -4px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-s);
+  background: none;
+  color: var(--texto-3);
+  cursor: pointer;
+}
+.fin-grupo__alternar:hover {
+  background: var(--sobre-hover);
+  color: var(--texto);
+}
+.fin-grupo__alternar svg {
+  width: 16px;
+  height: 16px;
+  transition: transform 0.15s ease;
+}
+.fin-grupo__alternar[aria-expanded='true'] svg {
+  transform: rotate(90deg);
+}
+.tabela tbody tr[data-filha] td {
+  background: var(--superficie-2);
+}
+.tabela tbody tr[data-filha] td[data-col='descricao'] {
+  padding-left: 46px;
+}
+@media (max-width: 640px) {
+  .tabela tbody tr[data-filha] td[data-col='descricao'] {
+    padding-left: 34px;
+  }
+}

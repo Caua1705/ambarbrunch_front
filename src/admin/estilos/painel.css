@@ -892,6 +892,8 @@ a.indicador:hover {
   font-size: var(--t-xl);
 }
 .indicador__rodape {
+  /* Só o status essencial: fica no pé do cartão, alinhado entre cartões de alturas iguais. */
+  margin-top: auto;
   font-size: var(--t-xs);
   color: var(--texto-3);
   display: flex;

@@ -188,11 +188,6 @@ function ListaContasPagar({ contexto, busca, periodo, modo, abrirDespesa }: { co
                       {previstas.length > 0 && <div><span>Dos quais previstos</span><strong class="num" title="Contas de valor variável: previsão, não valor confirmado.">{moeda(previsto)}</strong></div>}
                     </div>
                   )}
-                  {previstas.length > 0 && (
-                    <p class="fraco" style={{ margin: '0 20px 8px' }}>
-                      “Valor previsto” é a previsão de uma conta de valor variável ({previstas.map((c) => c.descricao).slice(0, 3).join(', ')}{previstas.length > 3 ? '…' : ''}): a conta continua a pagar e o valor real é informado no Pagar.
-                    </p>
-                  )}
                   <Tabela
                     rotulo="Contas a pagar"
                     colunas={colunas}

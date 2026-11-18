@@ -1,5 +1,6 @@
 // Tabela de dados: ordenação por coluna (clique ou Enter), linha clicável que abre o detalhe, colunas com prioridade
-// (as de prioridade baixa/média somem no celular) e paginação simples no cliente.
+// (as de prioridade baixa/média somem no celular) e paginação simples no cliente. Linhas expansíveis (`filhos`): as
+// filhas aparecem logo abaixo da mãe, na mesma ordem da tabela, e não contam na paginação (a página é de linhas-mãe).
 import type { ComponentChildren } from 'preact';
 import { useMemo, useState } from 'preact/hooks';
 import { ArrowDown, ArrowUp, ChevronsUpDown, ChevronLeft, ChevronRight } from 'lucide-preact';
@@ -17,7 +18,7 @@ export interface Coluna<T> {
   oculta?: boolean;
 }
 
-export function Tabela<T>({ colunas, linhas, chave, aoAbrir, destaque, apagada, rotulo, porPagina = 50, ordemInicial, vazio, movel }: {
+export function Tabela<T>({ colunas, linhas, chave, aoAbrir, destaque, apagada, rotulo, porPagina = 50, ordemInicial, vazio, movel, filhos }: {
   colunas: Coluna<T>[];
   linhas: T[];
   chave: (l: T) => string;
@@ -30,16 +31,18 @@ export function Tabela<T>({ colunas, linhas, chave, aoAbrir, destaque, apagada, 
   vazio?: ComponentChildren;
   /** No celular (≤ 640 px) mostra cada linha como cartão em vez de colunas espremidas. */
   movel?: (l: T) => ComponentChildren;
+  /** Linhas-filhas de uma linha EXPANDIDA (null = recolhida ou sem filhas). Não usar com `movel`. */
+  filhos?: (l: T) => T[] | null;
 }) {
   const [ordem, setOrdem] = useState(ordemInicial ?? null);
   const [pagina, setPagina] = useState(0);
   const visiveis = colunas.filter((c) => !c.oculta);
 
-  const ordenadas = useMemo(() => {
+  const comparar = useMemo(() => {
     const col = ordem && colunas.find((c) => c.id === ordem.coluna);
-    if (!col?.ordenar) return linhas;
+    if (!col?.ordenar) return null;
     const f = col.ordenar;
-    return [...linhas].sort((a, b) => {
+    return (a: T, b: T) => {
       const x = f(a);
       const y = f(b);
       if (x === y) return 0;
@@ -47,12 +50,18 @@ export function Tabela<T>({ colunas, linhas, chave, aoAbrir, destaque, apagada, 
       if (y === null) return -1;
       const r = typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y), 'pt-BR');
       return ordem!.desc ? -r : r;
-    });
-  }, [linhas, ordem, colunas]);
+    };
+  }, [ordem, colunas]);
+  const ordenadas = useMemo(() => (comparar ? [...linhas].sort(comparar) : linhas), [linhas, comparar]);
 
   const paginas = Math.max(1, Math.ceil(ordenadas.length / porPagina));
   const p = Math.min(pagina, paginas - 1);
   const fatia = ordenadas.slice(p * porPagina, (p + 1) * porPagina);
+  // Mãe seguida das filhas (se expandida), na ordem da tabela; data-filha marca a linha para o recuo.
+  const exibidas: { l: T; filha: boolean }[] = fatia.flatMap((l) => {
+    const f = filhos?.(l);
+    return [{ l, filha: false }, ...(f ? (comparar ? [...f].sort(comparar) : f).map((x) => ({ l: x, filha: true })) : [])];
+  });
 
   if (!linhas.length && vazio) return <>{vazio}</>;
 
@@ -107,10 +116,11 @@ export function Tabela<T>({ colunas, linhas, chave, aoAbrir, destaque, apagada, 
             </tr>
           </thead>
           <tbody>
-            {fatia.map((l) => (
+            {exibidas.map(({ l, filha }) => (
               <tr
                 key={chave(l)}
                 data-linha=""
+                data-filha={filha ? '' : undefined}
                 data-clicavel={aoAbrir ? '' : undefined}
                 data-destaque={destaque?.(l) ? '' : undefined}
                 data-apagado={apagada?.(l) ? '' : undefined}

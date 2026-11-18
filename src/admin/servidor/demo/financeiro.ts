@@ -800,6 +800,42 @@ const achaDespesa = (i: string) => {
   if (!d) throw new ErroDemo(404, 'nao_encontrado', 'Despesa não encontrada.');
   return d;
 };
+// 0039: agrupamentos — só apontam para despesas; nada aqui cria ou muda despesa, parcela ou pagamento.
+interface AgrupamentoDemo { id: string; unidade: number; titulo: string; observacao: string | null; despesas: { despesa_id: string; adicionado_em: string }[]; criado_em: string; atualizado_em: string; versao: number }
+const AGR: AgrupamentoDemo[] = [];
+const achaAgrupamento = (i: string) => {
+  montar();
+  const g = AGR.find((x) => x.id === i);
+  if (!g) throw new ErroDemo(404, 'nao_encontrado', 'Agrupamento não encontrado.');
+  return g;
+};
+function vincularAgrupamento(g: AgrupamentoDemo, ids: string[]) {
+  for (const i of new Set(ids)) {
+    const d = achaDespesa(i);
+    if (d.status === 'cancelada') throw new ErroDemo(422, 'despesa_cancelada', 'Despesa cancelada não entra em agrupamento.');
+    if (ehRetirada(d.categoria_codigo)) throw new ErroDemo(422, 'despesa_societaria', 'Retirada de sócio não entra em agrupamento.');
+    const outro = AGR.find((x) => x.despesas.some((y) => y.despesa_id === i));
+    if (outro === g) continue;
+    if (outro) throw new ErroDemo(409, 'despesa_em_outro_agrupamento', `“${d.descricao}” já está no agrupamento “${outro.titulo}”.`);
+    g.despesas.push({ despesa_id: i, adicionado_em: agora() });
+  }
+}
+function saidaAgrupamento(g: AgrupamentoDemo, detalhe: boolean) {
+  const itens = g.despesas.map(({ despesa_id, adicionado_em }) => {
+    const d = achaDespesa(despesa_id);
+    const pgs = pagamentosVivos(d);
+    return { despesa_id, descricao: d.descricao, valor: d.valor, pago: d2(pgs.reduce((t, x) => t + Number(x.valor), 0)), pago_em: pgs.map((x) => x.pago_em).sort().at(-1) ?? null, competencia: d.competencia, status: d.status, categoria: d.categoria_codigo, responsavel: responsavelDe(d.id), adicionado_em };
+  });
+  const validos = itens.filter((i) => i.status !== 'cancelada');
+  const datas = validos.map((i) => i.pago_em).filter((x): x is string => !!x).sort();
+  return {
+    id: g.id, titulo: g.titulo, observacao: g.observacao, quantidade: validos.length,
+    total: d2(validos.reduce((t, i) => t + Number(i.valor), 0)), pago: d2(validos.reduce((t, i) => t + Number(i.pago), 0)),
+    primeiro_pagamento: datas[0] ?? null, ultimo_pagamento: datas.at(-1) ?? null,
+    criado_por: 'Usuário (demo)', criado_em: g.criado_em, atualizado_em: g.atualizado_em, versao: g.versao,
+    ...(detalhe ? { itens } : {}),
+  };
+}
 const conferirVersao = (atual: number, enviada: unknown) => {
   if (typeof enviada === 'number' && enviada !== atual) throw new ErroDemo(409, 'conflito_versao', 'Alguém alterou isto antes de você.', { versao: atual });
 };
@@ -987,8 +1023,9 @@ export const ROTAS_FINANCEIRO: Rota[] = [
   }],
   ['GET', R('financeiro/lancamentos'), GERENCIA, ({ query, papel }) => {
     montarPagadores();
-    const de = query.get('de') ?? '';
-    const ate = query.get('ate') ?? '';
+    // Sem de/até, como o backend: todo o período.
+    const de = query.get('de') ?? '0000-00-00';
+    const ate = query.get('ate') ?? '9999-12-31';
     const itens: Lancamento[] = [];
     for (const v of E.vendas.filter((x) => x.dia >= de && x.dia <= ate)) itens.push({ tipo: 'venda_dia', id: `1:${v.dia}`, data: v.dia, descricao: 'Vendas PDV', valor: d2(v.total), sinal: 1, categoria: null, origem: 'eyemobile', fornecedor_id: null, fornecedor: null, status: 'confirmada', tem_comprovante: false, compra_id: null, despesa_id: null, detalhes: { vendas: v.vendas, taxa_servico: d2(v.total * 0.08), total_vendido: d2(v.total * 1.035), descontos: d2(v.total * 0.03), recebido_pdv: d2(v.total * 1.08) } });
     const un = idUnidade(query);
@@ -1031,7 +1068,12 @@ export const ROTAS_FINANCEIRO: Rota[] = [
     PAG.responsavel.set(d.id, e.responsavel ?? CONFIG.responsavel_padrao);
     return resposta(201, d);
   }],
-  ['GET', R(`financeiro/despesas/${UUID}`), GERENCIA, ({ params }) => achaDespesa(params[0])],
+  ['GET', R(`financeiro/despesas/${UUID}`), GERENCIA, ({ params }) => {
+    const d = achaDespesa(params[0]);
+    const g = AGR.find((x) => x.despesas.some((y) => y.despesa_id === d.id));
+    const a = g ? saidaAgrupamento(g, false) : null;
+    return { ...d, agrupamento: a ? { id: a.id, titulo: a.titulo, quantidade: a.quantidade, total: a.total } : null };
+  }],
   ['PATCH', R(`financeiro/despesas/${UUID}`), GERENCIA, async ({ params, corpo }) => {
     const d = achaDespesa(params[0]);
     const c = await corpo<{ versao: number; motivo: string; descricao?: string; valor?: string; competencia?: string; categoria?: string }>();
@@ -1206,8 +1248,52 @@ export const ROTAS_FINANCEIRO: Rota[] = [
   // Conciliação de contas a pagar (0038): a demonstração não tem pagamentos avulsos para sugerir.
   ['GET', R('financeiro/conciliacao-contas/sugestoes'), GERENCIA, () => ({ itens: [], total: 0 })],
   ['GET', R('financeiro/conciliacao-contas/recentes'), GERENCIA, () => ({ itens: [] })],
-  // 0039: agrupamentos (a demonstração começa sem nenhum).
-  ['GET', R('financeiro/agrupamentos'), GERENCIA, () => ({ itens: [], total: 0 })],
+  // 0039: agrupamentos (a demonstração começa sem nenhum). Como o backend: só apontam para despesas existentes, o total é
+  // calculado (despesas não canceladas), uma despesa fica em no máximo um agrupamento e excluir nunca apaga despesa.
+  ['GET', R('financeiro/agrupamentos'), GERENCIA, ({ query }) => {
+    montar();
+    const b = query.get('busca')?.trim().toLowerCase();
+    const itens = AGR.filter((g) => g.unidade === idUnidade(query) && (!b || g.titulo.toLowerCase().includes(b))).map((g) => saidaAgrupamento(g, false));
+    return { itens, total: itens.length };
+  }],
+  ['GET', R(`financeiro/agrupamentos/${UUID}`), GERENCIA, ({ params }) => saidaAgrupamento(achaAgrupamento(params[0]), true)],
+  ['POST', R('financeiro/agrupamentos'), GERENCIA, async ({ corpo, query }) => {
+    montar();
+    const e = await corpo<{ titulo?: string; observacao?: string | null; despesas?: string[] }>();
+    const titulo = e.titulo?.trim() ?? '';
+    if (titulo.length < 2) throw new ErroDemo(422, 'regra_violada', 'Dê um nome ao agrupamento.');
+    const g: AgrupamentoDemo = { id: id(), unidade: idUnidade(query), titulo, observacao: e.observacao ?? null, despesas: [], criado_em: agora(), atualizado_em: agora(), versao: 1 };
+    vincularAgrupamento(g, e.despesas ?? []);
+    AGR.unshift(g);
+    return resposta(201, saidaAgrupamento(g, true));
+  }],
+  ['PATCH', R(`financeiro/agrupamentos/${UUID}`), GERENCIA, async ({ params, corpo }) => {
+    const g = achaAgrupamento(params[0]);
+    const e = await corpo<{ versao?: number; titulo?: string; observacao?: string | null }>();
+    conferirVersao(g.versao, e.versao);
+    if (e.titulo != null) g.titulo = e.titulo.trim();
+    if (e.observacao !== undefined) g.observacao = e.observacao;
+    g.versao++;
+    g.atualizado_em = agora();
+    return saidaAgrupamento(g, true);
+  }],
+  ['POST', R(`financeiro/agrupamentos/${UUID}/despesas`), GERENCIA, async ({ params, corpo }) => {
+    const g = achaAgrupamento(params[0]);
+    vincularAgrupamento(g, (await corpo<{ despesas?: string[] }>()).despesas ?? []);
+    g.versao++;
+    return saidaAgrupamento(g, true);
+  }],
+  ['DELETE', R(`financeiro/agrupamentos/${UUID}/despesas/${UUID}`), GERENCIA, ({ params }) => {
+    const g = achaAgrupamento(params[0]);
+    g.despesas = g.despesas.filter((x) => x.despesa_id !== params[1]);
+    g.versao++;
+    return saidaAgrupamento(g, true);
+  }],
+  ['DELETE', R(`financeiro/agrupamentos/${UUID}`), GERENCIA, ({ params }) => {
+    const g = achaAgrupamento(params[0]);
+    AGR.splice(AGR.indexOf(g), 1);
+    return resposta(204, undefined);
+  }],
   ['GET', R(`financeiro/parcelas/${UUID}/pagamentos-candidatos`), GERENCIA, ({ params }) => {
     montar();
     const d = E.despesas.find((x) => x.parcelas.some((p) => p.id === params[0]));

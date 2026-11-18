@@ -1,5 +1,5 @@
-// Financeiro: Movimentações | Contas a pagar | Contas recorrentes | Repasses | Pendências (Conjunto → Âmbar e Roll, só
-// com financeiro.ver_societario; substitui os antigos Acertos). Movimentações (despesas, outras receitas e pagamentos: consultar e registrar), Contas a
+// Financeiro: Movimentações | Contas a pagar | Contas recorrentes | Pendências | Repasses (Conjunto → Âmbar e Roll, só
+// com financeiro.ver_societario; Repasses fica por último; substitui os antigos Acertos). Movimentações (despesas, outras receitas e pagamentos: consultar e registrar), Contas a
 // pagar (o que falta pagar, vencidas, parciais, pagas e as contas fixas) e Pendências (só despesa sem categoria e/ou
 // sem pagador; Banco, Stone, Acertos e os documentos da Júlia ficam como conferências secundárias dentro dela).
 // Relatórios saiu da navegação: os endereços antigos (?aba=relatorios, sino, Visão Geral) ainda abrem a mesma tela,
@@ -145,8 +145,8 @@ function Conteudo({ contexto }: { contexto: ContextoPainel }) {
     { id: 'movimentacoes', rotulo: 'Movimentações' },
     { id: 'contas', rotulo: 'Contas a pagar', contagem: vencidas },
     { id: 'recorrentes', rotulo: 'Contas recorrentes' },
-    ...(societario ? [{ id: 'repasses' as const, rotulo: 'Repasses' }] : []),
     { id: 'pendencias', rotulo: 'Pendências', contagem: revisar },
+    ...(societario ? [{ id: 'repasses' as const, rotulo: 'Repasses' }] : []),
   ];
   const [despesa, setDespesa] = useState<string | null>(null);
   const { confirmar, elemento: dialogo } = useConfirmacao();

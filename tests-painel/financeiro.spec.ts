@@ -39,7 +39,9 @@ test('abas do Gerente (sem Repasses); Movimentações em Receitas | Despesas, se
   for (const t of ['Vendas do PDV (Eyemobile)', 'Despesas confirmadas', 'Pagamentos realizados', 'A pagar em aberto']) await expect(page.getByText(t, { exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: /^Filtros/ })).toHaveCount(0);
   // 0039: a terceira visão organiza despesas já lançadas (agrupamentos), sem somar de novo.
-  await expect(visao(page).getByRole('button')).toHaveText(['Receitas', 'Despesas', 'Agrupamentos']);
+  // 17/11: agrupamentos ficam dentro de Despesas (sem terceira visão), pelo botão discreto Agrupar despesas.
+  await expect(visao(page).getByRole('button')).toHaveText(['Receitas', 'Despesas']);
+  await expect(page.getByRole('button', { name: 'Agrupar despesas' })).toHaveClass(/btn--fantasma/);
   // + Receita e + Despesa pequenos, no canto.
   await expect(page.getByRole('button', { name: 'Nova despesa' })).toHaveText('Despesa');
   await expect(page.getByRole('button', { name: 'Outra receita' })).toHaveText('Receita');
@@ -346,6 +348,9 @@ test('Repasses do Conjunto e contas pagadoras: só o Proprietário', async ({ pa
   // Endereço antigo dos Acertos cai em Repasses.
   await page.goto(`${DEMO}/admin/financeiro?aba=pendencias&vista=acertos`);
   await expect(aba(page, /^Repasses/)).toHaveAttribute('aria-selected', 'true');
+  // 17/11: Repasses é a última aba.
+  const abas = page.getByRole('tablist', { name: 'Seções' }).getByRole('tab');
+  for (const [i, nome] of [/^Movimentações/, /^Contas a pagar/, /^Contas recorrentes/, /^Pendências/, /^Repasses/].entries()) await expect(abas.nth(i)).toHaveText(nome);
   for (const t of ['Conjunto → Âmbar', 'Conjunto → Roll']) await expect(page.getByRole('heading', { name: t })).toBeVisible();
   // Sem regra/operação definida: pendente, nunca um saldo inventado.
   await expect(page.getByText('Pendente de identificação')).toHaveCount(2);
@@ -542,13 +547,79 @@ test('Parcelar compra (tablet 3x paga de uma vez): só a parcela paga hoje sai e
   await expect(page.getByRole('table').getByRole('row', { name: new RegExp(nome) })).toHaveCount(2);
 });
 
-test('Agrupamentos: terceira visão de Movimentações, só organização (17/11)', async ({ page }) => {
+test('Agrupamentos dentro de Despesas: uma linha consolidada que expande, sem somar de novo, e desfazer não apaga (17/11)', async ({ page }) => {
+  const brl = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).replace(/\s/g, ' ');
+  const resposta = page.waitForResponse((r) => r.url().includes('/financeiro/lancamentos') && r.url().includes('grupo=despesas') && !r.url().includes('busca='));
   await page.goto(`${DEMO}/admin/financeiro`);
-  await visao(page).getByRole('button', { name: 'Agrupamentos' }).click();
-  await expect(page.getByRole('heading', { name: 'Nenhum agrupamento' })).toBeVisible();   // a demonstração começa sem nenhum
-  await expect(page.getByText('o total é a soma delas e não é contado de novo')).toBeVisible();
-  await page.getByRole('button', { name: 'Agrupamento', exact: true }).click();
-  const gaveta = page.getByRole('dialog', { name: 'Novo agrupamento' });
+  const lista = await (await resposta).json() as { itens: { tipo: string; id: string; despesa_id: string; descricao: string; valor: string }[] };
+  // Duas despesas com UM pagamento cada no período (a demonstração sorteia as compras do mês).
+  const porDespesa = new Map<string, typeof lista.itens>();
+  for (const l of lista.itens.filter((x) => x.tipo === 'pagamento')) porDespesa.set(l.despesa_id, [...(porDespesa.get(l.despesa_id) ?? []), l]);
+  const [p1, p2] = [...porDespesa.values()].filter((v) => v.length === 1).map((v) => v[0]);
+  expect(p2).toBeTruthy();
+  const soma = Math.round(Number(p1.valor) * 100 + Number(p2.valor) * 100) / 100;
+  const totalPago = page.locator('.fin-totais > div', { hasText: 'Total pago' }).locator('strong');
+  const quantidade = page.locator('.fin-totais > div', { hasText: 'Pagamentos realizados' }).locator('strong');
+  await expect(despesas(page)).toBeVisible();
+  const antes = { total: await totalPago.textContent(), qtd: await quantidade.textContent() };
+
+  // O botão discreto abre a seleção de despesas já lançadas (a mesma de antes).
+  await page.getByRole('button', { name: 'Agrupar despesas' }).click();
+  const gaveta = page.getByRole('dialog', { name: 'Agrupar despesas' });
   await expect(gaveta.getByLabel('Buscar despesa para agrupar')).toBeVisible();
+  await gaveta.getByRole('button', { name: 'Criar agrupamento' }).click();
+  await expect(gaveta.getByText('Dê um nome ao agrupamento.')).toBeVisible();
   await page.keyboard.press('Escape');
+
+  const titulo = 'Passagens — 3ª semana de teste';
+  const criado = await page.request.post(`${API}/agrupamentos`, { headers: { 'X-Painel': '1', 'Content-Type': 'application/json', Origin: DEMO }, data: { titulo, despesas: [p1.despesa_id, p2.despesa_id] } });
+  expect(criado.status()).toBe(201);
+  const grupo = await criado.json() as { id: string };
+  await page.reload();
+
+  // Uma linha só, com nome, quantidade e o total; os totais do topo não mudam (nada é contado duas vezes).
+  const linha = despesas(page).getByRole('row', { name: new RegExp(titulo) });
+  await expect(linha).toHaveCount(1);
+  await expect(linha).toContainText('2 despesas');
+  await expect(linha.locator('td[data-col="valor"]')).toHaveText(brl(soma));
+  await expect(totalPago).toHaveText(antes.total!);
+  await expect(quantidade).toHaveText(antes.qtd!);
+  await expect(despesas(page).locator('tr[data-filha]')).toHaveCount(0);
+
+  // Expandir: as despesas do grupo aparecem logo abaixo, com os valores reais e a edição de cada uma.
+  await linha.getByRole('button', { name: `Expandir ${titulo}` }).click();
+  const filhas = despesas(page).locator('tr[data-filha]');
+  await expect(filhas).toHaveCount(2);
+  expect((await filhas.locator('td[data-col="valor"]').allTextContents()).map((t) => t.replace(/\s/g, ' ')).sort()).toEqual([brl(Number(p1.valor)), brl(Number(p2.valor))].sort());
+  await expect(filhas.first().getByRole('button', { name: /^Editar / })).toBeVisible();
+  // As filhas seguem a mãe mesmo depois de ordenar.
+  await despesas(page).getByRole('columnheader', { name: 'Valor' }).getByRole('button').click();
+  const linhas = despesas(page).locator('tbody tr');
+  const i = await linhas.evaluateAll((trs, t) => trs.findIndex((tr) => tr.textContent?.includes(t)), titulo);
+  await expect(linhas.nth(i + 1)).toHaveAttribute('data-filha', '');
+  await expect(linhas.nth(i + 2)).toHaveAttribute('data-filha', '');
+  // A linha da despesa abre o detalhe original.
+  await filhas.filter({ hasText: p1.descricao }).first().locator('td[data-col="descricao"]').click();
+  await expect(page.getByRole('dialog', { name: p1.descricao })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await linha.getByRole('button', { name: `Recolher ${titulo}` }).click();
+  await expect(filhas).toHaveCount(0);
+
+  // A busca acha o agrupamento pelo nome (já aberto) e o topo continua batendo com a tabela.
+  await page.getByLabel('Buscar movimentação').fill('3ª semana de teste');
+  await expect(despesas(page).getByRole('row')).toHaveCount(4);   // cabeçalho + grupo + 2 despesas
+  await expect(filhas).toHaveCount(2);
+  await expect(totalPago).toHaveText(brl(soma));
+  await expect(quantidade).toHaveText('2');
+  await page.getByLabel('Buscar movimentação').fill('');
+
+  // Desfazer: só o agrupamento sai; as despesas voltam a ser linhas comuns, com os mesmos totais.
+  await despesas(page).getByRole('row', { name: new RegExp(titulo) }).getByRole('button', { name: `Ações para ${titulo}` }).click();
+  await page.getByRole('menuitem', { name: 'Desfazer agrupamento' }).click();
+  await page.getByRole('dialog', { name: 'Desfazer este agrupamento?' }).getByRole('button', { name: 'Desfazer agrupamento' }).click();
+  await expect(despesas(page).getByRole('row', { name: new RegExp(titulo) })).toHaveCount(0);
+  await expect(totalPago).toHaveText(antes.total!);
+  await expect(quantidade).toHaveText(antes.qtd!);
+  for (const p of [p1, p2]) expect((await page.request.get(`${API}/despesas/${p.despesa_id}`)).status()).toBe(200);
+  expect((await page.request.get(`${API}/agrupamentos/${grupo.id}`)).status()).toBe(404);
 });

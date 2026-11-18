@@ -32,12 +32,11 @@ test('receita, despesas e ticket médio são os totais do backend no período', 
   await expect(kpi(page, 'Faturamento PDV').locator('.indicador__valor')).toHaveText(brl(vendas.totais.faturamento_pdv));
   await expect(kpi(page, 'Despesas').locator('.indicador__valor')).toHaveText(brl(categorias.total));
   await expect(kpi(page, 'Ticket médio por venda').locator('.indicador__valor')).toHaveText(brl(vendas.totais.ticket_medio_venda));
-  // A receita sem a taxa de serviço aparece com esse nome, nunca como se fosse o faturamento da Eyemobile.
-  await expect(kpi(page, 'Faturamento PDV')).toContainText(`sem a taxa de serviço ${brl(vendas.totais.receita_liquida)}`);
+  // 17/11: cartões limpos — nome, valor e só o status essencial; sem as frases explicativas no rodapé.
+  for (const t of ['Total da Eyemobile', 'sem a taxa de serviço', 'Pagas em', 'Não é lucro contábil', 'por pagamento']) await expect(page.locator('.indicadores')).not.toContainText(t);
   await expect(page.getByText('Em conferência')).toHaveCount(0);
   // 17/11: despesas pela data real do pagamento (o que saiu no período), como Movimentações.
   expect(new URL(rCategorias.url()).searchParams.get('base')).toBe('pagamentos');
-  await expect(kpi(page, 'Despesas')).toContainText('Pagas em');
   await expect(page.getByRole('heading', { name: 'Produtos mais vendidos' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Despesas por categoria' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Receitas × despesas' })).toBeVisible();
