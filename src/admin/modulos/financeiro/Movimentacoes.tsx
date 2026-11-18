@@ -4,9 +4,15 @@
 //  - Receitas: vendas do PDV (Eyemobile) agrupadas por dia + outras receitas. A linha do dia abre o detalhe com o que
 //    a integração informa (venda não é dinheiro recebido no banco); a receita manual abre a correção.
 //  - Despesas: os PAGAMENTOS, na data real do pagamento (parcela paga entra no dia em que foi paga; o valor cheio de
-//    uma compra parcelada nunca), cada um uma vez. Conta pessoal de sócio fica marcada "pessoal". Colunas:
-//    Data, Descrição, Categoria, Valor, Pagador, Responsável e Situação; a linha abre o detalhe (edição autorizada,
-//    inclusive o responsável). Conta a pagar em aberto é a MESMA despesa que aparece em Contas a pagar.
+//    uma compra parcelada nunca), cada um uma vez. Colunas: Data, Descrição, Categoria, Valor, Pagador, Responsável e
+//    Situação; a linha abre o detalhe (edição autorizada, inclusive o responsável). Conta a pagar em aberto é a MESMA
+//    despesa que aparece em Contas a pagar.
+//  - Empresas (18/11, pedido do dono): só as TRÊS — ÂMBAR, ROLL e ÂMBARXROLL (no banco: ambar, roll, conjunta). O
+//    Pagador mostra só a empresa, sem "pessoal" nem a conta; o filtro "Empresa" (Despesas) usa o lado da conta que
+//    pagou (`lado`), e os totais do topo vêm do backend com o mesmo filtro. Pagamento feito com conta pessoal de sócio
+//    continua na empresa da conta (nada é redistribuído; o detalhe da despesa mantém a conta usada).
+//  - Receitas (18/11): PDV + todas as outras receitas (a receber e canceladas marcadas); o topo soma o que entrou e
+//    mostra o a receber à parte. Receita não tem empresa pagadora no banco, por isso o filtro Empresa é só de Despesas.
 //  - Agrupamentos (0039; sem aba própria desde 17/11): os pagamentos de despesas agrupadas viram UMA linha consolidada
 //    (nome, total, quantidade, situação) que expande nas linhas de sempre (abrir e editar cada despesa). Só organização:
 //    o total da linha é a soma dos pagamentos dela que estão na lista, e os totais do topo continuam os do backend —
@@ -25,7 +31,7 @@ import { Botao, Cartao, Segmentado, Situacao, Etiqueta } from '../../ui/base';
 import { Dados, Esqueleto, EsqueletoTabela, Vazio } from '../../ui/estados';
 import { Tabela, type Coluna } from '../../ui/tabela';
 import type { Agrupamento, Lancamento, ListaLancamentos, OutraReceitaSaida } from '../../lib/tipos/financeiro';
-import { SituacaoLancamento, useCadastroCategorias, nomeCategoria, temPermissao, atualizarFinanceiro, avisar, RESPONSAVEL, MEIO, PARTE } from './comum';
+import { SituacaoLancamento, useCadastroCategorias, nomeCategoria, temPermissao, atualizarFinanceiro, avisar, RESPONSAVEL, MEIO, PARTE, LADOS } from './comum';
 import { NovaDespesa, EditarDespesa } from './NovaDespesa';
 import { NovaReceita } from './NovaReceita';
 import { DetalheDespesa } from './DetalheDespesa';
@@ -33,6 +39,9 @@ import { NovoAgrupamento, GerenciarAgrupamento, useAgrupamentosDespesas, pedidoD
 
 type Periodo = 'mes' | 'anterior' | '30d' | 'personalizado' | 'todo' | 'sem_data';
 export type VistaMovimentacoes = 'receitas' | 'despesas';
+/** Empresa pagadora (lado da conta): '' = as três. */
+type Empresa = '' | (typeof LADOS)[number];
+const empresaDoEndereco = (): Empresa => { const e = lerParam('empresa'); return (LADOS as readonly string[]).includes(e ?? '') ? (e as Empresa) : ''; };
 
 /** Tipos de cada visão. Vendas do PDV (venda_dia) são RECEITA: nunca entram em Despesas, mesmo que um backend anterior
  * à 0031 (que ignora `grupo`) devolva tudo — foi assim que "Vendas PDV" apareceu em Despesas como "A pagar". */
@@ -73,6 +82,7 @@ export function Movimentacoes({ contexto }: { contexto: ContextoPainel }) {
   const [ate, setAte] = useState('');
   const [busca, setBusca] = useState('');
   const [buscaAtiva, setBuscaAtiva] = useState('');
+  const [empresa, setEmpresa] = useState<Empresa>(empresaDoEndereco);
   const [nova, setNova] = useState(false);
   const [receita, setReceita] = useState(false);
   const [despesa, setDespesa] = useState<string | null>(lerParam('despesa'));
@@ -91,6 +101,7 @@ export function Movimentacoes({ contexto }: { contexto: ContextoPainel }) {
   // Endereços antigos com filtros (?tipo=, ?situacao=): nada fica aplicado escondido.
   useEffect(() => gravarParams({ vista: vista === 'despesas' ? null : vista, tipo: null, situacao: null }), [vista]);
   useEffect(() => gravarParams({ despesa }), [despesa]);
+  useEffect(() => gravarParams({ empresa: empresa || null }), [empresa]);
   useEffect(() => {
     const t = setTimeout(() => setBuscaAtiva(busca.trim()), 300);
     return () => clearTimeout(t);
@@ -120,6 +131,12 @@ export function Movimentacoes({ contexto }: { contexto: ContextoPainel }) {
           <option value="personalizado">Escolher datas…</option>
         </select>
         {periodo === 'personalizado' && <Datas periodo={periodo} de={de} ate={ate} setDe={setDe} setAte={setAte} />}
+        {vista === 'despesas' && (
+          <select class="selecao selecao--auto" aria-label="Empresa" value={empresa} onChange={(e) => setEmpresa(e.currentTarget.value as Empresa)}>
+            <option value="">Todas as empresas</option>
+            {LADOS.map((l) => <option key={l} value={l}>{PARTE[l]}</option>)}
+          </select>
+        )}
         {lancar && (
           <div class="barra-ferramentas__acoes">
             {vista === 'despesas' && <Botao tamanho="p" variante="fantasma" icone={<Layers aria-hidden="true" />} onClick={() => setAgrupar(true)}>Agrupar despesas</Botao>}
@@ -137,7 +154,7 @@ export function Movimentacoes({ contexto }: { contexto: ContextoPainel }) {
       />
 
       <Lista
-        vista={vista} periodo={periodo} de={de} ate={ate} busca={buscaAtiva} lancar={lancar} confirmar={confirmar}
+        vista={vista} periodo={periodo} de={de} ate={ate} busca={buscaAtiva} empresa={empresa} lancar={lancar} confirmar={confirmar}
         abrirDespesa={setDespesa} abrirReceita={abrirReceita} abrirDia={setDia} editarDespesa={setEditar}
         irPara={(d, a) => { setDe(d); setAte(a); setPeriodo('personalizado'); }}
         agrupamentos={agrupamentos} abertos={abertos} alternarGrupo={(id) => setAbertos((x) => { const n = new Set(x); if (n.has(id)) n.delete(id); else n.add(id); return n; })}
@@ -189,17 +206,11 @@ function SituacaoDespesa({ l }: { l: Lancamento }) {
   return <span class="linha" style={{ gap: '6px', flexWrap: 'wrap' }}>{situacao}<Etiqueta tom="atencao">pendência</Etiqueta></span>;
 }
 
-/** Quem pagou: ÂMBAR ou ROLL (o lado da conta de onde o dinheiro saiu); a conta (ex.: Marcelo, pessoal) fica embaixo.
- *  A conta conjunta (Stone) aparece como ÂMBARXROLL com "conta conjunta" embaixo: o dinheiro saiu da própria operação
- *  conjunta, por isso não gera repasse. Responsabilidade (quem deve arcar) é a coluna ao lado, não esta. */
+/** Quem pagou: SÓ a empresa — ÂMBAR, ROLL ou ÂMBARXROLL (o lado da conta de onde o dinheiro saiu). 18/11 (pedido do
+ *  dono): sem "pessoal" e sem a conta embaixo; a conta usada continua no banco e no detalhe da despesa. Responsabilidade
+ *  (quem deve arcar) é a coluna ao lado, não esta. */
 function PagadorCelula({ l }: { l: Lancamento }) {
-  // 17/11: conta PESSOAL de sócio (cartão/Pix pessoal) não é saída da conta da empresa: fica marcada.
-  const pessoal = l.detalhes.pagador_natureza === 'pessoal' ? <Etiqueta tom="info">pessoal</Etiqueta> : null;
-  const lado = l.pagador_lado ? PARTE[l.pagador_lado] : null;
-  const conta = l.pagador_lado === 'conjunta' ? `conta conjunta${l.pagador && l.pagador.toLowerCase() !== 'âmbarxroll' ? ` · ${l.pagador}` : ''}` : l.pagador;
-  // Histórico importado sem conta: o backend manda o nome da empresa ("Âmbar"), que não se repete embaixo.
-  if (lado) return <><span>{lado}</span>{conta && conta.toLowerCase() !== lado.toLowerCase() && <span class="sub">{conta} {pessoal}</span>}</>;
-  if (l.pagador) return <span>{l.pagador} {pessoal}</span>;
+  if (l.pagador_lado && PARTE[l.pagador_lado]) return <span>{PARTE[l.pagador_lado]}</span>;
   if (l.detalhes.tem_pagamento === false || l.status === 'cancelada') return <span class="fraco">—</span>;
   return <span class="fin-falta">Não identificado</span>;
 }
@@ -223,7 +234,7 @@ function SituacaoGrupo({ g, itens }: { g: Agrupamento; itens: Lancamento[] }) {
 }
 
 function Lista(p: {
-  vista: VistaMovimentacoes; periodo: Periodo; de: string; ate: string; busca: string; lancar: boolean;
+  vista: VistaMovimentacoes; periodo: Periodo; de: string; ate: string; busca: string; empresa: Empresa; lancar: boolean;
   confirmar: (p: PedidoConfirmacao) => void; abrirDespesa: (id: string) => void; abrirReceita: (id: string) => void;
   abrirDia: (l: Lancamento) => void; irPara: (de: string, ate: string) => void; editarDespesa: (id: string) => void;
   agrupamentos: Consulta<Agrupamento[]>; abertos: Set<string>; alternarGrupo: (id: string) => void; gerenciarGrupo: (id: string) => void;
@@ -233,7 +244,8 @@ function Lista(p: {
   const opReceita = useConsulta('financeiro/outras-receitas/opcoes', () => financeiro.opcoesReceita());
   const [d1, d2] = intervalo(p.periodo, p.de, p.ate);
   const livre = p.periodo === 'todo' || p.periodo === 'sem_data';
-  const q = { ...(livre ? {} : { de: d1, ate: d2 }), ...(p.periodo === 'sem_data' ? { sem_data: true } : {}), grupo: vista, busca: p.busca || undefined };
+  const q = { ...(livre ? {} : { de: d1, ate: d2 }), ...(p.periodo === 'sem_data' ? { sem_data: true } : {}), grupo: vista, busca: p.busca || undefined,
+    ...(vista === 'despesas' && p.empresa ? { lado: p.empresa } : {}) };
   const lista = useConsulta(`financeiro/lancamentos?${JSON.stringify(q)}`, () => financeiro.lancamentos({ ...q, limite: 200 }));
   // Período vazio: o lançamento mais recente ANTES dele (até um ano), para o vazio dizer onde estão os registros.
   const qAntes = { ...q, de: somarDias(d1, -366), ate: somarDias(d1, -1) };
@@ -329,7 +341,8 @@ function Lista(p: {
     };
     const soma = (itens: Lancamento[]) => (itens.reduce((t, l) => t + centavos(l.valor), 0) / 100).toFixed(2);
     const despesasDe = (itens: Lancamento[]) => new Set(itens.map((l) => l.despesa_id)).size;
-    const pagadorDe = (l: Lancamento) => `${l.pagador_lado ?? ''}|${l.pagador ?? ''}|${l.detalhes.pagador_natureza ?? ''}`;
+    // Mesma empresa pagadora em todas as linhas: o grupo mostra a empresa (a conta não aparece aqui).
+    const pagadorDe = (l: Lancamento) => l.pagador_lado ?? '';
     const varios = <span class="fraco">Vários</span>;
     return [
       { id: 'data', titulo: 'Data', prioridade: 'media', largura: '84px', ordenar: (x) => (x.tipo === 'pag' ? x.l.data : datas(x.itens).at(-1) ?? null),
@@ -342,7 +355,7 @@ function Lista(p: {
             return (
               <>
                 <span class="principal-celula">{l.descricao}</span>
-                <span class="sub"><span class="fin-so-celular">{dataCurta(l.data)} · {l.pagador_lado ? PARTE[l.pagador_lado] : l.pagador ?? 'pagador não identificado'} · </span>{l.fornecedor ?? ''}</span>
+                <span class="sub"><span class="fin-so-celular">{dataCurta(l.data)} · {(l.pagador_lado && PARTE[l.pagador_lado]) || 'pagador não identificado'} · </span>{l.fornecedor ?? ''}</span>
               </>
             );
           }
@@ -369,7 +382,7 @@ function Lista(p: {
         } },
       { id: 'valor', titulo: 'Valor', numero: true, ordenar: (x) => Number(x.tipo === 'pag' ? x.l.valor : soma(x.itens)),
         celula: (x) => <span class="num forte" style={{ whiteSpace: 'nowrap' }}>{moeda(x.tipo === 'pag' ? x.l.valor : soma(x.itens))}</span> },
-      { id: 'pagador', titulo: 'Pagador', prioridade: 'media', ordenar: (x) => (x.tipo === 'pag' ? x.l.pagador_lado ?? x.l.pagador ?? '' : unico(x.itens.map((l) => l.pagador_lado ?? l.pagador ?? '')) ?? ''),
+      { id: 'pagador', titulo: 'Pagador', prioridade: 'media', ordenar: (x) => (x.tipo === 'pag' ? x.l.pagador_lado ?? '' : unico(x.itens.map((l) => l.pagador_lado ?? '')) ?? ''),
         celula: (x) => (x.tipo === 'pag' ? <PagadorCelula l={x.l} /> : unico(x.itens.map(pagadorDe)) !== null ? <PagadorCelula l={x.itens[0]} /> : varios) },
       { id: 'responsavel', titulo: 'Responsável', prioridade: 'media', ordenar: (x) => (x.tipo === 'pag' ? String(x.l.detalhes.responsavel ?? '') : unico(x.itens.map((l) => String(l.detalhes.responsavel ?? ''))) ?? ''),
         celula: (x) => {
@@ -402,7 +415,6 @@ function Lista(p: {
   // Totais do topo: os do backend (cada pagamento uma vez; o agrupamento nunca soma). Só quando a busca pelo nome de um
   // agrupamento trouxe pagamentos que a busca do backend não pegou, eles entram aqui, para o topo bater com a tabela.
   const extraValor = extras.reduce((t, l) => t + centavos(l.valor), 0);
-  const extraPessoal = extras.filter((l) => l.detalhes.pagador_natureza === 'pessoal').reduce((t, l) => t + centavos(l.valor), 0);
   const mais = (v: string | undefined, c: number) => ((centavos(v ?? '0') + c) / 100).toFixed(2);
 
   const vazio = ultimo && desde ? (
@@ -419,8 +431,8 @@ function Lista(p: {
         <div class="fin-totais">
           <div><span>{vista === 'despesas' ? 'Pagamentos realizados' : 'Recebimentos'}</span><strong class="num">{(lista.dados.totais.quantidade ?? lista.dados.total) + extras.length}</strong></div>
           <div><span>{vista === 'despesas' ? 'Total pago' : 'Total recebido'}</span><strong class="num">{moeda(mais(lista.dados.totais.valor, extraValor))}</strong></div>
-          {vista === 'despesas' && (num(lista.dados.totais.pagamentos_conta_pessoal ?? null) || extraPessoal) ? (
-            <div><span>Pago com conta pessoal</span><strong class="num">{moeda(mais(lista.dados.totais.pagamentos_conta_pessoal, extraPessoal))}</strong></div>
+          {vista === 'receitas' && num(lista.dados.totais.receitas_a_receber ?? null) ? (
+            <div><span>A receber</span><strong class="num">{moeda(lista.dados.totais.receitas_a_receber)}</strong></div>
           ) : null}
         </div>
       )}

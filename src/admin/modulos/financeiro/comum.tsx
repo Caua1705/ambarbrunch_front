@@ -348,8 +348,9 @@ export function useContasPagadoras() {
   return useConsulta('financeiro/contas-pagadoras', () => financeiro.contasPagadoras());
 }
 
-/** "Cauã · Âmbar (pessoal)" — sem dado pessoal. */
+/** "Cauã · ÂMBAR": a conta e a empresa dela (18/11: sem "(pessoal)" nas telas de lançamento; o tipo da conta fica
+ *  só em Configurações → Contas pagadoras). Sem dado pessoal. */
 export function rotuloConta(c: { apelido: string; parte: string; natureza: string } | null | undefined): string {
   if (!c) return 'Não identificado';
-  return `${c.apelido} · ${PARTE[c.parte] ?? c.parte}${c.natureza === 'pessoal' ? ' (pessoal)' : ''}`;
+  return `${c.apelido} · ${PARTE[c.parte] ?? c.parte}`;
 }

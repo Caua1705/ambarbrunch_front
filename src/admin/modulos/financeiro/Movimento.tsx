@@ -1,13 +1,17 @@
 // Gaveta de uma movimentação do extrato: a proposta do sistema (candidatos, evidências, alertas) e a decisão humana
 // (vincular, registrar despesa ou receita, liquidar vendas, classificar). Rotas /conciliacao/movimentos/{id}*.
+// Saída MAIOR que a conta a pagar (0042): a pessoa diz se a diferença é juros/multa/encargos — então a saída inteira
+// paga a conta (valor original quitado + encargos no pagamento). Sem isso, só o valor da conta é usado e o resto da
+// saída continua a conciliar. Nada é presumido.
 import { useEffect, useState } from 'preact/hooks';
 import { ChevronRight, CircleCheck, AlertTriangle, Undo2, Check, Copy, Split, Info } from 'lucide-preact';
 import { useConsulta } from '../../lib/consulta';
 import { financeiro } from '../../lib/api/financeiro';
 import { ErroApi } from '../../lib/api/cliente';
-import { moeda, dataCurta, dataHora } from '../../lib/formato';
+import { moeda, dataCurta, dataHora, paraDecimal } from '../../lib/formato';
 import { Gaveta, type PedidoConfirmacao } from '../../ui/camadas';
 import { Botao, Campo, Aviso, Situacao, Etiqueta, Segmentado } from '../../ui/base';
+import { EntradaMoeda } from '../../ui/entradas';
 import { Dados, Esqueleto } from '../../ui/estados';
 import type { MovimentoDetalhe, CandidatoConciliacao } from '../../lib/tipos/financeiro';
 import { NIVEL, CLASSIFICACOES, useCategorias, OpcoesCategoria, categoriaValida, atualizarFinanceiro, avisar, avisarFalha } from './comum';
@@ -67,7 +71,18 @@ export function Movimento({ id, aoFechar, confirmar }: { id: string | null; aoFe
   const [observacao, setObservacao] = useState('');
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [comEncargos, setComEncargos] = useState(false);
+  const [encargos, setEncargos] = useState('');
   const m = consulta.dados;
+  const br = (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  /** Conta a pagar escolhida e quanto a saída passa dela (0 = cabe). Conta de valor variável fixa o valor: sem excedente. */
+  const escolhida = m && cand !== null ? m.candidatos[cand] : null;
+  const excedente = escolhida && escolhida.acao === 'pagar_parcela' && !escolhida.alertas.includes('valor_a_confirmar')
+    ? Math.round((Number(m!.saldo_a_conciliar) - Number(escolhida.valor)) * 100) / 100 : 0;
+  useEffect(() => {
+    setComEncargos(false);
+    setEncargos(excedente > 0 ? br(excedente) : '');
+  }, [m?.id, m?.versao, cand]);
 
   useEffect(() => {
     if (!m) return;
@@ -122,6 +137,15 @@ export function Movimento({ id, aoFechar, confirmar }: { id: string | null; aoFe
     if (decisao === 'candidato') {
       const c = cand !== null ? m.candidatos[cand] : null;
       if (!c) return setErro('Escolha uma das opções.');
+      if (c.acao === 'pagar_parcela' && excedente > 0) {
+        if (!comEncargos) {
+          // Só o valor da conta sai desta movimentação; o resto continua a conciliar.
+          return agir({ acao: c.acao, ...c.parametros, valor: Number(c.valor).toFixed(2) }, `Conta paga com ${moeda(c.valor)} desta saída; o resto continua a conciliar.`);
+        }
+        const enc = paraDecimal(encargos);
+        if (!enc || Number(enc) <= 0) return setErro('Informe o valor dos juros, multa ou encargos.');
+        return agir({ acao: c.acao, ...c.parametros, encargos: enc }, `Conta quitada: ${moeda(Number(m.saldo_a_conciliar) - Number(enc))} da conta + ${moeda(enc)} de juros/encargos.`);
+      }
       return agir({ acao: c.acao, ...c.parametros }, 'Movimentação conciliada.');
     }
     if (decisao === 'despesa') {
@@ -213,6 +237,27 @@ export function Movimento({ id, aoFechar, confirmar }: { id: string | null; aoFe
                         </span>
                       </label>
                     ))}
+                    {excedente > 0 && escolhida && (
+                      <Aviso tom="atencao" icone={<AlertTriangle aria-hidden="true" />}>
+                        <span>
+                          A saída ({moeda(m.saldo_a_conciliar)}) é maior que a conta ({moeda(escolhida.valor)}) em <strong class="num">{moeda(excedente)}</strong>.
+                        </span>
+                        <label class="linha" style={{ gap: '8px', marginTop: '8px' }}>
+                          <input type="checkbox" checked={comEncargos} onChange={(e) => setComEncargos(e.currentTarget.checked)} />
+                          A diferença é juros, multa ou encargos
+                        </label>
+                        {comEncargos ? (
+                          <div class="pilha pilha--p" style={{ marginTop: '8px' }}>
+                            <Campo rotulo="Juros, multa ou encargos" ajuda="A conta fica quitada pelo valor dela; o pagamento registra a saída inteira.">
+                              {(cid, d) => <EntradaMoeda id={cid} descr={d} valor={encargos} aoMudar={setEncargos} />}
+                            </Campo>
+                            <span class="fraco">Conta quitada: {moeda(Number(m.saldo_a_conciliar) - Number(paraDecimal(encargos) ?? 0))} · encargos: {moeda(paraDecimal(encargos))} · saída: {moeda(m.saldo_a_conciliar)}</span>
+                          </div>
+                        ) : (
+                          <p class="fraco" style={{ marginTop: '6px' }}>Sem marcar, só {moeda(escolhida.valor)} desta saída pagam a conta e {moeda(excedente)} continuam a conciliar.</p>
+                        )}
+                      </Aviso>
+                    )}
                   </div>
                 )}
                 {decisao === 'despesa' && (
