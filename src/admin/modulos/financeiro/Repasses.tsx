@@ -90,9 +90,6 @@ export function Repasses({ confirmar }: { confirmar: (p: PedidoConfirmacao) => v
                 </div>
               </div>
               <Pendencias r={r} abrir={setDespesa} />
-              <p class="fraco" style={{ margin: 0 }}>
-                Só entram pagamentos realizados (conta em aberto não), cada um uma vez, na data do pagamento. ÂMBAR e ROLL dizem quem pagou; ÂMBARXROLL é a responsabilidade compartilhada.
-              </p>
               <Calculo empresa={calculo} r={r} aoFechar={() => setCalculo(null)} abrir={(id) => { setCalculo(null); setDespesa(id); }} />
             </>
           ))}
