@@ -58,17 +58,38 @@ function enquadrar(video: HTMLVideoElement, contexto: CanvasRenderingContext2D) 
   contexto.drawImage(video, (vl - corteL) / 2, (va - corteA) / 2, corteL, corteA, 0, 0, LARGURA, ALTURA);
 }
 
-const paraJpeg = (canvas: HTMLCanvasElement, qualidade: number) =>
-  new Promise<Blob>((ok, falha) => canvas.toBlob((b) => (b ? ok(b) : falha(new Error('quadro vazio'))), 'image/jpeg', qualidade));
+/**
+ * JPEG na hora, SÍNCRONO (toDataURL). 18/11/2026: o `canvas.toBlob` do Chrome codifica em "tempo ocioso" da página e, no
+ * tablet (câmera ligada, animações, medida de luz), pode demorar segundos por quadro — suspeita principal dos ~20 s em
+ * "Rosto encontrado. Segure assim". Aqui o custo é fixo (dezenas de ms por quadro de 480×640) e não depende da página ociosa.
+ */
+export function codificarJpeg(canvas: HTMLCanvasElement, qualidade: number): Blob {
+  const url = canvas.toDataURL('image/jpeg', qualidade);
+  if (!url.startsWith('data:image/jpeg')) throw new Error('quadro vazio');
+  const binario = atob(url.slice(url.indexOf(',') + 1));
+  const bytes = new Uint8Array(binario.length);
+  for (let i = 0; i < binario.length; i++) bytes[i] = binario.charCodeAt(i);
+  return new Blob([bytes], { type: 'image/jpeg' });
+}
 
+const cancelada = () => new DOMException('cancelada', 'AbortError');
+
+// Cancelar antes da espera também vale (antes, um sinal já cancelado era ignorado e a captura seguia até enviar).
 const esperar = (ms: number, sinal?: AbortSignal) =>
   new Promise<void>((ok, falha) => {
+    if (sinal?.aborted) return falha(cancelada());
     const t = setTimeout(ok, ms);
     sinal?.addEventListener('abort', () => {
       clearTimeout(t);
-      falha(new DOMException('cancelada', 'AbortError'));
+      falha(cancelada());
     }, { once: true });
   });
+
+/** Espera a câmera entregar o primeiro quadro de verdade (no lugar de uma pausa fixa). */
+export async function aguardarVideo(video: HTMLVideoElement, maxMs = 1_500, sinal?: AbortSignal): Promise<void> {
+  const fim = Date.now() + maxMs;
+  while (!(video.readyState >= 2 && video.videoWidth > 0) && Date.now() < fim) await esperar(40, sinal);
+}
 
 /** O que a prévia de enquadramento do backend diz de um quadro (não identifica ninguém). */
 export interface Orientacao {
@@ -97,12 +118,14 @@ export interface OpcoesCaptura {
   esperaMaxMs?: number;
   /** Intervalo entre quadros da mesma pose (padrão INTERVALO_MS). O ponto usa menor: identificação na hora. */
   intervaloMs?: number;
+  /** Todos os quadros já foram tirados (falta só codificar): a tela pode desligar a câmera e liberar a pessoa. */
+  aoTirarQuadros?: () => void;
   sinal?: AbortSignal;
 }
 
 /** Captura enquanto orienta pose a pose. O backend confere a ordem das poses, então cada pose recebe a sua parte dos quadros. */
 export async function capturarQuadros(video: HTMLVideoElement, opcoes: OpcoesCaptura): Promise<Blob[]> {
-  const { desafio, quadrosMax = QUADROS_PADRAO, maxKb = 400, preparoMs = PREPARO_MS, aoPose, conferir, aoOrientacao, esperaMaxMs = 8_000, intervaloMs = INTERVALO_MS, sinal } = opcoes;
+  const { desafio, quadrosMax = QUADROS_PADRAO, maxKb = 400, preparoMs = PREPARO_MS, aoPose, conferir, aoOrientacao, esperaMaxMs = 8_000, intervaloMs = INTERVALO_MS, aoTirarQuadros, sinal } = opcoes;
   const canvas = document.createElement('canvas');
   canvas.width = LARGURA;
   canvas.height = ALTURA;
@@ -110,21 +133,32 @@ export async function capturarQuadros(video: HTMLVideoElement, opcoes: OpcoesCap
   if (!contexto) throw new ErroCamera('ocupada');
   const total = Math.min(quadrosMax, QUADROS_PADRAO);
   const porPose = Math.max(1, Math.floor(total / desafio.length));
-  const quadros: Blob[] = [];
+  // Os quadros são TIRADOS no ritmo de sempre (mesma quantidade, mesmo intervalo, mesma ordem de poses) e só codificados
+  // depois: a pessoa fica parada só o tempo de tirar (~0,6 s no ponto), nunca o da codificação ou do envio.
+  const tirados: HTMLCanvasElement[] = [];
   let guiada = !!conferir;
   for (let p = 0; p < desafio.length; p++) {
     aoPose?.(desafio[p], p, desafio.length);
     if (guiada) guiada = await esperarPose(video, contexto, canvas, desafio[p], conferir!, aoOrientacao, esperaMaxMs, sinal);
     if (!guiada) await esperar(preparoMs, sinal);
     for (let q = 0; q < porPose; q++) {
-      enquadrar(video, contexto);
-      let jpeg = await paraJpeg(canvas, QUALIDADE);
-      if (jpeg.size > maxKb * 1024) jpeg = await paraJpeg(canvas, QUALIDADE_REDUZIDA);
-      quadros.push(jpeg);
+      if (sinal?.aborted) throw cancelada();
+      const quadro = document.createElement('canvas');
+      quadro.width = LARGURA;
+      quadro.height = ALTURA;
+      const ctx = quadro.getContext('2d');
+      if (!ctx) throw new ErroCamera('ocupada');
+      enquadrar(video, ctx);
+      tirados.push(quadro);
       if (q < porPose - 1) await esperar(intervaloMs, sinal);
     }
   }
-  return quadros;
+  if (sinal?.aborted) throw cancelada();
+  aoTirarQuadros?.();
+  return tirados.map((quadro) => {
+    const jpeg = codificarJpeg(quadro, QUALIDADE);
+    return jpeg.size > maxKb * 1024 ? codificarJpeg(quadro, QUALIDADE_REDUZIDA) : jpeg;
+  });
 }
 
 /**
@@ -136,9 +170,9 @@ async function esperarPose(video: HTMLVideoElement, contexto: CanvasRenderingCon
   const fim = Date.now() + esperaMaxMs;
   let falhas = 0;
   while (Date.now() < fim) {
-    if (sinal?.aborted) throw new DOMException('cancelada', 'AbortError');
+    if (sinal?.aborted) throw cancelada();
     enquadrar(video, contexto);
-    const quadro = await paraJpeg(canvas, QUALIDADE_REDUZIDA);
+    const quadro = codificarJpeg(canvas, QUALIDADE_REDUZIDA);
     const r = await conferir(quadro).catch(() => null);
     if (!r) {
       if (++falhas >= 2) return false;
@@ -172,9 +206,11 @@ export function medirLuz(video: HTMLVideoElement): 'ok' | 'escuro' | 'claro' {
   return media < 50 ? 'escuro' : media > 215 ? 'claro' : 'ok';
 }
 
-export function montarFormulario(nonce: string, quadros: Blob[]): FormData {
+/** `tempos`: etapas medidas no aparelho (ms desde o toque), só para o log de desempenho do backend. */
+export function montarFormulario(nonce: string, quadros: Blob[], tempos?: Record<string, number>): FormData {
   const formulario = new FormData();
   formulario.append('nonce', nonce);
+  if (tempos) formulario.append('tempos', JSON.stringify(tempos));
   quadros.forEach((q, i) => formulario.append('quadros', q, `${i}.jpg`));
   return formulario;
 }

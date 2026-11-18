@@ -1313,3 +1313,13 @@ button.op-secoes__item {
     width: 100%;
   }
 }
+/* 18/11/2026: quadros tirados → câmera desligada e "Registrando ponto…" na hora (a pessoa não precisa ficar parada). */
+.op-camera__registrando {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--e-1);
+}
+.op-camera__registrando svg {
+  width: 1.1em;
+  height: 1.1em;
+}

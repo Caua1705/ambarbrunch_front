@@ -7,7 +7,8 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { ErroApi } from '../../lib/api/cliente';
 import { enviarCaptura, terminal } from '../../lib/api/operacao';
 import type { ConfiguracaoQuiosque, ResultadoCaptura, SessaoTerminal } from '../../lib/tipos/abertura';
-import { abrirCamera, capturarQuadros, conferidorDaApi, ErroCamera, medirLuz, montarFormulario, pararCamera, textoDaOrientacao } from '../../../lib/ponto/captura';
+import { abrirCamera, aguardarVideo, capturarQuadros, conferidorDaApi, ErroCamera, medirLuz, montarFormulario, pararCamera, textoDaOrientacao } from '../../../lib/ponto/captura';
+import { LoaderCircle } from 'lucide-preact';
 import { Botao } from '../../ui/base';
 
 const OCUPADA_TENTATIVAS = 3;
@@ -15,6 +16,27 @@ const OCUPADA_ESPERA_MS = 2_000;
 // A imagem na tela é espelhada: virar para a própria esquerda aparece andando para a esquerda da tela.
 const INSTRUCAO: Record<string, string> = { frente: 'Olhe para a câmera', esquerda: '← Vire o rosto para a esquerda', direita: 'Vire o rosto para a direita →' };
 const esperar = (ms: number) => new Promise((ok) => setTimeout(ok, ms));
+
+/**
+ * Tempo de cada etapa (18/11/2026), em ms desde o toque: vira `performance.mark('ponto:<etapa>')` (os testes leem) e vai
+ * com a captura para o log de desempenho do backend. Só números: nenhum quadro, nome ou resultado sai daqui.
+ */
+function cronometro() {
+  const inicio = performance.now();
+  const tempos: Record<string, number> = {};
+  return {
+    tempos,
+    marcar(etapa: string) {
+      if (etapa in tempos) return;
+      tempos[etapa] = Math.round(performance.now() - inicio);
+      try {
+        performance.mark(`ponto:${etapa}`);
+      } catch {
+        /* navegador sem User Timing: só o log fica sem esta etapa */
+      }
+    },
+  };
+}
 
 export type FimIdentificacao =
   | { tipo: 'resultado'; sessao: SessaoTerminal; resultado: ResultadoCaptura }
@@ -32,6 +54,7 @@ export function Identificacao({ config, apiUrl, aoTerminar }: { config: Configur
   const [instrucao, setInstrucao] = useState('Encaixe o rosto no oval');
   const [passo, setPasso] = useState<{ i: number; total: number } | null>(null);
   const [luz, setLuz] = useState<'ok' | 'escuro' | 'claro'>('ok');
+  const cronoRef = useRef(cronometro());
 
   const desligar = () => {
     pararCamera(fluxoRef.current, videoRef.current);
@@ -51,19 +74,33 @@ export function Identificacao({ config, apiUrl, aoTerminar }: { config: Configur
 
   useEffect(() => {
     let vivo = true;
+    const crono = cronoRef.current;
+    const sinal = abortoRef.current.signal;
     (async () => {
       let sessao: SessaoTerminal;
       try {
-        sessao = await terminal.abrirSessao();
+        // Câmera e sessão ao mesmo tempo (antes: uma depois da outra).
+        const [s, fluxo] = await Promise.allSettled([terminal.abrirSessao(), abrirCamera(videoRef.current!)]);
+        if (fluxo.status === 'fulfilled') fluxoRef.current = fluxo.value;
+        if (!vivo) {       // saiu da tela enquanto abria: câmera desliga e a sessão morre
+          desligar();
+          if (s.status === 'fulfilled') void terminal.cancelar(s.value.sessao_id, 'desistencia');
+          return;
+        }
+        if (s.status === 'rejected') return terminar({ tipo: 'erro', erro: s.reason });
+        sessao = s.value;
         sessaoRef.current = sessao;
+        crono.marcar('sessao');
+        if (fluxo.status === 'rejected') throw fluxo.reason;
       } catch (e) {
+        cancelarSessao(e instanceof ErroCamera ? 'camera_indisponivel' : 'outro');
         return terminar({ tipo: 'erro', erro: e });
       }
       let quadros: Blob[];
       try {
-        fluxoRef.current = await abrirCamera(videoRef.current!);
         if (!vivo) return;
-        await esperar(300);
+        await aguardarVideo(videoRef.current!, 1_500, sinal);
+        crono.marcar('camera');
         setFase('capturando');
         let atual = INSTRUCAO.frente;
         const conferir = sessao.captura_token && apiUrl
@@ -77,23 +114,35 @@ export function Identificacao({ config, apiUrl, aoTerminar }: { config: Configur
           conferir,
           // A sessão do tablet vence em ~30 s: cada pose espera no máximo 6 s.
           esperaMaxMs: 6_000,
-          sinal: abortoRef.current.signal,
+          sinal,
+          // Quadros tirados: câmera desliga na hora e a pessoa já pode sair da frente (falta codificar e enviar).
+          aoTirarQuadros: () => {
+            crono.marcar('quadros');
+            desligar();
+            setFase('analisando');
+          },
           aoPose: (pose, i, total) => {
             atual = INSTRUCAO[pose] ?? config.poses[pose] ?? 'Olhe para a câmera';
             setInstrucao(atual);
             setPasso({ i: i + 1, total });
           },
-          aoOrientacao: (o, certa) => setInstrucao(textoDaOrientacao(o, certa, atual)),
+          aoOrientacao: (o, certa) => {
+            crono.marcar(certa ? 'rosto_ok' : 'primeira_previa');
+            setInstrucao(textoDaOrientacao(o, certa, atual));
+          },
         });
+        crono.marcar('codificado');
       } catch (e) {
         if ((e as DOMException).name === 'AbortError') return;
         cancelarSessao(e instanceof ErroCamera ? 'camera_indisponivel' : 'outro');
         return terminar({ tipo: 'erro', erro: e });
       }
+      // Cancelou enquanto os quadros eram codificados: nada é enviado (antes, a captura saía mesmo assim e voltava 409).
+      if (sinal.aborted || terminouRef.current) return;
       desligar();
       setFase('analisando');
       try {
-        const formulario = montarFormulario(sessao.nonce, quadros);
+        const formulario = montarFormulario(sessao.nonce, quadros, crono.tempos);
         let resultado: ResultadoCaptura | null = null;
         for (let i = 0; i < OCUPADA_TENTATIVAS && !resultado; i++) {
           try {
@@ -103,6 +152,7 @@ export function Identificacao({ config, apiUrl, aoTerminar }: { config: Configur
             await esperar(OCUPADA_ESPERA_MS);
           }
         }
+        crono.marcar('resposta');
         terminar({ tipo: 'resultado', sessao, resultado: resultado! });
       } catch (e) {
         sessaoRef.current = null;
@@ -142,7 +192,14 @@ export function Identificacao({ config, apiUrl, aoTerminar }: { config: Configur
         {fase === 'analisando' && <span class="op-camera__veu" aria-hidden="true" />}
       </div>
       <div class="op-camera__guia" role="status" aria-live="assertive">
-        <strong>{fase === 'analisando' ? 'Conferindo…' : fase === 'preparando' ? 'Abrindo a câmera…' : instrucao}</strong>
+        {fase === 'analisando' ? (
+          <>
+            <strong class="op-camera__registrando"><LoaderCircle class="girando" aria-hidden="true" /> Registrando ponto…</strong>
+            <span class="op-camera__dica">Pronto, pode sair da frente da câmera.</span>
+          </>
+        ) : (
+          <strong>{fase === 'preparando' ? 'Abrindo a câmera…' : instrucao}</strong>
+        )}
         {passo && passo.total > 1 && fase === 'capturando' && (
           <span class="op-camera__passos" aria-label={`Passo ${passo.i} de ${passo.total}`}>
             {Array.from({ length: passo.total }, (_, i) => <i key={i} data-feito={i < passo.i || undefined} />)}

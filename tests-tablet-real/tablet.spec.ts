@@ -5,6 +5,7 @@
 // painel derruba a renovação.
 import { readFileSync } from 'node:fs';
 import { test, expect, type BrowserContext, type Page } from '@playwright/test';
+import { ruidoDeSensor } from './ruido';
 
 const SEGREDOS = JSON.parse(readFileSync(process.env.TABLET_REAL_SEGREDOS!, 'utf-8')) as { senha: string };
 const TABLET = 'tablet@tablet.local';
@@ -32,17 +33,7 @@ test.describe.serial('tablet do café', () => {
     tablet = await browser.newContext();
     // A câmera falsa do Chromium repete quadros idênticos (byte a byte), o que o backend recusa como reenvio
     // (captura_repetida). Uma câmera de verdade nunca repete: aqui, um pixel aleatório faz o papel do ruído do sensor.
-    await tablet.addInitScript(() => {
-      const original = HTMLCanvasElement.prototype.toBlob;
-      HTMLCanvasElement.prototype.toBlob = function (this: HTMLCanvasElement, ...args: Parameters<HTMLCanvasElement['toBlob']>) {
-        const ctx = this.getContext('2d');
-        if (ctx) {
-          ctx.fillStyle = `rgb(${Math.random() * 255},${Math.random() * 255},${Math.random() * 255})`;
-          ctx.fillRect(Math.floor(Math.random() * this.width), Math.floor(Math.random() * this.height), 2, 2);
-        }
-        return original.apply(this, args);
-      };
-    });
+    await tablet.addInitScript(ruidoDeSensor);
     pagina = await tablet.newPage();
   });
   test.afterAll(async () => tablet.close());
@@ -169,17 +160,7 @@ test.describe.serial('tablet do café', () => {
   test('cadastro facial em UMA etapa: o Proprietário cadastra, sem segunda captura, e o cadastro antigo fica intacto', async ({ browser }) => {
     const dono = await browser.newContext();
     // Câmera falsa repete quadros idênticos (ver beforeAll): mesmo "ruído de sensor" aqui.
-    await dono.addInitScript(() => {
-      const original = HTMLCanvasElement.prototype.toBlob;
-      HTMLCanvasElement.prototype.toBlob = function (this: HTMLCanvasElement, ...args: Parameters<HTMLCanvasElement['toBlob']>) {
-        const ctx = this.getContext('2d');
-        if (ctx) {
-          ctx.fillStyle = `rgb(${Math.random() * 255},${Math.random() * 255},${Math.random() * 255})`;
-          ctx.fillRect(Math.floor(Math.random() * this.width), Math.floor(Math.random() * this.height), 2, 2);
-        }
-        return original.apply(this, args);
-      };
-    });
+    await dono.addInitScript(ruidoDeSensor);
     const pd = await dono.newPage();
     await entrar(pd, DONO, '/admin');
     await pd.waitForURL(/\/admin(\?|$)/);
