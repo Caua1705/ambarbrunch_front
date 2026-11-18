@@ -77,18 +77,6 @@ export function Repasses({ confirmar }: { confirmar: (p: PedidoConfirmacao) => v
                   </Cartao>
                 ))}
               </div>
-              <div class="fin-totais">
-                <div><span>Total a receber</span><strong class="num">{moeda(r.total_a_receber)}</strong></div>
-                {r.saldo && r.saldo.devedor && r.saldo.credor && (
-                  <div><span>Compensando os dois lados</span><strong class="num">{EMPRESA[r.saldo.devedor]} → {EMPRESA[r.saldo.credor]} {moeda(r.saldo.valor)}</strong></div>
-                )}
-                {r.rateio && <div><span>Parte de cada um na ÂMBARXROLL</span><strong class="num">{Number(r.rateio.ambar)}% / {Number(r.rateio.roll)}%{r.rateio.configurado ? '' : ' (padrão)'}</strong></div>}
-                <div>
-                  <span>Pago pela conta conjunta</span>
-                  <strong class="num">{moeda(r.empresas.ambarxroll.pago)}</strong>
-                  {r.empresas.ambarxroll.quantidade > 0 && <Botao tamanho="p" variante="fantasma" onClick={() => setCalculo('ambarxroll')}>Ver</Botao>}
-                </div>
-              </div>
               <Pendencias r={r} abrir={setDespesa} />
               <Calculo empresa={calculo} r={r} aoFechar={() => setCalculo(null)} abrir={(id) => { setCalculo(null); setDespesa(id); }} />
             </>
@@ -154,7 +142,7 @@ function Calculo({ empresa, r, aoFechar, abrir }: { empresa: EmpresaPagadora | n
             <thead>
               <tr>
                 <th>Pago em</th><th>Despesa</th><th class="num">Valor pago</th><th data-prioridade="media">Pagador</th>
-                <th data-prioridade="media">Responsabilidade</th><th class="num">%</th><th data-prioridade="media">Ressarce</th><th class="num">A receber</th>
+                <th data-prioridade="media">Responsabilidade</th><th class="num">%</th><th class="num">A receber</th>
               </tr>
             </thead>
             <tbody>
@@ -167,7 +155,6 @@ function Calculo({ empresa, r, aoFechar, abrir }: { empresa: EmpresaPagadora | n
                   <td data-prioridade="media"><Pagador i={i} /></td>
                   <td data-prioridade="media">{RESPONSAVEL[i.responsavel] ?? i.responsavel}</td>
                   <td class="num">{pct(i.percentual_ressarcimento)}</td>
-                  <td data-prioridade="media">{i.devedor ? EMPRESA[i.devedor] : '—'}</td>
                   <td class="num forte">{moeda(i.valor_a_receber)}</td>
                 </tr>
               ))}
@@ -176,7 +163,7 @@ function Calculo({ empresa, r, aoFechar, abrir }: { empresa: EmpresaPagadora | n
               <tr>
                 <td /><td><strong>Total</strong></td>
                 <td class="num forte" title="Total pago">{moeda(gasto)}</td>
-                <td data-prioridade="media" /><td data-prioridade="media" /><td /><td data-prioridade="media" />
+                <td data-prioridade="media" /><td data-prioridade="media" /><td />
                 <td class="num forte" title="Total a receber">{moeda(r.empresas[empresa].a_receber)}</td>
               </tr>
             </tfoot>
