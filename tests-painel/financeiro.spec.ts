@@ -201,6 +201,73 @@ test('+ Conta a pagar (avulsa): aparece em Contas a pagar, é paga pela lista e 
   await expect(mov).toContainText('Paga');
 });
 
+test('Pagamento com juros (0042): R$ 574,96 numa conta de R$ 500 só passa separando os encargos; conta quitada, Despesas mostra o total', async ({ page }) => {
+  const nome = `Aluguel de Máquina de Café ${Date.now()}`;
+  await page.goto(`${DEMO}/admin/financeiro?aba=contas`);
+  await page.getByRole('button', { name: 'Tipo da conta a pagar' }).click();
+  await page.getByRole('menuitem', { name: /^Avulsa/ }).click();
+  const gaveta = page.getByRole('dialog', { name: 'Nova despesa' });
+  await gaveta.getByLabel('Descrição').fill(nome);
+  await gaveta.getByLabel('Valor').fill('500,00');
+  await gaveta.getByLabel('Categoria').selectOption({ label: 'Operacional' });
+  await gaveta.getByRole('button', { name: 'Lançar despesa' }).click();
+  await expect(gaveta).toHaveCount(0);
+  await fecharDetalhe(page, nome);
+
+  const contas = page.getByRole('table', { name: 'Contas a pagar' });
+  await page.getByLabel('Buscar conta a pagar').fill(nome);
+  const linha = contas.getByRole('row', { name: new RegExp(nome) });
+  await linha.getByRole('button', { name: 'Pagar', exact: true }).click();
+  const pagar = page.getByRole('dialog', { name: 'Registrar pagamento' });
+
+  // Excedente acidental: não passa sem identificar os encargos.
+  await pagar.getByLabel('Valor pago').fill('574,96');
+  await expect(pagar.getByText(/passa do saldo da conta em/)).toBeVisible();
+  await pagar.getByRole('button', { name: /^Registrar pagamento/ }).click();
+  await expect(pagar.getByText(/Se a diferença foi juros, multa ou encargos, informe-a separadamente/)).toBeVisible();
+  await expect(pagar).toHaveCount(1);
+
+  // Separar: a conta fica pelo saldo e o que passou vira juros/encargos.
+  await pagar.getByRole('button', { name: 'Separar como juros/encargos' }).click();
+  await expect(pagar.getByLabel('Valor da conta quitado')).toHaveValue('500,00');
+  await expect(pagar.getByLabel('Juros, multa ou encargos')).toHaveValue('74,96');
+  await expect(pagar.getByText('Total pago (sai do caixa)')).toBeVisible();
+  await expect(pagar.locator('.fin-valores').last()).toContainText('574,96');
+  await pagar.getByRole('button', { name: 'Registrar pagamento com encargos' }).click();
+  await expect(pagar).toHaveCount(0);
+  await expect(linha).toHaveCount(0);                    // quitada: sai de Contas a pagar
+
+  await aba(page, /^Movimentações/).click();
+  await page.getByLabel('Buscar movimentação').fill(nome);
+  const mov = despesas(page).getByRole('row', { name: new RegExp(nome) });
+  await expect(mov).toHaveCount(1);                      // um pagamento só, sem despesa a mais
+  await expect(mov).toContainText('574,96');
+  await expect(mov).toContainText('inclui R$ 74,96 de juros/encargos');
+});
+
+test('Pagamento parcial continua igual: sem encargos, fica o saldo em aberto', async ({ page }) => {
+  const nome = `Conta parcial ${Date.now()}`;
+  await page.goto(`${DEMO}/admin/financeiro?aba=contas`);
+  await page.getByRole('button', { name: 'Tipo da conta a pagar' }).click();
+  await page.getByRole('menuitem', { name: /^Avulsa/ }).click();
+  const gaveta = page.getByRole('dialog', { name: 'Nova despesa' });
+  await gaveta.getByLabel('Descrição').fill(nome);
+  await gaveta.getByLabel('Valor').fill('500,00');
+  await gaveta.getByLabel('Categoria').selectOption({ label: 'Operacional' });
+  await gaveta.getByRole('button', { name: 'Lançar despesa' }).click();
+  await expect(gaveta).toHaveCount(0);
+  await fecharDetalhe(page, nome);
+  await page.getByLabel('Buscar conta a pagar').fill(nome);
+  const linha = page.getByRole('table', { name: 'Contas a pagar' }).getByRole('row', { name: new RegExp(nome) });
+  await linha.getByRole('button', { name: 'Pagar', exact: true }).click();
+  const pagar = page.getByRole('dialog', { name: 'Registrar pagamento' });
+  await pagar.getByLabel('Valor pago').fill('200,00');
+  await expect(pagar.getByText(/ficam R\$\s?300,00 em aberto/)).toBeVisible();
+  await pagar.getByRole('button', { name: 'Registrar pagamento parcial' }).click();
+  await expect(pagar).toHaveCount(0);
+  await expect(linha).toContainText('Parcialmente paga');
+});
+
 test('Contas a pagar: parcelada e recorrente pela mesma aba, sem o botão Contas fixas', async ({ page }) => {
   await page.goto(`${DEMO}/admin/financeiro?aba=contas`);
   await expect(page.getByRole('button', { name: /Contas fixas/ })).toHaveCount(0);

@@ -144,7 +144,10 @@ export type FormaPagamento = 'pix' | 'boleto' | 'cartao' | 'dinheiro' | 'transfe
 
 export interface PagamentoSaida {
   id: Uuid;
+  /** O que saiu (extrato/comprovante). Com juros: inclui `encargos`. */
   valor: Dec;
+  /** 0042: juros/multa/encargos dentro de `valor`; só `valor − encargos` quitou a conta. Backend antigo: ausente. */
+  encargos?: Dec;
   pago_em: Data;
   forma: FormaPagamento;
   identificador_transacao: string | null;
@@ -254,7 +257,10 @@ export interface DespesaEntrada {
 export interface PagamentoEntrada {
   pago_em: Data;
   forma: FormaPagamento;
+  /** O total que saiu (valor da conta quitado + encargos). */
   valor: Dec;
+  /** 0042: parte de `valor` que é juros, multa ou encargos. Sem ela, valor acima do saldo é recusado. */
+  encargos?: Dec | null;
   identificador_transacao?: string | null;
   arquivo_id?: Uuid | null;
   /** 0029: conta que pagou (o painel sugere a conta padrão). */

@@ -173,6 +173,7 @@ export function DetalheDespesa({ id, aoFechar, confirmar }: { id: string | null;
                         <div key={pg.id} class="linha linha--entre fin-pagamento">
                           <span>
                             {pg.estornado_em ? <s>{moeda(pg.valor)}</s> : <span class="num">{moeda(pg.valor)}</span>} em {dataCurta(pg.pago_em)} · {FORMAS.find((f) => f.valor === pg.forma)?.rotulo ?? pg.forma}
+                            {Number(pg.encargos ?? 0) > 0 && <span class="fraco"> · {moeda(Number(pg.valor) - Number(pg.encargos))} da conta + <span class="num">{moeda(pg.encargos!)}</span> de juros/encargos</span>}
                             <span class="fraco"> · {ORIGEM[pg.origem] ?? pg.origem}{pg.conciliacao === 'automatica' ? ' (conciliado automaticamente)' : ''}</span>
                             {pg.estornado_em && <span class="fraco"> · estornado: {pg.estorno_motivo}</span>}
                             {!pg.estornado_em && <PagadorDoPagamento pagamentoId={pg.id} />}

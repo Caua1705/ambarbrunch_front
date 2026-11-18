@@ -840,24 +840,27 @@ const conferirVersao = (atual: number, enviada: unknown) => {
   if (typeof enviada === 'number' && enviada !== atual) throw new ErroDemo(409, 'conflito_versao', 'Alguém alterou isto antes de você.', { versao: atual });
 };
 function recalcularParcela(p: ParcelaSaida) {
-  const pago = p.pagamentos.filter((x) => !x.estornado_em).reduce((s, x) => s + Number(x.valor), 0);
+  const pago = p.pagamentos.filter((x) => !x.estornado_em).reduce((s, x) => s + Number(x.valor) - Number(x.encargos ?? 0), 0);
   p.valor_pago = d2(pago);
   p.saldo = d2(Math.max(0, Number(p.valor) - pago));
   p.situacao = Number(p.saldo) < 0.005 ? 'paga' : 'aberta';
 }
-function pagarParcela(parcelaId: string, valor: number, pago_em: string, forma: FormaPagamento, origem: string, ident: string | null = null) {
+function pagarParcela(parcelaId: string, valor: number, pago_em: string, forma: FormaPagamento, origem: string, ident: string | null = null, encargos = 0) {
   const d = E.despesas.find((x) => x.parcelas.some((p) => p.id === parcelaId));
   if (!d) throw new ErroDemo(404, 'nao_encontrado', 'Conta não encontrada.');
   const p = d.parcelas.find((x) => x.id === parcelaId)!;
   if (p.situacao === 'paga') throw new ErroDemo(409, 'parcela_paga', 'Esta conta já está paga.');
   if (ident && E.despesas.some((x) => x.parcelas.some((pp) => pp.pagamentos.some((pg) => pg.identificador_transacao === ident && !pg.estornado_em)))) throw new ErroDemo(409, 'identificador_repetido', 'Identificador de transação já usado.');
+  // 0042: `valor` = o que saiu; só `valor − encargos` quita a conta. Acima do saldo sem encargos: recusado.
+  if (encargos < 0 || encargos >= valor) throw new ErroDemo(422, 'encargos_invalidos', 'Os juros e encargos precisam ser menores que o valor pago.');
+  const principal = valor - encargos;
   if (d.valor_a_confirmar) {
     // Conta variável: o valor real paga e fixa a conta do mês (a recorrência não muda).
-    p.valor = d2(valor);
-    d.valor = d2(valor);
+    p.valor = d2(principal);
+    d.valor = d2(principal);
     d.valor_a_confirmar = false;
-  } else if (valor > Number(p.saldo) + 0.005) throw new ErroDemo(422, 'valor_fora_do_saldo', `O valor passa do saldo da conta (R$ ${p.saldo}).`);
-  const pg: PagamentoSaida = { id: id(), valor: d2(valor), pago_em, forma, identificador_transacao: ident, arquivo_id: null, origem, conciliacao: 'manual', registrado_por: 'Usuário (demo)', criado_em: agora(), estornado_em: null, estorno_motivo: null };
+  } else if (principal > Number(p.saldo) + 0.005) throw new ErroDemo(422, 'pagamento_excede_saldo', `O pagamento passa do saldo da parcela (R$ ${p.saldo}). Se a diferença for juros, multa ou encargos, informe-a separadamente.`);
+  const pg: PagamentoSaida = { id: id(), valor: d2(valor), encargos: d2(encargos), pago_em, forma, identificador_transacao: ident, arquivo_id: null, origem, conciliacao: 'manual', registrado_por: 'Usuário (demo)', criado_em: agora(), estornado_em: null, estorno_motivo: null };
   p.pagamentos.push(pg);
   recalcularParcela(p);
   d.historico.push({ em: agora(), acao: 'pagar', ator: 'Usuário (demo)', ator_tipo: 'usuario', dados: { valor: pg.valor } });
@@ -1030,7 +1033,7 @@ export const ROTAS_FINANCEIRO: Rota[] = [
     for (const v of E.vendas.filter((x) => x.dia >= de && x.dia <= ate)) itens.push({ tipo: 'venda_dia', id: `1:${v.dia}`, data: v.dia, descricao: 'Vendas PDV', valor: d2(v.total), sinal: 1, categoria: null, origem: 'eyemobile', fornecedor_id: null, fornecedor: null, status: 'confirmada', tem_comprovante: false, compra_id: null, despesa_id: null, detalhes: { vendas: v.vendas, taxa_servico: d2(v.total * 0.08), total_vendido: d2(v.total * 1.035), descontos: d2(v.total * 0.03), recebido_pdv: d2(v.total * 1.08) } });
     const un = idUnidade(query);
     for (const d of E.despesas.filter((x) => x.competencia >= de && x.competencia <= ate && x.unidade_negocio_id === un)) itens.push({ tipo: 'despesa', id: d.id, data: d.competencia, descricao: d.descricao, valor: d.valor, sinal: -1, categoria: d.categoria_codigo, origem: d.origem, fornecedor_id: d.fornecedor?.id ?? null, fornecedor: d.fornecedor?.nome ?? null, status: d.status, tem_comprovante: !!d.arquivo_id, compra_id: d.compra_id, despesa_id: d.id, detalhes: { motivos_revisao: d.motivos_revisao, valor_a_confirmar: d.valor_a_confirmar, versao: d.versao, tem_pagamento: pagamentosVivos(d).length > 0, responsavel: responsavelDe(d.id), parcelas: d.parcelas.filter((x) => x.situacao !== 'cancelada').length, pago: d2(d.parcelas.reduce((t, x) => t + Number(x.valor_pago), 0)), proximo_vencimento: d.parcelas.filter((x) => x.situacao === 'aberta').map((x) => x.vencimento).sort()[0] ?? null }, pagador_conta_id: (() => { const c = PAG.pagadores.get(pagamentosVivos(d)[0]?.id ?? '')?.conta_id ?? null; return c; })(), pagador: contaPorId(PAG.pagadores.get(pagamentosVivos(d)[0]?.id ?? '')?.conta_id)?.apelido ?? null });
-    for (const d of E.despesas.filter((x) => x.unidade_negocio_id === un)) for (const p of d.parcelas) for (const pg of p.pagamentos.filter((x) => x.pago_em >= de && x.pago_em <= ate)) itens.push({ tipo: 'pagamento', id: pg.id, data: pg.pago_em, descricao: d.descricao, valor: pg.valor, sinal: -1, categoria: d.categoria_codigo, origem: pg.origem, fornecedor_id: d.fornecedor?.id ?? null, fornecedor: d.fornecedor?.nome ?? null, status: pg.estornado_em ? 'estornado' : 'confirmado', tem_comprovante: !!pg.arquivo_id, compra_id: d.compra_id, despesa_id: d.id, detalhes: { forma: pg.forma, parcela_id: p.id, parcela: p.numero, conciliacao: pg.conciliacao, status_despesa: d.status, responsavel: responsavelDe(d.id), pagador_natureza: contaPorId(PAG.pagadores.get(pg.id)?.conta_id)?.natureza ?? null }, pagador_conta_id: PAG.pagadores.get(pg.id)?.conta_id ?? null, pagador: contaPorId(PAG.pagadores.get(pg.id)?.conta_id)?.apelido ?? null });
+    for (const d of E.despesas.filter((x) => x.unidade_negocio_id === un)) for (const p of d.parcelas) for (const pg of p.pagamentos.filter((x) => x.pago_em >= de && x.pago_em <= ate)) itens.push({ tipo: 'pagamento', id: pg.id, data: pg.pago_em, descricao: d.descricao, valor: pg.valor, sinal: -1, categoria: d.categoria_codigo, origem: pg.origem, fornecedor_id: d.fornecedor?.id ?? null, fornecedor: d.fornecedor?.nome ?? null, status: pg.estornado_em ? 'estornado' : 'confirmado', tem_comprovante: !!pg.arquivo_id, compra_id: d.compra_id, despesa_id: d.id, detalhes: { forma: pg.forma, encargos: Number(pg.encargos ?? 0), parcela_id: p.id, parcela: p.numero, conciliacao: pg.conciliacao, status_despesa: d.status, responsavel: responsavelDe(d.id), pagador_natureza: contaPorId(PAG.pagadores.get(pg.id)?.conta_id)?.natureza ?? null }, pagador_conta_id: PAG.pagadores.get(pg.id)?.conta_id ?? null, pagador: contaPorId(PAG.pagadores.get(pg.id)?.conta_id)?.apelido ?? null });
     for (const r of E.receitas.filter((x) => x.competencia >= de && x.competencia <= ate)) itens.push({ tipo: 'outra_receita', id: r.id, data: r.competencia, descricao: r.descricao, valor: r.valor, sinal: 1, categoria: r.categoria, origem: 'painel', fornecedor_id: null, fornecedor: null, status: r.status, tem_comprovante: false, compra_id: null, despesa_id: null, detalhes: { recebido_em: r.recebido_em, forma_recebimento: r.forma_recebimento, origem: r.origem, observacao: r.observacao, versao: r.versao, operacional: receitaOperacional(r.categoria) } });
     const tipo = query.get('tipo');
     const grupo = query.get('grupo');
@@ -1323,11 +1326,11 @@ export const ROTAS_FINANCEIRO: Rota[] = [
   }],
   ['POST', R(`financeiro/parcelas/${UUID}/pagamentos`), GERENCIA, async ({ params, corpo }) => {
     montar();
-    const e = await corpo<{ pago_em: string; forma: FormaPagamento; valor: string; identificador_transacao?: string | null; arquivo_id?: string | null; conta_pagadora_id?: string | null }>();
+    const e = await corpo<{ pago_em: string; forma: FormaPagamento; valor: string; encargos?: string | null; identificador_transacao?: string | null; arquivo_id?: string | null; conta_pagadora_id?: string | null }>();
     if (!e.valor || Number(e.valor) <= 0) throw new ErroDemo(422, 'regra_violada', 'Informe o valor.');
     if (e.pago_em > hojeFortaleza()) throw new ErroDemo(422, 'data_futura', 'A data do pagamento não pode ser no futuro.');
     exigirArquivoLivre([e.arquivo_id], E.despesas.find((d) => d.parcelas.some((p) => p.id === params[0]))?.id);
-    const { p, pg } = pagarParcela(params[0], Number(e.valor), e.pago_em, e.forma, 'painel', e.identificador_transacao ?? null);
+    const { p, pg } = pagarParcela(params[0], Number(e.valor), e.pago_em, e.forma, 'painel', e.identificador_transacao ?? null, Number(e.encargos ?? 0));
     pg.arquivo_id = e.arquivo_id ?? null;
     if (e.conta_pagadora_id) { montarPagadores(); definirPagadorDemo(pg.id, e.conta_pagadora_id, true); }
     return resposta(201, p);

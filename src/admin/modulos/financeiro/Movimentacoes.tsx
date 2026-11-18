@@ -171,7 +171,11 @@ function Datas({ periodo, de, ate, setDe, setAte }: { periodo: Periodo; de: stri
 function SituacaoDespesa({ l }: { l: Lancamento }) {
   if (l.tipo === 'pagamento') {
     const paga = <Situacao tom="ok">Paga</Situacao>;
-    return l.detalhes.status_despesa === 'em_revisao' ? <span class="linha" style={{ gap: '6px', flexWrap: 'wrap' }}>{paga}<Etiqueta tom="atencao">pendência</Etiqueta></span> : paga;
+    // 0042: pagamento com juros/multa — o valor da linha é o que saiu; a etiqueta mostra a parte dos encargos.
+    const encargos = Number(l.detalhes.encargos ?? 0);
+    const juros = encargos > 0 ? <Etiqueta tom="info">{`inclui ${moeda(encargos)} de juros/encargos`}</Etiqueta> : null;
+    const pendencia = l.detalhes.status_despesa === 'em_revisao' ? <Etiqueta tom="atencao">pendência</Etiqueta> : null;
+    return juros || pendencia ? <span class="linha" style={{ gap: '6px', flexWrap: 'wrap' }}>{paga}{juros}{pendencia}</span> : paga;
   }
   if (l.status === 'cancelada') return <Situacao tom="apagado">Cancelada</Situacao>;
   const pago = Number(l.detalhes.pago ?? 0);
