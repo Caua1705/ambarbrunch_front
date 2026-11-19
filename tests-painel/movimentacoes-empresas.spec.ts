@@ -91,11 +91,11 @@ test('Extrato: saída de R$ 574,96 quita a conta de R$ 500,00 só marcando os R$
 
   // A conta sai de Contas a pagar e Despesas mostra UM pagamento de 574,96 com os encargos.
   await page.goto(`${DEMO}/admin/financeiro?aba=contas`);
-  await page.getByLabel('Buscar conta a pagar').fill('Aluguel de Máquina de Café');
+  await page.getByLabel('Buscar conta a pagar').fill('Aluguel de Máquina de Café (extrato)');
   await expect(page.getByText('Nenhuma conta com essa busca')).toBeVisible();
   await page.goto(`${DEMO}/admin/financeiro`);
-  await page.getByLabel('Buscar movimentação').fill('Aluguel de Máquina de Café');
-  const linha = despesas(page).getByRole('row', { name: /Aluguel de Máquina de Café/ });
+  await page.getByLabel('Buscar movimentação').fill('Aluguel de Máquina de Café (extrato)');
+  const linha = despesas(page).getByRole('row', { name: /Aluguel de Máquina de Café \(extrato\)/ });
   await expect(linha).toHaveCount(1);
   await expect(linha).toContainText('574,96');
   await expect(linha).toContainText('inclui R$ 74,96 de juros/encargos');

@@ -373,7 +373,7 @@ function montar() {
   mov(conta, impAtual.id, dia(-4, hoje) < `${mesAtual}-01` ? `${mesAtual}-01` : dia(-4, hoje), 'debito', 127.5, 'PIX ENVIADO PAPELARIA CENTRAL', 'sem_correspondencia');
   // 0042: saída de 574,96 para a conta de 500,00 (pago com juros).
   const diaMaquina = dia(-2, hoje) < `${mesAtual}-01` ? `${mesAtual}-01` : dia(-2, hoje);
-  const maquina = novaDespesa({ descricao: 'Aluguel de Máquina de Café', valor: 500, competencia: `${mesAtual}-01`, categoria: 'aluguel', origem: 'painel', parcelas: [{ vencimento: diaMaquina, valor: 500 }] });
+  const maquina = novaDespesa({ descricao: 'Aluguel de Máquina de Café (extrato)', valor: 500, competencia: `${mesAtual}-01`, categoria: 'aluguel', origem: 'painel', parcelas: [{ vencimento: diaMaquina, valor: 500 }] });
   const saidaMaquina = mov(conta, impAtual.id, diaMaquina, 'debito', 574.96, 'PIX ENVIADO MAQUINA DE CAFE', 'possivel');
   saidaMaquina.candidatos = [{ tipo: 'parcela', acao: 'pagar_parcela', referencia: maquina.parcelas[0].id, valor: '500.00', data: diaMaquina, descricao: maquina.descricao, pontuacao: 32, valor_exato: false, evidencias: [{ codigo: 'vencimento', texto: 'Vence/venceu no mesmo dia.' }, { codigo: 'valor_menor', texto: 'O lançamento (R$ 500.00) é só parte desta movimentação (R$ 574.96).' }], alertas: ['cobre_so_parte'], parametros: { parcela_id: maquina.parcelas[0].id } }];
   const tarifa = mov(conta, impAtual.id, `${mesAtual}-01`, 'debito', 45.9, 'TAR PACOTE SERVICOS', 'classificacao_pendente');
