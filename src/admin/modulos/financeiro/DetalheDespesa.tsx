@@ -132,6 +132,27 @@ export function DetalheDespesa({ id, aoFechar, confirmar }: { id: string | null;
                   <dd>{dataHora(d.criado_em)}</dd>
                 </dl>
 
+                {d.observacoes && (
+                  <section class="pilha pilha--p">
+                    <h3 class="secao-titulo">Observações</h3>
+                    <p class="fin-observacoes">{d.observacoes}</p>
+                  </section>
+                )}
+
+                {(d.itens?.length ?? 0) > 0 && (
+                  <section class="pilha pilha--p">
+                    <h3 class="secao-titulo">Detalhamento</h3>
+                    <dl class="definicoes">
+                      {d.itens!.map((i, n) => (
+                        <Fragment key={n}>
+                          <dt>{i.descricao}{i.observacao ? <span class="sub">{i.observacao}</span> : null}</dt>
+                          <dd class="num">{moeda(i.total ?? i.valor_base)}</dd>
+                        </Fragment>
+                      ))}
+                    </dl>
+                  </section>
+                )}
+
                 {d.rateio.length > 0 && (
                   <section class="pilha pilha--p">
                     <h3 class="secao-titulo">Dividida por categoria</h3>
@@ -329,6 +350,7 @@ function Correcao({ d, aoTerminar }: { d: DespesaSaida; aoTerminar: () => void }
   const cats = useCategorias();
   const nome = useNomeCategoria();
   const [descricao, setDescricao] = useState(d.descricao);
+  const [observacoes, setObservacoes] = useState(d.observacoes ?? '');
   const [valor, setValor] = useState(brl(d.valor));
   const [competencia, setCompetencia] = useState(d.competencia ?? '');
   const [categoria, setCategoria] = useState(d.categoria_codigo);
@@ -341,8 +363,9 @@ function Correcao({ d, aoTerminar }: { d: DespesaSaida; aoTerminar: () => void }
     const v = paraDecimal(valor);
     if (!v || Number(v) <= 0) return setErro(new ErroApi('validacao', 'Informe um valor válido.', 0, null, { valor: 'Valor inválido.' }));
     if (motivo.trim().length < 5) return setErro(new ErroApi('validacao', 'Explique o motivo da correção.', 0, null, { motivo: 'Pelo menos 5 caracteres.' }));
-    const c: { versao: number; motivo: string; descricao?: string; valor?: string; competencia?: string; categoria?: string } = { versao: d.versao, motivo: motivo.trim() };
+    const c: { versao: number; motivo: string; descricao?: string; valor?: string; competencia?: string; categoria?: string; observacoes?: string } = { versao: d.versao, motivo: motivo.trim() };
     if (descricao.trim() !== d.descricao) c.descricao = descricao.trim();
+    if (observacoes.trim() !== (d.observacoes ?? '')) c.observacoes = observacoes.trim();
     if (Number(v) !== Number(d.valor)) c.valor = v;
     if (competencia && competencia !== d.competencia) c.competencia = competencia;
     if (categoria !== d.categoria_codigo) c.categoria = categoria;
@@ -386,6 +409,9 @@ function Correcao({ d, aoTerminar }: { d: DespesaSaida; aoTerminar: () => void }
               <OpcoesCategoria cats={cats.dados ?? []} atual={{ codigo: d.categoria_codigo, nome: nome(d.categoria_codigo) }} />
             </select>
           )}
+        </Campo>
+        <Campo rotulo="Observações" opcional class="inteiro" ajuda="Informações adicionais. Não muda a descrição nem o valor.">
+          {(id, dsc) => <textarea id={id} class="area" rows={3} maxLength={1000} aria-describedby={dsc} value={observacoes} onInput={(e) => setObservacoes(e.currentTarget.value)} />}
         </Campo>
         <Campo rotulo="Motivo da correção" class="inteiro" erro={erro?.campos.motivo}>
           {(id) => <textarea id={id} class="area" maxLength={300} value={motivo} onInput={(e) => setMotivo(e.currentTarget.value)} placeholder="Ex.: valor digitado errado; a nota diz R$ 120,00" />}

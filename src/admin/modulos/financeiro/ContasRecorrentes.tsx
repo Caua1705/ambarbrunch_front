@@ -90,7 +90,7 @@ export function ContasRecorrentes({ contexto }: { contexto: ContextoPainel }) {
   );
 }
 
-/** Detalhe da recorrência: dados, próximos vencimentos, detalhamento-base (folha) e as ações. */
+/** Detalhe da recorrência: dados, próximos vencimentos, observações (0043), detalhamento-base (folha) e as ações. */
 function DetalheRecorrencia({ r, lancar, ocupado, aoFechar, aoEditar, aoPausar, aoEncerrar, aoExcluir }: {
   r: Recorrencia | null; lancar: boolean; ocupado: string | null; aoFechar: () => void;
   aoEditar: (r: Recorrencia) => void; aoPausar: (r: Recorrencia) => void; aoEncerrar: (r: Recorrencia) => void;
@@ -121,6 +121,12 @@ function DetalheRecorrencia({ r, lancar, ocupado, aoFechar, aoEditar, aoPausar, 
           <dt>Próximos</dt>
           <dd>{r.ativo && r.proximas.length ? r.proximas.slice(0, 3).map((p) => dataCurta(p.vencimento)).join(' · ') : <span class="fraco">—</span>}</dd>
         </dl>
+        {r.observacoes && (
+          <section class="pilha pilha--p">
+            <h3 class="secao-titulo">Observações</h3>
+            <p class="fin-observacoes">{r.observacoes}</p>
+          </section>
+        )}
         {r.itens && r.itens.length > 0 && (
           <section class="pilha pilha--p">
             <h3 class="secao-titulo">Detalhamento</h3>

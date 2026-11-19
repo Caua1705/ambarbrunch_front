@@ -182,6 +182,8 @@ export interface ParcelaSaida {
 export interface DespesaSaida {
   /** 0034: detalhamento (composição do valor). */
   itens?: ItemDetalhe[];
+  /** 0043: observações livres (separadas da descrição). Backend antigo não manda. */
+  observacoes?: string | null;
   id: Uuid;
   unidade_negocio_id: number;
   descricao: string;
@@ -236,9 +238,13 @@ export interface DespesaCorrecao {
   itens?: ItemDetalhe[];
   confirmar?: boolean;
   aplicar_proximas?: boolean;
+  /** 0043: omitido = não muda; '' apaga. */
+  observacoes?: string;
 }
 export interface DespesaEntrada {
   itens?: ItemDetalhe[] | null;
+  /** 0043: observações livres (opcional). */
+  observacoes?: string | null;
   descricao: string;
   valor: Dec;
   /** 0033: opcional por enquanto. */
@@ -311,6 +317,8 @@ export interface CategoriaAlteracao {
 
 export interface Recorrencia {
   itens?: ItemDetalhe[];
+  /** 0043: observações livres, copiadas para cada competência gerada. */
+  observacoes?: string | null;
   vencimento_dia_util?: boolean;
   vencimento_mes_seguinte?: boolean;
   id: Uuid;
@@ -721,6 +729,8 @@ export type TaxaEntrada = Omit<TaxaPagamento, 'id'>;
 
 export interface RecorrenciaEntrada {
   itens?: ItemDetalhe[] | null;
+  /** 0043: observações livres (opcional). */
+  observacoes?: string | null;
   vencimento_dia_util?: boolean;
   vencimento_mes_seguinte?: boolean;
   descricao: string;

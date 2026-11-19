@@ -88,6 +88,8 @@ export function EditarRecorrencia({ alvo, aoFechar }: { alvo: Recorrencia | 'nov
   const cats = useCategorias();
   const r = alvo && alvo !== 'nova' ? alvo : null;
   const [descricao, setDescricao] = useState('');
+  // 0043: observações livres, copiadas para a conta de cada mês (a descrição não muda).
+  const [observacoes, setObservacoes] = useState('');
   const [categoria, setCategoria] = useState('');
   const [valor, setValor] = useState('');
   const [variavel, setVariavel] = useState(false);
@@ -108,6 +110,7 @@ export function EditarRecorrencia({ alvo, aoFechar }: { alvo: Recorrencia | 'nov
   useEffect(() => {
     if (!alvo) return;
     setDescricao(r?.descricao ?? '');
+    setObservacoes(r?.observacoes ?? '');
     setCategoria(r?.categoria_codigo ?? '');
     setValor(r ? brl(r.valor_previsto) : '');
     setVariavel(r?.valor_variavel ?? false);
@@ -142,11 +145,13 @@ export function EditarRecorrencia({ alvo, aoFechar }: { alvo: Recorrencia | 'nov
       if (r) {
         // 17/11: a categoria também muda (só ativa na unidade): a recorrente e as próximas contas ainda em aberto.
         const novaCategoria = categoria && categoria !== r.categoria_codigo ? { categoria } : {};
-        await financeiro.alterarRecorrencia(r.id, { versao: r.versao, aplicar_a_partir_de: `${aPartir}-01`, descricao: descricao.trim(), valor_previsto: v, dia_vencimento: dia, valor_variavel: variavel, itens: base.itens, vencimento_dia_util: diaUtil, vencimento_mes_seguinte: mesSeguinte, ...novaCategoria });
+        // Só vai quando muda: assim não apaga a observação escrita numa conta específica do mês.
+        const novasObs = observacoes.trim() !== (r.observacoes ?? '') ? { observacoes: observacoes.trim() } : {};
+        await financeiro.alterarRecorrencia(r.id, { versao: r.versao, aplicar_a_partir_de: `${aPartir}-01`, descricao: descricao.trim(), valor_previsto: v, dia_vencimento: dia, valor_variavel: variavel, itens: base.itens, vencimento_dia_util: diaUtil, vencimento_mes_seguinte: mesSeguinte, ...novaCategoria, ...novasObs });
         avisar(`Conta recorrente alterada a partir de ${mesAno(`${aPartir}-01`).toLowerCase()}.`, 'ok');
       } else {
         await financeiro.criarRecorrencia({
-          descricao: descricao.trim(), categoria, valor_previsto: v, valor_variavel: variavel, dia_vencimento: dia, intervalo_meses: intervalo,
+          descricao: descricao.trim(), observacoes: observacoes.trim() || null, categoria, valor_previsto: v, valor_variavel: variavel, dia_vencimento: dia, intervalo_meses: intervalo,
           inicio: `${aPartir}-01`, fim: fim || null, fornecedor: fornecedor.trim() ? { nome: fornecedor.trim() } : null,
           responsavel: responsavel || null, itens: base.itens, vencimento_dia_util: diaUtil, vencimento_mes_seguinte: mesSeguinte,
         });
@@ -195,6 +200,9 @@ export function EditarRecorrencia({ alvo, aoFechar }: { alvo: Recorrencia | 'nov
           )}
           {!r && <Campo rotulo="Fornecedor" opcional>{(id) => <input id={id} class="entrada" maxLength={160} autocomplete="off" value={fornecedor} onInput={(e) => setFornecedor(e.currentTarget.value)} />}</Campo>}
         </div>
+        <Campo rotulo="Observações" opcional ajuda={r ? 'Vale a partir do mês escolhido, junto com as outras mudanças. Contas já pagas não mudam.' : 'Copiadas para a conta de cada mês. Não mudam a descrição nem o valor.'}>
+          {(id, d) => <textarea id={id} class="area" rows={3} maxLength={1000} placeholder="Ex.: Z-API R$ 100 + celular Atendimento R$ 30" aria-describedby={d} value={observacoes} onInput={(e) => setObservacoes(e.currentTarget.value)} />}
+        </Campo>
         <label class="marcar"><input type="checkbox" checked={diaUtil} onChange={(e) => setDiaUtil(e.currentTarget.checked)} /><span>Contar em dias úteis <span class="fraco">(ex.: 5º dia útil; fins de semana e feriados nacionais não contam)</span></span></label>
         <label class="marcar"><input type="checkbox" checked={mesSeguinte} onChange={(e) => setMesSeguinte(e.currentTarget.checked)} /><span>Vence no mês seguinte ao da competência <span class="fraco">(ex.: folha de novembro paga em dezembro)</span></span></label>
         <label class="marcar">

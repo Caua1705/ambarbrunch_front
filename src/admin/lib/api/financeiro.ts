@@ -124,7 +124,7 @@ export const financeiro = {
   pausarRecorrencia: (id: string, versao: number, pausar: boolean) => pedir<Recorrencia>(`financeiro/recorrencias/${id}`, { metodo: 'PATCH', corpo: { versao, pausar } }),
   recorrencias: (ativas = true) => pedir<Recorrencia[]>('financeiro/recorrencias', { query: { ativas } }),
   criarRecorrencia: (r: RecorrenciaEntrada) => pedir<Recorrencia>('financeiro/recorrencias', { metodo: 'POST', corpo: r }),
-  alterarRecorrencia: (id: string, r: { versao: number; aplicar_a_partir_de?: string; encerrar_em?: string; valor_previsto?: string; descricao?: string; dia_vencimento?: number; valor_variavel?: boolean; itens?: ItemDetalhe[] | null; vencimento_dia_util?: boolean; vencimento_mes_seguinte?: boolean; categoria?: string }) =>
+  alterarRecorrencia: (id: string, r: { versao: number; aplicar_a_partir_de?: string; encerrar_em?: string; valor_previsto?: string; descricao?: string; dia_vencimento?: number; valor_variavel?: boolean; itens?: ItemDetalhe[] | null; vencimento_dia_util?: boolean; vencimento_mes_seguinte?: boolean; categoria?: string; observacoes?: string }) =>
     pedir<Recorrencia>(`financeiro/recorrencias/${id}`, { metodo: 'PATCH', corpo: r }),
   /** O que a exclusão cancela e o que preserva (não muda nada). */
   previaExclusaoRecorrencia: (id: string) => pedir<PreviaExclusaoRecorrencia>(`financeiro/recorrencias/${id}/exclusao`),

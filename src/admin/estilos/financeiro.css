@@ -585,3 +585,10 @@
     padding-left: 34px;
   }
 }
+
+/* 0043: observações livres da despesa e da conta recorrente (mantém as quebras de linha). */
+.fin-observacoes {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

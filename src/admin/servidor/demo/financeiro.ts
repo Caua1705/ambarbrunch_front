@@ -171,6 +171,9 @@ function novaDespesa(o: { descricao: string; valor: number; competencia: string;
   return d;
 }
 
+/** 0043: como o backend — tira espaços sobrando; vazio = sem observação. */
+const obsDemo = (t?: string | null) => (t ?? '').trim().slice(0, 1000) || null;
+
 /** Geradas pela recorrência (só por recorrencia_id), como o backend separa na exclusão. */
 function classificarGeradas(recorrenciaId: string) {
   const hoje = hojeFortaleza();
@@ -1057,7 +1060,7 @@ export const ROTAS_FINANCEIRO: Rota[] = [
   ['POST', R('financeiro/despesas'), GERENCIA, async ({ corpo, query }) => {
     montar();
     const un = unidadeDa(query);
-    const e = await corpo<{ descricao?: string; valor?: string; competencia?: string; categoria?: string; fornecedor?: { id?: string | null; nome?: string | null; documento?: string | null } | null; arquivo_id?: string | null; parcelas?: { vencimento: string; valor: string }[] | null; pagamento?: { pago_em: string; forma: FormaPagamento; arquivo_id?: string | null; conta_pagadora_id?: string | null } | null; responsavel?: 'conjunto' | 'ambar' | 'roll' | null }>();
+    const e = await corpo<{ descricao?: string; valor?: string; competencia?: string; categoria?: string; fornecedor?: { id?: string | null; nome?: string | null; documento?: string | null } | null; arquivo_id?: string | null; parcelas?: { vencimento: string; valor: string }[] | null; pagamento?: { pago_em: string; forma: FormaPagamento; arquivo_id?: string | null; conta_pagadora_id?: string | null } | null; responsavel?: 'conjunto' | 'ambar' | 'roll' | null; observacoes?: string | null }>();
     if (!e.descricao || !e.valor || Number(e.valor) <= 0 || !e.categoria) throw new ErroDemo(422, 'regra_violada', 'Preencha descrição, valor e categoria.');
     // 0033: sem data, a demonstração usa a do pagamento/vencimento (só o simulador; o backend guarda sem data).
     const competencia: string = e.competencia || (e.pagamento?.pago_em ?? e.parcelas?.[0]?.vencimento ?? hojeFortaleza());
@@ -1073,6 +1076,7 @@ export const ROTAS_FINANCEIRO: Rota[] = [
     const d = novaDespesa({ descricao: e.descricao, valor: Number(e.valor), competencia, categoria: e.categoria, fornecedor: forn, origem: 'painel', arquivo_id: e.arquivo_id ?? null, status: acima ? 'em_revisao' : 'confirmada', motivos: acima ? ['acima_do_limite'] : [], parcelas: e.pagamento ? [{ vencimento: competencia, valor: Number(e.valor), paga_em: e.pagamento.pago_em, forma: e.pagamento.forma }] : e.parcelas ? e.parcelas.map((p) => ({ vencimento: p.vencimento, valor: Number(p.valor) })) : [{ vencimento: competencia, valor: Number(e.valor) }] });
     d.criado_em = agora();
     d.unidade_negocio_id = UNIDADES[un];
+    d.observacoes = obsDemo(e.observacoes);
     if (e.pagamento?.conta_pagadora_id) { montarPagadores(); for (const pg of pagamentosVivos(d)) definirPagadorDemo(pg.id, e.pagamento.conta_pagadora_id, true); }
     PAG.responsavel.set(d.id, e.responsavel ?? CONFIG.responsavel_padrao);
     return resposta(201, d);
@@ -1085,13 +1089,18 @@ export const ROTAS_FINANCEIRO: Rota[] = [
   }],
   ['PATCH', R(`financeiro/despesas/${UUID}`), GERENCIA, async ({ params, corpo }) => {
     const d = achaDespesa(params[0]);
-    const c = await corpo<{ versao: number; motivo: string; descricao?: string; valor?: string; competencia?: string; categoria?: string }>();
+    const c = await corpo<{ versao: number; motivo: string; descricao?: string; valor?: string; competencia?: string; categoria?: string; observacoes?: string }>();
     conferirVersao(d.versao, c.versao);
-    exigirMotivo(c.motivo);
+    // Como o backend: motivo só na correção financeira (valor de despesa com pagamento); descrição, categoria e
+    // observações mudam sem motivo.
+    const comPagamento = d.parcelas.some((p) => p.pagamentos.some((x) => !x.estornado_em));
+    if (comPagamento && c.valor && Number(c.valor) !== Number(d.valor)) exigirMotivo(c.motivo);
     if (c.categoria && d.rateio.length) throw new ErroDemo(409, 'despesa_com_rateio', 'A categoria desta despesa vem dos itens da compra.');
     if (c.categoria && c.categoria !== d.categoria_codigo) exigirCategoria(c.categoria, codigoUnidade(d.unidade_negocio_id));
     const antes = { descricao: d.descricao, valor: d.valor, competencia: d.competencia, categoria: d.categoria_codigo };
     if (c.descricao) d.descricao = c.descricao;
+    // 0043: '' apaga; omitida não muda.
+    if (c.observacoes !== undefined) d.observacoes = obsDemo(c.observacoes);
     if (c.valor) {
       if (d.parcelas.some((p) => p.pagamentos.some((x) => !x.estornado_em)) && Number(c.valor) < d.parcelas.reduce((s, p) => s + Number(p.valor_pago), 0)) throw new ErroDemo(409, 'tem_pagamento', 'O novo valor é menor que o já pago.');
       d.valor = d2(Number(c.valor));
@@ -1464,11 +1473,11 @@ export const ROTAS_FINANCEIRO: Rota[] = [
   }],
   ['POST', R('financeiro/recorrencias'), GERENCIA, async ({ corpo }) => {
     montar();
-    const e = await corpo<{ descricao: string; categoria: string; valor_previsto: string; valor_variavel?: boolean; dia_vencimento: number; intervalo_meses?: number; inicio: string; fim?: string | null; fornecedor?: { nome?: string | null } | null; antecedencia_dias?: number }>();
+    const e = await corpo<{ descricao: string; categoria: string; valor_previsto: string; valor_variavel?: boolean; dia_vencimento: number; intervalo_meses?: number; inicio: string; fim?: string | null; fornecedor?: { nome?: string | null } | null; antecedencia_dias?: number; observacoes?: string | null }>();
     if (!e.descricao || !e.categoria || !e.valor_previsto) throw new ErroDemo(422, 'regra_violada', 'Preencha os campos.');
     exigirCategoria(e.categoria, 'ambar_cafe');
     const forn = e.fornecedor?.nome ? fornecedor(e.fornecedor.nome) : null;
-    const r: Recorrencia = { id: id(), descricao: e.descricao, categoria_codigo: e.categoria, fornecedor: forn ? { id: forn.id, nome: forn.nome } : null, valor_previsto: d2(Number(e.valor_previsto)), valor_variavel: !!e.valor_variavel, dia_vencimento: e.dia_vencimento, intervalo_meses: e.intervalo_meses ?? 1, inicio: e.inicio, fim: e.fim ?? null, antecedencia_dias: e.antecedencia_dias ?? 45, ativo: true, versao: 1, proximas: [] };
+    const r: Recorrencia = { id: id(), descricao: e.descricao, categoria_codigo: e.categoria, fornecedor: forn ? { id: forn.id, nome: forn.nome } : null, valor_previsto: d2(Number(e.valor_previsto)), valor_variavel: !!e.valor_variavel, dia_vencimento: e.dia_vencimento, intervalo_meses: e.intervalo_meses ?? 1, inicio: e.inicio, fim: e.fim ?? null, antecedencia_dias: e.antecedencia_dias ?? 45, ativo: true, versao: 1, proximas: [], observacoes: obsDemo(e.observacoes) };
     E.recorrencias.push(r);
     return resposta(201, r);
   }],
@@ -1476,7 +1485,7 @@ export const ROTAS_FINANCEIRO: Rota[] = [
     montar();
     const r = E.recorrencias.find((x) => x.id === params[0]);
     if (!r) throw new ErroDemo(404, 'nao_encontrado', 'Conta fixa não encontrada.');
-    const e = await corpo<{ versao: number; encerrar_em?: string; valor_previsto?: string; descricao?: string; dia_vencimento?: number; valor_variavel?: boolean }>();
+    const e = await corpo<{ versao: number; encerrar_em?: string; valor_previsto?: string; descricao?: string; dia_vencimento?: number; valor_variavel?: boolean; observacoes?: string }>();
     conferirVersao(r.versao, e.versao);
     // Encerrar: a conta fixa continua ativa até a data (o backend só deixa de gerar depois dela).
     if (e.encerrar_em) { r.fim = e.encerrar_em; if (e.encerrar_em <= hojeFortaleza()) r.ativo = false; }
@@ -1484,6 +1493,7 @@ export const ROTAS_FINANCEIRO: Rota[] = [
     if (e.descricao) r.descricao = e.descricao;
     if (e.dia_vencimento) r.dia_vencimento = e.dia_vencimento;
     if (e.valor_variavel !== undefined) r.valor_variavel = e.valor_variavel;
+    if (e.observacoes !== undefined) r.observacoes = obsDemo(e.observacoes);
     r.versao++;
     return r;
   }],

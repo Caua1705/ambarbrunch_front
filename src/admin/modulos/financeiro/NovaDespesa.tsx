@@ -2,7 +2,8 @@
 // paga); o resto recolhido. Criar: POST /admin/financeiro/despesas com Idempotency-Key. Editar: PATCH /despesas/{id}
 // (versão lida; só os campos mudados). Detalhamento opcional em qualquer despesa (Detalhamento.tsx). Despesa com
 // pagamento: mudar valor ou responsável é correção financeira (motivo + confirmação; o backend recusa se o pagamento
-// está conciliado ou o mês fechado). Recorrente: "somente esta competência" ou "esta e as próximas".
+// está conciliado ou o mês fechado). Recorrente: "somente esta competência" ou "esta e as próximas". Observações (0043):
+// texto livre e opcional, separado da descrição; mudar não é correção financeira (vale em despesa paga).
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { Check, Info, ChevronDown, Plus, Trash2 } from 'lucide-preact';
 import { financeiro } from '../../lib/api/financeiro';
@@ -40,6 +41,7 @@ export function NovaDespesa({ aberta, aoFechar, aoCriar, situacaoInicial = 'paga
   const [proximas, setProximas] = useState<'esta' | 'proximas'>('esta');
   const cats = useCategorias();
   const [descricao, setDescricao] = useState('');
+  const [observacoes, setObservacoes] = useState('');
   const [valor, setValor] = useState('');
   const [categoria, setCategoria] = useState('');
   const [data, setData] = useState(''); // 0033: opcional, nunca preenchida com hoje
@@ -71,6 +73,7 @@ export function NovaDespesa({ aberta, aoFechar, aoCriar, situacaoInicial = 'paga
   useEffect(() => {
     if (!aberta) return;
     setDescricao('');
+    setObservacoes('');
     setValor('');
     setCategoria('');
     setData('');
@@ -97,6 +100,7 @@ export function NovaDespesa({ aberta, aoFechar, aoCriar, situacaoInicial = 'paga
     setDetAtivo(!!ed?.itens?.length);
     if (ed) {
       setDescricao(ed.descricao);
+      setObservacoes(ed.observacoes ?? '');
       setValor(brl(ed.valor));
       setCategoria(ed.categoria_codigo);
       setData(ed.competencia ?? '');
@@ -165,6 +169,7 @@ export function NovaDespesa({ aberta, aoFechar, aoCriar, situacaoInicial = 'paga
     if (Object.keys(es).length) return;
     const corpo: DespesaEntrada = {
       descricao: descricao.trim(),
+      observacoes: observacoes.trim() || null,
       valor: v!,
       competencia: data || null,
       categoria,
@@ -196,6 +201,7 @@ export function NovaDespesa({ aberta, aoFechar, aoCriar, situacaoInicial = 'paga
   async function salvarEdicao(d: DespesaSaida, v: string) {
     const c: DespesaCorrecao = { versao: d.versao };
     if (descricao.trim() !== d.descricao) c.descricao = descricao.trim();
+    if (observacoes.trim() !== (d.observacoes ?? '')) c.observacoes = observacoes.trim();
     if (Number(v) !== Number(d.valor)) c.valor = v;
     if (data && data !== d.competencia) c.competencia = data;
     if (categoria !== d.categoria_codigo) c.categoria = categoria;
@@ -258,6 +264,9 @@ export function NovaDespesa({ aberta, aoFechar, aoCriar, situacaoInicial = 'paga
                 <OpcoesCategoria cats={cats.dados ?? []} />
               </select>
             )}
+          </Campo>
+          <Campo rotulo="Observações" opcional class="inteiro" erro={erros.observacoes} ajuda="Informações adicionais. Não muda a descrição nem o valor.">
+            {(id, d) => <textarea id={id} class="area" rows={3} maxLength={1000} placeholder="Ex.: Z-API R$ 100 + celular Atendimento R$ 30" aria-describedby={d} value={observacoes} onInput={(e) => setObservacoes(e.currentTarget.value)} />}
           </Campo>
         </div>
 
