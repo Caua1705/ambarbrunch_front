@@ -3,7 +3,7 @@
 //
 // A gravação passa por um quadro de tamanho FIXO (720p, deitado ou em pé conforme o tablet no início): girar o tablet no
 // meio não muda a resolução do arquivo (um MP4 H.264 com troca de resolução no meio pode não abrir). Preferência por MP4
-// H.264, que o WhatsApp toca direto; sem ele, WebM (a Z-API converte). ~1,1 Mbps: 90 s ≈ 12 MB.
+// H.264, que o WhatsApp toca direto; sem ele, WebM (a Z-API converte). ~0,8 Mbps pedidos (≈1,2 real): 90 s ≈ 13,5 MB.
 //
 // Sem gravação no navegador (aparelho antigo) ou se a câmera falhar, a alternativa é a câmera do próprio Android (seletor de
 // arquivo com captura): o vídeo volta para cá e, se vier grande demais, é recomprimido aqui mesmo para 720p antes de enviar.
@@ -21,7 +21,9 @@ import { apagarVideoLocal, guardarVideoLocal, lerVideoLocal } from './videoLocal
 const TIPOS = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp8', 'video/webm;codecs=vp9', 'video/webm'];
 const LADO_MAIOR = 1280;
 const QUADROS_POR_SEGUNDO = 24;
-const BITS_POR_SEGUNDO = 1_100_000;
+// 0,8 Mbps (dono, 18/11/2026). O encoder do navegador passa do pedido: com 1,1 Mbps o vídeo real de 17/11 saiu a ~1,7
+// Mbps (8,5 MB em 41 s), e 90 s passariam dos 15 MB do bucket. Com 0,8 Mbps, mesmo ~50% acima, 90 s ≈ 13,5 MB.
+const BITS_POR_SEGUNDO = 800_000;
 const RECOMENDADO_MIN = 30;
 const RECOMENDADO_MAX = 60;
 
