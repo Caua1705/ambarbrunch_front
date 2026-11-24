@@ -1,11 +1,16 @@
 // Modo Operação: a tela do tablet fixo do café (o painel do Atendente). Cabeçalho com hora de Fortaleza, quem está logado
 // e sair; abaixo, a seção em uso, sempre DENTRO desta tela: Conversas (o módulo Atendimento), Reservas (a agenda do dia) ou
 // Ponto (registrar ponto e checklist de abertura). Mesma sessão, mesmas permissões e mesmas rotas reais do painel.
+// A aba Conversas mostra quantas conversas esperam a equipe (o mesmo "Pendentes" da caixa), relido a cada 30 s com a aba
+// visível, também quando a pessoa está em Reservas ou Ponto.
 import { useEffect, useState } from 'preact/hooks';
 import { Sun, Moon, LogOut, LayoutDashboard, ChevronDown, CalendarCheck, MessagesSquare, ScanFace } from 'lucide-preact';
 import type { ContextoPainel } from '../../lib/sessao';
 import { NOME_PAPEL } from '../../lib/sessao';
 import { painelCompletoDo, podeVer } from '../../lib/permissoes';
+import { useConsulta } from '../../lib/consulta';
+import { atendimento } from '../../lib/api/atendimento-clube';
+import { plural } from '../../lib/formato';
 import { sair } from '../../layout/sair';
 import { Raiz, Suspenso } from '../../ui/camadas';
 import { Vazio } from '../../ui/estados';
@@ -69,6 +74,13 @@ export default function Operacao({ contexto, apiUrl = null }: { contexto: Contex
     if (secao !== 'ponto') url.searchParams.delete('ponto');
     history.replaceState(history.state, '', url);
   }, [secao]);
+  // Contador da aba Conversas: a mesma consulta (e o mesmo cache) do resumo da caixa. Dentro de Conversas a própria caixa
+  // já relê o resumo a cada 30 s; fora dela, quem relê é esta tela. Sem a seção (perfil sem Conversas), nenhuma chamada.
+  const comConversas = !!contexto.unidade && secoes.some((s) => s.id === 'atendimento');
+  const resumo = useConsulta(comConversas ? 'atendimento/resumo' : null, () => atendimento.resumo(), {
+    intervalo: secao === 'atendimento' ? undefined : 30_000,
+  });
+  const pendentes = resumo.dados?.por_estado?.esperando ?? 0;
   const [saindo, setSaindo] = useState(false);
   const { usuario, unidade } = contexto;
   // O Atendente (conta do tablet) não tem painel administrativo: tudo dele está aqui.
@@ -139,9 +151,18 @@ export default function Operacao({ contexto, apiUrl = null }: { contexto: Contex
         <nav class="op-secoes" aria-label="Seções do Modo Operação">
           {secoes.map((s) => {
             const Icone = ICONES[s.id];
+            const conta = s.id === 'atendimento' ? pendentes : 0;
             return (
-              <button key={s.id} type="button" class="op-secoes__item" aria-current={s.id === secao ? 'page' : undefined} onClick={() => setSecao(s.id)}>
+              <button
+                key={s.id}
+                type="button"
+                class="op-secoes__item"
+                aria-current={s.id === secao ? 'page' : undefined}
+                aria-label={conta ? `${s.rotulo}: ${plural(conta, 'conversa esperando a equipe', 'conversas esperando a equipe')}` : undefined}
+                onClick={() => setSecao(s.id)}
+              >
                 <Icone aria-hidden="true" /> {s.rotulo}
+                {conta ? <span class="contador contador--atencao op-secoes__contador" aria-hidden="true">{conta > 99 ? '99+' : conta}</span> : null}
               </button>
             );
           })}

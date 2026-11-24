@@ -13,14 +13,14 @@ const GERENCIA: Papel[] = ['admin', 'gerente'];
 const ADMIN: Papel[] = ['admin'];
 
 /**
- * Conversas no Modo Operação do Atendente: DESLIGADO por ora (dono, 15/11/2026 — o tablet fica só com Reservas e Ponto).
- * Desligado, o Atendente não vê a seção Conversas nem abre /admin/atendimento (o servidor do painel recusa a página).
- * O backend também recusa (403 em /admin/atendimento/* para o Atendente desde 3351214): religar exige devolver
- * atendimento.* ao perfil ATENDENTE no backend (app/modulos/usuarios/permissoes.py) e trocar isto para true.
+ * Conversas no Modo Operação do Atendente: LIGADO (saiu em 15/11 e voltou em 23/11/2026, pedido do dono).
+ * O backend dá ao perfil ATENDENTE atendimento.visualizar/responder/transferir (CONVERSAS em
+ * app/modulos/usuarios/permissoes.py). Desligar = false aqui E tirar CONVERSAS do ATENDENTE no backend (senão a API
+ * continua aberta para a conta do tablet).
  */
-export const ATENDENTE_CONVERSAS = false;
+export const ATENDENTE_CONVERSAS = true;
 
-// O Atendente vive no Modo Operação (Reservas | Ponto): o middleware leva qualquer página do painel para lá.
+// O Atendente vive no Modo Operação (Conversas | Reservas | Ponto): o middleware leva qualquer página do painel para lá.
 const MODULOS: Record<Area, Papel[]> = {
   'visao-geral': GERENCIA,
   reservas: TODOS,

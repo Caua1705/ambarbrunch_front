@@ -2,21 +2,44 @@
 import { test, expect } from '@playwright/test';
 import { DEMO, entrarDemo } from './apoio';
 
-test('Atendente: abre no Modo Operação só com Reservas e Ponto (Conversas fora por ora), sem código de tablet', async ({ page }) => {
+test('Atendente: abre no Modo Operação com Conversas, Reservas e Ponto, tudo na mesma tela e sem código de tablet', async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 768 });
   await entrarDemo(page, 'operador');
   await page.goto(`${DEMO}/admin`);
   await page.waitForURL(`${DEMO}/admin/operacao`);
   const secoes = page.getByRole('navigation', { name: /Seções/ });
   await expect(secoes.getByRole('link')).toHaveCount(0);   // nenhuma seção leva para fora
+  // Reservas continua sendo a tela inicial; as três abas cabem no toque (>= 48 px de altura).
+  await expect(secoes.getByRole('button')).toHaveCount(3);
   await expect(secoes.getByRole('button', { name: /Reservas/ })).toHaveAttribute('aria-current', 'page');
-  // Conversas fora do tablet (dono, 15/11/2026): nem a seção, nem pelo endereço.
-  await expect(secoes.getByRole('button')).toHaveCount(2);
-  await expect(secoes.getByRole('button', { name: /Conversas/ })).toHaveCount(0);
-  await page.goto(`${DEMO}/admin/operacao?secao=atendimento`);
-  await expect(page.getByRole('list', { name: 'Conversas' })).toHaveCount(0);
-  await page.goto(`${DEMO}/admin/atendimento`);
-  await expect(page.getByRole('list', { name: 'Conversas' })).toHaveCount(0);
+  for (const nome of [/Conversas/, /Reservas/, /Ponto/]) {
+    const caixa = await secoes.getByRole('button', { name: nome }).boundingBox();
+    expect(caixa!.height, String(nome)).toBeGreaterThanOrEqual(48);
+  }
+  // Contador da aba Conversas = conversas esperando a equipe (o mesmo "Pendentes" da caixa), já visível em Reservas.
+  const abaConversas = secoes.getByRole('button', { name: /Conversas/ });
+  const contador = abaConversas.locator('.op-secoes__contador');
+  await expect(contador).toHaveText(/^\d+$/);
+  const pendentes = Number(await contador.textContent());
+  expect(pendentes).toBeGreaterThan(0);
+  await expect(abaConversas).toHaveAccessibleName(new RegExp(`Conversas: ${pendentes} conversas? esperando a equipe`));
+  await abaConversas.click();
+  await expect(page).toHaveURL(/\/admin\/operacao\?secao=atendimento/);
+  await expect(page.getByRole('list', { name: 'Conversas' })).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Filtrar conversas' }).getByRole('button', { name: /Pendentes/ }).locator('.contador')).toHaveText(String(pendentes));
+  await expect(contador).toHaveText(String(pendentes));
+  // Gestão do atendimento fica com a gerência: sem Campanhas; a base de conhecimento só para ler.
+  await expect(page.getByRole('button', { name: /Campanhas/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Base de conhecimento' })).toBeVisible();
+  // Link de conversa (sino, aviso, favorito) abre a conversa dentro do Modo Operação, nunca no painel administrativo.
+  await page.getByRole('list', { name: 'Conversas' }).getByRole('button').first().click();
+  await expect(page).toHaveURL(/conversa=/);
+  const id = new URL(page.url()).searchParams.get('conversa')!;
+  await page.goto(`${DEMO}/admin/atendimento?conversa=${id}`);
+  await expect(page).toHaveURL(new RegExp(`/admin/operacao\\?secao=atendimento&conversa=${id}`));
+  await expect(page.getByRole('navigation', { name: 'Módulos' })).toHaveCount(0);
+  await expect(page.getByRole('textbox', { name: 'Resposta' })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await secoes.getByRole('button', { name: /Ponto/ }).click();
   await expect(page).toHaveURL(/secao=ponto/);
   await expect(page.locator('iframe')).toHaveCount(0);

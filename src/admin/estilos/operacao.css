@@ -506,6 +506,22 @@ button.op-numero:hover {
 
 /* Celular ------------------------------------------------------------------------------------------------------------ */
 @media (max-width: 560px) {
+  /* Três seções (Conversas | Reservas | Ponto) dividem a largura: nenhuma sai da tela, o toque continua de 52 px. */
+  .op-secoes {
+    padding: var(--e-3) var(--e-3) 0;
+    gap: var(--e-1);
+  }
+  .op-secoes__item {
+    flex: 1 1 0;
+    min-width: 0;
+    justify-content: center;
+    gap: 4px;
+    padding: 0 var(--e-2);
+    font-size: var(--t-s);
+  }
+  .op-secoes__item svg {
+    display: none;
+  }
   .op-topo {
     grid-template-columns: auto 1fr auto;
     min-height: 60px;
@@ -620,6 +636,17 @@ button.op-numero:hover {
 button.op-secoes__item {
   font: inherit;
   cursor: pointer;
+}
+/* Contador de conversas esperando a equipe, na aba Conversas: legível no tablet e também na aba ativa. */
+.op-secoes__contador {
+  min-width: 24px;
+  height: 24px;
+  padding: 0 7px;
+  font-size: 13px;
+}
+.op-secoes__item[aria-current='page'] .op-secoes__contador {
+  background: var(--marca-contraste);
+  color: var(--marca);
 }
 
 /* Conversas dentro do Modo Operação: a caixa ocupa a altura que sobra abaixo do cabeçalho e das seções. */

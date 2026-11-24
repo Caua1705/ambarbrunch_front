@@ -112,8 +112,13 @@ O Modo Operação é o painel do **Atendente**: depois do login ele cai aqui (`/
 painel completo" leva a Reservas. As seções vêm de `src/admin/modulos/operacao/secoes.ts`; a escolhida fica na URL
 (`?secao=ponto`).
 
-- **Conversas**: atalho para o módulo Atendimento do painel (`/admin/atendimento`), com o módulo liberado em
-  `PAINEL_MODULOS`.
+- **Conversas**: o próprio módulo Atendimento do painel, aberto DENTRO do Modo Operação (`?secao=atendimento`; links
+  antigos `/admin/atendimento?conversa=…` caem aqui), com o módulo liberado em `PAINEL_MODULOS`. Saiu do Atendente em
+  15/11 e voltou em 23/11/2026 (`ATENDENTE_CONVERSAS` em `src/admin/lib/permissoes.ts` + `CONVERSAS` no perfil ATENDENTE
+  do backend; desligar exige os dois). A aba mostra o contador de conversas esperando a equipe
+  (`/admin/atendimento/resumo`, `por_estado.esperando`), relido a cada 30 s com a aba visível — a mesma consulta e o
+  mesmo cache da caixa, sem chamada duplicada. Campanhas, edição da base/cardápio, status comercial dos eventos e
+  cadastros duplicados seguem só com a gerência. Teste contra o backend real: `tests-tablet-real/conversas.spec.ts`.
 - **Reservas**: a agenda acima.
 - **Ponto**: o terminal **oficial** (`/ponto`, `src/islands/Ponto.tsx`) embutido num iframe da mesma origem
   (`TerminalPonto.tsx`, `allow="camera"`), com o botão "Reiniciar terminal". Aparece com o módulo `equipe` liberado e a
