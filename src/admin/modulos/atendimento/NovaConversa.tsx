@@ -3,6 +3,8 @@
 // dentro da janela de 24 h do cliente (409 fora_da_janela_24h). O backend normaliza o telefone (422 telefone_invalido),
 // reaproveita a conversa que já existir com aquele número e faz quem iniciou assumir a conversa.
 // Nunca mostra sucesso se a mensagem voltou com status "falhou": o erro da Meta aparece e a conversa abre com a falha à vista.
+// Aberta de uma conversa ("Enviar template", 25/11/2026): sem texto livre e sem escolha quando há um template só; a
+// gaveta já mostra a mensagem real (o retomada_atendimento) e o botão é a confirmação. Painel e tablet usam esta mesma.
 import { useEffect, useState } from 'preact/hooks';
 import { Search, Phone, MessageSquare, Send, UserRound } from 'lucide-preact';
 import { useConsulta, invalidar } from '../../lib/consulta';
@@ -13,7 +15,7 @@ import { Gaveta, avisar } from '../../ui/camadas';
 import { Botao, Campo, Segmentado, Aviso, Etiqueta } from '../../ui/base';
 import { Dados, Esqueleto } from '../../ui/estados';
 import type { ContatoBusca, NovaConversaEntrada, TemplateWhatsapp } from '../../lib/tipos/atendimento-clube';
-import { TEXTO_MAX, mensagemDeEnvio, origemContato, preencherTemplate, telefoneValido } from './comum';
+import { TEXTO_MAX, erroMetaLegivel, mensagemDeEnvio, origemContato, preencherTemplate, telefoneValido } from './comum';
 
 /** Quem já vem escolhido (a partir de uma conversa: o telefone dela). */
 export interface DestinoInicial {
@@ -60,9 +62,21 @@ export function NovaConversa({ aberta, inicial, aoFechar, aoAbrirConversa }: { a
 
   const lista = templates.dados ?? [];
   const semTemplates = templates.dados !== undefined && lista.length === 0;
-  const modoEfetivo = semTemplates ? 'texto' : modo;
+  // De uma conversa existente: só template (o texto livre fica na caixa da conversa, que já respeita as 24 h).
+  const deConversa = !!inicial.conversaId;
+  const modoEfetivo = deConversa ? 'template' : semTemplates ? 'texto' : modo;
   const modelo = lista.find((t) => t.nome === templateNome);
   const digitos = busca.replace(/\D/g, '');
+
+  // De uma conversa, a mensagem de retomada já vem escolhida: utilidade sem campos a preencher (ou o único da lista).
+  useEffect(() => {
+    if (!aberta || !deConversa || templateNome || !lista.length) return;
+    const sugerido = lista.find((t) => t.categoria === 'utilidade' && t.parametros.length === 0) ?? (lista.length === 1 ? lista[0] : undefined);
+    if (sugerido) {
+      setTemplateNome(sugerido.nome);
+      setParams(sugerido.parametros.map(() => ''));
+    }
+  }, [aberta, deConversa, templateNome, lista]);
 
   const escolherTemplate = (nome: string) => {
     setTemplateNome(nome);
@@ -74,6 +88,7 @@ export function NovaConversa({ aberta, inicial, aoFechar, aoAbrirConversa }: { a
     if (!destino) return 'Escolha o contato ou digite o telefone.';
     if (destino.tipo === 'telefone' && !telefoneValido(destino.telefone)) return 'Telefone com DDD (10 ou 11 dígitos).';
     if (modoEfetivo === 'template') {
+      if (semTemplates) return 'Nenhum template aprovado configurado no servidor.';
       if (!modelo) return 'Escolha o template.';
       if (params.some((p) => !p.trim())) return 'Preencha todos os campos do template.';
     } else if (!texto.trim()) return 'Escreva a mensagem.';
@@ -97,9 +112,9 @@ export function NovaConversa({ aberta, inicial, aoFechar, aoAbrirConversa }: { a
     try {
       const c = await atendimento.novaConversa(corpo);
       const ultima = [...c.mensagens].reverse().find((m) => m.direcao === 'saida' && m.autor === 'equipe');
-      if (ultima?.status === 'falhou') avisar(`A mensagem não saiu: ${ultima.erro ?? 'a Meta recusou o envio'}`, 'erro');
+      if (ultima?.status === 'falhou') avisar(`A mensagem não saiu: ${erroMetaLegivel(ultima.erro)}`, 'erro');
       else if (ultima?.status === 'pendente') avisar('Mensagem na fila de envio.', 'info');
-      else avisar('Mensagem enviada.', 'ok');
+      else avisar(deConversa ? 'Template enviado. A conversa volta ao normal quando o cliente responder.' : 'Mensagem enviada.', 'ok');
       aoAbrirConversa(c.id);
     } catch (err) {
       if (err instanceof ErroApi && err.codigo === 'telefone_invalido') setErroTelefone(mensagemDeEnvio(err));
@@ -117,11 +132,11 @@ export function NovaConversa({ aberta, inicial, aoFechar, aoAbrirConversa }: { a
       aoFechar={aoFechar}
       largura="media"
       titulo={inicial.telefone ? 'Enviar template' : 'Nova conversa'}
-      subtitulo="Pelo WhatsApp oficial do Âmbar. Quem inicia a conversa fica com ela."
+      subtitulo={deConversa ? 'Confira a mensagem e confirme. Sai pelo WhatsApp oficial do Âmbar.' : 'Pelo WhatsApp oficial do Âmbar. Quem inicia a conversa fica com ela.'}
       rodape={
         <>
           <Botao onClick={aoFechar} disabled={enviando}>Cancelar</Botao>
-          <Botao variante="primario" icone={<Send aria-hidden="true" />} carregando={enviando} disabled={!!faltando} title={faltando ?? undefined} onClick={() => enviar()}>Enviar</Botao>
+          <Botao variante="primario" icone={<Send aria-hidden="true" />} carregando={enviando} disabled={!!faltando} title={faltando ?? undefined} onClick={() => enviar()}>{deConversa ? 'Confirmar envio' : 'Enviar'}</Botao>
         </>
       }
     >
@@ -194,14 +209,27 @@ export function NovaConversa({ aberta, inicial, aoFechar, aoAbrirConversa }: { a
 
         <section class="pilha pilha--p" aria-label="Mensagem">
           <h3 class="secao-titulo">Mensagem</h3>
-          {templates.erro && templates.dados === undefined ? (
+          {deConversa ? (
+            templates.erro && templates.dados === undefined ? (
+              <Aviso tom="atencao">Não foi possível carregar os templates ({templates.erro.message}). Tente de novo ou ligue para o cliente.</Aviso>
+            ) : templates.dados === undefined ? (
+              <Esqueleto linhas={2} />
+            ) : semTemplates ? (
+              <Aviso tom="info">Nenhum template aprovado configurado no servidor. Ligue para o cliente.</Aviso>
+            ) : (
+              <>
+                <EscolhaTemplate lista={lista} modelo={modelo} params={params} ocultarEscolha={lista.length === 1} aoEscolher={escolherTemplate} aoMudarParam={(i, v) => setParams((p) => p.map((x, j) => (j === i ? v : x)))} />
+                <p class="fraco">Ao confirmar, esta mensagem sai para o cliente. A conversa fica com você, o assistente não responde e a resposta livre só volta quando o cliente responder.</p>
+              </>
+            )
+          ) : templates.erro && templates.dados === undefined ? (
             <Aviso tom="atencao">Não foi possível carregar os templates ({templates.erro.message}). Texto livre continua disponível.</Aviso>
           ) : semTemplates ? (
             <Aviso tom="info">Nenhum template aprovado configurado no servidor. Só dá para mandar texto livre, e só para quem escreveu nas últimas 24 h.</Aviso>
           ) : (
             <Segmentado rotulo="Tipo de mensagem" valor={modo} aoMudar={(m) => { setModo(m); setErro(null); }} opcoes={[{ valor: 'template', rotulo: 'Template aprovado' }, { valor: 'texto', rotulo: 'Texto livre' }]} />
           )}
-          {modoEfetivo === 'template' ? (
+          {deConversa ? null : modoEfetivo === 'template' ? (
             templates.dados === undefined && !templates.erro ? (
               <Esqueleto linhas={2} />
             ) : (
@@ -221,7 +249,7 @@ export function NovaConversa({ aberta, inicial, aoFechar, aoAbrirConversa }: { a
 }
 
 /** Escolha do template com um campo por parâmetro e a prévia do texto preenchida ao vivo. */
-export function EscolhaTemplate({ lista, modelo, params, aoEscolher, aoMudarParam, rotuloParametros }: {
+export function EscolhaTemplate({ lista, modelo, params, aoEscolher, aoMudarParam, rotuloParametros, ocultarEscolha }: {
   lista: TemplateWhatsapp[];
   modelo: TemplateWhatsapp | undefined;
   params: string[];
@@ -229,19 +257,23 @@ export function EscolhaTemplate({ lista, modelo, params, aoEscolher, aoMudarPara
   aoMudarParam: (i: number, v: string) => void;
   /** Texto de ajuda acima dos parâmetros (campanha: "iguais para todos"). */
   rotuloParametros?: string;
+  /** Um template só e já escolhido: sem a lista, só a prévia. */
+  ocultarEscolha?: boolean;
 }) {
   return (
     <div class="pilha pilha--p">
-      <Campo rotulo="Template">
-        {(id) => (
-          <select id={id} class="selecao" value={modelo?.nome ?? ''} onChange={(e) => aoEscolher(e.currentTarget.value)}>
-            <option value="" disabled>Escolha um template aprovado…</option>
-            {lista.map((t) => (
-              <option key={t.nome} value={t.nome}>{t.nome} · {t.categoria === 'marketing' ? 'Marketing' : 'Utilidade'}</option>
-            ))}
-          </select>
-        )}
-      </Campo>
+      {!(ocultarEscolha && modelo) && (
+        <Campo rotulo="Template">
+          {(id) => (
+            <select id={id} class="selecao" value={modelo?.nome ?? ''} onChange={(e) => aoEscolher(e.currentTarget.value)}>
+              <option value="" disabled>Escolha um template aprovado…</option>
+              {lista.map((t) => (
+                <option key={t.nome} value={t.nome}>{t.nome} · {t.categoria === 'marketing' ? 'Marketing' : 'Utilidade'}</option>
+              ))}
+            </select>
+          )}
+        </Campo>
+      )}
       {modelo && (
         <>
           {modelo.parametros.length > 0 && (

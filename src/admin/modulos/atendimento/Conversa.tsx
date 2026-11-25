@@ -21,7 +21,7 @@ import { Gaveta, Suspenso, avisar, avisarErro, type useConfirmacao } from '../..
 import { Botao, Situacao, Aviso, Etiqueta } from '../../ui/base';
 import { Esqueleto, Falha } from '../../ui/estados';
 import type { ConversaDetalhe, MensagemExterna, MensagemPainel } from '../../lib/tipos/atendimento-clube';
-import { ESTADO, TEXTO_MAX, motivoHumano, mensagemDeEnvio } from './comum';
+import { ESTADO, TEXTO_MAX, erroMetaLegivel, motivoHumano, mensagemDeEnvio } from './comum';
 import { Contato } from './Contato';
 import type { DestinoInicial } from './NovaConversa';
 import { FaixaEvento, FichaEvento, RegistrarEvento, useOpcoesEventos } from './Evento';
@@ -37,7 +37,7 @@ function comMensagem(e: unknown): never {
 /** A mensagem da equipe que acabou de sair voltou com falha? (nunca mostrar "enviada" quando não saiu) */
 function falhaDoEnvio(c: ConversaDetalhe): string | null {
   const ultima = [...c.mensagens].reverse().find((m) => m.direcao === 'saida' && m.autor === 'equipe');
-  return ultima?.status === 'falhou' ? ultima.erro ?? 'a Meta recusou o envio' : null;
+  return ultima?.status === 'falhou' ? erroMetaLegivel(ultima.erro) : null;
 }
 
 export function Conversa({ id, meuId, assistenteAtivo, eventos, podeMudarStatus, aoVoltar, aoEnviarTemplate, confirmar }: {
@@ -368,7 +368,7 @@ function Mensagem({ m }: { m: MensagemPainel }) {
         {saida && !falhou && SITUACAO_MSG[m.status] !== '' && <span title={tituloEnvio(m)}>{SITUACAO_MSG[m.status] ?? m.status}</span>}
         {falhou && (
           <span class="msg__falha">
-            <AlertCircle size={12} aria-hidden="true" /> {m.status === 'descartada' ? 'Não enviada (atendimento humano)' : `Falhou${m.erro ? `: ${m.erro}` : ''}`}
+            <AlertCircle size={12} aria-hidden="true" /> {m.status === 'descartada' ? 'Não enviada (atendimento humano)' : <span title={m.erro ?? undefined}>{`Falhou${m.erro ? `: ${erroMetaLegivel(m.erro)}` : ''}`}</span>}
           </span>
         )}
       </div>

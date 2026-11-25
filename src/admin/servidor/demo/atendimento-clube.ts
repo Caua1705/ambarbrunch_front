@@ -28,6 +28,8 @@ const ERRO_DEMO = 'Número sem WhatsApp ativo (131026) — demonstração';
 const TEMPLATES: TemplateWhatsapp[] = [
   { nome: 'boas_vindas_ambar', idioma: 'pt_BR', categoria: 'utilidade', parametros: ['Nome'], texto: 'Olá, {{1}}! Aqui é o Âmbar Café. Podemos ajudar com a sua reserva ou com alguma dúvida?' },
   { nome: 'novidades_brunch', idioma: 'pt_BR', categoria: 'marketing', parametros: ['Nome', 'Novidade'], texto: 'Oi, {{1}}! Novidade no Âmbar: {{2}}. Para não receber mais, responda PARAR.' },
+  // O de produção (aprovado na Meta em 25/11/2026): o que "Enviar template" de uma conversa vencida oferece.
+  { nome: 'retomada_atendimento', idioma: 'pt_BR', categoria: 'utilidade', parametros: [], texto: 'Oii! Estamos entrando em contato sobre sua solicitação anterior ao Âmbar Café. Podemos continuar seu atendimento por aqui?' },
 ];
 const previa = (t: TemplateWhatsapp, p: string[]) => t.texto.replace(/\{\{(\d+)\}\}/g, (x, n: string) => p[Number(n) - 1] ?? x);
 
@@ -570,6 +572,11 @@ const ROTAS_ATENDIMENTO: Rota[] = [
     const params = t ? conferirParametros(t, e.parametros) : [];
     const c = conversas.find((x) => x.telefone_e164 === tel) ?? novaConversaDemo(tel, nome, 'encerrada');
     if (nome && !c.nome_contato) c.nome_contato = nome;
+    // como o backend: o mesmo template não repete para quem ainda não respondeu (24 h no máximo)
+    const desde = Math.max(Date.now() - JANELA_MS, new Date(atualizar(c).ultima_entrada_em ?? 0).getTime());
+    if (t && c.mensagens.some((m) => m.direcao === 'saida' && m.template_nome === t.nome && m.status !== 'falhou' && m.status !== 'descartada' && new Date(m.criado_em).getTime() > desde)) {
+      throw new ErroDemo(409, 'template_ja_enviado', 'Este template já foi enviado a este cliente e ele ainda não respondeu. Aguarde a resposta (nada foi enviado de novo).');
+    }
     assumirDemo(c, papel, false);
     const u = usuarioDemo(papel);
     if (!t && !atualizar(c).dentro_da_janela) throw new ErroDemo(409, 'fora_da_janela_24h', 'Fora da janela de 24 h do cliente a Meta só aceita template aprovado.');

@@ -149,9 +149,36 @@ export function mensagemDeEnvio(e: unknown): string {
       return e.message || 'Telefone inválido. Confira o DDD e o número.';
     case 'template_indisponivel':
       return 'Este template não está entre os aprovados configurados no servidor.';
+    case 'template_ja_enviado':
+      return 'Este template já foi enviado e o cliente ainda não respondeu. Nada foi enviado de novo.';
     default:
       return e.message;
   }
+}
+
+/** Erros da Meta mais comuns no envio, em português (o código fica entre parênteses para o suporte). */
+const ERRO_META: Record<number, string> = {
+  131026: 'o número não tem WhatsApp ou não pode receber esta mensagem',
+  131047: 'passaram 24 h da última mensagem do cliente',
+  131049: 'a Meta limitou mensagens para este cliente agora; tente mais tarde',
+  131050: 'o cliente bloqueou mensagens desta empresa',
+  131056: 'muitas mensagens para este número em pouco tempo; aguarde alguns minutos',
+  130429: 'limite de envio do número atingido; aguarde alguns minutos',
+  132000: 'o número de campos não bate com o template aprovado',
+  132001: 'o template não existe na Meta com este nome e idioma',
+  132015: 'o template foi pausado pela Meta',
+  132016: 'o template foi desativado pela Meta',
+  131031: 'a conta do WhatsApp Business está bloqueada',
+  131042: 'pendência de pagamento na conta do WhatsApp Business',
+  190: 'o acesso do servidor à Meta expirou (token)',
+};
+
+/** "Meta 131026: Undeliverable" (envio) ou "meta 132015: Template is paused" (status) → frase legível. */
+export function erroMetaLegivel(erro: string | null | undefined): string {
+  if (!erro) return 'a Meta recusou o envio';
+  if (erro === 'fora_da_janela_24h') return ERRO_META[131047];
+  const codigo = Number(/^meta\s+(\d+)/i.exec(erro)?.[1]);
+  return ERRO_META[codigo] ? `${ERRO_META[codigo]} (${codigo})` : erro;
 }
 
 /** Chave da base de conhecimento a partir do tema: minúsculas, sem acento, `_` no lugar do resto (2 a 40 caracteres). */

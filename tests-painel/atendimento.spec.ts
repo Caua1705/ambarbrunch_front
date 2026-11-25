@@ -144,6 +144,49 @@ test('nova conversa: contato achado na busca com template; número sem WhatsApp 
   await expect(page.getByText('Mensagem enviada.')).toHaveCount(0);
 });
 
+test('conversa vencida: "Enviar template" mostra a retomada aprovada, confirma com um clique e não repete', async ({ page }) => {
+  // Tiago Moura: última mensagem do cliente há mais de 24 h. Atendente no tablet (Modo Operação).
+  await abrirAtendimento(page, 'operador');
+  await conversa(page, /Tiago Moura/).click();
+  await expect(page.getByText(/Passaram 24 h desde a última mensagem do cliente/)).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Resposta' })).toBeDisabled();
+  await page.locator('.conversa__resposta').getByRole('button', { name: 'Enviar template' }).click();
+  const g = page.getByRole('dialog', { name: 'Enviar template' });
+  // a mensagem real já vem escolhida, sem campos e sem texto livre (a demonstração tem 3 templates, por isso a lista
+  // aparece; com um só, como na produção, ela some)
+  await expect(g.getByRole('group', { name: 'Prévia da mensagem' })).toHaveText(/Oii! Estamos entrando em contato sobre sua solicitação anterior ao Âmbar Café\. Podemos continuar seu atendimento por aqui\?/);
+  await expect(g.getByLabel('Template')).toHaveValue('retomada_atendimento');
+  await expect(g.getByRole('textbox')).toHaveCount(0);
+  await expect(g.getByText('Texto livre')).toHaveCount(0);
+  await g.getByRole('button', { name: 'Confirmar envio' }).click();
+  await expect(page.getByText('Template enviado. A conversa volta ao normal quando o cliente responder.')).toBeVisible();
+  const ultima = page.locator('.mensagens .msg--saida').last();
+  await expect(ultima).toContainText('Podemos continuar seu atendimento por aqui?');
+  await expect(ultima.locator('.etiqueta', { hasText: 'Template' })).toBeVisible();
+  await expect(ultima).toContainText('Enviada');
+  // a janela não reabre com o template: a resposta livre continua bloqueada
+  await expect(page.getByRole('textbox', { name: 'Resposta' })).toBeDisabled();
+  // de novo, sem o cliente responder: recusado, nada sai
+  await page.locator('.conversa__resposta').getByRole('button', { name: 'Enviar template' }).click();
+  await g.getByRole('button', { name: 'Confirmar envio' }).click();
+  await expect(g.getByText('Este template já foi enviado e o cliente ainda não respondeu. Nada foi enviado de novo.')).toBeVisible();
+  await g.getByRole('button', { name: 'Cancelar' }).click();
+  await expect(page.locator('.mensagens .msg--saida', { hasText: 'Podemos continuar seu atendimento' })).toHaveCount(1);
+});
+
+test('Proprietário e Gerente também veem a retomada em "Enviar template"', async ({ page }) => {
+  for (const papel of ['admin', 'gerente'] as const) {
+    await abrirAtendimento(page, papel);
+    await conversa(page, /Marcos Sales/).click();
+    await page.getByRole('button', { name: 'Mais ações da conversa' }).click();
+    await page.getByRole('menuitem', { name: 'Enviar template' }).click();
+    const g = page.getByRole('dialog', { name: 'Enviar template' });
+    await expect(g.getByRole('group', { name: 'Prévia da mensagem' })).toContainText('Podemos continuar seu atendimento por aqui?');
+    await expect(g.getByRole('button', { name: 'Confirmar envio' })).toBeEnabled();
+    await g.getByRole('button', { name: 'Cancelar' }).click();
+  }
+});
+
 test('cardápio e capacidades: PDF vigente, catálogo com busca e só a gerência troca o PDF', async ({ page }) => {
   await abrirAtendimento(page, 'operador');
   await page.getByRole('button', { name: 'Cardápio', exact: true }).click();
