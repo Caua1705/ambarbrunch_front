@@ -690,3 +690,11 @@ test('Agrupamentos dentro de Despesas: uma linha consolidada que expande, sem so
   for (const p of [p1, p2]) expect((await page.request.get(`${API}/despesas/${p.despesa_id}`)).status()).toBe(200);
   expect((await page.request.get(`${API}/agrupamentos/${grupo.id}`)).status()).toBe(404);
 });
+
+test('Contas a pagar: sem "valor previsto" na linha nem "Dos quais previstos" no topo (18/11, dono)', async ({ page }) => {
+  await page.goto(`${DEMO}/admin/financeiro?aba=contas`);
+  const tabela = page.getByRole('table', { name: 'Contas a pagar' });
+  await expect(tabela.getByRole('row').nth(1)).toBeVisible();
+  await expect(page.getByText('Total a pagar')).toBeVisible();
+  await expect(page.locator('main')).not.toContainText(/previst/i);
+});

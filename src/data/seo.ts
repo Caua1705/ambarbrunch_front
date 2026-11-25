@@ -17,7 +17,7 @@ export const seo = {
   nomesAlternativos: ['Âmbar Café', 'Âmbar Brunch', 'Âmbar Café & Brunch'],
   /** Título e descrição da home: o que aparece no resultado do Google (com “cafeteria” e “brunch”, o que se busca). */
   titulo: 'Âmbar — cafeteria e brunch no Meireles, Fortaleza',
-  descricao: 'Cafeteria e brunch no Meireles, em Fortaleza: mesa cheia, café e os cinnamon rolls da Roll. Aberto de terça a domingo, das 07h às 19h. Reserve sua mesa pelo site.',
+  descricao: 'Cafeteria e brunch no Meireles, em Fortaleza: mesa cheia, café e os cinnamon rolls da Roll. Aberto de terça a domingo, das 07h30 às 18h. Reserve sua mesa pelo site.',
   endereco: {
     rua: visita.endereco,
     bairro: 'Meireles',
@@ -26,9 +26,9 @@ export const seo = {
     // CEP da Receita Federal (src/data/privacidade.ts, conferido em 29/10/2026)
     cep: '60160-130',
   },
-  // mesmo horário de visita.horarios (“Terça a domingo, 07h às 19h”; segunda fechado)
-  abre: '07:00',
-  fecha: '19:00',
+  // mesmo horário de visita.horarios (“Terça a domingo, 07h30 às 18h”; segunda fechado)
+  abre: '07:30',
+  fecha: '18:00',
   cozinha: ['Brunch', 'Cafeteria', 'Café', 'Cinnamon rolls'],
   /** Página da reserva (uma ação do Google “Reservar” pode apontar para cá). */
   reservar: `${SITE}/reservar/`,
